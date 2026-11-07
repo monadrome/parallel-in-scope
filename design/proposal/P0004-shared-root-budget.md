@@ -10,7 +10,7 @@
 
 ## 目标与论证
 
-依据：[MultiTaskContext](../../src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java)、
+依据：[MultiTaskContext](../../core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java)、
 [第一性原理](../first-principles.md)。嵌套调用已有 min deadline；缺口在多个独立 root。
 
 当前最稳妥的结构化写法是放进一个外层成员，然后让顺序步骤继承预算：

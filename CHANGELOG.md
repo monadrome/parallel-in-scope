@@ -8,7 +8,7 @@
 
 ### Breaking changes
 
-- Rename `SmartBlockingQueue` to `SubmissionAwareBlockingQueue` and `VariableLinkedBlockingQueue` to `ResizableBlockingQueue`. The queue admission, dynamic-capacity, and `DrainingBlockingQueue` contracts are unchanged; recompile consumers and update type references as described in the [v0.5 migration guide](docs/en/migration-v0.5.md).
+- Rename `SmartBlockingQueue` to `SubmissionAwareBlockingQueue` and `VariableLinkedBlockingQueue` to `ResizableBlockingQueue`. The queue admission, dynamic-capacity, and `DrainingBlockingQueue` contracts are unchanged. `DrainingBlockingQueue` and `ResizableBlockingQueue` now ship from `io.github.monadrome:blocking-queues` in `io.github.monadrome.queues`; update the dependency and imports as described in the [v0.5 migration guide](docs/en/migration-v0.5.md).
 
 
 ## [0.4.1] - 2026-11-07

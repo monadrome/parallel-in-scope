@@ -10,8 +10,8 @@
 
 ## 目标与论证
 
-依据：[同步出口契约](../synchronous-scope-exit.md)、[ExecutionExitTracker](../../src/main/java/io/github/monadrome/parallelinscope/ExecutionExitTracker.java)、
-[SynchronousExecutionTest](../../src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java)
+依据：[同步出口契约](../synchronous-scope-exit.md)、[ExecutionExitTracker](../../core/src/main/java/io/github/monadrome/parallelinscope/ExecutionExitTracker.java)、
+[SynchronousExecutionTest](../../core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java)
 的 `executionConfirmationDoesNotIncludeUnfinishedNestedChildren`。
 
 现行行为是明确且有测试保护的：父结果可以 SUCCESS 且 `executionExitConfirmed()==true`，

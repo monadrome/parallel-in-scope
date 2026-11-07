@@ -41,9 +41,10 @@ from typing import Iterable, Iterator, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = "src/main/java"
+SOURCE_DIRS = ("core/src/main/java", "blocking-queues/src/main/java")
 DEFAULT_UPSTREAM = "origin/dev/v0.4.0"
 # The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
-EXCLUDED_PREFIXES = ("io/github/monadrome/parallelinscope/queue/",)
+EXCLUDED_PREFIXES = ("io/github/monadrome/queues/", "io/github/monadrome/parallelinscope/queue/", "src/main/java/io/github/monadrome/parallelinscope/queue/")
 
 ACCESSOR_NAME = re.compile(r"(?:get|is)[A-Z][\w$]*")
 OVERRIDE = re.compile(r"@(?:\w+\.)*Override\b")
@@ -434,11 +435,25 @@ CHECKS = (check_accessors, check_messages, check_spelling, check_null_checks)
 def java_files(root: Path) -> list[tuple[str, Path]]:
     if not root.is_dir():
         raise CheckError(f"source root {root} is not a directory")
+    if root.name == "java" and root.parent.name in {"main", "test"}:
+        prefix = f"src/{root.parent.name}/java"
+        roots = [(prefix, root)]
+    else:
+        roots = [(source_root, root / source_root) for source_root in SOURCE_DIRS]
+        if not any(path.is_dir() for _, path in roots) and (root / SOURCE_DIR).is_dir():
+            roots = [(SOURCE_DIR, root / SOURCE_DIR)]
+        if not any(path.is_dir() for _, path in roots) and list(root.rglob("*.java")):
+            roots = [(SOURCE_DIR, root)]
     files = []
-    for path in sorted(root.rglob("*.java")):
-        relative = path.relative_to(root).as_posix()
-        if not relative.startswith(EXCLUDED_PREFIXES):
-            files.append((relative, path))
+    for prefix, source_root in roots:
+        if not source_root.is_dir():
+            continue
+        for path in sorted(source_root.rglob("*.java")):
+            relative_path = path.relative_to(source_root).as_posix()
+            relative = f"{prefix}/{relative_path}" if prefix else relative_path
+            if (not any(relative.startswith(excluded) for excluded in EXCLUDED_PREFIXES)
+                    and "/queue/" not in relative and "/queues/" not in relative):
+                files.append((relative, path))
     return files
 
 
@@ -460,6 +475,17 @@ def scan(root: Path) -> list[Violation]:
             raise CheckError(f"cannot read {path}: {error}") from error
         violations.extend(scan_text(relative, text))
     return violations
+
+
+def remap_base_paths(base: Iterable[Violation]) -> list[Violation]:
+    """Map the pre-reactor core source root onto its current module path."""
+    remapped = []
+    for violation in base:
+        path = violation.path
+        if path.startswith("src/main/java/"):
+            path = "core/" + path
+        remapped.append(dataclasses.replace(violation, path=path))
+    return remapped
 
 
 def new_violations(base: Iterable[Violation], head: Iterable[Violation]) -> list[Violation]:
@@ -489,13 +515,13 @@ def default_base() -> str:
 
 def extract_base(revision: str, target: Path) -> Path:
     commit = git("rev-parse", "--verify", f"{revision}^{{commit}}").decode().strip()
-    archive = git("archive", "--format=tar", commit, "--", SOURCE_DIR)
+    archive = git("archive", "--format=tar", commit)
     try:
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(target, filter="data")
     except (tarfile.TarError, OSError) as error:
-        raise CheckError(f"cannot extract {SOURCE_DIR} at {commit[:12]}: {error}") from error
-    return target / SOURCE_DIR
+        raise CheckError(f"cannot extract Java source roots at {commit[:12]}: {error}") from error
+    return target
 
 
 def revision_argument(value: str) -> str:
@@ -509,7 +535,7 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     base = parser.add_mutually_exclusive_group()
     base.add_argument("--base", type=revision_argument, help=f"base revision (default: merge base of {DEFAULT_UPSTREAM} and HEAD)")
     base.add_argument("--base-root", type=Path, help="base source root directory, instead of a git revision")
-    parser.add_argument("--head-root", type=Path, default=ROOT / SOURCE_DIR, help=f"head source root (default: {SOURCE_DIR})")
+    parser.add_argument("--head-root", type=Path, default=ROOT, help="repository root or one source root")
     return parser.parse_args(argv)
 
 
@@ -522,13 +548,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 base_root = extract_base(args.base or default_base(), Path(scratch))
             base = scan(base_root)
+            if args.head_root.resolve() == ROOT.resolve() and (ROOT / "core/src/main/java").is_dir():
+                base = remap_base_paths(base)
             head = scan(args.head_root)
     except CheckError as error:
         print(f"Java convention check could not run: {error}", file=sys.stderr)
         return 2
     found = new_violations(base, head)
     for violation in found:
-        print(f"{SOURCE_DIR}/{violation.path}:{violation.line}: {violation.rule}: {violation.message}")
+        print(f"{violation.path}:{violation.line}: {violation.rule}: {violation.message}")
     if found:
         print(f"{len(found)} new Java convention violation(s); see verification/java-conventions.md", file=sys.stderr)
         return 1

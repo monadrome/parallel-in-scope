@@ -77,24 +77,21 @@ Base package: `io.github.monadrome.parallelinscope`.
 | Package | Responsibility |
 |---|---|
 | root package | Public API and callbacks plus the package-private execution kernel |
-| `queue` | Independent general-purpose queue implementations |
+| `blocking-queues` module | Independent general-purpose queue implementations |
 
 The root package deliberately co-locates the public API with package-private cancellation,
 context, graph, and scheduling implementation. This is the Java 8 encapsulation boundary: do not
 reintroduce public bridge types or conceptual subpackages merely to categorize files.
 
-The `queue` package ships in this same artifact. Its artifact boundary is a settled decision
-(`adr/0006-queues-ship-with-core.md`): do not propose splitting it into a sibling artifact,
-privatizing it, or re-raising the boundary as an open question in reviews, defect triage, or
-refactor proposals. Treat it as part of this library's public product — the `queue` classes have
-their own contract (`design/draining-queue-contract.md`) and tests, and their defects are this
-repository's to fix.
+The standalone `blocking-queues` module publishes the general-purpose queue implementations as
+`io.github.monadrome:blocking-queues`. Its artifact boundary is defined by
+`adr/0013-standalone-blocking-queues-artifact.md`; it must not depend on the core module. The
+`SubmissionAwareBlockingQueue` adapter remains in the core root package because its admission
+semantics read `SubmissionScope` and `MultiTaskContext`.
 
-It is outside the core mechanism and outside default reading scope: skip it in repository-wide
-sweeps unless the task names queue behavior. Its tests still run in `mvn test`. Rules, including
-when the exclusion does not apply, are in
-`src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md`, which governs both queue
-directories.
+The queue module is outside the core mechanism and outside default reading scope: skip it in
+repository-wide sweeps unless the task names queue behavior. Its tests still run in `mvn test`.
+Rules are in `blocking-queues/AGENTS.md`.
 
 Two invariants to respect:
 
@@ -152,7 +149,7 @@ mechanisms, from no sharing down to hand-built protocols, lives in
 
 ## Key Conventions
 
-- Java 8 APIs only in `src/main/java`.
+- Java 8 APIs only in `core/src/main/java` and `blocking-queues/src/main/java`.
 - Declaration Javadoc states the contract its reader can rely on: purpose,
   inputs and results, nullability, exceptions, concurrency, cancellation, and
   lifecycle. This includes internal declarations. Public Javadoc must make sense
@@ -172,8 +169,8 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   or deleting a comment, preserve each distinct valid claim and correct claims
   that no longer match the code. Do not use comment count, density, or length
   as a deletion criterion or add mechanical gates for them. These rules apply
-  to library, tests, and demo; the queue package's JDK-port parity comments
-  remain governed by `queue/AGENTS.md`.
+  to library, tests, and demo; the standalone queue module's JDK-port parity comments
+  remain governed by `blocking-queues/AGENTS.md`.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
   Respelled public members need changelog and migration-guide entries. Preserve
@@ -493,9 +490,8 @@ Load documents when their subject affects the task:
   too; analysis committed at the user's request under `design/analysis/` is
   input, not contract.
   Current `design/` contracts take precedence over historical ADRs, except for
-  boundary questions an ADR closed outright — `adr/0006` holds the queue artifact
-  boundary (its retired `design/` companion is summarized in
-  `design/decision-log.md`). Its principle 10 decides where decision
+  boundary questions held by ADRs — `adr/0013` holds the current standalone queue
+  artifact boundary and supersedes `adr/0006`. Its principle 10 decides where decision
   rationale lands: ADR, a contract's rejected-alternatives section, or the decision log.
 - `design/decision-log.md` - Conclusions and rejection reasons of retired
   directions; read before reopening an old direction.

@@ -5,42 +5,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.monadrome</groupId>
-    <artifactId>parallel-in-scope</artifactId>
+    <artifactId>parallel-in-scope-parent</artifactId>
     <version>0.5.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
-    <name>parallel-in-scope</name>
-    <description>
-        parallel-in-scope — a structured concurrency toolkit for Java 8+ built on Guava ListenableFuture and TransmittableThreadLocal.
-    </description>
+    <name>parallel-in-scope parent</name>
+    <description>Build aggregator for parallel-in-scope and its standalone blocking queues</description>
     <url>https://github.com/monadrome/parallel-in-scope</url>
 
-    <scm>
-        <connection>scm:git:https://github.com/monadrome/parallel-in-scope.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/monadrome/parallel-in-scope.git</developerConnection>
-        <url>https://github.com/monadrome/parallel-in-scope</url>
-        <tag>HEAD</tag>
-    </scm>
-
-    <issueManagement>
-        <system>GitHub Issues</system>
-        <url>https://github.com/monadrome/parallel-in-scope/issues</url>
-    </issueManagement>
-
-    <licenses>
-        <license>
-            <name>Apache License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-        </license>
-    </licenses>
-
-    <developers>
-        <developer>
-            <id>monadrome</id>
-            <name>monadrome</name>
-            <url>https://github.com/monadrome</url>
-        </developer>
-    </developers>
+    <modules>
+        <module>blocking-queues</module>
+        <module>core</module>
+    </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -49,34 +25,18 @@
         <guava.version>33.7.2-jre</guava.version>
         <ttl.version>2.14.5</ttl.version>
         <junit-jupiter.version>6.1.3</junit-jupiter.version>
-        <lincheck.version>3.7</lincheck.version>
-        <mockito.version>5.24.0</mockito.version>
-        <byte-buddy.version>1.17.7</byte-buddy.version>
         <assertj.version>3.27.7</assertj.version>
         <awaitility.version>4.3.0</awaitility.version>
         <jspecify.version>1.0.1</jspecify.version>
         <errorprone.version>2.50.0</errorprone.version>
         <nullaway.version>0.14.2</nullaway.version>
+        <byte-buddy.version>1.17.7</byte-buddy.version>
         <spotbugs.version>4.10.5.0</spotbugs.version>
-        <!-- PIT-style override: an inline <threshold> would shadow this user property. -->
         <spotbugs.threshold>High</spotbugs.threshold>
-
-        <!-- PIT run defaults live here, not as inline plugin <configuration>. An
-             explicit configuration value shadows the parameter's user property, so
-             inline values would make `-DtargetClasses` / `-DtargetTests` /
-             `-Dmutators` no-ops; as project properties they are the descriptor
-             defaults and stay overridable. -->
-        <targetClasses>io.github.monadrome.parallelinscope.*</targetClasses>
-        <targetTests>io.github.monadrome.parallelinscope.*</targetTests>
-        <mutators>CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS</mutators>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Lincheck 3.7 brings ByteBuddy 1.14.12, which does not know the JDK 25
-                 class-file version and breaks Mockito's inline mock maker on the shared
-                 test classpath. Pin the version Mockito 5.24 declares so both tools use
-                 a JDK 25-aware ByteBuddy; it stays test-only through their scopes. -->
             <dependency>
                 <groupId>net.bytebuddy</groupId>
                 <artifactId>byte-buddy</artifactId>
@@ -90,342 +50,35 @@
         </dependencies>
     </dependencyManagement>
 
-    <dependencies>
-        <!-- Core: Guava (ListenableFuture, Graph, etc.) -->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
-
-        <!-- Core: TransmittableThreadLocal -->
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>transmittable-thread-local</artifactId>
-            <version>${ttl.version}</version>
-        </dependency>
-
-        <!-- Nullability annotations: JSpecify (compile scope per JSpecify guidance —
-             annotations appear in public API signatures and downstream NullAway/Kotlin/
-             IntelliJ must read them; also transitively provided by Guava) -->
-        <dependency>
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
-            <version>${jspecify.version}</version>
-        </dependency>
-
-        <!-- Test: JUnit 6. Its test runtime requires Java 17; the build JDK is 25
-             while the published library bytecode remains release 8. -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit-jupiter.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Test: Lincheck explores interleavings for cancellation races that a repeated
-             stress test can miss. Test scope only; its Kotlin/ByteBuddy dependencies never
-             reach the published artifact. Lincheck 3.7 is Java 8 bytecode but runs on the
-             build JDK 25 test runtime. -->
-        <dependency>
-            <groupId>org.jetbrains.lincheck</groupId>
-            <artifactId>lincheck</artifactId>
-            <version>${lincheck.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Test: Mockito -->
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Test: AssertJ -->
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <version>${assertj.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Test: Awaitility -->
-        <dependency>
-            <groupId>org.awaitility</groupId>
-            <artifactId>awaitility</artifactId>
-            <version>${awaitility.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.16.0</version>
-                <configuration>
-                    <release>${java.release}</release>
-                    <testRelease>${maven.compiler.testRelease}</testRelease>
-                    <!-- Error Prone + NullAway: null errors fail the build at compile time.
-                         OnlyNullMarked restricts checking to @NullMarked packages.
-                         javac internal packages are opened via .mvn/jvm.config. -->
-                    <compilerArgs>
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true -Xep:MustBeClosedChecker:WARN</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${errorprone.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.uber.nullaway</groupId>
-                            <artifactId>nullaway</artifactId>
-                            <version>${nullaway.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.7.0</version>
-                <executions>
-                    <execution>
-                        <id>enforce-jdk-25-plus</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <!-- Error Prone/NullAway run on the build JDK; the bytecode
-                                     target stays at release 8. -->
-                                <requireJavaVersion>
-                                    <version>[25,)</version>
-                                    <message>Error Prone/NullAway requires building on JDK 25 (LTS); the artifact still targets Java 8 bytecode via release=${java.release}.</message>
-                                </requireJavaVersion>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.6.1</version>
-                <configuration>
-                    <!-- Lincheck instruments the test JVM with its own agent. If Mockito's
-                         inline mock maker has already transformed the same reused JVM, the
-                         two agents interfere: Lincheck's snapshot tracker walks Mockito's
-                         dispatcher and hits JDK module access errors. Run Lincheck classes
-                         in a fresh fork that never loads Mockito. -->
-                    <excludes>
-                        <exclude>**/*LincheckTest.java</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>lincheck-test</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <configuration>
-                            <includes>
-                                <include>**/*LincheckTest.java</include>
-                            </includes>
-                            <excludes combine.self="override"/>
-                            <reuseForks>false</reuseForks>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Code formatting: `mvn spotless:apply` formats all sources -->
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>3.10.4</version>
                 <configuration>
                     <java>
-                        <palantirJavaFormat>
-                            <version>2.97.0</version>
-                        </palantirJavaFormat>
+                        <palantirJavaFormat><version>2.97.0</version></palantirJavaFormat>
                     </java>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-                <version>3.2.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.2.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.12.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                    <waitUntil>published</waitUntil>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.4.0</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.12.0</version>
-                <configuration>
-                    <source>${java.release}</source>
-                    <failOnWarnings>false</failOnWarnings>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.7.0</version>
+                    <configuration>
+                        <rules>
+                            <requireJavaVersion>
+                                <version>[25,)</version>
+                                <message>Error Prone/NullAway requires building on JDK 25 (LTS); artifacts still target release 8.</message>
+                            </requireJavaVersion>
+                        </rules>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
-
-    <profiles>
-        <!-- Opt-in static audit. Error Prone/NullAway already gate the default build, so
-             SpotBugs is not part of `mvn verify`; it covers detector families Error Prone
-             does not implement (cross-thread field access, annotation/contract mismatch).
-             The High threshold keeps the gate on its strongest findings; run with
-             -Dspotbugs.threshold=Low for the full report. See verification/spotbugs.md. -->
-        <profile>
-            <id>spotbugs</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.github.spotbugs</groupId>
-                        <artifactId>spotbugs-maven-plugin</artifactId>
-                        <version>${spotbugs.version}</version>
-                        <configuration>
-                            <effort>Max</effort>
-                            <threshold>${spotbugs.threshold}</threshold>
-                            <excludeFilterFile>verification/spotbugs-exclude.xml</excludeFilterFile>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>spotbugs-check</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>check</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>pitest</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.pitest</groupId>
-                        <artifactId>pitest-maven</artifactId>
-                        <version>1.30.1</version>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.pitest</groupId>
-                                <artifactId>pitest-junit5-plugin</artifactId>
-                                <version>1.2.3</version>
-                            </dependency>
-                        </dependencies>
-                        <configuration>
-                            <!-- No testPlugin parameter: it was removed from pitest-maven and the
-                                 junit5 plugin is auto-detected from the plugin dependency above. -->
-                            <!-- targetClasses / targetTests / mutators come from the
-                                 same-named project properties so their user properties can
-                                 override them; see <properties>. -->
-                            <!-- Demonstration programs are executable examples, not library
-                                 contract code; keep them out of the mutation score denominator. -->
-                            <excludedClasses>
-                                <param>io.github.monadrome.parallelinscope.queue.*Demo*</param>
-                            </excludedClasses>
-                            <!-- Lincheck attaches its own instrumentation agent and must not run
-                                 inside PIT's instrumented worker. Surefire's exclude does not
-                                 constrain PIT's targetTests discovery, so exclude it here too. -->
-                            <excludedTestClasses>
-                                <param>*LincheckTest</param>
-                            </excludedTestClasses>
-                            <outputFormats>
-                                <param>HTML</param>
-                                <param>XML</param>
-                            </outputFormats>
-                            <threads>8</threads>
-                            <!-- The default mutator set is the `mutators` project property.
-                                 It replaces PIT's default set, omitting VOID_METHOD_CALLS
-                                 (VoidMethodCallMutator mostly produces equivalent mutants on
-                                 concurrent queue code: Monitor.enter/leave/signal removals that
-                                 do not alter observable single-threaded behavior). A core-targeted
-                                 run restores it with an explicit -Dmutators override; see
-                                 AGENTS.md "Adversarial Review". -->
-                            <!-- Shutdown-contract mutants can release several independent waiters;
-                                 keep the per-mutation timeout above their combined bounded waits. -->
-                            <timeoutConstant>60000</timeoutConstant>
-                            <timeoutFactor>1.25</timeoutFactor>
-                            <!-- Coverage-phase timeout is not configurable in pitest-maven 1.30.1;
-                                 the parameter this once set (coverageTimeout) no longer exists and
-                                 was silently ignored. -->
-                            <timestampedReports>false</timestampedReports>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.8</version>
-                        <configuration>
-                            <gpgArguments>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

@@ -23,7 +23,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 | 包名 | 说明 |
 |------|------|
 | `io.github.monadrome.parallelinscope` | 核心 API、协作取消和监听回调 |
-| `io.github.monadrome.parallelinscope.queue` | 独立的通用队列实现 |
+| `io.github.monadrome.queues` | 独立的通用队列实现 |
 
 执行内核与公开 API 同在根包，但内核类是 package-private，外部消费者无法编译依赖。
 旧的 `.scope` / `.cancel` / `.context` / `.internal` / `.spi` / `.control` 包已移除。

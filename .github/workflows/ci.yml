@@ -93,7 +93,7 @@ jobs:
         run: mvn -B -ntp clean install
 
       - name: Verify library bytecode targets Java 8
-        run: python3 scripts/check-java-bytecode.py target/classes --release 8
+        run: python3 scripts/check-java-bytecode.py core/target/classes --release 8
 
       - name: Verify registered race claims
         timeout-minutes: 30
@@ -128,7 +128,7 @@ jobs:
           (cd "$RUNNER_TEMP/api-base" && mvn -B -ntp -Dmaven.test.skip=true compile)
           python3 scripts/check-api-surface.py \
             --base-classes "$RUNNER_TEMP/api-base/target/classes" \
-            --head-classes target/classes \
+            --head-classes core/target/classes \
             --base "$BASE"
 
       - name: Upload build test reports

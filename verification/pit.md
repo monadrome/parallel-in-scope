@@ -30,7 +30,7 @@ A broader core run selects the production classes directly in the root package
 and their relevant root-package tests. Enumerate these from the source directories
 without recursively adding the independent queue package. The POM's default
 package wildcard can include subpackages: do not use it as an implicit core-only
-scope. Queue changes follow their own [instructions](../src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md);
+scope. Queue changes follow their own [instructions](../blocking-queues/AGENTS.md);
 unrelated changes do not require a queue sweep.
 
 Use focused runs during iteration. Before accepting a cross-cutting change, run

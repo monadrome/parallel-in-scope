@@ -10,7 +10,7 @@
 
 ## 目标与论证
 
-[TaskBatchResult](../../src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java)
+[TaskBatchResult](../../core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java)
 用 `orThrow()` 作为聚合失败闸门，完整统计只在 `outcomeCounts()` 被请求时构造。
 失败检查与值收集的取舍见 [同步出口契约](../synchronous-scope-exit.md)。
 
