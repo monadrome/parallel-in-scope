@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import java.util.Objects;
@@ -46,7 +48,7 @@ final class ScopedCallable<V> implements Callable<V> {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
             // the delegate is released only after call() returns (releaseDelegate in finally)
-            return callTimed(Objects.requireNonNull(delegate));
+            return callTimed(checkNotNull(delegate));
         } finally {
             // delegate.call() has returned, so the user task code's finally has exited: release the
             // one-way holder before publishing execution exit, and a waiter that observes EXITED never

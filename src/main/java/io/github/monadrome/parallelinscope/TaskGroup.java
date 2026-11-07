@@ -1385,6 +1385,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /** Re-asserts the combiner's two-parameter shape after the declaration layer erased it. */
     @SuppressWarnings("unchecked")
     private static Combiner<Object, Object> castCombiner(@Nullable Combiner<?, ?> combiner) {
-        return (Combiner<Object, Object>) Objects.requireNonNull(combiner, "combiner cannot be null");
+        return (Combiner<Object, Object>) checkNotNull(combiner, "combiner cannot be null");
     }
 }

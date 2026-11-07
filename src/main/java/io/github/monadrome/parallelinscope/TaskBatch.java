@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Maps.toImmutableEnumMap;
 
 import com.google.common.base.Joiner;
@@ -58,7 +59,7 @@ final class TaskBatch<T> implements AutoCloseable {
             @Nullable Duration closeGrace) {
         this.submitCanceller = submitCanceller != null ? submitCanceller : Futures.immediateVoidFuture();
         this.results = ImmutableList.copyOf(results);
-        this.executionExit = Objects.requireNonNull(executionExit, "executionExit cannot be null");
+        this.executionExit = checkNotNull(executionExit, "executionExit cannot be null");
         this.token = token;
         this.closeGrace = closeGrace;
         ImmutableList.Builder<ListenableFuture<TaskCompletion<T>>> observations =
