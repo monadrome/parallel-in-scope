@@ -1,0 +1,19 @@
+ledger/2026-11-06-four-way-immediate-result-fold.json
+  s_0e78eb08bf975c::t_0bc33d9117498d 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2c26aa709d771ee2f7d65d23a778b1db9c1e5e64",
+  "prompts": {},
+  "sessions": {
+    "s_0e78eb08bf975c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b440-e180-70a3-b802-2e05b81decda",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
