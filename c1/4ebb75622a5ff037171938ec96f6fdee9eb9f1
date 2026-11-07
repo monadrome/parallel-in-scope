@@ -1,0 +1,24 @@
+scripts/complexity_metrics.py
+  s_ce73de3a0acc3d::t_7c0459bb1751d1 104-105,114-115,244-260,295-296
+scripts/tests/test_refactoring_review.py
+  s_ce73de3a0acc3d::t_8f095814caeeb6 226-243,389-403
+  s_ce73de3a0acc3d::t_670b98231fe8a9 404-413
+scripts/refactoring-review.py
+  s_ce73de3a0acc3d::t_7c0459bb1751d1 125-133,139,443,478-494,500-501
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c14ebb75622a5ff037171938ec96f6fdee9eb9f1",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
