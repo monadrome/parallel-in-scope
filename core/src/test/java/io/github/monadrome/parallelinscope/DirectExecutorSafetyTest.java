@@ -216,7 +216,7 @@ class DirectExecutorSafetyTest {
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
         try {
-            TaskGroup<?, ?> group = runtime.groupDraft("g", Duration.ofSeconds(5))
+            TaskGroup<?> group = runtime.groupDraft("g", Duration.ofSeconds(5))
                     .par(TaskKey.<String>named("a"), runtime.par(ParId.of("d")), TaskOptions.inheritTimeout(), () -> {
                         Thread.currentThread().interrupt();
                         return "a";

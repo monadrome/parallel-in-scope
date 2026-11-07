@@ -34,14 +34,13 @@ class TaskGroupValuesFutureTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
+        try (TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                 .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                 .par(TaskKey.<Integer>named("count"), global.par(ParId.of("worker")), () -> 41)
                 .submitAll()) {
-            GroupValues<Tuple2<String, Integer>> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
+            GroupValues values = group.valuesFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(values.size()).isEqualTo(2);
-            assertThat(values.typedValues()).isEqualTo(Tuple2.of("alice", 41));
             assertThat(values.valueAt(0)).isEqualTo("alice");
             assertThat(values.valueOf("count")).isEqualTo(41);
             // The values view names its slots in declaration order when printed, which is what a
@@ -64,7 +63,7 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("boom");
-        try (TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+        try (TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                 .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                     throw boom;
                 })
@@ -89,7 +88,7 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch secondSettled = new CountDownLatch(1);
-        TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
+        TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                 .par(TaskKey.<String>named("first"), global.par(ParId.of("worker")), () -> {
                     // Two workers, so this one blocks while the member declared after it finishes.
                     if (!secondSettled.await(10, TimeUnit.SECONDS)) {
@@ -107,11 +106,12 @@ class TaskGroupValuesFutureTest {
             assertThat(group.futureOf(KEY_SECOND_INTEGER).get(5, TimeUnit.SECONDS))
                     .isEqualTo(42);
             secondSettled.countDown();
-            GroupValues<Tuple2<String, Integer>> values = group.valuesFuture().get(5, TimeUnit.SECONDS);
+            GroupValues values = group.valuesFuture().get(5, TimeUnit.SECONDS);
 
             assertThat(values.valueAt(0)).isEqualTo("declared-first");
             assertThat(values.valueOf("second")).isEqualTo(42);
-            assertThat(values.typedValues()).isEqualTo(Tuple2.of("declared-first", 42));
+            assertThat(values.valueAt(0)).isEqualTo("declared-first");
+            assertThat(values.valueAt(1)).isEqualTo(42);
         } finally {
             secondSettled.countDown();
             group.close();
@@ -126,9 +126,9 @@ class TaskGroupValuesFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("combine boom");
-        try (TaskGroup<String, String> group = global.groupDraft("page", TIMEOUT)
+        try (TaskGroup<String> group = global.groupDraft("page", TIMEOUT)
                 .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
-                .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
+                .combineValues(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                     throw boom;
                 })
                 .submitAll()) {
@@ -157,7 +157,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -185,7 +185,7 @@ class TaskGroupValuesFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", Duration.ofMillis(150))
+            TaskGroup<Void> group = global.groupDraft("page", Duration.ofMillis(150))
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         release.await(10, TimeUnit.SECONDS);
                         return "late";
@@ -208,11 +208,11 @@ class TaskGroupValuesFutureTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Void, Void> group = global.groupDraft("empty", TIMEOUT).submitAll()) {
-            GroupValues<Void> values = group.valuesFuture().get(2, TimeUnit.SECONDS);
+        try (TaskGroup<Void> group = global.groupDraft("empty", TIMEOUT).submitAll()) {
+            GroupValues values = group.valuesFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(values.size()).isZero();
-            assertThat(values.typedValues()).isNull();
+            assertThat(values.size()).isZero();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
@@ -229,7 +229,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -249,8 +249,7 @@ class TaskGroupValuesFutureTest {
             assertThat(group.valuesFuture().cancel(true)).isFalse();
             release.countDown();
 
-            assertThat(group.valuesFuture().get(2, TimeUnit.SECONDS).typedValues())
-                    .isEqualTo("value");
+            assertThat(group.valuesFuture().get(2, TimeUnit.SECONDS).valueAt(0)).isEqualTo("value");
         } finally {
             release.countDown();
             global.close();
@@ -266,7 +265,7 @@ class TaskGroupValuesFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -287,8 +286,7 @@ class TaskGroupValuesFutureTest {
 
             // The value is published before the listeners run, so both facts must hold: the values
             // are readable, and convergence still publishes the completion future.
-            assertThat(group.valuesFuture().get(2, TimeUnit.SECONDS).typedValues())
-                    .isEqualTo("value");
+            assertThat(group.valuesFuture().get(2, TimeUnit.SECONDS).valueAt(0)).isEqualTo("value");
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {

@@ -84,13 +84,13 @@ class TaskGroupCombineGuardCancellationTest {
             }
             AtomicBoolean executionRan = new AtomicBoolean();
             try {
-                TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+                TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
                                 TaskKey.<String>named("a"),
                                 runtime.par(ParId.of("m")),
                                 TaskOptions.inheritTimeout(),
                                 () -> "a")
-                        .combine(
+                        .combineValues(
                                 TaskKey.<String>named("sum"),
                                 runtime.par(ParId.of("c")),
                                 TaskOptions.inheritTimeout().rejectEnqueue(true),
@@ -150,7 +150,7 @@ class TaskGroupCombineGuardCancellationTest {
             CountDownLatch memberGate = new CountDownLatch(1);
             AtomicBoolean executionRan = new AtomicBoolean();
             try {
-                TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+                TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                         .par(
                                 TaskKey.<String>named("a"),
                                 runtime.par(ParId.of("m")),
@@ -161,7 +161,7 @@ class TaskGroupCombineGuardCancellationTest {
                                     memberGate.await(20, TimeUnit.SECONDS);
                                     return "a";
                                 })
-                        .combine(
+                        .combineValues(
                                 TaskKey.<String>named("sum"),
                                 runtime.par(ParId.of("c")),
                                 TaskOptions.inheritTimeout().rejectEnqueue(true),

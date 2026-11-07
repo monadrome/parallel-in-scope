@@ -8,7 +8,6 @@ import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,7 +100,7 @@ class GroupDraftContractTest {
             Par local = first.par(ParId.of("worker"));
             assertThatThrownBy(() -> first.groupDraft("page", TIMEOUT)
                             .par(KEY_USER_STRING, local, () -> "x")
-                            .combine(TaskKey.<String>named("assemble"), foreign, values -> "x"))
+                            .combineValues(TaskKey.<String>named("assemble"), foreign, values -> "x"))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
             first.close();
@@ -136,7 +135,7 @@ class GroupDraftContractTest {
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> global.groupDraft("page", TIMEOUT)
                             .par(KEY_USER_STRING, par, () -> "x")
-                            .combine(KEY_USER_STRING, par, values -> "x"))
+                            .combineValues(KEY_USER_STRING, par, values -> "x"))
                     .isInstanceOf(IllegalArgumentException.class);
         } finally {
             global.close();
@@ -150,12 +149,12 @@ class GroupDraftContractTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         Par par = global.par(ParId.of("worker"));
-        try (TaskGroup<Tuple2<String, Integer>, List<String>> group = global.groupDraft("page", TIMEOUT)
+        try (TaskGroup<List<String>> group = global.groupDraft("page", TIMEOUT)
                 .par(KEY_USER_STRING, par, () -> "alice")
                 .par(KEY_COUNT_INTEGER, par, () -> 41)
                 .combine(TaskKey.<List<String>>named("assemble"), par, values -> {
-                    Tuple2<String, Integer> members = Objects.requireNonNull(values);
-                    return Arrays.asList(members.first(), String.valueOf(members.second()));
+                    return Arrays.asList(
+                            values.valueOf(KEY_USER_STRING), String.valueOf(values.valueOf(KEY_COUNT_INTEGER)));
                 })
                 .submitAll()) {
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -205,15 +204,14 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<String, Integer>, Long> group = global.groupDraft("page", TIMEOUT)
+        try (TaskGroup<Long> group = global.groupDraft("page", TIMEOUT)
                 .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> "alice")
                 .par(KEY_COUNT_INTEGER, global.par(ParId.of("worker")), () -> 2)
-                .combine(TaskKey.<Long>named("assemble"), global.par(ParId.of("worker")), values -> 1L)
+                .combineValues(TaskKey.<Long>named("assemble"), global.par(ParId.of("worker")), values -> 1L)
                 .submitAll()) {
             // The values view is a snapshot of data, not a live handle onto the run: it holds no
             // callable, no future, no token and no execution context.
             assertNoExecutableFields(GroupValues.class);
-            assertNoExecutableFields(Tuple2.class);
             assertThat(group.groupName()).isEqualTo("page");
         } finally {
             global.close();
@@ -228,7 +226,7 @@ class GroupDraftContractTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try (TaskGroup<Tuple2<Tuple2<String, Integer>, Boolean>, Void> group = global.groupDraft("page", TIMEOUT)
+        try (TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                 .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> "alice")
                 .par(KEY_COUNT_INTEGER, global.par(ParId.of("worker")), () -> 41)
                 .par(TaskKey.<Boolean>named("flag"), global.par(ParId.of("worker")), () -> true)
@@ -258,14 +256,13 @@ class GroupDraftContractTest {
         try {
             Par par = global.par(ParId.of("worker"));
             Par foreignPar = foreign.par(ParId.of("worker"));
-            GroupDraft.Step<String> step =
-                    global.groupDraft("page", TIMEOUT).par(TaskKey.<String>named("one"), par, () -> "1");
+            GroupDraft.Step step = global.groupDraft("page", TIMEOUT).par(TaskKey.<String>named("one"), par, () -> "1");
 
             // Rejected on the foreign Par — the draft must be left exactly as it was.
             assertThatThrownBy(() -> step.par(TaskKey.<Integer>named("two"), foreignPar, () -> 2))
                     .isInstanceOf(IllegalArgumentException.class);
             // The stage never advanced, so the name was never taken: the retry has to succeed.
-            GroupDraft.Step<Tuple2<String, Integer>> accepted = step.par(TaskKey.<Integer>named("two"), par, () -> 2);
+            GroupDraft.Step accepted = step.par(TaskKey.<Integer>named("two"), par, () -> 2);
             assertThat(accepted).isNotNull();
         } finally {
             global.close();
@@ -285,15 +282,15 @@ class GroupDraftContractTest {
         try {
             Par par = global.par(ParId.of("worker"));
             GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
-            GroupDraft.Step<String> step = start.par(TaskKey.<String>named("one"), par, () -> "1");
+            GroupDraft.Step step = start.par(TaskKey.<String>named("one"), par, () -> "1");
             // Advance past both earlier stages so they are genuinely stale, not merely unused.
-            GroupDraft.Step<Tuple2<String, Integer>> advanced = step.par(TaskKey.<Integer>named("two"), par, () -> 2);
+            GroupDraft.Step advanced = step.par(TaskKey.<Integer>named("two"), par, () -> 2);
 
             assertThatThrownBy(() -> step.par((TaskKey<Integer>) null, par, () -> 3))
                     .isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> start.par((TaskKey<Integer>) null, par, () -> 4))
                     .isInstanceOf(IllegalStateException.class);
-            assertThatThrownBy(() -> step.combine((TaskKey<String>) null, par, values -> "x"))
+            assertThatThrownBy(() -> step.combineValues((TaskKey<String>) null, par, values -> "x"))
                     .isInstanceOf(IllegalStateException.class);
             // On a live stage the null argument is what is reported.
             assertThatThrownBy(() -> advanced.par((TaskKey<String>) null, par, () -> "x"))
@@ -309,9 +306,8 @@ class GroupDraftContractTest {
      * declared type is itself an executable or run-state type.
      *
      * <p>The check is on declared types, not on runtime contents, so a field declared {@code Object}
-     * — which is what an erased type parameter compiles to, as in {@link GroupValues#typedValues()}
-     * — is not a violation: the class holds an opaque value, not an executable object it knows how
-     * to run.
+     * is not a violation: the class holds an opaque value, not an executable object it knows how to
+     * run.
      */
     private static void assertNoExecutableFields(Class<?> type) {
         for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {

@@ -228,8 +228,9 @@ for (TaskCompletion<T> event : batch.completions()) {
 ### 5.5 重试
 
 ```java
+TaskKey<Result> flaky = TaskKey.named("flaky");
 global.group("retry", Duration.ofSeconds(5))
-        .par(TaskKey.<Result>named("flaky"), httpPar, () -> {
+        .par(flaky, httpPar, () -> {
             for (int attempt = 1; ; attempt++) {
                 Checkpoints.checkpoint();        // 协作式取消：已取消则在此抛出（R5）
                 try {
@@ -240,8 +241,8 @@ global.group("retry", Duration.ofSeconds(5))
             }
         })
         .runAll()
-        .valuesOrThrow()             // 未声明 combine：读单成员值，而非 terminalValueOrThrow()
-        .typedValues();
+        .valuesOrThrow()             // 未声明 combine：读成员快照，而非 terminalValueOrThrow()
+        .valueOf(flaky);
 ```
 
 ## 6. TTL 包装器检测（已落地，见下方落地记录）

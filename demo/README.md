@@ -64,7 +64,7 @@ demo (消费者) → parallel-in-scope (发布版本)
 ### 包访问限制
 
 **允许访问**：
-- `io.github.monadrome.parallelinscope` (ParRuntime, Par, BatchOptions, TaskBatchResult, TaskGroupResult, ImmediateResult, GroupStart, GroupStep, GroupValues, Tuple2)
+- `io.github.monadrome.parallelinscope` (ParRuntime, Par, BatchOptions, TaskBatchResult, TaskGroupResult, ImmediateResult, GroupStart, GroupStep, GroupValues)
 - `io.github.monadrome.queues` (independent general-purpose queues)
 
 Cancellation, context, graph, and scheduling internals are package-private in the root package, so

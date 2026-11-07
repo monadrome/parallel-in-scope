@@ -156,7 +156,7 @@ class ExecutionExitBarrierInterruptTest {
         try (ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("p"), pool).build()) {
             CountDownLatch release = new CountDownLatch(1);
-            TaskGroup<String, Void> group = runtime.groupDraft("g", Duration.ofSeconds(30))
+            TaskGroup<Void> group = runtime.groupDraft("g", Duration.ofSeconds(30))
                     .par(TaskKey.<String>named("member"), runtime.par(ParId.of("p")), () -> {
                         release.await();
                         return "done";

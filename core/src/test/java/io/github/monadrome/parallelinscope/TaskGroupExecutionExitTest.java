@@ -60,7 +60,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch closeReturned = new CountDownLatch(1);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("close-waits", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("close-waits", TIMEOUT)
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
@@ -103,7 +103,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch executionExited = new CountDownLatch(1);
         try {
             // No closeGrace configured: the wait budget is the remaining deadline at close time.
-            TaskGroup<Integer, Void> group = global.groupDraft("derived", Duration.ofMillis(300))
+            TaskGroup<Void> group = global.groupDraft("derived", Duration.ofMillis(300))
                     .par(
                             TaskKey.<Integer>named("ignoring"),
                             global.par(ParId.of("worker")),
@@ -150,7 +150,7 @@ class TaskGroupExecutionExitTest {
         try {
             // Duration.ofSeconds(Long.MAX_VALUE) overflows toNanos(); close() must saturate the
             // grace and keep waiting for the execution to exit instead of failing or skipping the wait.
-            TaskGroup<Integer, Void> group = global.groupDraft("astronomic-grace", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("astronomic-grace", TIMEOUT)
                     .closeGrace(Duration.ofSeconds(Long.MAX_VALUE))
                     .par(TaskKey.<Integer>named("ignoring"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
@@ -190,7 +190,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch executionExited = new CountDownLatch(1);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("exhausted", Duration.ofMillis(300))
+            TaskGroup<Void> group = global.groupDraft("exhausted", Duration.ofMillis(300))
                     .closeGrace(Duration.ofMillis(400))
                     .par(
                             TaskKey.<Integer>named("ignoring"),
@@ -239,7 +239,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch executionExited = new CountDownLatch(1);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("zero-grace", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("zero-grace", TIMEOUT)
                     .closeGrace(Duration.ZERO)
                     .par(TaskKey.<Integer>named("ignoring"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
@@ -296,7 +296,7 @@ class TaskGroupExecutionExitTest {
         };
         groupLogger.addHandler(capture);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("warn-visible", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("warn-visible", TIMEOUT)
                     .closeGrace(Duration.ofMillis(200))
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
@@ -333,7 +333,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("interrupted-entry", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("interrupted-entry", TIMEOUT)
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
@@ -371,7 +371,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("await-contract", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("await-contract", TIMEOUT)
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -423,7 +423,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch waiting = new CountDownLatch(1);
         AtomicReference<Throwable> outcome = new AtomicReference<>();
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("mid-wait", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("mid-wait", TIMEOUT)
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         awaitIgnoringInterrupt(release);
@@ -458,12 +458,12 @@ class TaskGroupExecutionExitTest {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        AtomicReference<TaskGroup<Integer, ?>> groupRef = new AtomicReference<>();
+        AtomicReference<TaskGroup<?>> groupRef = new AtomicReference<>();
         CountDownLatch groupReady = new CountDownLatch(1);
         AtomicReference<Throwable> awaitFailure = new AtomicReference<>();
         AtomicReference<Throwable> closeFailure = new AtomicReference<>();
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("self-await", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("self-await", TIMEOUT)
                     .par(TaskKey.<Integer>named("self"), global.par(ParId.of("worker")), () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         try {
@@ -500,10 +500,10 @@ class TaskGroupExecutionExitTest {
                 .register(ParId.of("worker"), executor)
                 .register(ParId.of("direct"), direct)
                 .build();
-        AtomicReference<TaskGroup<String, ?>> groupRef = new AtomicReference<>();
+        AtomicReference<TaskGroup<?>> groupRef = new AtomicReference<>();
         CountDownLatch groupReady = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("nested-guard", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("nested-guard", TIMEOUT)
                     .par(KEY_OUTER_STRING, global.par(ParId.of("worker")), () -> {
                         groupReady.await(5, TimeUnit.SECONDS);
                         // The inner task's executor is a direct executor service, so it runs inline
@@ -545,7 +545,7 @@ class TaskGroupExecutionExitTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("observation", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("observation", TIMEOUT)
                     .par(KEY_QUICK_INTEGER, global.par(ParId.of("worker")), () -> 1)
                     .submitAll();
 
@@ -589,13 +589,13 @@ class TaskGroupExecutionExitTest {
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger combineRuns = new AtomicInteger();
         try {
-            TaskGroup<Integer, String> group = global.groupDraft("combine-cancel", TIMEOUT)
+            TaskGroup<String> group = global.groupDraft("combine-cancel", TIMEOUT)
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);
                         return 1;
                     })
-                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
+                    .combineValues(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         combineRuns.incrementAndGet();
                         return "combined";
                     })
@@ -621,9 +621,10 @@ class TaskGroupExecutionExitTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroup<Integer, String> group = global.groupDraft("combine-ok", TIMEOUT)
+            TaskGroup<String> group = global.groupDraft("combine-ok", TIMEOUT)
                     .par(TaskKey.<Integer>named("value"), global.par(ParId.of("worker")), () -> 40)
-                    .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> "combined")
+                    .combineValues(
+                            TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> "combined")
                     .submitAll();
 
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
@@ -647,7 +648,7 @@ class TaskGroupExecutionExitTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroup<Void, Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
+            TaskGroup<Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             group.close();
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
@@ -667,7 +668,7 @@ class TaskGroupExecutionExitTest {
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger trueResults = new AtomicInteger();
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("multi-waiter", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("multi-waiter", TIMEOUT)
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -711,7 +712,7 @@ class TaskGroupExecutionExitTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         int[] writes = new int[2];
         try {
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("visibility", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("visibility", TIMEOUT)
                     .par(TaskKey.<Integer>named("first"), global.par(ParId.of("worker")), () -> {
                         writes[0] = 1;
                         return 1;

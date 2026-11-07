@@ -38,7 +38,7 @@ class BusinessFailureAttributionTest {
             CountDownLatch siblingStarted = new CountDownLatch(1);
             TimeoutException businessFailure = new TimeoutException("business-level timeout");
 
-            TaskGroupResult<Tuple2<Integer, Integer>, Void> result = global.group("load", Duration.ofSeconds(30))
+            TaskGroupResult<Void> result = global.group("load", Duration.ofSeconds(30))
                     .par(TaskKey.<Integer>named("failing"), global.par(ParId.of("worker")), () -> {
                         // Wait until the sibling is mid-flight so the cascade reaches a running execution.
                         assertThat(siblingStarted.await(30, TimeUnit.SECONDS)).isTrue();
@@ -71,10 +71,10 @@ class BusinessFailureAttributionTest {
         try {
             TimeoutException businessFailure = new TimeoutException("business-level timeout");
 
-            TaskGroupResult<Tuple2<Integer, Integer>, Integer> result = global.group("load", Duration.ofSeconds(30))
+            TaskGroupResult<Integer> result = global.group("load", Duration.ofSeconds(30))
                     .par(TaskKey.<Integer>named("left"), global.par(ParId.of("worker")), () -> 1)
                     .par(TaskKey.<Integer>named("right"), global.par(ParId.of("worker")), () -> 2)
-                    .combine(TaskKey.<Integer>named("join"), global.par(ParId.of("worker")), values -> {
+                    .combineValues(TaskKey.<Integer>named("join"), global.par(ParId.of("worker")), values -> {
                         throw businessFailure;
                     })
                     .runAll();

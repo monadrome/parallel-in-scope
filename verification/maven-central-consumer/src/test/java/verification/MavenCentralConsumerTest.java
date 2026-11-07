@@ -15,7 +15,6 @@ import io.github.monadrome.parallelinscope.TaskKey;
 import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskType;
-import io.github.monadrome.parallelinscope.Tuple2;
 import io.github.monadrome.parallelinscope.WorkloadFitReport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -50,7 +49,7 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try (ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build()) {
             Par par = runtime.par(CONSUMER);
-            TaskGroupResult<Tuple2<String, List<Integer>>, Integer> result = runtime.group("keys", Duration.ofSeconds(5))
+            TaskGroupResult<Integer> result = runtime.group("keys", Duration.ofSeconds(5))
                     .par(user, par, () -> "alice")
                     .par(orders, par, () -> Arrays.asList(2, 3))
                     .combineValues(total, par, values -> values.valueOf(orders).stream().mapToInt(Integer::intValue).sum())
@@ -76,15 +75,15 @@ class MavenCentralConsumerTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try (ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build()) {
             Par par = runtime.par(CONSUMER);
-            TaskGroupResult<Tuple2<String, String>, String> success = runtime.group("adopted", Duration.ofSeconds(5))
+            TaskGroupResult<String> success = runtime.group("adopted", Duration.ofSeconds(5))
                     .adopt(ready, Futures.immediateFuture("a"))
                     .adopt(pending, par, Futures.immediateFuture("b"))
-                    .combine(joined, par, values -> values.first() + values.second())
+                    .combineValues(joined, par, values -> values.valueOf(ready) + values.valueOf(pending))
                     .runAll();
             assertEquals("ab", success.terminalValueOrThrow());
 
             SettableFuture<String> never = SettableFuture.create();
-            TaskGroupResult<?, Void> failed = runtime.group("adopted-failure", Duration.ofSeconds(5))
+            TaskGroupResult<Void> failed = runtime.group("adopted-failure", Duration.ofSeconds(5))
                     .adopt(ready, Futures.immediateFuture("a"))
                     .adopt(pending, never)
                     .par(failing, par, () -> {
@@ -169,10 +168,8 @@ class MavenCentralConsumerTest {
     }
 
     /**
-     * Exercises the deepest generic inference the public API asks of a consumer: a three-member
-     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose execution
-     * destructures that nest inside a lambda, and typed lookups. This runs under a real JDK 8
-     * compiler in CI, which is where the nesting is most likely to break.
+     * Exercises a four-member Java 8 consumer using keyed member reads. The public group type does
+     * not grow with member count, and the terminal combine never destructures a nested tuple.
      */
     @Test
     void publishedArtifactExposesTheOneShotGroupChain() throws Exception {
@@ -180,29 +177,32 @@ class MavenCentralConsumerTest {
         ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
             Par par = runtime.par(CONSUMER);
-            TaskGroupResult<Tuple2<Tuple2<String, List<String>>, Integer>, String> group = runtime
+            TaskKey<String> user = TaskKey.named("user");
+            TaskKey<List<String>> names = TaskKey.named("names");
+            TaskKey<Integer> count = TaskKey.named("count");
+            TaskKey<Boolean> ready = TaskKey.named("ready");
+            TaskKey<String> summary = TaskKey.named("summary");
+            TaskGroupResult<String> group = runtime
                     .group("consumer-group", Duration.ofSeconds(5))
-                    .par(TaskKey.<String>named("user"), par, () -> "alice")
-                    .par(TaskKey.<List<String>>named("names"), par, () -> Arrays.asList("a", "b"))
-                    .par(TaskKey.<Integer>named("count"), par, () -> 2)
-                    .combine(TaskKey.<String>named("summary"), par, values -> values.first().first() + ":"
-                                    + values.first().second().size() + ":"
-                                    + values.second())
+                    .par(user, par, () -> "alice")
+                    .par(names, par, () -> Arrays.asList("a", "b"))
+                    .par(count, par, () -> 2)
+                    .par(ready, par, () -> true)
+                    .combineValues(summary, par, values -> values.valueOf(user) + ":"
+                                    + values.valueOf(names).size() + ":"
+                                    + values.valueOf(count) + ":"
+                                    + values.valueOf(ready))
                     .runAll();
 
-                GroupValues<Tuple2<Tuple2<String, List<String>>, Integer>> values =
+                GroupValues values =
                         group.valuesOrThrow();
-                Tuple2<Tuple2<String, List<String>>, Integer> typed = values.typedValues();
-                assertEquals("alice", typed.first().first());
-                assertEquals(Arrays.asList("a", "b"), typed.first().second());
-                assertEquals(Integer.valueOf(2), typed.second());
 
-                assertEquals(3, values.size());
-                assertEquals("alice", values.valueOf("user"));
+                assertEquals(4, values.size());
+                assertEquals("alice", values.valueOf(user));
                 assertEquals(Arrays.asList("a", "b"), values.valueAt(1));
-                assertEquals("alice", group.resultOf("user").valueOrThrow());
+                assertEquals("alice", group.resultOf(user).valueOrThrow());
                 assertEquals(
-                        "alice:2:2",
+                        "alice:2:2:true",
                         group.terminalValueOrThrow());
                 assertEquals(TaskOutcome.SUCCESS, group.outcome());
         } finally {
@@ -217,14 +217,18 @@ class MavenCentralConsumerTest {
         ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
             Par par = runtime.par(CONSUMER);
-            TaskGroupResult<Tuple2<String, Integer>, String> result = runtime
+            TaskKey<String> user = TaskKey.named("user");
+            TaskKey<Integer> count = TaskKey.named("count");
+            TaskKey<String> summary = TaskKey.named("summary");
+            TaskGroupResult<String> result = runtime
                     .group("class-options", Duration.ofSeconds(5))
-                    .par(TaskKey.<String>named("user"), par, TaskOptions.timeout(Duration.ofSeconds(2)), () -> "alice")
-                    .par(TaskKey.<Integer>named("count"), par, TaskOptions.inheritTimeout(), () -> 2)
-                    .combine(TaskKey.<String>named("summary"), par, TaskOptions.inheritTimeout(), values -> values.first() + ":" + values.second())
+                    .par(user, par, TaskOptions.timeout(Duration.ofSeconds(2)), () -> "alice")
+                    .par(count, par, TaskOptions.inheritTimeout(), () -> 2)
+                    .combineValues(summary, par, TaskOptions.inheritTimeout(), values -> values.valueOf(user) + ":" + values.valueOf(count))
                     .runAll();
 
-            assertEquals(Tuple2.of("alice", 2), result.valuesOrThrow().typedValues());
+            assertEquals("alice", result.valuesOrThrow().valueOf(user));
+            assertEquals(Integer.valueOf(2), result.valuesOrThrow().valueOf(count));
             assertEquals("alice:2", result.terminalValueOrThrow());
             assertEquals(TaskOutcome.SUCCESS, result.outcome());
         } finally {

@@ -65,7 +65,7 @@ class TaskGroupCombineInlineGuardTest {
         }
         AtomicReference<String> combineThread = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
@@ -76,7 +76,7 @@ class TaskGroupCombineInlineGuardTest {
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "b")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             // rejectEnqueue is requested so the queue refuses the combine and the
@@ -131,13 +131,13 @@ class TaskGroupCombineInlineGuardTest {
             });
         }
         try {
-            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "a")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout().rejectEnqueue(true),
@@ -169,13 +169,13 @@ class TaskGroupCombineInlineGuardTest {
             // Same pool, same CallerRunsPolicy, nothing occupying it. This is the case a
             // detect-the-policy-and-refuse design would have broken: the guarantee is never actually
             // violated here, so the combine must run normally.
-            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "a")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout(),
@@ -210,13 +210,13 @@ class TaskGroupCombineInlineGuardTest {
             // and Combiner documents it as an accepted exception. The guard must leave it alone:
             // it is scoped to ThreadPoolExecutor, where inline execution can only come from a
             // rejection handler.
-            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "a")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("direct")),
                             TaskOptions.inheritTimeout(),
@@ -248,7 +248,7 @@ class TaskGroupCombineInlineGuardTest {
                 ParRuntime.builder().register(ParId.of("s"), shared).build();
         AtomicReference<String> combineThread = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("g", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("s")),
@@ -259,7 +259,7 @@ class TaskGroupCombineInlineGuardTest {
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),
                             () -> "b")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("s")),
                             TaskOptions.inheritTimeout(),

@@ -46,7 +46,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskOutcome",
             BASE_PACKAGE + ".TaskType",
             BASE_PACKAGE + ".TaskUnit",
-            BASE_PACKAGE + ".Tuple2",
             BASE_PACKAGE + ".WorkloadFitReport",
             // Nested types are named with the binary '$' separator; the visibility of a nested
             // type is part of the API just like a top-level one, so it is pinned here too.

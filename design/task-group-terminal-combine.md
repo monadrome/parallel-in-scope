@@ -50,24 +50,28 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 ## 4. API
 
-类型化 key 与 `combineValues` 的输入选择见
-[组声明契约 §4.1](group-one-shot-api-refactor-codex.md#41-类型化声明键)。它只参数化同一个
-prepared terminal 的输入组装，下面的准备、join、取消、TTL 与拒绝规则对两种输入一致。
+类型化 key 与 `GroupValues` 的输入选择见
+[组声明契约 §4.1](group-one-shot-api-refactor-codex.md#41-类型化声明键)。`combineValues` 只是把
+按 key 读取意图写入方法名；它与 `combine` 共享同一个 prepared terminal，下面的准备、join、取消、
+TTL 与拒绝规则完全一致。
 
 combine 在链尾声明：`GroupStep.combine(key, par, [options,] taskCode)` 返回
 `CombinedGroupStep`，其上只有 `runAll()`——不能再声明 `par` 或第二个 combine（编译期排除，
 对过期 step 引用的重复调用由草稿阶段守卫在运行期拒绝）。combine 执行是
-`Combiner<V, R>`，直接接收普通成员的值视图 `V`（单成员为值本身，多成员为左嵌套
-`Tuple2`，分量可为 null）：
+`Combiner<GroupValues, R>`，通过声明时的 `TaskKey` 读取普通成员的值：
 
 ```java
-TaskGroupResult<Tuple2<Tuple2<User, List<Order>>, Inventory>, AccountPage> result =
+TaskKey<User> user = TaskKey.named("user");
+TaskKey<List<Order>> orders = TaskKey.named("orders");
+TaskKey<Inventory> inventory = TaskKey.named("inventory");
+TaskKey<AccountPage> page = TaskKey.named("assemble-page");
+TaskGroupResult<AccountPage> result =
         runtime.group("account-page", Duration.ofSeconds(3))
-                .par(TaskKey.<User>named("user"), databasePar, () -> users.load(request.userId()))
-                .par(TaskKey.<List<Order>>named("orders"), httpPar, () -> orderClient.load())
-                .par(TaskKey.<Inventory>named("inventory"), inventoryPar, () -> inventoryClient.load())
-                .combine(TaskKey.<AccountPage>named("assemble-page"), cpuPar, values -> new AccountPage(
-                                values.first().first(), values.first().second(), values.second()))
+                .par(user, databasePar, () -> users.load(request.userId()))
+                .par(orders, httpPar, () -> orderClient.load())
+                .par(inventory, inventoryPar, () -> inventoryClient.load())
+                .combine(page, cpuPar, values -> new AccountPage(
+                                values.valueOf(user), values.valueOf(orders), values.valueOf(inventory)))
                 .runAll();
 AccountPage page = result.terminalValueOrThrow();
 ```
@@ -89,7 +93,7 @@ AccountPage page = result.terminalValueOrThrow();
 - 声明期校验与 member 对称：参数为 null、名称为 null/空白或与任一 member 重复，立即拒绝；
   executor 在声明期直接收已解析的 `Par`（owner-bound）；选项可省略，等价于
   `TaskOptions.inheritTimeout()`；
-- terminal 结果经 `TaskGroupResult<V, R>` 表达：值用 `terminalResult()`/
+- terminal 结果经 `TaskGroupResult<R>` 表达：值用 `terminalResult()`/
   `terminalValueOrThrow()`，观测快照用 `terminal()`（@Nullable，无 combine 时为 null）；
   `members()` 保持只含普通 member；
 - `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用
@@ -106,7 +110,8 @@ AccountPage page = result.terminalValueOrThrow();
 
 ## 5. 成员值视图契约
 
-- combine 执行接收声明顺序的 `V`：单成员为值本身，多成员为左嵌套 `Tuple2`；分量可为 null；
+- combine 执行接收按声明顺序保存成员的 `GroupValues`；成功成员值可以为 null，空组不会声明
+  terminal combine；
 - 读取不阻塞：combine 运行时所有 member 已成功；
 - 类型安全由声明与读取共享的 `TaskKey<T>` 承担，不做结果的运行期类型校验；
   按名/按位置的事后查询返回未类型化结果，原 key 查询返回类型化结果；
@@ -206,7 +211,8 @@ member C ──┘
 缺点：
 
 1. **概念增多。** 用户要区分 member、完成观测和 combine；仅做观测或分别消费结果时，combine 没有价值。
-2. **Java 8 泛型不够自然。** 左嵌套 `Tuple2` 读取比二元或三元函数冗长，但比 `Map<String, Object>` 更安全；语言本身无法自动从异构声明推导 lambda 参数列表。
+2. **Java 8 泛型不够自然。** 异构成员不能自动推导成多参数 lambda；`GroupValues.valueOf(TaskKey)`
+   把类型绑定到声明 key，动态名称/位置读取则保留为 `Object`。
 3. **失败面扩大。** 组装成为可失败、拒绝、取消、超时的任务，结果、指标、测试和文档都要扩展。
 4. **额外一次调度。** 显式 executor 避免污染最后完成 member 的线程（禁用 inline fallback 后这一点是保证而非选择），但对纯字段拼装带来排队和上下文切换开销。
 5. **端到端预算更紧。** member 用掉大部分 deadline 后，combine 可能尚未开始即超时；这是正确的端到端语义，但需清晰告知用户。

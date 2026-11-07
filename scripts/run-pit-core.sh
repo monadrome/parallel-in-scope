@@ -82,7 +82,7 @@ mutators="CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_
 batch_classes() {
   case "$1" in
     A)
-      printf '%s' "$package.TaskId*,$package.ParId*,$package.TaskKey*,$package.TaskType*,$package.TaskTypeMismatches*,$package.TaskOutcome*,$package.ExecutionPhase,$package.Tuple2*,$package.UnitSpec*,$package.Validation*,$package.BatchOptions*,$package.TaskOptions*,$package.ImmediateResult*,$package.TaskObservation*,$package.ExecutorWaitReport*,$package.ParRuntimeSnapshot*,$package.WorkloadFitReport*,$package.ThreadPoolStarvationReport*,$package.WorkloadClock*,$package.ExecutorIdentity*"
+      printf '%s' "$package.TaskId*,$package.ParId*,$package.TaskKey*,$package.TaskType*,$package.TaskTypeMismatches*,$package.TaskOutcome*,$package.ExecutionPhase,$package.UnitSpec*,$package.Validation*,$package.BatchOptions*,$package.TaskOptions*,$package.ImmediateResult*,$package.TaskObservation*,$package.ExecutorWaitReport*,$package.ParRuntimeSnapshot*,$package.WorkloadFitReport*,$package.ThreadPoolStarvationReport*,$package.WorkloadClock*,$package.ExecutorIdentity*"
       ;;
     B)
       printf '%s' "$package.CancellationToken*,$package.Deadlines*,$package.LeanCancellationException*,$package.TokenOutcomes*,$package.TaskExecutionState*,$package.ExecutionExitTracker*,$package.ExecutionPhaseHintFuture*,$package.TaskFuture,$package.TaskCompletion*"

@@ -129,7 +129,7 @@ class ExplicitDeadlineSaturationTest {
         CountDownLatch slowEntered = new CountDownLatch(1);
         CountDownLatch slowExited = new CountDownLatch(1);
 
-        TaskGroupResult<?, ?> group = runtime.group("astronomic-group", timeout)
+        TaskGroupResult<?> group = runtime.group("astronomic-group", timeout)
                 .par(TaskKey.<Integer>named("failing"), par, () -> {
                     Uninterruptibles.awaitUninterruptibly(slowEntered);
                     throw new IllegalStateException("fail fast");

@@ -178,18 +178,23 @@ Saved stale stages, repeated execution, foreign Pars, and duplicate names are re
 Only the draft's creating thread may execute it.
 
 ```java
-TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .closeGrace(Duration.ofSeconds(1))
-        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
-        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
-        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> buildProfile(values.first(), values.second()))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .combineValues(profileKey, httpPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
 
-Without a combine, `runAll().valuesOrThrow().typedValues()` gives the single member's value or a
-left-nested `Tuple2`. An empty group's values have size zero and typed value null.
+Without a combine, `runAll().valuesOrThrow()` returns the immutable keyed member snapshot. Use
+`valueOf(TaskKey)` for typed reads; an empty group has size zero.
 `groupInheriting(name)` uses the enclosing task's deadline at execution; outside a task it fails.
 Optional member/combine `TaskOptions` can shorten deadlines. A member timeout cancels its group.
 The terminal combine runs only after every member succeeds and has its own scoped execution and TTL
@@ -198,7 +203,7 @@ direct executor remains supported.
 
 ```java
 TaskKey<User> userKey = TaskKey.named("user");
-TaskGroupResult<User, Void> one = global.group("user", Duration.ofSeconds(2))
+TaskGroupResult<Void> one = global.group("user", Duration.ofSeconds(2))
         .par(userKey, databasePar, () -> loadUser(userId))
         .runAll();
 ImmediateResult<User> user = one.resultOf(userKey);
@@ -216,7 +221,7 @@ TaskKey<User> userKey = TaskKey.named("user");
 TaskKey<Account> accountKey = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
 
-TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
         .par(accountKey, httpPar, () -> loadAccount(userId))
@@ -240,10 +245,9 @@ each run keeps separate results and fresh execution IDs.
 combine's terminal container, including failures and cancellations. The combine is excluded from
 `GroupValues`, the name-based member results, and member positions.
 
-`combineValues` receives the member-value view instead of the nested tuple; it uses the same
-deadline, cancellation, TTL capture, executor checks, and success-gated terminal submission as
-`combine`. For tuple input, use `combine(key, par, taskCode)`. Both forms accept explicit `TaskOptions`
-before the execution. Existing name/type declarations and tuple reads remain supported.
+`combine` and `combineValues` receive the same keyed member-value view and use the same deadline,
+cancellation, TTL capture, executor checks, and success-gated terminal submission. `combineValues` is
+the explicit spelling for code that wants to make the keyed input visible at the call site.
 
 `terminalResult()` is null only when no combine was declared; a successful null combine has a
 present container. `valuesOrThrow()`, `terminalValueOrThrow()`, and `orThrow()` follow the rule
@@ -251,9 +255,9 @@ every aggregate result shares: rethrow unchecked failures, wrap checked failures
 CompletionException, and throw CancellationException for pure cancellation. A failed combine also fails aggregated member
 values; individual successful member results remain readable.
 
-Inside the combiner, a single member that succeeded with null delivers null `values`; with two
-or more members `values` is a `Tuple2` that is never null itself, though any component may be. A
-combine that returns null is a successful combine, so an execution may be written as `values -> null`.
+Inside `combineValues`, `values` is always a non-null snapshot for a non-empty group. Individual
+member reads may be null. A combine that returns null is still a successful combine, so an execution
+may be written as `values -> null`.
 
 ### Three or more members
 
@@ -266,7 +270,7 @@ TaskKey<Account> accountKey = TaskKey.named("account");
 TaskKey<Order> orderKey = TaskKey.named("order");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
 
-TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
         .par(accountKey, httpPar, () -> loadAccount(userId))
@@ -279,30 +283,25 @@ TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
 Profile profile = result.terminalValueOrThrow();
 ```
 
-The assembled member type still widens by one left-nested `Tuple2` per member — the result's `V` is
-`Tuple2<Tuple2<User, Account>, Order>` here — but with `combineValues` that shape stays inside the
-declaration. For tuple input, `combine(key, par, taskCode)` receives the assembled `V` directly, so
-inside a three-member tuple combine `values` is `Tuple2<Tuple2<A, B>, C>`, read with
-`first()`/`second()`:
+The public result type no longer widens with member count. `GroupValues` keeps declaration order and
+the exact key identities, so adding or reordering members does not change the type of the chain:
 
 ```java
-TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
         .par(accountKey, httpPar, () -> loadAccount(userId))
         .par(orderKey, httpPar, () -> loadOrder(userId))
-        .combine(profileKey, httpPar, values -> new Profile(
-                values.first().first(),
-                values.first().second(),
-                values.second()))
+        .combineValues(profileKey, httpPar, values -> new Profile(
+                values.valueOf(userKey),
+                values.valueOf(accountKey),
+                values.valueOf(orderKey)))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
 
-`GroupValues.valueOf(name)` reads the same slots by member name when neither the key object nor
-positional access is convenient. As members accumulate, have the combine emit the flattened object
-immediately rather than passing the nested `Tuple2` out: the nesting is a declaration artifact, and
-callers downstream should not have to rebuild the member order to read a value.
+`GroupValues.valueOf(name)` reads the same slots by member name when the key object is not
+convenient. It returns a dynamic `Object`; use the declaration key for compile-time type safety.
 
 ### Adopt futures already in flight {#adopted-futures}
 
@@ -316,11 +315,12 @@ TaskKey<Profile> profileKey = TaskKey.named("profile");
 TaskKey<Orders> ordersKey = TaskKey.named("orders");
 TaskKey<Page> pageKey = TaskKey.named("page");
 
-TaskGroupResult<Tuple2<Profile, Orders>, Page> result = global
+TaskGroupResult<Page> result = global
         .group("page", Duration.ofSeconds(2))
         .adopt(profileKey, client.getProfile())
         .adopt(ordersKey, client.getOrders())
-        .combine(pageKey, cpuPar, both -> render(both.first(), both.second()))
+        .combineValues(pageKey, cpuPar, values -> render(
+                values.valueOf(profileKey), values.valueOf(ordersKey)))
         .runAll();
 ```
 
@@ -452,7 +452,7 @@ warning is emitted. A terminal result is not proof that resources were released.
 Place task-local resources inside the execution:
 
 ```java
-TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2))
+TaskGroupResult<Void> result = global.group("read", Duration.ofSeconds(2))
         .closeGrace(Duration.ofSeconds(1))
         .par(TaskKey.<String>named("read"), databasePar, () -> {
             try (Reader reader = openReader()) {
@@ -567,7 +567,7 @@ no member-level `cancelOn`: request cancellation belongs to the whole scope, not
 member policy.
 
 ```java
-TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
+TaskGroupResult<Void> prices = runtime.group("prices", Duration.ofSeconds(3))
         .cancelOn(disconnect)
         .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
         .runAll();

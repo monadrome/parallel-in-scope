@@ -234,8 +234,9 @@ still apply to any reusable-declaration proposal:
 
 Both drafts were superseded by the one-shot chain. The record does not state why the maintainer
 preferred the chain; on the drafts' own terms, the curried form needed an arity-capped
-`Assembler2..8` family (seven public types and a cliff at nine members), which the chain avoids
-with left-nested `Tuple2` and `combineValues` key access. Their individual rejections still hold:
+`Assembler2..8` family (seven public types and a cliff at nine members), which the chain avoided
+with a single stage type and key-based `GroupValues` access. Their individual rejections still hold;
+the former tuple representation was later removed because it made the public type depend on arity:
 
 - Accumulating task code on a reusable chain prefix: saving a prefix for reuse would freeze request
   captures into a long-lived object.
@@ -266,9 +267,10 @@ instead of the element's failure.
   fields); wrapping every failure in a new unchecked exception (overturns the group's rethrow as-is);
   a batch `failedTaskName()` (elements share the batch name, so it locates nothing);
   `BatchCombinedResult.outcomeCounts()` (a third counting scheme).
-- Converging the read surface further: `typedValues`, positional and named lookups,
-  `GroupValues.valueOf` versus `TaskGroupResult.resultOf`, and `results()` versus `members()` each
-  carry a different failure meaning or type source, so removing any one removes a legitimate use.
+- Converging the read surface further: positional and named lookups, `GroupValues.valueOf` versus
+  `TaskGroupResult.resultOf`, and `results()` versus `members()` each carry a different failure
+  meaning or type source, so removing any one removes a legitimate use. The former `typedValues`
+  projection was removed later with the tuple representation because it duplicated the keyed view.
 
 ### Exhaustive result matching (2026-10-27)
 
@@ -459,6 +461,16 @@ the distilled reasons already answer "why not".
 - Proposal mechanism (2026-10-12): distilled into [proposal-lifecycle.md](proposal-lifecycle.md).
   No `distill-proposal.py`, because placing and wording a distillation needs judgment and the
   existing gates already check the mechanical steps.
+
+### TaskGroup member values use keyed snapshots (2026-11-08)
+
+TaskGroup no longer exposes recursive `Tuple2` member shapes. `GroupValues` is the sole member-value
+model, and `combine`/`combineValues` both receive that snapshot; `TaskGroupResult<R>` and the fluent
+stage types carry only the terminal result type. This removes the arity-dependent public generic,
+prevents a successful null member from being confused with an absent aggregate, and makes member
+reordering a key declaration change rather than a nested accessor rewrite. The rejected alternative
+was retaining a tuple-input overload or a `typedValues()` projection: it would keep two terminal
+semantics and leave the recursive shape in the public API that this change is intended to remove.
 
 ### Rejections from session harvests (2026-10-01 to 2026-10-12)
 

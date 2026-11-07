@@ -27,18 +27,17 @@ import org.jspecify.annotations.Nullable;
  * Nested calls must separately confirm exit before releasing resources their executions share. Missing
  * final observations are omitted, never filled with provisional end times.
  *
- * @param <V> single member value or left-nested Tuple2 of member values
  * @param <R> terminal combine value, or Void when no combine was declared
  * @since 0.3.0
  */
-public final class TaskGroupResult<V, R> {
+public final class TaskGroupResult<R> {
     private final TaskGroupReport report;
     private final ImmutableList<String> names;
 
     private final Map<String, ImmediateResult<?>> results;
     private final Map<TaskKey<?>, ImmediateResult<?>> keyedResults;
     private final Map<String, TaskCompletion<?>> members;
-    private final ImmediateResult<GroupValues<V>> values;
+    private final ImmediateResult<GroupValues> values;
     private final @Nullable ImmediateResult<R> terminalResult;
     private final @Nullable TaskCompletion<?> terminal;
     private final Map<String, Integer> unexitedExecutions;
@@ -49,7 +48,7 @@ public final class TaskGroupResult<V, R> {
             Map<String, ImmediateResult<?>> results,
             Map<TaskKey<?>, ImmediateResult<?>> keyedResults,
             Map<String, TaskCompletion<?>> members,
-            ImmediateResult<GroupValues<V>> values,
+            ImmediateResult<GroupValues> values,
             @Nullable ImmediateResult<R> terminalResult,
             @Nullable TaskCompletion<?> terminal,
             Map<String, Integer> unexitedExecutions) {
@@ -193,7 +192,7 @@ public final class TaskGroupResult<V, R> {
     }
 
     /** All member values on group success; failure includes failure of the declared combine. */
-    public ImmediateResult<GroupValues<V>> valuesResult() {
+    public ImmediateResult<GroupValues> valuesResult() {
         return values;
     }
 
@@ -245,7 +244,7 @@ public final class TaskGroupResult<V, R> {
      * @throws CompletionException wrapping the recorded failure when it is checked
      * @throws CancellationException when the group did not succeed and no task recorded a failure
      */
-    public GroupValues<V> valuesOrThrow() {
+    public GroupValues valuesOrThrow() {
         orThrow();
         try {
             return Verify.verifyNotNull(values.valueOrThrow());
@@ -284,7 +283,7 @@ public final class TaskGroupResult<V, R> {
      * @throws CancellationException when no task recorded a failure
      */
     @CanIgnoreReturnValue
-    public TaskGroupResult<V, R> orThrow() {
+    public TaskGroupResult<R> orThrow() {
         if (outcome() == TaskOutcome.SUCCESS) {
             return this;
         }

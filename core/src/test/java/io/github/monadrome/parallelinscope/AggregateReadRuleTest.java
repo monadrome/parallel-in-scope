@@ -100,7 +100,7 @@ class AggregateReadRuleTest {
                 Arrays.asList(1, 2), value -> value, BatchOptions.timeout("c", TIMEOUT), par, values -> {
                     throw combineFailure;
                 });
-        TaskGroupResult<Integer, ?> group = runtime.group("g", TIMEOUT)
+        TaskGroupResult<?> group = runtime.group("g", TIMEOUT)
                 .par(TaskKey.<Integer>named("member"), par, () -> {
                     throw combineFailure;
                 })

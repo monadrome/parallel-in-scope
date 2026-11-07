@@ -210,7 +210,7 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TaskGroup<Tuple2<Object, Object>, Void> group = global.groupDraft("cancel", Duration.ofSeconds(30))
+                TaskGroup<Void> group = global.groupDraft("cancel", Duration.ofSeconds(30))
                         .par(
                                 TaskKey.<Object>named("blocker"),
                                 global.par(ParId.of("worker")),
@@ -306,7 +306,7 @@ class ScopedTaskContractTest {
                     .get(0);
         }
         TaskKey<Object> member = TaskKey.named(name);
-        TaskGroup<Object, Void> group = global.groupDraft("contract", Duration.ofSeconds(30))
+        TaskGroup<Void> group = global.groupDraft("contract", Duration.ofSeconds(30))
                 .par(
                         member,
                         global.par(ParId.of("worker")),
@@ -330,10 +330,10 @@ class ScopedTaskContractTest {
     // Tracks the group built by submitSingle so assertions can inspect the terminal snapshot
     // without changing the submission call sites. Tests are single-threaded per entry case.
 
-    private static final ThreadLocal<TaskGroup<?, ?>> LAST_GROUP = new ThreadLocal<>();
+    private static final ThreadLocal<TaskGroup<?>> LAST_GROUP = new ThreadLocal<>();
 
     private static TaskGroupReport lastGroupResult() throws Exception {
-        TaskGroup<?, ?> group = LAST_GROUP.get();
+        TaskGroup<?> group = LAST_GROUP.get();
         if (group == null) {
             throw new IllegalStateException("no group was built");
         }

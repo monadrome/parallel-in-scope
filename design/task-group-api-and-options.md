@@ -27,7 +27,7 @@ account-page group
   （成员声明即携带本次 `Callable`），`runAll()` 在唯一的提交时点统一冻结并同步执行至完成；
 - 组级 deadline、取消和默认 fail-fast；
 - 每个成员独立选择已经注册的 `Par`（声明期解析并绑定到 owner）；
-- 类型安全的成员值视图（`GroupValues`/`Tuple2`，按原 `TaskKey<T>` 查询；名称/位置查询未类型化）；
+- 类型安全的成员值视图（`GroupValues` 按原 `TaskKey<T>` 查询；名称/位置查询未类型化）；
 - 所有冻结成员的最终收敛结果和组级 telemetry；
 - 与现有单任务执行、取消、队列清理和观测能力复用。
 
@@ -61,7 +61,7 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 公共类型统一放在 `io.github.monadrome.parallelinscope`。执行内核与它们同包，
 但必须保持 package-private，不得为跨包调用扩大可见性。
 
-声明链（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、值视图（`GroupValues`/`Tuple2`）与
+声明链（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、值视图（`GroupValues`）与
 提交形状以 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 为准，
 本节只约束选项类型与结果类型。
 
@@ -244,7 +244,7 @@ public enum TaskOutcome {
 表示取消源自组员或直接作用于组员，`GROUP_CANCELLED` 表示组被整体取消或取消自上传播。
 完整 token→outcome 映射见[取消与归因 §8.4.1](task-group-cancellation.md)（本文不复述）。
 
-`TaskGroupResult<V, R>` 的访问器面以
+`TaskGroupResult<R>` 的访问器面以
 [同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
 `valuesResult`/`terminalResult`、`valuesOrThrow()`/`terminalValueOrThrow()`、
 `executionExitConfirmed()`/`unexitedExecutions()` 与 `members()`/`terminal()` 快照）。

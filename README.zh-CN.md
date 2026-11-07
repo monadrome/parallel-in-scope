@@ -98,12 +98,12 @@ public final class QuickStart {
 TaskKey<User> user = TaskKey.named("user");
 TaskKey<Account> account = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
-TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+TaskGroupResult<Profile> profile = runtime
         .group("profile", Duration.ofSeconds(3))
         .par(user, io, () -> loadUser(userId))
         .par(account, io, () -> loadAccount(userId))
-        .combine(profileKey, io,
-                values -> Profile.of(values.first(), values.second()))
+        .combineValues(profileKey, io,
+                values -> Profile.of(values.valueOf(user), values.valueOf(account)))
         .runAll();
 Profile value = profile.terminalValueOrThrow();
 ```

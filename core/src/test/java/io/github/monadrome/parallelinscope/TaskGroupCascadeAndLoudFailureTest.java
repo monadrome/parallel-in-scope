@@ -34,7 +34,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskGroupResult<String, Void> result = global.group("page", TIMEOUT)
+            TaskGroupResult<Void> result = global.group("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         throw boom;
                     })
@@ -55,7 +55,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         Exception checked = new Exception("checked");
         try {
-            TaskGroupResult<String, Void> result = global.group("page", TIMEOUT)
+            TaskGroupResult<Void> result = global.group("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         throw checked;
                     })
@@ -77,7 +77,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         AssertionError fatal = new AssertionError("fatal");
         try {
-            TaskGroupResult<String, Void> result = global.group("page", TIMEOUT)
+            TaskGroupResult<Void> result = global.group("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         throw fatal;
                     })
@@ -97,7 +97,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroupResult<String, Void> result = global.group("page", Duration.ofMillis(100))
+            TaskGroupResult<Void> result = global.group("page", Duration.ofMillis(100))
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         release.await(10, TimeUnit.SECONDS);
                         return "late";
@@ -193,7 +193,7 @@ class TaskGroupCascadeAndLoudFailureTest {
         CountDownLatch bothStarted = new CountDownLatch(2);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("cascade", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("cascade", TIMEOUT)
                     .par(TaskKey.<Integer>named("first"), global.par(ParId.of("worker")), () -> {
                         bothStarted.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -249,7 +249,7 @@ class TaskGroupCascadeAndLoudFailureTest {
         };
         kernelLogger.addHandler(capture);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);

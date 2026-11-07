@@ -82,7 +82,7 @@ class InterruptedResultFreezingTest {
                     result = runtime.group("group", TIMEOUT)
                             .closeGrace(Duration.ZERO)
                             .par(TaskKey.<Integer>named("member"), par, () -> 1)
-                            .combine(TaskKey.<Integer>named("terminal"), par, values -> {
+                            .combineValues(TaskKey.<Integer>named("terminal"), par, values -> {
                                 throw failure;
                             })
                             .runAll()

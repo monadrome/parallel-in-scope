@@ -121,16 +121,14 @@ class TaskGroupAdoptedFutureTest {
         SettableFuture<String> pending = SettableFuture.create();
         pools.get(0).execute(() -> pending.set("second"));
 
-        TaskGroupResult<Tuple2<String, String>, Void> result = runtime.group("load", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("load", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFuture("first"))
                 .adopt(SECOND, pending)
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        Tuple2<String, String> values =
-                Objects.requireNonNull(result.valuesOrThrow().typedValues());
-        assertThat(values.first()).isEqualTo("first");
-        assertThat(values.second()).isEqualTo("second");
+        assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("first");
+        assertThat(result.valuesOrThrow().valueOf(SECOND)).isEqualTo("second");
         assertThat(result.executionExitConfirmed()).isTrue();
         TaskCompletion<?> observed = Objects.requireNonNull(result.members().get("second"));
         assertThat(observed.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -143,14 +141,12 @@ class TaskGroupAdoptedFutureTest {
         TaskKey<Integer> count = TaskKey.named("count");
         TaskKey<String> adopted = TaskKey.named("adopted");
 
-        TaskGroupResult<Tuple2<String, Integer>, String> result = runtime.group("mixed", TIMEOUT)
+        TaskGroupResult<String> result = runtime.group("mixed", TIMEOUT)
                 .adopt(adopted, Futures.immediateFuture("adopted"))
                 .par(count, io(runtime), () -> 2)
-                .combine(
-                        TERMINAL,
-                        io(runtime),
-                        values -> Objects.requireNonNull(values).first() + ":"
-                                + Objects.requireNonNull(values).second())
+                .combine(TERMINAL, io(runtime), values -> {
+                    return values.valueOf(adopted) + ":" + values.valueOf(count);
+                })
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -165,7 +161,7 @@ class TaskGroupAdoptedFutureTest {
         TaskKey<CloseableValue> producedKey = TaskKey.named("produced");
         RecordingFuture<String> pending = new RecordingFuture<>();
 
-        TaskGroupResult<?, Void> result = runtime.group("fail", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("fail", TIMEOUT)
                 .adopt(producedKey, Futures.immediateFuture(produced))
                 .adopt(SECOND, pending)
                 .par(FAILING, io(runtime), () -> {
@@ -188,7 +184,7 @@ class TaskGroupAdoptedFutureTest {
         IOException failure = new IOException("connection reset");
         SettableFuture<String> sibling = SettableFuture.create();
 
-        TaskGroupResult<?, Void> result = runtime.group("fail", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("fail", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFailedFuture(failure))
                 .adopt(SECOND, sibling)
                 .runAll();
@@ -204,7 +200,7 @@ class TaskGroupAdoptedFutureTest {
         ParRuntime runtime = runtime(pool(1));
         SettableFuture<String> pending = SettableFuture.create();
 
-        TaskGroupResult<?, Void> result = runtime.group("slow", Duration.ofMillis(50))
+        TaskGroupResult<Void> result = runtime.group("slow", Duration.ofMillis(50))
                 .closeGrace(TIMEOUT)
                 .adopt(FIRST, pending)
                 .runAll();
@@ -221,7 +217,7 @@ class TaskGroupAdoptedFutureTest {
         SettableFuture<String> sibling = SettableFuture.create();
         pools.get(0).execute(() -> cancelledByCaller.cancel(false));
 
-        TaskGroupResult<?, Void> result = runtime.group("cancel", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("cancel", TIMEOUT)
                 .adopt(FIRST, cancelledByCaller)
                 .adopt(SECOND, sibling)
                 .runAll();
@@ -237,7 +233,7 @@ class TaskGroupAdoptedFutureTest {
         ParRuntime runtime = runtime(pool(1));
         RecordingFuture<String> pending = new RecordingFuture<>();
 
-        TaskGroupResult<?, Void> result = runtime.group("cancelled", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("cancelled", TIMEOUT)
                 .cancelOn(Futures.immediateFuture("request done"))
                 .adopt(FIRST, pending)
                 .runAll();
@@ -253,7 +249,7 @@ class TaskGroupAdoptedFutureTest {
         StubbornFuture<CloseableValue> stubborn = new StubbornFuture<>();
         TaskKey<CloseableValue> key = TaskKey.named("first");
 
-        TaskGroupResult<?, Void> result = runtime.group("late", Duration.ofMillis(50))
+        TaskGroupResult<Void> result = runtime.group("late", Duration.ofMillis(50))
                 .closeGrace(Duration.ofMillis(20))
                 .adopt(key, stubborn)
                 .runAll();
@@ -273,10 +269,10 @@ class TaskGroupAdoptedFutureTest {
         ParRuntime runtime = runtime(pool(1));
         AtomicBoolean combineRan = new AtomicBoolean();
 
-        TaskGroupResult<?, String> result = runtime.group("combine", TIMEOUT)
+        TaskGroupResult<String> result = runtime.group("combine", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFuture("first"))
                 .adopt(SECOND, Futures.immediateFailedFuture(new IOException("down")))
-                .combine(TERMINAL, io(runtime), values -> {
+                .combineValues(TERMINAL, io(runtime), values -> {
                     combineRan.set(true);
                     return "never";
                 })
@@ -290,7 +286,7 @@ class TaskGroupAdoptedFutureTest {
     void theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember() throws Exception {
         ParRuntime runtime = runtime(pool(1));
 
-        TaskGroup<String, Void> group = runtime.groupDraft("timed", TIMEOUT)
+        TaskGroup<Void> group = runtime.groupDraft("timed", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFuture("first"))
                 .submitAll();
 
@@ -308,17 +304,16 @@ class TaskGroupAdoptedFutureTest {
         ExecutorService caller = Executors.newSingleThreadExecutor();
         pools.add(caller);
 
-        Future<TaskGroupResult<Tuple2<String, String>, Void>> running =
-                caller.submit(() -> runtime.group("closing", TIMEOUT)
-                        .closeGrace(TIMEOUT)
-                        .adopt(FIRST, Futures.immediateFuture("first"))
-                        .adopt(SECOND, failing)
-                        .runAll());
+        Future<TaskGroupResult<Void>> running = caller.submit(() -> runtime.group("closing", TIMEOUT)
+                .closeGrace(TIMEOUT)
+                .adopt(FIRST, Futures.immediateFuture("first"))
+                .adopt(SECOND, failing)
+                .runAll());
         assertThat(failing.connected.await(5, TimeUnit.SECONDS)).isTrue();
         runtime.close();
         failing.fail(new IOException("down"));
 
-        TaskGroupResult<Tuple2<String, String>, Void> result = running.get(5, TimeUnit.SECONDS);
+        TaskGroupResult<Void> result = running.get(5, TimeUnit.SECONDS);
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.executionExitConfirmed()).isTrue();
     }
@@ -352,7 +347,7 @@ class TaskGroupAdoptedFutureTest {
         ExecutorService caller = Executors.newSingleThreadExecutor();
         pools.add(caller);
 
-        Future<TaskGroupResult<?, Void>> running = caller.submit(() -> runtime.group("throwing-listener", TIMEOUT)
+        Future<TaskGroupResult<Void>> running = caller.submit(() -> runtime.group("throwing-listener", TIMEOUT)
                 .adopt(FIRST, throwing)
                 .adopt(SECOND, sibling)
                 .adopt(third, Futures.immediateFuture("produced"))
@@ -360,7 +355,7 @@ class TaskGroupAdoptedFutureTest {
                     throw new IllegalStateException("boom");
                 })
                 .runAll());
-        TaskGroupResult<?, Void> result = running.get(5, TimeUnit.SECONDS);
+        TaskGroupResult<Void> result = running.get(5, TimeUnit.SECONDS);
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(throwing.isCancelled()).isTrue();
@@ -378,7 +373,7 @@ class TaskGroupAdoptedFutureTest {
                 },
                 directExecutor());
         RecordingFuture<String> pending = new RecordingFuture<>();
-        GroupStep<Tuple2<Tuple2<String, String>, String>> draft = runtime.group("closed", TIMEOUT)
+        GroupStep draft = runtime.group("closed", TIMEOUT)
                 .adopt(FIRST, throwing)
                 .adopt(SECOND, Futures.immediateFuture("produced"))
                 .adopt(TaskKey.<String>named("third"), pending);
@@ -398,7 +393,7 @@ class TaskGroupAdoptedFutureTest {
         pools.add(completer);
         CompletingOnRegistration<String> source = new CompletingOnRegistration<>("first", completer);
 
-        TaskGroup<String, Void> group =
+        TaskGroup<Void> group =
                 runtime.groupDraft("window", TIMEOUT).adopt(FIRST, source).submitAll();
         source.releaseBlocker.countDown();
 
@@ -447,7 +442,7 @@ class TaskGroupAdoptedFutureTest {
     void anAdmissionFailureCancelsEverySource() {
         ParRuntime runtime = runtime(pool(1));
         RecordingFuture<String> pending = new RecordingFuture<>();
-        GroupStep<Tuple2<String, String>> draft = runtime.group("closed", TIMEOUT)
+        GroupStep draft = runtime.group("closed", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFuture("produced"))
                 .adopt(SECOND, pending);
         runtime.close();
@@ -462,7 +457,7 @@ class TaskGroupAdoptedFutureTest {
     void aMissingInheritedDeadlineAbandonsTheSources() {
         ParRuntime runtime = runtime(pool(1));
         RecordingFuture<String> pending = new RecordingFuture<>();
-        GroupStep<String> draft = runtime.groupInheriting("orphan").adopt(FIRST, pending);
+        GroupStep draft = runtime.groupInheriting("orphan").adopt(FIRST, pending);
 
         assertThatThrownBy(draft::runAll).isInstanceOf(IllegalArgumentException.class);
 
@@ -485,7 +480,7 @@ class TaskGroupAdoptedFutureTest {
         AtomicReference<String> convergingThread = new AtomicReference<>();
         CountDownLatch hold = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<String, String>, Void> group = runtime.groupDraft("deadline", Duration.ofMillis(50))
+            TaskGroup<Void> group = runtime.groupDraft("deadline", Duration.ofMillis(50))
                     .closeGrace(TIMEOUT)
                     .adopt(FIRST, Futures.immediateFuture("first"))
                     .par(FAILING, io(runtime), () -> {
@@ -496,7 +491,7 @@ class TaskGroupAdoptedFutureTest {
             group.completionFuture()
                     .addListener(
                             () -> convergingThread.set(Thread.currentThread().getName()), directExecutor());
-            TaskGroupResult<Tuple2<String, String>, Void> result = group.finish();
+            TaskGroupResult<Void> result = group.finish();
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(convergingThread.get()).startsWith("deadline-deliverer-");
@@ -510,7 +505,7 @@ class TaskGroupAdoptedFutureTest {
         ParRuntime runtime = runtime(pool(1));
         ParRuntime other = runtime(pool(1));
         SettableFuture<String> source = SettableFuture.create();
-        GroupStep<String> step = runtime.group("checks", TIMEOUT).adopt(FIRST, source);
+        GroupStep step = runtime.group("checks", TIMEOUT).adopt(FIRST, source);
 
         assertThatThrownBy(() -> step.adopt(SECOND, source))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -531,38 +526,38 @@ class TaskGroupAdoptedFutureTest {
     @Test
     void adoptDeclarationsShareNameUniquenessStageAndThreadConfinementWithPar() throws Exception {
         ParRuntime runtime = runtime(pool(1));
-        GroupStep<String> step = runtime.group("names", TIMEOUT).adopt(FIRST, SettableFuture.create());
+        GroupStep step = runtime.group("names", TIMEOUT).adopt(FIRST, SettableFuture.create());
         assertThatThrownBy(() -> step.adopt(FIRST, SettableFuture.<String>create()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate name 'first'");
-        GroupStep<String> ran = runtime.group("par-then-adopt", TIMEOUT).par(FIRST, io(runtime), () -> null);
+        GroupStep ran = runtime.group("par-then-adopt", TIMEOUT).par(FIRST, io(runtime), () -> null);
         assertThatThrownBy(() -> ran.adopt(FIRST, SettableFuture.<String>create()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate name 'first'");
 
         GroupStart start = runtime.group("stale", TIMEOUT);
-        GroupStep<String> advanced = start.adopt(FIRST, SettableFuture.create());
+        GroupStep advanced = start.adopt(FIRST, SettableFuture.create());
         assertThatThrownBy(() -> start.adopt(SECOND, SettableFuture.<String>create()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("no longer current");
-        GroupStep<Tuple2<String, String>> next = advanced.adopt(SECOND, SettableFuture.create());
+        GroupStep next = advanced.adopt(SECOND, SettableFuture.create());
         assertThat(next).isNotNull();
         assertThatThrownBy(() -> advanced.adopt(TaskKey.<String>named("third"), SettableFuture.<String>create()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("no longer current");
 
         GroupStart confinedStart = runtime.group("confined-start", TIMEOUT);
-        GroupStep<String> confinedStep = runtime.group("confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
+        GroupStep confinedStep = runtime.group("confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
         AtomicReference<Throwable> fromStart = new AtomicReference<>();
         AtomicReference<Throwable> fromStep = new AtomicReference<>();
         Thread other = new Thread(() -> {
             try {
-                GroupStep<?> unused = confinedStart.adopt(FIRST, SettableFuture.<String>create());
+                GroupStep unused = confinedStart.adopt(FIRST, SettableFuture.<String>create());
             } catch (Throwable failure) {
                 fromStart.set(failure);
             }
             try {
-                GroupStep<?> unused = confinedStep.adopt(SECOND, SettableFuture.<String>create());
+                GroupStep unused = confinedStep.adopt(SECOND, SettableFuture.<String>create());
             } catch (Throwable failure) {
                 fromStep.set(failure);
             }
@@ -577,7 +572,7 @@ class TaskGroupAdoptedFutureTest {
     void anAdoptingGroupStopsHoldingTheRuntimeOnceItsSourcesSettle() throws Exception {
         ParRuntime runtime = runtime(pool(1));
 
-        TaskGroupResult<String, Void> result = runtime.group("settled", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("settled", TIMEOUT)
                 .adopt(FIRST, Futures.immediateFuture("first"))
                 .runAll();
 
@@ -612,7 +607,7 @@ class TaskGroupAdoptedFutureTest {
         ListenableFuture<String> pipeline = closing.finishToFuture();
 
         TaskKey<String> chainedKey = TaskKey.named("chained");
-        TaskGroupResult<?, Void> result = runtime.group("shapes", Duration.ofMillis(200))
+        TaskGroupResult<Void> result = runtime.group("shapes", Duration.ofMillis(200))
                 .adopt(chainedKey, chained)
                 .adopt(TaskKey.<String>named("task"), io(runtime), task)
                 .adopt(TaskKey.<String>named("pipeline"), io(runtime), pipeline)
@@ -665,7 +660,7 @@ class TaskGroupAdoptedFutureTest {
                                 .adopt(loaded, listening.submit(() -> value))
                                 .runAll()
                                 .valuesOrThrow()
-                                .typedValues(),
+                                .valueOf(loaded),
                         BatchOptions.timeout("outer", TIMEOUT))
                 .valuesOrThrow();
 

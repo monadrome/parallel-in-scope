@@ -6,11 +6,9 @@ import org.jspecify.annotations.Nullable;
  * Terminal computation of one group run, executed at most once after every plain member has
  * succeeded.
  *
- * <p>The combiner receives the group's assembled member values: the single member's value for a
- * one-member group, or left-nested {@link Tuple2} values for larger groups. Successful member
- * values may be null. {@link GroupStep#combineValues} instead supplies a {@link GroupValues} view
- * for typed key lookup. The input exposes values, not task handles for cancellation or
- * orchestration.
+ * <p>Batch combines receive their value list. Group combines receive a {@link GroupValues} snapshot
+ * and read member values through their declaration {@link TaskKey} objects. The input exposes
+ * values, not task handles for cancellation or orchestration.
  *
  * <p>The combine shares the group's deadline, cooperative cancellation, execution context, TTL
  * replay, and final observation. Its TTL context is captured when the group is admitted. It is
@@ -31,7 +29,7 @@ import org.jspecify.annotations.Nullable;
  * the caller's responsibility. Checked failures are recorded as {@link TaskOutcome#USER_FAILURE}
  * with the original throwable, like a member's failure.
  *
- * @param <V> the group's assembled member-value type, or its GroupValues view for combineValues
+ * @param <V> the input type, such as a batch value list or a group's {@link GroupValues}
  * @param <R> the assembled result type
  * @since 0.3.0
  */
@@ -41,12 +39,10 @@ public interface Combiner<V, R> {
     /**
      * Computes the terminal value from the successful member values.
      *
-     * @param values the group's member values in declaration order: the single member's value for a
-     *     one-member group, so null when that member succeeded with null; a left-nested {@link
-     *     Tuple2} whose components may be null for larger groups
+     * @param values the non-null aggregate input supplied by the batch or group contract
      * @return the assembled terminal result, possibly null
      * @throws Exception any business failure, recorded as {@link TaskOutcome#USER_FAILURE}
      */
     @Nullable
-    R apply(@Nullable V values) throws Exception;
+    R apply(V values) throws Exception;
 }

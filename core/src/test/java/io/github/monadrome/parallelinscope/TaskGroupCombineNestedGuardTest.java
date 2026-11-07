@@ -51,13 +51,13 @@ class TaskGroupCombineNestedGuardTest {
         AtomicReference<String> combineThread = new AtomicReference<>();
         AtomicReference<List<String>> nestedThreads = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "a")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout(),
@@ -102,25 +102,25 @@ class TaskGroupCombineNestedGuardTest {
         AtomicReference<String> outerThread = new AtomicReference<>();
         AtomicReference<String> innerThread = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "a")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("outer-sum"),
                             runtime.par(ParId.of("outer")),
                             TaskOptions.inheritTimeout(),
                             values -> {
                                 outerThread.set(Thread.currentThread().getName());
-                                TaskGroup<?, String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
+                                TaskGroup<String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
                                         .par(
                                                 TaskKey.<String>named("x"),
                                                 runtime.par(ParId.of("m")),
                                                 TaskOptions.inheritTimeout(),
                                                 () -> "x")
-                                        .combine(
+                                        .combineValues(
                                                 TaskKey.<String>named("inner-sum"),
                                                 runtime.par(ParId.of("inner")),
                                                 TaskOptions.inheritTimeout(),
@@ -175,24 +175,24 @@ class TaskGroupCombineNestedGuardTest {
         AtomicReference<String> innerThread = new AtomicReference<>();
         AtomicReference<TaskOutcome> innerOutcome = new AtomicReference<>();
         try {
-            TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
+            TaskGroup<String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
                             TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
                             () -> "a")
-                    .combine(
+                    .combineValues(
                             TaskKey.<String>named("outer-sum"),
                             runtime.par(ParId.of("outer")),
                             TaskOptions.inheritTimeout(),
                             values -> {
-                                TaskGroup<?, String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
+                                TaskGroup<String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
                                         .par(
                                                 TaskKey.<String>named("x"),
                                                 runtime.par(ParId.of("m")),
                                                 TaskOptions.inheritTimeout(),
                                                 () -> "x")
-                                        .combine(
+                                        .combineValues(
                                                 TaskKey.<String>named("inner-sum"),
                                                 runtime.par(ParId.of("inner")),
                                                 TaskOptions.inheritTimeout().rejectEnqueue(true),

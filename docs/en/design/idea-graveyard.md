@@ -44,7 +44,7 @@ The API deliberately models a finite batch. Streaming, backpressure, and reactiv
 ## Heterogeneous task composition
 
 Typed TaskGroup already coordinates heterogeneous Callables using names, declared types, and a
-left-nested Tuple2 result: `runtime.group(...).par(...).par(...).runAll()`. What remains rejected is
+keyed `GroupValues` snapshot: `runtime.group(...).par(...).par(...).runAll()`. What remains rejected is
 an untyped `invokeAll` overload family or a general dependency graph. Use the existing group for
 independent typed tasks and its optional terminal combine for a single all-successful join.
 

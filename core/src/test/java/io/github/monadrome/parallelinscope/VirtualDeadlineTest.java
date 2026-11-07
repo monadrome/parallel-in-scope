@@ -101,7 +101,7 @@ class VirtualDeadlineTest {
                 .build();
         try {
             CountDownLatch started = new CountDownLatch(1);
-            AtomicReference<TaskGroupResult<Integer, Void>> outcome = new AtomicReference<>();
+            AtomicReference<TaskGroupResult<Void>> outcome = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> outcome.set(runtime.group("gated", Duration.ofSeconds(5))
                             .par(TaskKey.<Integer>named("m"), runtime.par(ParId.of("worker")), () -> {
@@ -121,7 +121,7 @@ class VirtualDeadlineTest {
 
             caller.join(TimeUnit.SECONDS.toMillis(10));
             assertThat(caller.isAlive()).isFalse();
-            TaskGroupResult<Integer, Void> result = Objects.requireNonNull(outcome.get());
+            TaskGroupResult<Void> result = Objects.requireNonNull(outcome.get());
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(result.resultOf("m").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
@@ -224,7 +224,7 @@ class VirtualDeadlineTest {
         try {
             CountDownLatch nestedStarted = new CountDownLatch(1);
             AtomicReference<TaskBatchResult<Integer>> nested = new AtomicReference<>();
-            AtomicReference<TaskGroupResult<Integer, Void>> outcome = new AtomicReference<>();
+            AtomicReference<TaskGroupResult<Void>> outcome = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> outcome.set(outer.group("outer", Duration.ofMinutes(10))
                             .par(TaskKey.<Integer>named("m"), outer.par(ParId.of("outer")), () -> {
@@ -286,8 +286,8 @@ class VirtualDeadlineTest {
         ParRuntime inner =
                 ParRuntime.builder().register(ParId.of("inner"), innerPool).build();
         try {
-            AtomicReference<TaskGroupResult<?, ?>> outerOutcome = new AtomicReference<>();
-            AtomicReference<TaskGroupResult<Integer, Void>> nestedOutcome = new AtomicReference<>();
+            AtomicReference<TaskGroupResult<?>> outerOutcome = new AtomicReference<>();
+            AtomicReference<TaskGroupResult<Void>> nestedOutcome = new AtomicReference<>();
             AtomicReference<Throwable> startupFailure = new AtomicReference<>();
             Thread caller = new Thread(
                     () -> {

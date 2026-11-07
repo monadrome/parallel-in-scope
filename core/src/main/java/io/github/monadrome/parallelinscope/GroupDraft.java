@@ -90,14 +90,12 @@ final class GroupDraft {
         final Par par;
         final TaskOptions options;
         final TaskKey<?> key;
-        final boolean valueView;
 
         @Nullable
         Combiner<?, ?> combiner;
 
-        CombineDecl(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
+        CombineDecl(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner) {
             this.key = key;
-            this.valueView = valueView;
             this.par = par;
             this.options = options;
             this.combiner = combiner;
@@ -139,7 +137,7 @@ final class GroupDraft {
         members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));
     }
 
-    void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
+    void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner) {
         checkNotNull(key, "key cannot be null");
         checkNotNull(par, "par cannot be null");
         checkNotNull(options, "options cannot be null");
@@ -147,7 +145,7 @@ final class GroupDraft {
         checkNameAvailable(key.name());
         checkPar(par);
         seenNames.add(key.name());
-        combine = new CombineDecl(key, par, options, combiner, valueView);
+        combine = new CombineDecl(key, par, options, combiner);
     }
 
     private void checkNameAvailable(String memberName) {
@@ -186,7 +184,7 @@ final class GroupDraft {
      * Freezes the declaration, moves the executions into the submission kernel, and submits. The draft
      * is already consumed by the caller, so a failure here cannot be retried either.
      */
-    <V, R> TaskGroup<V, R> submit() {
+    <R> TaskGroup<R> submit() {
         TaskGroupDefinition definition = freeze();
         TaskGroup.RunBindings payloads = takePayloads();
         try {
@@ -204,14 +202,13 @@ final class GroupDraft {
         for (MemberDecl member : members) {
             memberSlots.add(
                     member.adopted == null
-                            ? new TaskGroupDefinition.Slot(member.key, checkNotNull(member.par), member.options, false)
+                            ? new TaskGroupDefinition.Slot(member.key, checkNotNull(member.par), member.options)
                             : TaskGroupDefinition.Slot.adopted(member.key, member.par));
         }
         CombineDecl declaredCombine = combine;
         TaskGroupDefinition.Slot combineSlot = declaredCombine == null
                 ? null
-                : new TaskGroupDefinition.Slot(
-                        declaredCombine.key, declaredCombine.par, declaredCombine.options, declaredCombine.valueView);
+                : TaskGroupDefinition.Slot.combine(declaredCombine.key, declaredCombine.par, declaredCombine.options);
         return new TaskGroupDefinition(name, timeout, closeGrace, cancellationSignal, memberSlots, combineSlot);
     }
 
@@ -239,8 +236,8 @@ final class GroupDraft {
     }
 
     @SuppressWarnings("unchecked")
-    private static <V, R> TaskGroup<V, R> cast(TaskGroup<?, ?> group) {
-        return (TaskGroup<V, R>) group;
+    private static <R> TaskGroup<R> cast(TaskGroup<?> group) {
+        return (TaskGroup<R>) group;
     }
 
     /** Stage one: identity, close grace, the first member, or an empty submission. */
@@ -252,12 +249,12 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<T> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
+        public <T> Step par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
             return par(key, par, TaskOptions.inheritTimeout(), taskCode);
         }
 
         @Override
-        public <T> Step<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
+        public <T> Step par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
             draft.checkThread();
             draft.checkStage(0);
             draft.addMember(key, par, options, taskCode);
@@ -265,16 +262,16 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
+        public <T> Step adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
             return adopted(key, null, source);
         }
 
         @Override
-        public <T> Step<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
+        public <T> Step adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
             return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
         }
 
-        private <T> Step<T> adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
+        private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
             draft.checkThread();
             draft.checkStage(0);
             draft.addAdopted(key, producer, source);
@@ -300,25 +297,25 @@ final class GroupDraft {
         }
 
         @Override
-        public TaskGroupResult<Void, Void> runAll() {
+        public TaskGroupResult<Void> runAll() {
             return submitAll().finish();
         }
 
-        TaskGroup<Void, Void> submitAll() {
+        TaskGroup<Void> submitAll() {
             draft.checkThread();
             draft.checkStage(0);
             draft.advance();
             return draft.submit();
         }
 
-        private <T> Step<T> next() {
+        private Step next() {
             draft.advance();
-            return new Step<>(draft, draft.stage());
+            return new Step(draft, draft.stage());
         }
     }
 
     /** Every later stage: more members, one optional terminal combine, or submission. */
-    static final class Step<V> implements GroupStep<V> {
+    static final class Step implements GroupStep {
         private final GroupDraft draft;
         private final int expectedStage;
 
@@ -328,13 +325,12 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
+        public <T> Step par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
             return par(key, par, TaskOptions.inheritTimeout(), taskCode);
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> par(
-                TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
+        public <T> Step par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.addMember(key, par, options, taskCode);
@@ -342,17 +338,16 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
+        public <T> Step adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
             return adopted(key, null, source);
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
+        public <T> Step adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
             return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
         }
 
-        private <T> Step<Tuple2<V, T>> adopted(
-                TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
+        private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.addAdopted(key, producer, source);
@@ -360,59 +355,55 @@ final class GroupDraft {
         }
 
         @Override
-        public <R> Combined<V, R> combine(TaskKey<R> key, Par par, Combiner<? super V, ? extends R> combiner) {
+        public <R> Combined<R> combine(TaskKey<R> key, Par par, Combiner<GroupValues, ? extends R> combiner) {
             return combine(key, par, TaskOptions.inheritTimeout(), combiner);
         }
 
         @Override
-        public <R> Combined<V, R> combine(
-                TaskKey<R> key, Par par, TaskOptions options, Combiner<? super V, ? extends R> combiner) {
+        public <R> Combined<R> combine(
+                TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues, ? extends R> combiner) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.setCombine(key, par, options, combiner, false);
+            draft.setCombine(key, par, options, combiner);
             return nextCombined();
         }
 
         @Override
-        public <R> Combined<V, R> combineValues(
-                TaskKey<R> key, Par par, Combiner<GroupValues<V>, ? extends R> combiner) {
-            return combineValues(key, par, TaskOptions.inheritTimeout(), combiner);
+        public <R> Combined<R> combineValues(TaskKey<R> key, Par par, Combiner<GroupValues, ? extends R> combiner) {
+            return combine(key, par, combiner);
         }
 
         @Override
-        public <R> Combined<V, R> combineValues(
-                TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues<V>, ? extends R> combiner) {
-            draft.checkThread();
-            draft.checkStage(expectedStage);
-            draft.setCombine(key, par, options, combiner, true);
-            return nextCombined();
+        public <R> Combined<R> combineValues(
+                TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues, ? extends R> combiner) {
+            return combine(key, par, options, combiner);
         }
 
         @Override
-        public TaskGroupResult<V, Void> runAll() {
+        public TaskGroupResult<Void> runAll() {
             return submitAll().finish();
         }
 
-        TaskGroup<V, Void> submitAll() {
+        TaskGroup<Void> submitAll() {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.advance();
             return draft.submit();
         }
 
-        private <T> Step<Tuple2<V, T>> next() {
+        private Step next() {
             draft.advance();
-            return new Step<>(draft, draft.stage());
+            return new Step(draft, draft.stage());
         }
 
-        private <R> Combined<V, R> nextCombined() {
+        private <R> Combined<R> nextCombined() {
             draft.advance();
             return new Combined<>(draft, draft.stage());
         }
     }
 
     /** Final stage: the combine is declared, so only submission remains. */
-    static final class Combined<V, R> implements CombinedGroupStep<V, R> {
+    static final class Combined<R> implements CombinedGroupStep<R> {
         private final GroupDraft draft;
         private final int expectedStage;
 
@@ -422,11 +413,11 @@ final class GroupDraft {
         }
 
         @Override
-        public TaskGroupResult<V, R> runAll() {
+        public TaskGroupResult<R> runAll() {
             return submitAll().finish();
         }
 
-        TaskGroup<V, R> submitAll() {
+        TaskGroup<R> submitAll() {
             draft.checkThread();
             draft.checkStage(expectedStage);
             draft.advance();

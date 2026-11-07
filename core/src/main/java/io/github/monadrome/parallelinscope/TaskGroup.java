@@ -42,15 +42,14 @@ import org.jspecify.annotations.Nullable;
  * futures are looked up by declaration position ({@link #futureAt(int)}), by name ({@link
  * #futureOf(String)}), or as the whole named map ({@link #members()}).
  *
- * <p>The type parameters describe the group's result shape. {@code V} is the member values as
- * {@link GroupValues#typedValues()} exposes them — a single member's type for a one-member group,
- * left-nested {@link Tuple2} for larger groups. {@code R} is the terminal combine's declared result
- * type, or {@code Void} when the group declares no combine.
+ * <p>The type parameter describes the terminal combine's declared result type, or {@code Void} when
+ * the group declares no combine. Successful member values are published as a keyed {@link
+ * GroupValues} snapshot in declaration order.
  *
  * <p>A group may declare one terminal combine: a real scoped task that depends on every member. Its
  * execution context and TTL snapshot are prepared at submission like a member's, but it is
  * submitted to its own {@code Par} only after all members succeed, and the group completes only
- * when its future is terminal. Its execution receives the assembled member values as {@code V}; its own
+ * when its future is terminal. Its execution receives the assembled member values as {@link GroupValues}; its own
  * value is reached through {@link #terminalFuture()} and is not a slot in {@link GroupValues}.
  *
  * <p>Cancellation is fully structured: a member failure, a direct member cancellation, the group
@@ -58,7 +57,7 @@ import org.jspecify.annotations.Nullable;
  * whether work failed, timed out, or was cancelled; the frozen group result is authoritative after
  * convergence.
  */
-final class TaskGroup<V, R> implements AutoCloseable {
+final class TaskGroup<R> implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskGroup.class.getName());
 
     /** Null-object submission canceller: group members carry no submission pipeline to stop. */
@@ -101,7 +100,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * <p>Never left pending: a non-successful group completes it exceptionally or cancels it, so a
      * caller that waits on it is never stranded by a failure it cannot observe.
      */
-    private final SettableFuture<GroupValues<V>> values = SettableFuture.create();
+    private final SettableFuture<GroupValues> values = SettableFuture.create();
 
     /*
      * The read-only view handed out by valuesFuture(). The sink stays reachable only from this
@@ -110,7 +109,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * running, and a group that then converged on SUCCESS would report CancellationException from
      * valuesFuture().get() instead of its GroupValues.
      */
-    private final ListenableFuture<GroupValues<V>> valuesView = TaskObservation.readOnly(values);
+    private final ListenableFuture<GroupValues> valuesView = TaskObservation.readOnly(values);
 
     private final Task<TaskGroupReport> completionTask;
     private final CancellationToken groupToken;
@@ -218,7 +217,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * therefore deadlocks the group. Register such a listener with an asynchronous executor, or
      * wait on the completion future from the thread that submitted the group.
      */
-    public ListenableFuture<GroupValues<V>> valuesFuture() {
+    public ListenableFuture<GroupValues> valuesFuture() {
         return valuesView;
     }
 
@@ -238,7 +237,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      *
      * @return the frozen result
      */
-    TaskGroupResult<V, R> finish() {
+    TaskGroupResult<R> finish() {
         TaskGroupReport report;
         try {
             report = com.google.common.base.Verify.verifyNotNull(Uninterruptibles.getUninterruptibly(completion));
@@ -265,7 +264,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                 observations.put(member.name, observed);
             }
         }
-        ImmediateResult<GroupValues<V>> frozenValues;
+        ImmediateResult<GroupValues> frozenValues;
         if (report.outcome() == TaskOutcome.SUCCESS) {
             try {
                 frozenValues = ImmediateResult.succeeded(Futures.getDone(values));
@@ -546,7 +545,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * <p>The runtime's executor waits-for graph receives the caller's waits on every member and the
      * terminal together, only after every task prepared, so a failed preparation records nothing.
      */
-    static TaskGroup<?, ?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
+    static TaskGroup<?> prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads) {
         MultiTaskContext structuralParent = MultiTaskContext.requireDeadlineSource(
                 definition.timeout(), "call group(String, Duration) with an explicit timeout");
         long start = System.nanoTime();
@@ -584,7 +583,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
         Map<String, MemberState> states = new LinkedHashMap<>();
         MemberState terminal = null;
         int memberIndex = 0;
-        TaskGroup<Object, Object> group;
+        TaskGroup<Object> group;
         try {
             for (TaskGroupDefinition.Slot slot : definition.members()) {
                 states.put(slot.name, preparation.prepareMember(slot, memberIndex++));
@@ -707,7 +706,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             par.diagnoseAdmission(unit);
             TaskExecutionContext taskContext = taskContext(unit);
             Combiner<Object, Object> combiner = castCombiner(payloads.takeCombiner());
-            Callable<Object> taskCode = () -> assembleTerminal(combiner, states, combineSlot.valueView);
+            Callable<Object> taskCode = () -> assembleTerminal(combiner, states);
             ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
             if (par.executorRuntime().threadPoolBacked()) {
                 future.forbidInlineExecution();
@@ -733,12 +732,13 @@ final class TaskGroup<V, R> implements AutoCloseable {
      * <p>The combine runs only after every member succeeded, so each member future is already
      * settled; anything else is a framework invariant violation rather than user input.
      */
-    private static @Nullable Object assembleTerminal(
-            Combiner<Object, Object> combiner, Map<String, MemberState> states, boolean valueView) throws Exception {
-        return combiner.apply(valueView ? memberValues(states) : foldMemberValues(states));
+    private static @Nullable Object assembleTerminal(Combiner<Object, Object> combiner, Map<String, MemberState> states)
+            throws Exception {
+        GroupValues values = memberValues(states);
+        return combiner.apply(values);
     }
 
-    private static GroupValues<Object> memberValues(Map<String, MemberState> states) {
+    private static GroupValues memberValues(Map<String, MemberState> states) {
         ImmutableList.Builder<String> names = ImmutableList.builder();
 
         ImmutableList.Builder<TaskKey<?>> keys = ImmutableList.builder();
@@ -749,19 +749,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             keys.add(member.key);
             collected.add(settledValue(member));
         }
-        return GroupValues.of(names.build(), keys.build(), collected, foldValues(collected));
-    }
-
-    /**
-     * Reads every member's successful value and folds them into the group's {@code V}: the single
-     * value for a one-member group, left-nested {@link Tuple2} for larger groups, null for none.
-     */
-    private static @Nullable Object foldMemberValues(Map<String, MemberState> states) {
-        List<@Nullable Object> collected = new ArrayList<>(states.size());
-        for (MemberState member : states.values()) {
-            collected.add(settledValue(member));
-        }
-        return foldValues(collected);
+        return GroupValues.of(names.build(), keys.build(), collected);
     }
 
     private static @Nullable Object settledValue(MemberState member) {
@@ -771,21 +759,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
             // CancellationException is an IllegalStateException and lands here too.
             throw new IllegalStateException("member '" + member.name + "' has not completed successfully", failure);
         }
-    }
-
-    private static @Nullable Object foldValues(List<@Nullable Object> collected) {
-        if (collected.isEmpty()) {
-            return null;
-        }
-        Object assembled = collected.get(0);
-        if (collected.size() == 1) {
-            return assembled;
-        }
-        assembled = Tuple2.of(assembled, collected.get(1));
-        for (int index = 2; index < collected.size(); index++) {
-            assembled = Tuple2.of(assembled, collected.get(index));
-        }
-        return assembled;
     }
 
     void start(ParRuntime global, TaskGroupDefinition definition) {
@@ -1110,9 +1083,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void setValues(List<@Nullable Object> collected) {
-        values.set(GroupValues.of(memberNames, memberKeys, collected, (V) foldValues(collected)));
+        values.set(GroupValues.of(memberNames, memberKeys, collected));
     }
 
     /**

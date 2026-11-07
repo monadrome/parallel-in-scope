@@ -190,7 +190,7 @@ class ExecutorWaitAdmissionTest {
                         ignored -> runtime.groupInheriting("group")
                                 .par(left, runtime.par(ParId.of("members")), () -> 1)
                                 .par(right, runtime.par(ParId.of("caller")), () -> 2)
-                                .combine(sum, runtime.par(ParId.of("combine")), values -> 3)
+                                .combineValues(sum, runtime.par(ParId.of("combine")), values -> 3)
                                 .runAll()
                                 .terminalValueOrThrow(),
                         BatchOptions.timeout("outer", TIMEOUT))
@@ -212,7 +212,7 @@ class ExecutorWaitAdmissionTest {
         ParRuntime runtime = runtime("io", buffering());
         TaskKey<Integer> only = TaskKey.named("only");
 
-        TaskGroupResult<Integer, Void> result = runtime.group("top", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("top", TIMEOUT)
                 .par(only, runtime.par(ParId.of("io")), () -> 1)
                 .runAll();
 

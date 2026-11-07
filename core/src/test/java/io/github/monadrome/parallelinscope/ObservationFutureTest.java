@@ -363,7 +363,7 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
 
@@ -401,7 +401,7 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         IllegalStateException boom = new IllegalStateException("boom");
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         throw boom;
                     })

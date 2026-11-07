@@ -78,19 +78,19 @@ class SynchronousExecutionTest {
     @Test
     void groupKeepsTypedShapeKeysAndNullableCombine() throws Exception {
         TaskKey<List<String>> names = TaskKey.named("names");
-        Combiner<Tuple2<Tuple2<List<String>, Integer>, Boolean>, @Nullable Void> nullableCombine = values -> null;
-        TaskGroupResult<Tuple2<Tuple2<List<String>, Integer>, Boolean>, @Nullable Void> group = runtime.group(
-                        "typed", TIMEOUT)
+        TaskKey<Integer> count = TaskKey.named("count");
+        TaskKey<Boolean> flag = TaskKey.named("flag");
+        Combiner<GroupValues, @Nullable Void> nullableCombine = values -> null;
+        TaskGroupResult<@Nullable Void> group = runtime.group("typed", TIMEOUT)
                 .par(names, par, () -> Collections.singletonList("alice"))
-                .par(TaskKey.<Integer>named("count"), par, () -> 2)
-                .par(TaskKey.<Boolean>named("flag"), par, () -> true)
+                .par(count, par, () -> 2)
+                .par(flag, par, () -> true)
                 .combine(TaskKey.<@Nullable Void>named("terminal"), par, nullableCombine)
                 .runAll();
-        Tuple2<Tuple2<List<String>, Integer>, Boolean> tuple =
-                Verify.verifyNotNull(group.valuesOrThrow().typedValues());
-        assertThat(Verify.verifyNotNull(tuple.first()).first()).containsExactly("alice");
-        assertThat(Verify.verifyNotNull(tuple.first()).second()).isEqualTo(2);
-        assertThat(tuple.second()).isTrue();
+        GroupValues values = group.valuesOrThrow();
+        assertThat(values.valueOf(names)).containsExactly("alice");
+        assertThat(values.valueOf(count)).isEqualTo(2);
+        assertThat(values.valueOf(flag)).isTrue();
         assertThat(group.resultOf(names).valueOrThrow()).containsExactly("alice");
         assertThat(group.resultAt(1).valueOrThrow()).isEqualTo(2);
         assertThat(group.resultAt(2).outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -105,7 +105,7 @@ class SynchronousExecutionTest {
         assertThatThrownBy(() -> group.resultOf("unknown")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> group.resultAt(-1)).isInstanceOf(IndexOutOfBoundsException.class);
         assertThatThrownBy(() -> group.resultAt(3)).isInstanceOf(IndexOutOfBoundsException.class);
-        TaskGroupResult<Void, Void> empty = runtime.group("empty", TIMEOUT).runAll();
+        TaskGroupResult<Void> empty = runtime.group("empty", TIMEOUT).runAll();
         assertThat(empty.valuesOrThrow().size()).isZero();
         assertThat(empty.terminalResult()).isNull();
         assertThatThrownBy(empty::terminalValueOrThrow).isInstanceOf(IllegalStateException.class);
@@ -113,12 +113,13 @@ class SynchronousExecutionTest {
 
     @Test
     void groupExposesNonNullCombineNamedResultsAndExecutionIdentity() throws Exception {
-        TaskGroupResult<Tuple2<Integer, Integer>, Integer> group = runtime.group("sum", TIMEOUT)
-                .par(TaskKey.<Integer>named("left"), par, () -> 1)
-                .par(TaskKey.<Integer>named("right"), par, () -> 2)
+        TaskKey<Integer> left = TaskKey.named("left");
+        TaskKey<Integer> right = TaskKey.named("right");
+        TaskGroupResult<Integer> group = runtime.group("sum", TIMEOUT)
+                .par(left, par, () -> 1)
+                .par(right, par, () -> 2)
                 .combine(TaskKey.<Integer>named("sum"), par, values -> {
-                    Tuple2<Integer, Integer> tuple = Verify.verifyNotNull(values);
-                    return Verify.verifyNotNull(tuple.first()) + Verify.verifyNotNull(tuple.second());
+                    return Verify.verifyNotNull(values.valueOf(left)) + Verify.verifyNotNull(values.valueOf(right));
                 })
                 .runAll();
         assertThat(group.groupName()).isEqualTo("sum");
@@ -139,14 +140,17 @@ class SynchronousExecutionTest {
         CountDownLatch childEntered = new CountDownLatch(1);
         CountDownLatch childInterrupted = new CountDownLatch(1);
         CountDownLatch childReturned = new CountDownLatch(1);
-        AtomicReference<TaskGroupResult<Integer, Void>> child = new AtomicReference<>();
+        AtomicReference<TaskGroupResult<Void>> child = new AtomicReference<>();
         IllegalStateException failure = new IllegalStateException("sibling failed");
-        TaskGroupResult<Tuple2<Integer, Integer>, Void> parent = runtime.group("parent", TIMEOUT)
+        TaskKey<Integer> nestedKey = TaskKey.named("nested");
+        TaskKey<Integer> childKey = TaskKey.named("child");
+        TaskKey<Integer> failureKey = TaskKey.named("failure");
+        TaskGroupResult<Void> parent = runtime.group("parent", TIMEOUT)
                 .closeGrace(Duration.ZERO)
-                .par(TaskKey.<Integer>named("nested"), par, () -> {
+                .par(nestedKey, par, () -> {
                     try {
-                        TaskGroupResult<Integer, Void> nested = runtime.groupInheriting("child")
-                                .par(TaskKey.<Integer>named("child"), par, () -> {
+                        TaskGroupResult<Void> nested = runtime.groupInheriting("child")
+                                .par(childKey, par, () -> {
                                     childEntered.countDown();
                                     try {
                                         new CountDownLatch(1).await();
@@ -159,13 +163,18 @@ class SynchronousExecutionTest {
                                 })
                                 .runAll();
                         child.set(nested);
-                        return Verify.verifyNotNull(nested.valuesOrThrow().typedValues());
+                        return Verify.verifyNotNull(nested.valuesOrThrow().valueOf(childKey));
                     } finally {
                         childReturned.countDown();
                     }
                 })
-                .par(TaskKey.<Integer>named("failure"), par, () -> {
-                    Verify.verify(childEntered.await(2, TimeUnit.SECONDS), "child did not start");
+                .par(failureKey, par, () -> {
+                    try {
+                        Verify.verify(childEntered.await(2, TimeUnit.SECONDS), "child did not start");
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw interrupted;
+                    }
                     throw failure;
                 })
                 .runAll();
@@ -173,7 +182,7 @@ class SynchronousExecutionTest {
         assertThatThrownBy(parent::orThrow).isSameAs(failure);
         assertThat(childInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
         assertThat(childReturned.await(2, TimeUnit.SECONDS)).isTrue();
-        TaskGroupResult<Integer, Void> nested = Verify.verifyNotNull(child.get());
+        TaskGroupResult<Void> nested = Verify.verifyNotNull(child.get());
         assertThat(nested.deadlineNanos()).isEqualTo(parent.deadlineNanos());
         assertThat(nested.outcome()).isNotEqualTo(TaskOutcome.TIMEOUT).isNotEqualTo(TaskOutcome.SUCCESS);
         assertThatThrownBy(nested::orThrow).isInstanceOf(java.util.concurrent.CancellationException.class);
@@ -182,7 +191,7 @@ class SynchronousExecutionTest {
     @Test
     void groupRethrowsOriginalErrorsWhileImmediateLeftWrapsThem() {
         AssertionError failure = new AssertionError("business error");
-        TaskGroupResult<Integer, Void> group = runtime.group("error", TIMEOUT)
+        TaskGroupResult<Void> group = runtime.group("error", TIMEOUT)
                 .par(TaskKey.<Integer>named("execution"), par, () -> {
                     throw failure;
                 })
@@ -205,7 +214,7 @@ class SynchronousExecutionTest {
         CountDownLatch published = new CountDownLatch(1);
         CountDownLatch completeCallbacks = new CountDownLatch(1);
         InterruptedException original = new InterruptedException("execution failed before member propagation");
-        TaskGroup<Integer, Void> group = runtime.groupDraft("pending-propagation", Duration.ofSeconds(30))
+        TaskGroup<Void> group = runtime.groupDraft("pending-propagation", Duration.ofSeconds(30))
                 .closeGrace(Duration.ZERO)
                 .par(TaskKey.<Integer>named("execution"), par, () -> {
                     entered.countDown();
@@ -252,7 +261,7 @@ class SynchronousExecutionTest {
             assertThat(published.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(group.futureOf("execution").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(group.futureOf("execution").failure()).isSameAs(original);
-            TaskGroupResult<Integer, Void> result = group.finish();
+            TaskGroupResult<Void> result = group.finish();
             TaskOutcome expected = state == CancellationToken.State.TIMEOUT
                     ? TaskOutcome.TIMEOUT
                     : state == CancellationToken.State.FAIL_FAST ? TaskOutcome.FAIL_FAST : TaskOutcome.GROUP_CANCELLED;
@@ -286,15 +295,16 @@ class SynchronousExecutionTest {
             Thread.currentThread().interrupt();
             try {
                 if (group) {
+                    TaskKey<Integer> execution = TaskKey.named("execution");
                     result.set(runtime.group("wait", TIMEOUT)
-                            .par(TaskKey.<Integer>named("execution"), par, () -> {
+                            .par(execution, par, () -> {
                                 entered.countDown();
                                 release.await();
                                 return 42;
                             })
                             .runAll()
                             .valuesOrThrow()
-                            .typedValues());
+                            .valueOf(execution));
                 } else {
                     result.set(par.map(
                                     Collections.singletonList(1),
@@ -331,7 +341,7 @@ class SynchronousExecutionTest {
     @Test
     void groupObservationsCarryTheSameAttributionAsTheFrozenResults() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
-        TaskGroupResult<?, ?> group = runtime.group("single-view", TIMEOUT)
+        TaskGroupResult<?> group = runtime.group("single-view", TIMEOUT)
                 .par(TaskKey.<Integer>named("waiting"), par, () -> {
                     entered.countDown();
                     new CountDownLatch(1).await();
@@ -379,7 +389,7 @@ class SynchronousExecutionTest {
             Thread.currentThread().interrupt();
             try {
                 if (group) {
-                    TaskGroupResult<Integer, Void> result = runtime.group("cleanup", Duration.ofMillis(150))
+                    TaskGroupResult<Void> result = runtime.group("cleanup", Duration.ofMillis(150))
                             .closeGrace(Duration.ofSeconds(2))
                             .par(TaskKey.<Integer>named("execution"), par, () -> taskCode.apply(1))
                             .runAll();
@@ -429,7 +439,7 @@ class SynchronousExecutionTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicReference<TaskBatchResult<Integer>> batch = new AtomicReference<>();
-        AtomicReference<TaskGroupResult<Integer, Void>> taskGroup = new AtomicReference<>();
+        AtomicReference<TaskGroupResult<Void>> taskGroup = new AtomicReference<>();
         java.util.logging.Logger logger =
                 java.util.logging.Logger.getLogger((group ? TaskGroup.class : TaskBatch.class).getName());
         AtomicReference<java.util.logging.LogRecord> warning = new AtomicReference<>();
@@ -478,7 +488,7 @@ class SynchronousExecutionTest {
             assertThat(Verify.verifyNotNull(warning.get()).getLevel()).isEqualTo(java.util.logging.Level.WARNING);
             assertThat(Verify.verifyNotNull(warning.get()).getMessage()).contains(group ? "execution=1" : "stuck=1");
             if (group) {
-                TaskGroupResult<Integer, Void> result = Verify.verifyNotNull(taskGroup.get());
+                TaskGroupResult<Void> result = Verify.verifyNotNull(taskGroup.get());
                 assertThat(result.executionExitConfirmed()).isFalse();
                 assertThat(result.unexitedExecutions()).containsEntry("execution", 1);
                 assertThat(result.members()).isEmpty();
@@ -521,7 +531,7 @@ class SynchronousExecutionTest {
         AtomicInteger closed = new AtomicInteger();
         IllegalArgumentException primary = new IllegalArgumentException("execution failed");
         Exception closeFailure = new Exception("close failed");
-        TaskGroupResult<Integer, Void> result = runtime.group("resource", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("resource", TIMEOUT)
                 .par(TaskKey.<Integer>named("execution"), par, () -> {
                     try (AutoCloseable resource = () -> {
                         closed.incrementAndGet();
@@ -571,11 +581,11 @@ class SynchronousExecutionTest {
     @Test
     void groupCheckedFailureAndCombineFailureKeepTheirCauses() {
         Exception checked = new Exception("checked failure");
-        TaskGroupResult<Integer, String> memberFailure = runtime.group("failed-member", TIMEOUT)
+        TaskGroupResult<String> memberFailure = runtime.group("failed-member", TIMEOUT)
                 .par(TaskKey.<Integer>named("execution"), par, () -> {
                     throw checked;
                 })
-                .combine(TaskKey.<String>named("combine"), par, value -> "unused")
+                .combineValues(TaskKey.<String>named("combine"), par, value -> "unused")
                 .runAll();
         assertThat(memberFailure.failedTaskName()).isEqualTo("execution");
         assertThat(memberFailure.valuesResult().failure()).isSameAs(checked);
@@ -587,9 +597,9 @@ class SynchronousExecutionTest {
                 .hasCauseReference(checked);
         assertThat(memberFailure.reportString()).contains("failedTask=execution");
         AssertionError error = new AssertionError("combine failure");
-        TaskGroupResult<Integer, String> combineFailure = runtime.group("failed-combine", TIMEOUT)
+        TaskGroupResult<String> combineFailure = runtime.group("failed-combine", TIMEOUT)
                 .par(TaskKey.<Integer>named("execution"), par, () -> 1)
-                .combine(TaskKey.<String>named("combine"), par, value -> {
+                .combineValues(TaskKey.<String>named("combine"), par, value -> {
                     throw error;
                 })
                 .runAll();
@@ -621,7 +631,7 @@ class SynchronousExecutionTest {
             assertThatThrownBy(batch::valuesOrThrow)
                     .isInstanceOf(SubmissionException.class)
                     .hasCauseReference(original);
-            TaskGroupResult<Integer, Void> group = rejecting
+            TaskGroupResult<Void> group = rejecting
                     .group("rejected", TIMEOUT)
                     .par(TaskKey.<Integer>named("execution"), rejected, () -> 1)
                     .runAll();
@@ -717,7 +727,7 @@ class SynchronousExecutionTest {
         };
         logger.addHandler(handler);
         try {
-            TaskGroupResult<Integer, Void> result = runtime.group("late-close", Duration.ofMillis(150))
+            TaskGroupResult<Void> result = runtime.group("late-close", Duration.ofMillis(150))
                     .closeGrace(Duration.ofSeconds(1))
                     .par(TaskKey.<Integer>named("resource"), par, () -> {
                         try (AutoCloseable resource = () -> {
@@ -768,7 +778,7 @@ class SynchronousExecutionTest {
         };
         logger.addHandler(handler);
         try {
-            TaskGroupResult<Integer, Void> result = runtime.group("cancel-shaped-close", Duration.ofMillis(150))
+            TaskGroupResult<Void> result = runtime.group("cancel-shaped-close", Duration.ofMillis(150))
                     .closeGrace(Duration.ofSeconds(1))
                     .par(TaskKey.<Integer>named("resource"), par, () -> {
                         try (AutoCloseable resource = () -> {
