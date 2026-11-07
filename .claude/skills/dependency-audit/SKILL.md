@@ -13,7 +13,7 @@ description: Triage the monthly dependency audit. Use when the user asks about o
 - The script is the source of truth for current and latest versions. It is
   deterministic and never edits files.
 - The schedule lives on GitHub Actions, not on the local machine. The workflow
-  file must be on `main` to be scheduled; the job checks out `dev/v0.4.0`.
+  file must be on `main` to be scheduled; the job checks out `dev/v0.5.0`.
 - The build JDK is 25 (current LTS) and the runtime target is Java 8. Java 8 is a
   hard constraint from `AGENTS.md`; never propose a dependency that requires a
   newer Java without an explicit migration plan.
@@ -64,8 +64,8 @@ End with three short sections:
 ## Guardrails
 
 - Stable releases only; ignore SNAPSHOT, RC, alpha, beta, M, EA, and preview.
-- Do not change the build JDK 25 or the runtime JDK 8.
+- Do not change the build JDK 25 or the Java 8+ runtime compatibility baseline.
 - Do not upgrade a major dependency just because it is newer; check the Java 8
-  contract and the CI `java8-runtime` job.
+  contract and the CI `runtime-consumer` matrix.
 - The audit reports; the root `AGENTS.md` Permissions section decides which
   upgrades proceed without asking.
