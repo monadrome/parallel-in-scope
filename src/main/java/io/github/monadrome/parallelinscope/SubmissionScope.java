@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
  * Thread-local submission state used only while submitting work to an executor.
  *
  * <p>A submission has a multi-task unit configuration but no current task. This scope lets a {@code
- * SmartBlockingQueue} apply the unit's enqueue policy before a worker begins executing a task.
+ * SubmissionAwareBlockingQueue} apply the unit's enqueue policy before a worker begins executing a task.
  */
 final class SubmissionScope {
     private static final ThreadLocal<@Nullable MultiTaskContext> CURRENT = new ThreadLocal<>();

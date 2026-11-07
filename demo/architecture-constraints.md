@@ -104,7 +104,7 @@ mvn test
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │       queue：独立通用队列（公共 API）          │   │
-│  │  DrainingBlockingQueue, VariableLinkedBlockingQueue│   │
+│  │  DrainingBlockingQueue, ResizableBlockingQueue│   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 └─────────────────────────────────────────────────────────┘

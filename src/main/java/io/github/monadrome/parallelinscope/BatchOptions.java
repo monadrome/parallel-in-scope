@@ -125,7 +125,7 @@ public final class BatchOptions {
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
      * <p>The policy is honored only when the registered executor's queue is a {@link
-     * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this flag
+     * SubmissionAwareBlockingQueue}; with any other queue, enqueue rejection is never triggered and this flag
      * is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
@@ -208,7 +208,7 @@ public final class BatchOptions {
 
     /**
      * Returns whether enqueue refusal is requested; it has effect only with a {@link
-     * SmartBlockingQueue}.
+     * SubmissionAwareBlockingQueue}.
      */
     public boolean rejectEnqueue() {
         return rejectEnqueue;

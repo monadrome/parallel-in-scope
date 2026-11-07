@@ -12,7 +12,7 @@ own `ThreadPoolExecutor` — the library never constructs either.
 
 - `DrainingBlockingQueue`: zero references in `src/main` and `demo/src`. Its
   consumers are entirely outside this repository.
-- `VariableLinkedBlockingQueue`: one internal consumer, `SmartBlockingQueue`, by
+- `ResizableBlockingQueue`: one internal consumer, `SubmissionAwareBlockingQueue`, by
   delegation only.
 
 So a task scoped to the library, the core mechanism, or the kernel excludes this

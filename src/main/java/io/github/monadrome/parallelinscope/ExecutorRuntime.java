@@ -85,11 +85,11 @@ final class ExecutorRuntime {
     /**
      * Whether a requested {@code rejectEnqueue} can actually take effect for this executor, which
      * requires the introspectable executor to be a {@link ThreadPoolExecutor} whose work queue is a
-     * {@link SmartBlockingQueue}, the only implementation that reads it.
+     * {@link SubmissionAwareBlockingQueue}, the only implementation that reads it.
      */
     boolean enqueueRefusalEffective() {
         return introspectableExecutor instanceof ThreadPoolExecutor
-                && ((ThreadPoolExecutor) introspectableExecutor).getQueue() instanceof SmartBlockingQueue;
+                && ((ThreadPoolExecutor) introspectableExecutor).getQueue() instanceof SubmissionAwareBlockingQueue;
     }
 
     /**
@@ -138,7 +138,7 @@ final class ExecutorRuntime {
     private static long queueCapacity(BlockingQueue<Runnable> queue) {
         /*
          * BlockingQueue.remainingCapacity reports ideally available slots, or Integer.MAX_VALUE
-         * when there is no intrinsic bound. JDK queues and VariableLinkedBlockingQueue compute it
+         * when there is no intrinsic bound. JDK queues and ResizableBlockingQueue compute it
          * as capacity - size; summing with size recovers the reported capacity. The long sum also
          * avoids overflow for a queue that always reports Integer.MAX_VALUE regardless of its size.
          */

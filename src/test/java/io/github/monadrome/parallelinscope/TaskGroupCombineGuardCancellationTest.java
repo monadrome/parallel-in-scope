@@ -52,7 +52,7 @@ class TaskGroupCombineGuardCancellationTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                new SmartBlockingQueue<>(100),
+                new SubmissionAwareBlockingQueue<>(100),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }

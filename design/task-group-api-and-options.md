@@ -76,8 +76,8 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
-| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SmartBlockingQueue` 入队拒绝 |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SubmissionAwareBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
+| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SubmissionAwareBlockingQueue` 入队拒绝 |
 
 > 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
 > `RejectedExecutionHandler`）；本节其余字段划分不受影响。
@@ -181,7 +181,7 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 声明。
 
 - `TaskType` MUST NOT 改变准入、入队、拒绝、取消、deadline、归因或任务 outcome。拒绝入队只由
-  `rejectEnqueue` 表达：`SmartBlockingQueue.offer` 只读 `rejectEnqueue`，惰性拒绝告警也只针对
+  `rejectEnqueue` 表达：`SubmissionAwareBlockingQueue.offer` 只读 `rejectEnqueue`，惰性拒绝告警也只针对
   `rejectEnqueue`。
 - 两侧缺省 MUST 为 `UNKNOWN`；`UNKNOWN` 可显式书写，表示刻意不声明。嵌套单元 MUST NOT 继承父单元
   的类型：任务代码里提交的 `Par.map`、嵌套组与 `Par.mapAndCombine` 的终端 combine 都按自己的声明

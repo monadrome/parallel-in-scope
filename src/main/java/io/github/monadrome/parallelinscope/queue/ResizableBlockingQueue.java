@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  * @author Doug Lea
  * @since 0.3.0
  */
-public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
+public class ResizableBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
 
     static class Node<E> {
         @Nullable
@@ -72,7 +72,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
     private final Condition notFull = putLock.newCondition();
 
     /** Creates an effectively unbounded queue. */
-    public VariableLinkedBlockingQueue() {
+    public ResizableBlockingQueue() {
         this(Integer.MAX_VALUE);
     }
 
@@ -81,7 +81,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
      *
      * @param capacity the positive queue capacity
      */
-    public VariableLinkedBlockingQueue(int capacity) {
+    public ResizableBlockingQueue(int capacity) {
         if (capacity <= 0) throw new IllegalArgumentException();
         this.capacity = capacity;
         last = head = new Node<>(null);
@@ -92,7 +92,7 @@ public class VariableLinkedBlockingQueue<E> extends AbstractQueue<E> implements 
      *
      * @param c the initial elements
      */
-    public VariableLinkedBlockingQueue(Collection<? extends E> c) {
+    public ResizableBlockingQueue(Collection<? extends E> c) {
         this(Integer.MAX_VALUE);
         final ReentrantLock lock = this.putLock;
         lock.lock();

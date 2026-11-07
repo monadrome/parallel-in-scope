@@ -24,7 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Only {@link SmartBlockingQueue} reads {@code rejectEnqueue}, so on any other queue a requested
+ * Only {@link SubmissionAwareBlockingQueue} reads {@code rejectEnqueue}, so on any other queue a requested
  * refusal is inert and reaches a once-per-Par warning. A {@link TaskType} declaration never requests
  * refusal, so it never reaches this warning, on any queue.
  */
@@ -56,7 +56,7 @@ class InertEnqueueRefusalWarningTest {
     void captureParWarnings() {
         parLogger.addHandler(capture);
         plain = Executors.newFixedThreadPool(2);
-        smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(4));
+        smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(4));
         runtime = ParRuntime.builder()
                 .register(ParId.of("plain"), plain)
                 .register(ParId.of("smart"), smart)
@@ -100,7 +100,7 @@ class InertEnqueueRefusalWarningTest {
         assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
         assertThat(records.get(0).getMessage())
                 .startsWith("Par 'plain' requested rejectEnqueue, but its executor")
-                .contains("inert", "SmartBlockingQueue")
+                .contains("inert", "SubmissionAwareBlockingQueue")
                 .doesNotContain("TaskType");
     }
 

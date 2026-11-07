@@ -33,7 +33,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".LeanCancellationException",
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".ParId",
-            BASE_PACKAGE + ".SmartBlockingQueue",
+            BASE_PACKAGE + ".SubmissionAwareBlockingQueue",
             BASE_PACKAGE + ".TaskBatchResult",
             BASE_PACKAGE + ".TaskCompletion",
             BASE_PACKAGE + ".ThreadPoolStarvationObservationScope",
@@ -49,7 +49,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".Tuple2",
             BASE_PACKAGE + ".WorkloadFitReport",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue",
-            BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue",
+            BASE_PACKAGE + ".queue.ResizableBlockingQueue",
             // Nested types are named with the binary '$' separator; the visibility of a nested
             // type is part of the API just like a top-level one, so it is pinned here too.
             BASE_PACKAGE + ".ExecutorWaitReport$Component",

@@ -1,6 +1,6 @@
 # 使用指南
 
-> 本文档跟随 `0.5.0-SNAPSHOT` 开发线；最新稳定版是 `0.4.1`；从 `0.3.x` 升级请按 [v0.4 迁移指南](migration-v0.4.md) 改用类型化 key；更早的迁移见 [v0.3 迁移指南](migration-v0.3.md) 与 [v0.2 迁移指南](migration-v0.2.md)。
+> 本文档跟随 `0.5.0-SNAPSHOT` 开发线；最新稳定版是 `0.4.1`；从 `0.4.x` 升级请按 [v0.5 迁移指南](migration-v0.5.md) 更新队列类型名；从 `0.3.x` 升级请按 [v0.4 迁移指南](migration-v0.4.md) 改用类型化 key；更早的迁移见 [v0.3 迁移指南](migration-v0.3.md) 与 [v0.2 迁移指南](migration-v0.2.md)。
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
@@ -82,13 +82,13 @@ timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `in
 executor handoff 失败记录为 SUBMISSION_FAILURE，内部 SubmissionException 保留原 cause，包括
 Error。参数校验和关闭后的准入错误仍从入口抛出。
 
-`rejectEnqueue` 是唯一改变入队准入的选项，也只有 `SmartBlockingQueue` 读取它；换成其他任何队列
-它都是惰性的，经某个 `Par` 的首次此类提交会在 runtime 自有线程上打一条告警。它默认是 false。把 SmartBlockingQueue
+`rejectEnqueue` 是唯一改变入队准入的选项，也只有 `SubmissionAwareBlockingQueue` 读取它；换成其他任何队列
+它都是惰性的，经某个 `Par` 的首次此类提交会在 runtime 自有线程上打一条告警。它默认是 false。把 SubmissionAwareBlockingQueue
 装到物理池上，并按批次显式选择：
 
 ```java
 ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
-        4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
+        4, 4, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
         .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
@@ -635,7 +635,7 @@ future，并在错误处理逻辑中检查已发布的报告。
 - `NO_ISSUE` 不等于没有死锁：空队列全员阻塞、`SynchronousQueue`/零容量 handoff 池、未注册到本
   runtime 的池，以及部分 worker 永久阻塞但其他 worker 仍完成短任务，都可能不可见。
 - 直接任务与库内任务之间没有依赖边，报告不能说明谁等谁，也不覆盖跨池/跨 runtime 的等待关系。
-- 开观测不会给直接任务补上取消、deadline、TTL、`SmartBlockingQueue` 或 `rejectEnqueue` 准入语义。
+- 开观测不会给直接任务补上取消、deadline、TTL、`SubmissionAwareBlockingQueue` 或 `rejectEnqueue` 准入语义。
   只有 TTL wrapper 会被看穿；Guava/自定义装饰器应注册底层池，否则进入 `unsupportedExecutors()`。
 - 忘记 `close()` 会让服务和采样在 `runtime.close()` 后继续、使 `awaitQuiescence` 返回 false 且
   `activeObservations()` 保持非零。推荐 try-with-resources 或一个长生命周期 scope，不要每个请求开一个；

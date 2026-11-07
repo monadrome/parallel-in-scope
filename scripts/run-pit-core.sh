@@ -94,7 +94,7 @@ batch_classes() {
       printf '%s' "$package.Par,$package.Par\$1,$package.ParRuntime*,$package.SlidingWindowSubmitter*,$package.TaskSubmissions*,$package.SubmissionScope*,$package.SubmissionException*"
       ;;
     E)
-      printf '%s' "$package.Task,$package.TaskUnit*,$package.TaskNode*,$package.TaskExecutionContext*,$package.ScopedCallable*,$package.SmartBlockingQueue*,$package.SystemWorkloadClock*,$package.WorkloadFit,$package.WorkloadFit\$1,$package.WorkloadFit\$Entry,$package.WorkloadFit\$Timing,$package.WorkloadFit\$Totals,$package.FutureInspector*,$package.ExecutorRuntime*,$package.ExecutorWaitGraph*,$package.ThreadPoolStarvationObservationScope*"
+      printf '%s' "$package.Task,$package.TaskUnit*,$package.TaskNode*,$package.TaskExecutionContext*,$package.ScopedCallable*,$package.SubmissionAwareBlockingQueue*,$package.SystemWorkloadClock*,$package.WorkloadFit,$package.WorkloadFit\$1,$package.WorkloadFit\$Entry,$package.WorkloadFit\$Timing,$package.WorkloadFit\$Totals,$package.FutureInspector*,$package.ExecutorRuntime*,$package.ExecutorWaitGraph*,$package.ThreadPoolStarvationObservationScope*"
       ;;
   esac
 }

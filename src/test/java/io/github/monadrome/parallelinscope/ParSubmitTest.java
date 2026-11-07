@@ -212,7 +212,8 @@ class ParSubmitTest {
     @Test
     void inertRejectEnqueueIsReportedOncePerParAndNeverForAQueueThatHonorsIt() throws Exception {
         ExecutorService plain = Executors.newFixedThreadPool(2);
-        ThreadPoolExecutor smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(4));
+        ThreadPoolExecutor smart =
+                new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(4));
         ParRuntime global = ParRuntime.builder()
                 // Two Par names on one physical pool: the diagnostic is per Par, not per executor.
                 .register(ParId.of("plain"), plain)
@@ -269,7 +270,7 @@ class ParSubmitTest {
                     .get(2, TimeUnit.SECONDS);
             assertThat(records).hasSize(2);
 
-            // A SmartBlockingQueue reads the flag, so the caller is not warned about an inert one.
+            // A SubmissionAwareBlockingQueue reads the flag, so the caller is not warned about an inert one.
             global.par(ParId.of("smart"))
                     .submit("quiet", () -> "e", TaskOptions.timeout(Duration.ofSeconds(30)))
                     .get(2, TimeUnit.SECONDS);

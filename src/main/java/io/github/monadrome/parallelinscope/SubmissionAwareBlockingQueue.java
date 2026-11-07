@@ -1,7 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.util.concurrent.ForwardingBlockingQueue;
-import io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue;
+import io.github.monadrome.parallelinscope.queue.ResizableBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import org.jspecify.annotations.Nullable;
 
@@ -29,9 +29,9 @@ import org.jspecify.annotations.Nullable;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @since 0.3.0
  */
-public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
+public class SubmissionAwareBlockingQueue<E> extends ForwardingBlockingQueue<E> {
 
-    private final VariableLinkedBlockingQueue<E> delegate;
+    private final ResizableBlockingQueue<E> delegate;
 
     /**
      * Creates a queue with the supplied positive capacity.
@@ -39,11 +39,11 @@ public class SmartBlockingQueue<E> extends ForwardingBlockingQueue<E> {
      * @param capacity the initial queue capacity
      * @throws IllegalArgumentException if {@code capacity} is not positive
      */
-    public SmartBlockingQueue(int capacity) {
+    public SubmissionAwareBlockingQueue(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be positive");
         }
-        this.delegate = new VariableLinkedBlockingQueue<>(capacity);
+        this.delegate = new ResizableBlockingQueue<>(capacity);
     }
 
     @Override

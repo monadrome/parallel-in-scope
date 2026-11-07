@@ -117,7 +117,7 @@ the chain, and cannot resolve a logical wait cycle or a held lock. Structural gr
 pool-wide no-progress evidence therefore remain complementary risk signals, not deadlock proofs.
 This observation adds no general submit/wait wrapper or explicit wait-edge API.
 
-Opening an observation does not add cancellation, deadline, TTL propagation, `SmartBlockingQueue`,
+Opening an observation does not add cancellation, deadline, TTL propagation, `SubmissionAwareBlockingQueue`,
 or `rejectEnqueue` admission semantics to direct tasks. Only TTL wrappers are unwrapped; Guava or
 custom executor decorators must be registered through their physical pool or they appear in
 `unsupportedExecutors()`.
