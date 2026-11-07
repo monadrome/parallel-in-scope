@@ -6,7 +6,7 @@
 
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>parallel-in-scope</name>
@@ -19,7 +19,7 @@
         <connection>scm:git:https://github.com/monadrome/parallel-in-scope.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/monadrome/parallel-in-scope.git</developerConnection>
         <url>https://github.com/monadrome/parallel-in-scope</url>
-        <tag>v0.3.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
@@ -46,15 +46,20 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.release>8</java.release>
         <maven.compiler.testRelease>11</maven.compiler.testRelease>
-        <guava.version>33.6.0-jre</guava.version>
+        <guava.version>33.7.2-jre</guava.version>
         <ttl.version>2.14.5</ttl.version>
-        <junit-jupiter.version>5.14.4</junit-jupiter.version>
-        <mockito.version>5.23.0</mockito.version>
+        <junit-jupiter.version>6.1.3</junit-jupiter.version>
+        <lincheck.version>3.7</lincheck.version>
+        <mockito.version>5.24.0</mockito.version>
+        <byte-buddy.version>1.17.7</byte-buddy.version>
         <assertj.version>3.27.7</assertj.version>
         <awaitility.version>4.3.0</awaitility.version>
         <jspecify.version>1.0.1</jspecify.version>
         <errorprone.version>2.50.0</errorprone.version>
         <nullaway.version>0.14.2</nullaway.version>
+        <spotbugs.version>4.10.5.0</spotbugs.version>
+        <!-- PIT-style override: an inline <threshold> would shadow this user property. -->
+        <spotbugs.threshold>High</spotbugs.threshold>
 
         <!-- PIT run defaults live here, not as inline plugin <configuration>. An
              explicit configuration value shadows the parameter's user property, so
@@ -65,6 +70,25 @@
         <targetTests>io.github.monadrome.parallelinscope.*</targetTests>
         <mutators>CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS</mutators>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Lincheck 3.7 brings ByteBuddy 1.14.12, which does not know the JDK 25
+                 class-file version and breaks Mockito's inline mock maker on the shared
+                 test classpath. Pin the version Mockito 5.24 declares so both tools use
+                 a JDK 25-aware ByteBuddy; it stays test-only through their scopes. -->
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Core: Guava (ListenableFuture, Graph, etc.) -->
@@ -90,11 +114,23 @@
             <version>${jspecify.version}</version>
         </dependency>
 
-        <!-- Test: JUnit 5 -->
+        <!-- Test: JUnit 6. Its test runtime requires Java 17; the build JDK is 25
+             while the published library bytecode remains release 8. -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test: Lincheck explores interleavings for cancellation races that a repeated
+             stress test can miss. Test scope only; its Kotlin/ByteBuddy dependencies never
+             reach the published artifact. Lincheck 3.7 is Java 8 bytecode but runs on the
+             build JDK 25 test runtime. -->
+        <dependency>
+            <groupId>org.jetbrains.lincheck</groupId>
+            <artifactId>lincheck</artifactId>
+            <version>${lincheck.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -128,7 +164,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <release>${java.release}</release>
                     <testRelease>${maven.compiler.testRelease}</testRelease>
@@ -138,7 +174,7 @@
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true</arg>
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:HandleTestAssertionLibraries=true -Xep:MustBeClosedChecker:WARN</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
@@ -157,7 +193,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.6.2</version>
+                <version>3.7.0</version>
                 <executions>
                     <execution>
                         <id>enforce-jdk-25-plus</id>
@@ -180,13 +216,39 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.6.1</version>
+                <configuration>
+                    <!-- Lincheck instruments the test JVM with its own agent. If Mockito's
+                         inline mock maker has already transformed the same reused JVM, the
+                         two agents interfere: Lincheck's snapshot tracker walks Mockito's
+                         dispatcher and hits JDK module access errors. Run Lincheck classes
+                         in a fresh fork that never loads Mockito. -->
+                    <excludes>
+                        <exclude>**/*LincheckTest.java</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>lincheck-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/*LincheckTest.java</include>
+                            </includes>
+                            <excludes combine.self="override"/>
+                            <reuseForks>false</reuseForks>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Code formatting: `mvn spotless:apply` formats all sources -->
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>2.44.5</version>
+                <version>3.10.4</version>
                 <configuration>
                     <java>
                         <palantirJavaFormat>
@@ -198,17 +260,17 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
-                <version>3.1.4</version>
+                <version>3.2.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.1.4</version>
+                <version>3.2.0</version>
             </plugin>
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.11.0</version>
+                <version>0.12.0</version>
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
@@ -250,6 +312,37 @@
     </build>
 
     <profiles>
+        <!-- Opt-in static audit. Error Prone/NullAway already gate the default build, so
+             SpotBugs is not part of `mvn verify`; it covers detector families Error Prone
+             does not implement (cross-thread field access, annotation/contract mismatch).
+             The High threshold keeps the gate on its strongest findings; run with
+             -Dspotbugs.threshold=Low for the full report. See verification/spotbugs.md. -->
+        <profile>
+            <id>spotbugs</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <version>${spotbugs.version}</version>
+                        <configuration>
+                            <effort>Max</effort>
+                            <threshold>${spotbugs.threshold}</threshold>
+                            <excludeFilterFile>verification/spotbugs-exclude.xml</excludeFilterFile>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>spotbugs-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>pitest</id>
             <build>
@@ -257,7 +350,7 @@
                     <plugin>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-maven</artifactId>
-                        <version>1.25.9</version>
+                        <version>1.30.1</version>
                         <dependencies>
                             <dependency>
                                 <groupId>org.pitest</groupId>
@@ -276,6 +369,12 @@
                             <excludedClasses>
                                 <param>io.github.monadrome.parallelinscope.queue.*Demo*</param>
                             </excludedClasses>
+                            <!-- Lincheck attaches its own instrumentation agent and must not run
+                                 inside PIT's instrumented worker. Surefire's exclude does not
+                                 constrain PIT's targetTests discovery, so exclude it here too. -->
+                            <excludedTestClasses>
+                                <param>*LincheckTest</param>
+                            </excludedTestClasses>
                             <outputFormats>
                                 <param>HTML</param>
                                 <param>XML</param>
@@ -292,7 +391,7 @@
                                  keep the per-mutation timeout above their combined bounded waits. -->
                             <timeoutConstant>60000</timeoutConstant>
                             <timeoutFactor>1.25</timeoutFactor>
-                            <!-- Coverage-phase timeout is not configurable in pitest-maven 1.25.9;
+                            <!-- Coverage-phase timeout is not configurable in pitest-maven 1.30.1;
                                  the parameter this once set (coverageTimeout) no longer exists and
                                  was silently ignored. -->
                             <timestampedReports>false</timestampedReports>

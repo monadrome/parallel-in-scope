@@ -1,26 +1,34 @@
 name: Snapshot
 
-# Publish a fresh `0.3.0-SNAPSHOT` to the Central snapshot repository when the development
-# line has moved on. The README recommends the snapshot coordinates to first-time callers, so
-# a published snapshot that lags the tree makes the quick start fail to compile for anyone who
-# follows it; this workflow keeps the lag to about a day instead of leaving it until someone
-# remembers to push a tag.
+# Publish `0.4.0-SNAPSHOT` when the development line has moved past Central's
+# last publication in UTC days, preserving the previous development line's policy.
 #
-# Triggered by a push rather than by a schedule, because GitHub registers a workflow only from
-# the repository's default branch: a `schedule` trigger in a file that exists only on
-# `dev/v0.3.0` never fires, and `workflow_dispatch` is not offered for it either. A `push`
-# trigger carries no such restriction -- the workflow file travels with the branch that was
-# pushed. `release.yml` does live on the default branch, so pushing the `v0.3.0-SNAPSHOT` tag
-# remains the way to publish by hand before the next push.
+# Three triggers share that one gate. `push` publishes a moved line immediately; the daily
+# `schedule` republishes a tip whose publish never reached Central -- a failed deploy or a
+# lost run -- without waiting for the next push; `workflow_dispatch` is the manual fallback.
+# A run that finds nothing newer than Central publishes nothing. The UTC-day rate limit binds
+# every trigger alike: a tip committed on an already-published UTC day never satisfies the
+# gate on a later day either, so a same-day second push waits for a later-dated commit (whose
+# publish contains it) or for the `v0.4.0-SNAPSHOT` tag.
 #
-# A real daily schedule (one that also fires on days without a push) would need this file on
-# the default branch; making `dev/v0.3.0` the default branch is the alternative.
+# GitHub fires `schedule` (and offers `workflow_dispatch` in the Actions UI) only from the
+# default branch's copy of this file; a `schedule` in a copy that exists only on a development
+# branch never fires. This branch's copy is the definition, and the default branch's copy is a
+# sync of it: syncing that copy is a maintainer action outside the development line, and until
+# it happens the schedule stays dormant. The job pins its checkout to this branch below, so
+# wherever a run starts from, it publishes this development line. Pushing the `v0.4.0-SNAPSHOT`
+# tag (handled by `release.yml`, already on the default branch) remains the way to publish by
+# hand that bypasses the date gate.
 on:
   push:
-    branches: [dev/v0.3.0]
+    branches: [dev/v0.4.0]
+  # 02:17 UTC daily. Off the top of the hour because GitHub delays scheduled workflows the
+  # most around popular cron minutes; the gate makes the exact minute uncritical.
+  schedule:
+    - cron: '17 2 * * *'
   # Manual runs still gate on the same UTC-day rule, so pressing the button twice in a day
-  # publishes once. Kept because it is the only way to publish on a day the branch does not
-  # move without pushing the `v0.3.0-SNAPSHOT` tag by hand.
+  # publishes once -- for a same-day republication that skips the gate, push the
+  # `v0.4.0-SNAPSHOT` tag by hand.
   workflow_dispatch:
 
 permissions:
@@ -37,14 +45,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      # Pin the branch: scheduled and UI-dispatched runs execute the default branch's copy of
+      # this file, and the pin is what makes them build this development line instead of the
+      # default branch's tree. For push runs the pinned ref is the pushed branch itself.
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: dev/v0.4.0
 
       # The release path's build JDK, for the same reason: the enforcer requires JDK 25 and
       # the artifact still targets Java 8 bytecode.
       - name: Set up build JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         with:
@@ -58,7 +70,7 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       # Skip unless the branch has moved past what Central serves. Central's own
-      # `<lastUpdated>` is the record of the last publish -- the `v0.3.0-SNAPSHOT` tag is no
+      # `<lastUpdated>` is the record of the last publish -- the snapshot tag is no
       # longer maintained as a marker of the published revision.
       #
       # Both stamps are UTC `yyyyMMddHHmmss`, so they compare as plain integers: no date
@@ -69,7 +81,7 @@ jobs:
       # The comparison reads the branch tip's committer date, which rebase, amend, and
       # squash-pick all move forward, so a rewritten branch is republished rather than
       # skipped. The known miss is a branch whose tip carries a deliberately older committer
-      # date; pushing the `v0.3.0-SNAPSHOT` tag publishes past it.
+      # date; pushing the matching snapshot tag publishes past it.
       - name: Decide whether Central already has this tree
         id: gate
         run: |
