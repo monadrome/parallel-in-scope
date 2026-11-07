@@ -14,22 +14,16 @@
     "commits": [
       "feat: split ImmediateResult fold failures",
       "fix: finish four-way fold migration",
-      "docs: clarify four-way fold history"
+      "docs: clarify four-way fold history",
+      "chore: record delivery four-way-immediate-result-fold"
     ],
-    "files": 10,
-    "insertions": 126,
+    "files": 11,
+    "insertions": 178,
     "deletions": 53
   },
   "reviews": {
     "adversarial": [],
-    "refactoring": [
-      {
-        "run": "refactoring-feat-four-way-immediate-result-fold-2026-11-06",
-        "head": "68190b76fd78d8eab444627dcd367c29768dfb3a",
-        "incompleteAgents": 0,
-        "findings": []
-      }
-    ]
+    "refactoring": []
   },
   "gates": {
     "failures": {
@@ -38,7 +32,17 @@
       "check-design-routes": 1
     }
   },
-  "pit": [],
+  "pit": [
+    {
+      "source": "mutations.xml",
+      "statuses": {
+        "KILLED": 34
+      },
+      "total": 34,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
   "interventions": {
     "asks": 0,
     "corrections": 0
@@ -48,5 +52,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Four-way ImmediateResult.fold; multi-review rounds completed with Claude/OCR, Kiro blocked twice because claude-haiku-5.5 was unavailable; findings were fixed. Full root and integrations tests pass."
+  "notes": "Four-way ImmediateResult.fold; focused PIT rerun with root-package tests killed 34/34 mutants with no survivors or no-coverage. Multi-review Claude/OCR completed; Kiro blocked twice because claude-haiku-5.5 was unavailable."
 }
