@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import types
@@ -89,6 +90,20 @@ class RepoGateTest(unittest.TestCase):
         git(self.repo, "commit", "-qm", "rename")
         paths = {p for _, p in gates.changes(self.repo, self.base)}
         self.assertEqual(paths, {"docs/a.md", "docs/b.md"})
+
+    def test_race_claims_skip_when_harness_is_absent(self):
+        gate = gates.race_claims(self.repo, Path(self.tmp.name) / "logs", 1)
+        self.assertEqual((gate.status, gate.detail), ("skip", "the repository has no registered race-claim harness"))
+
+    def test_race_claims_runs_the_harness_and_reports_failure(self):
+        script = self.repo / "scripts/check-race-claims.py"
+        script.parent.mkdir()
+        script.write_text("#!/usr/bin/env python3\n")
+        logs = Path(self.tmp.name) / "logs"
+        with mock.patch.object(gates, "run_logged", return_value=1) as run_logged:
+            gate = gates.race_claims(self.repo, logs, 1)
+        self.assertEqual(gate.status, "fail")
+        self.assertEqual(run_logged.call_args.args[0][:2], [sys.executable, str(script)])
 
 
 class ReverseVerifyTest(unittest.TestCase):

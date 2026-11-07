@@ -79,6 +79,21 @@ def fresh_verify(clone: Path, workdir: Path, logs: Path, java_home: str, timeout
     return [Gate("spotless", "pass"), verdict]
 
 
+def race_claims(workdir: Path, logs: Path, timeout_min: int) -> Gate:
+    """Run the repository's registered ordering proofs on a clean export."""
+    script = workdir / "scripts/check-race-claims.py"
+    if not script.is_file():
+        return Gate("race-claims", "skip", "the repository has no registered race-claim harness")
+    log = logs / "race-claims.log"
+    try:
+        code = run_logged([sys.executable, str(script)], log, cwd=workdir, timeout=timeout_min * 60)
+    except subprocess.TimeoutExpired:
+        return Gate("race-claims", "fail", "registered race claims exceeded the verification timeout")
+    if code != 0:
+        return Gate("race-claims", "fail", "registered race claims failed; see " + str(log))
+    return Gate("race-claims", "pass")
+
+
 def repo_checks(clone: Path, logs: Path) -> Gate:
     failures = []
     for script in REPO_CHECKS:
@@ -192,7 +207,9 @@ def run_all(
         return [scan], {}, human
     gates = [Gate("diff-policy", "pass", "; ".join(human)), scan]
     if any(p.startswith(BUILD_INPUTS) for _, p in entries):
-        gates += fresh_verify(clone, scratch / "verify", logs, java_home, timeout_min)
+        verify_workdir = scratch / "verify"
+        gates += fresh_verify(clone, verify_workdir, logs, java_home, timeout_min)
+        gates.append(race_claims(verify_workdir, logs, timeout_min))
     gates.append(repo_checks(clone, logs))
     if issue_type == "bug":
         gates.append(reverse_verify(clone, base_sha, entries, scratch / "reverse", logs, java_home, timeout_min))
