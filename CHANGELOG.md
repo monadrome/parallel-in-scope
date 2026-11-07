@@ -4,6 +4,9 @@
 
 ### Breaking changes
 
+- Change `ImmediateResult.fold` to four handlers: `onValue`, `onUserFailure`, `onSubmissionFailure`,
+  and `onCancelled`; the three-argument overload is removed. See the [0.4 migration guide](docs/en/migration-v0.4.md).
+
 - Remove `ResourceCloser` and the closer-taking `adopt` overloads from the earlier 0.4 development API.
   Adopted futures keep structured cancellation, deadlines, attribution, and frozen results, but the group no longer
   closes their values. Manage intermediate resources in a `ClosingFuture` pipeline or by the value's recipient;
@@ -113,10 +116,9 @@
   `outcomeCounts()` and `failedTaskResult()`, matching `TaskGroupResult`. Nested batch reads inside a
   batch execution no longer need a try/catch.
 
-- Add `ImmediateResult.successful()` and `fold(onValue, onFailure, onCancelled)`, an exhaustive
-  consumer that branches on the outcome: execution failures (`USER_FAILURE`, `SUBMISSION_FAILURE`)
-  and the cancellation-shaped outcomes reach different functions, so fail-fast siblings are not
-  counted as failures.
+- Add `ImmediateResult.successful()` and four-way `fold(onValue, onUserFailure, onSubmissionFailure,
+  onCancelled)`, a consumer that branches on the outcome: user-code and submission failures are
+  distinct, while cancellation-shaped outcomes reach `onCancelled`.
 
 - Remove `TaskCompletion.succeeded/failed` (a completion is a library-produced observation that no
   public method accepts) and `SmartBlockingQueue.create(int)` (it returned a `SynchronousQueue` for

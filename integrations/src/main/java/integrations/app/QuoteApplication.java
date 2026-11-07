@@ -66,7 +66,8 @@ public final class QuoteApplication {
             System.out.println("   "
                     + result.fold(
                             String::valueOf,
-                            failure -> "failed: " + failure.getMessage(),
+                            userFailure -> "failed: " + userFailure.getMessage(),
+                            submissionFailure -> "submission failed: " + submissionFailure.getMessage(),
                             (outcome, detail) -> outcome.name()));
         }
     }
