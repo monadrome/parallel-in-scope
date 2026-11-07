@@ -432,27 +432,33 @@ def check_null_checks(path: str, source: Source) -> Iterator[Violation]:
 CHECKS = (check_accessors, check_messages, check_spelling, check_null_checks)
 
 
-def java_files(root: Path) -> list[tuple[str, Path]]:
+def source_roots(root: Path) -> list[tuple[str, Path]]:
     if not root.is_dir():
         raise CheckError(f"source root {root} is not a directory")
     if root.name == "java" and root.parent.name in {"main", "test"}:
-        prefix = f"src/{root.parent.name}/java"
-        roots = [(prefix, root)]
-    else:
-        roots = [(source_root, root / source_root) for source_root in SOURCE_DIRS]
-        if not any(path.is_dir() for _, path in roots) and (root / SOURCE_DIR).is_dir():
-            roots = [(SOURCE_DIR, root / SOURCE_DIR)]
-        if not any(path.is_dir() for _, path in roots) and list(root.rglob("*.java")):
-            roots = [(SOURCE_DIR, root)]
+        return [(f"src/{root.parent.name}/java", root)]
+    roots = [(source_root, root / source_root) for source_root in SOURCE_DIRS]
+    if not any(path.is_dir() for _, path in roots) and (root / SOURCE_DIR).is_dir():
+        return [(SOURCE_DIR, root / SOURCE_DIR)]
+    if not any(path.is_dir() for _, path in roots) and list(root.rglob("*.java")):
+        return [(SOURCE_DIR, root)]
+    return roots
+
+
+def is_excluded(relative: str) -> bool:
+    return any(relative.startswith(excluded) for excluded in EXCLUDED_PREFIXES) or \
+        "/queue/" in relative or "/queues/" in relative
+
+
+def java_files(root: Path) -> list[tuple[str, Path]]:
     files = []
-    for prefix, source_root in roots:
+    for prefix, source_root in source_roots(root):
         if not source_root.is_dir():
             continue
         for path in sorted(source_root.rglob("*.java")):
             relative_path = path.relative_to(source_root).as_posix()
             relative = f"{prefix}/{relative_path}" if prefix else relative_path
-            if (not any(relative.startswith(excluded) for excluded in EXCLUDED_PREFIXES)
-                    and "/queue/" not in relative and "/queues/" not in relative):
+            if not is_excluded(relative):
                 files.append((relative, path))
     return files
 
