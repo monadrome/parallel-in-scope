@@ -1,0 +1,23 @@
+scripts/check-java-bytecode.py
+  s_4d4bea29d57e17::t_964cf458d7921e 64-67,69-73
+.github/dependabot.yml
+  s_4d4bea29d57e17::t_964cf458d7921e 5-17,23
+scripts/tests/test_check_java_bytecode.py
+  s_4d4bea29d57e17::t_964cf458d7921e 1-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1b9233a736fd5f9f04037fb195d24ce52606cc47",
+  "prompts": {},
+  "sessions": {
+    "s_4d4bea29d57e17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b50b-48c6-7be0-af37-e37e28ae2d12",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
