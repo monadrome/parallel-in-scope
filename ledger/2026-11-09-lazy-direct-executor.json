@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-09-lazy-direct-executor",
+  "date": "2026-11-09",
+  "topic": "lazy-direct-executor",
+  "routes": [
+    "concurrency",
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add lazy context direct executor",
+      "refactor: document context execution helper"
+    ],
+    "files": 5,
+    "insertions": 168,
+    "deletions": 7
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "lazy-direct-executor-ee3572e4-20261110-044441-0b4ce5",
+        "status": "running",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 162624,
+            "findings": null,
+            "usage": null
+          },
+          {
+            "agent": "claude",
+            "status": "running",
+            "attempts": 2,
+            "durationMs": 0,
+            "findings": null,
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 100963,
+            "findings": null,
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 10483,
+            "findings": null,
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 18535,
+            "findings": null,
+            "usage": null
+          }
+        ],
+        "clusters": null,
+        "usage": null
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-feat-lazy-direct-executor-2026-11-09",
+        "head": "ee3572e48e84138f5796c8fccf5334330d15c438",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "core/target/pit-reports/mutations.xml",
+      "statuses": {
+        "KILLED": 8
+      },
+      "total": 8,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 1,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Codex/Kimi/OCR reviews found no defects; Kiro failed twice on unavailable model and Claude was unavailable after retry; race claims, focused PIT, refactoring review, docs and conventions checks passed."
+}
