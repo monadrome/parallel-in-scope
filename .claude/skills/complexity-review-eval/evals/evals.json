@@ -1,0 +1,23 @@
+{
+  "skill_name": "complexity-review-eval",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "这次改动新增了一个很长的 TaskGroup 方法，开发者只做了简单 review。请运行项目的复杂度灰度评测，告诉我有哪些候选、它们是否进入 S lens，以及这是否是 CI 门禁。",
+      "expected_output": "运行 plan，读取 metrics.json 和 S lens brief，说明 gray-evaluation、候选数、非门禁性质。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "帮我对当前提交做 refactoring-review，重点确认复杂度评测没有把并发协议强行拆开。",
+      "expected_output": "运行复杂度评测并结合 S lens 判断；明确说明并发协议复杂度可以拒绝重构，并继续要求确定性测试和独立 review。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "这只是文档修改，还需要跑 P0036 复杂度机制吗？",
+      "expected_output": "说明可以记录但不会产生核心 Java 候选，正式 refactoring-review 应由脚本判定跳过。",
+      "files": []
+    }
+  ]
+}
