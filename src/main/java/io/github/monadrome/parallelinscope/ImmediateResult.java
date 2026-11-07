@@ -78,17 +78,18 @@ public final class ImmediateResult<T> {
     }
 
     /**
-     * Consumes this result exhaustively, branching on the outcome. {@code SUCCESS} applies {@code
-     * onValue} to the possibly-null value; {@code USER_FAILURE} and {@code SUBMISSION_FAILURE} apply
-     * {@code onFailure} to the stored failure; every other outcome applies {@code onCancelled} to the
-     * outcome and the stored throwable. That throwable is not guaranteed to be a {@link
-     * CancellationException}: a group's {@code valuesResult()} carries a recorded business failure
-     * even when the group's outcome is a cancellation, and {@link #failed} keeps the given throwable.
-     * Read {@link #outcome()} inside {@code onFailure} to tell a submission failure from a user one.
+     * Consumes this result by its four public terminal shapes. {@code SUCCESS} applies {@code
+     * onValue} to the possibly-null value; {@code USER_FAILURE} applies {@code onUserFailure};
+     * {@code SUBMISSION_FAILURE} applies {@code onSubmissionFailure}; and every cancellation
+     * outcome applies {@code onCancelled} to the outcome and stored throwable. The cancellation
+     * throwable is not guaranteed to be a {@link CancellationException}: a group's {@code
+     * valuesResult()} carries a recorded business failure even when the group's outcome is a
+     * cancellation, and {@link #failed} keeps the given throwable.
      *
      * @param <R> the result type
      * @param onValue applied to the value on success
-     * @param onFailure applied to the stored failure of a recorded execution failure
+     * @param onUserFailure applied to the stored failure thrown by user code
+     * @param onSubmissionFailure applied to the stored failure recorded before user code ran
      * @param onCancelled applied to the outcome and stored throwable of any other outcome
      * @return the value the applied function returns
      * @throws NullPointerException if any function is null
@@ -96,17 +97,20 @@ public final class ImmediateResult<T> {
      */
     public <R> R fold(
             Function<? super @Nullable T, ? extends R> onValue,
-            Function<? super Throwable, ? extends R> onFailure,
+            Function<? super Throwable, ? extends R> onUserFailure,
+            Function<? super Throwable, ? extends R> onSubmissionFailure,
             BiFunction<? super TaskOutcome, ? super Throwable, ? extends R> onCancelled) {
         checkNotNull(onValue, "onValue cannot be null");
-        checkNotNull(onFailure, "onFailure cannot be null");
+        checkNotNull(onUserFailure, "onUserFailure cannot be null");
+        checkNotNull(onSubmissionFailure, "onSubmissionFailure cannot be null");
         checkNotNull(onCancelled, "onCancelled cannot be null");
         switch (outcome) {
             case SUCCESS:
                 return onValue.apply(value);
             case USER_FAILURE:
+                return onUserFailure.apply(Verify.verifyNotNull(failure));
             case SUBMISSION_FAILURE:
-                return onFailure.apply(Verify.verifyNotNull(failure));
+                return onSubmissionFailure.apply(Verify.verifyNotNull(failure));
             case MEMBER_CANCELLED:
             case GROUP_CANCELLED:
             case FAIL_FAST:

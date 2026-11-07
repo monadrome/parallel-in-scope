@@ -41,6 +41,24 @@ key 可跨运行复用，常用 key 可保存为 static final；结果逐次隔�
 取消、deadline、TTL、终端成功门控和有界清理保持原语义。移除的 API 不提供兼容 shim，
 消费方须使用 0.4 重新编译。
 
+## ImmediateResult.fold 的失败分支
+
+`ImmediateResult.fold` 现在将失败拆为用户代码失败和提交失败两个分支。旧的三参数调用：
+
+```java
+result.fold(onValue, onFailure, onCancelled);
+```
+
+改为四参数调用：
+
+```java
+result.fold(onValue, onUserFailure, onSubmissionFailure, onCancelled);
+```
+
+`onUserFailure` 只处理 `USER_FAILURE`；`onSubmissionFailure` 只处理用户代码运行前的
+`SUBMISSION_FAILURE`。四种取消类 outcome 仍统一进入 `onCancelled`，并通过第一个参数保留
+具体的 `TaskOutcome`。这是 0.4 的公开 API 变化，不保留三参数兼容重载。
+
 ## 执行术语
 
 任务代码的一次运行称为**执行**（execution），执行离开任务代码称为**执行退出**（execution exit）。`Task` 仍是调用方可见的 future。下表的旧名字直接删除，不保留别名：

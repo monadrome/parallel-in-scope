@@ -150,15 +150,16 @@ cause 为该存储失败（见上）。手动 failed(outcome, failure) 保留给
 两个 get 使用 Futures.getDone，立即读且保留中断标志；timed get 校验非 null TimeUnit，
 不做超时等待。listener 用消费者 executor，处于业务资源 scope 外。
 
-**穷尽消费**：`ImmediateResult.fold(onValue, onFailure, onCancelled)` 按 outcome 分支，throwable 只是
-载荷：`SUCCESS` 走 onValue（值可为 null），`USER_FAILURE`/`SUBMISSION_FAILURE` 走 onFailure，其余
-四种取消形状走 onCancelled 并带 outcome 与存储的 throwable。执行失败与取消的切分与聚合读取的
-失败选取同一口径。onCancelled 的 throwable MUST NOT 被承诺为 `CancellationException`：组级
-valuesResult 的例外与手动 `failed(outcome, failure)` 都保留原异常。`RUNNING` 与未归类的 outcome
-MUST 落到 `AssertionError`，不被 default 分支吸收：新增 `TaskOutcome` 值时遍历全部 outcome 的测试
-先变红，迫使显式归类。三参函数让漏分支编译失败；fold 与 `successful()` 只读冻结数据，不等待、
-不消费中断。被否决的平行快照类型、typestate 链与单任务获取入口见
-[decision-log.md](decision-log.md)。历史来源：`proposal:P0019`。
+**四类终态消费**：`ImmediateResult.fold(onValue, onUserFailure, onSubmissionFailure, onCancelled)` 按
+outcome 分支，throwable 只是载荷：`SUCCESS` 走 onValue（值可为 null），`USER_FAILURE` 走
+onUserFailure，`SUBMISSION_FAILURE` 走 onSubmissionFailure，其余四种取消形状走 onCancelled 并带
+outcome 与存储的 throwable。执行失败与取消的切分与聚合读取的失败选取同一口径。onCancelled 的
+throwable MUST NOT 被承诺为 `CancellationException`：组级 valuesResult 的例外与手动
+`failed(outcome, failure)` 都保留原异常。`RUNNING` 与未归类的 outcome MUST 落到 `AssertionError`，
+不被 default 分支吸收：新增 `TaskOutcome` 值时遍历全部 outcome 的测试先变红，迫使显式归类。
+四个处理器都 MUST 非 null；fold 与 `successful()` 只读冻结数据，不等待、不消费中断。被否决的
+平行快照类型、typestate 链与单任务获取入口见 [decision-log.md](decision-log.md)。历史来源：
+`proposal:P0019`。
 
 ### 输入快照与观测屏障
 
@@ -259,3 +260,6 @@ queue 不在本次机制变更范围。
   `ExecutionException` 的 cause；取消包装下的原执行异常在下一层 cause，两层 identity 均有回归。
 - 「deadline 读取测试须先用 latch 证明执行已开始」：断言对象是冻结读取的形状，执行是否已开始都落
   `TIMEOUT`，读取结果相同。
+four个处理器都 MUST 非 null；fold 与 `successful()` 只读冻结数据，不等待、不消费中断。被否决的
+平行快照类型、typestate 链与单任务获取入口见 [decision-log.md](decision-log.md)。历史来源：
+`proposal:P0019`。

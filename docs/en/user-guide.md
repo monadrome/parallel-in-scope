@@ -371,22 +371,25 @@ including cancellation. Container reads never block or consume an interrupt.
 The `failed(outcome, failure)` factory preserves the supplied throwable for every permitted outcome;
 the outcome is metadata and does not convert the throwable's type.
 
-`fold` consumes a result exhaustively by its outcome, so fail-fast siblings are not counted as
-failures and a missing branch does not compile:
+`fold` consumes the four public terminal shapes, keeping user-code failures separate from
+submission failures. Fail-fast siblings are not counted as failures:
 
 ```java
 Price price = batch.results().get(i).fold(
         value -> value,
-        failure -> {
-            LOGGER.log(Level.WARNING, "price failed for " + sku, failure);
+        userFailure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, userFailure);
             return Price.UNKNOWN;
         },
+        submissionFailure -> Price.UNKNOWN,
         (outcome, detail) -> Price.UNKNOWN);
 ```
 
-`onValue` receives the possibly-null success value; `onFailure` handles `USER_FAILURE` and
-`SUBMISSION_FAILURE`; `onCancelled` receives every other outcome with its stored throwable, which
-is not always a `CancellationException`. `successful()` tests for `SUCCESS` alone.
+`onValue` receives the possibly-null success value; the second handler receives the `USER_FAILURE`
+throwable; the third receives the `SUBMISSION_FAILURE` throwable; and `onCancelled` receives every
+cancellation outcome with its stored throwable, which is not always a `CancellationException`.
+All four handlers are required, and `fold` returns the selected handler's result. `successful()`
+tests for `SUCCESS` alone.
 
 `asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
 returns false, and `isCancelled()` is false. A cancellation that recorded no member/combine
@@ -607,7 +610,7 @@ business exception only when the caller needs the extra context; do not wrap a
 `CancellationException`, or it reads as `USER_FAILURE`.
 
 To keep partial results instead of failing the element, read `results()` element by element:
-`outcome()` classifies each one and `failure()` carries its throwable, or `fold` handles the three
+`outcome()` classifies each one and `failure()` carries its throwable, or `fold` handles the four
 shapes in one expression. A `runAll` inside an execution follows the same rule, and a group member execution is
 a `Callable`, which can also throw checked exceptions.
 

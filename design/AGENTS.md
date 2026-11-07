@@ -91,7 +91,7 @@
 | [task-group-terminal-combine.md](task-group-terminal-combine.md) | 可选的单一终端汇合任务：全量 join、结果、取消、观测、缺点与非目标 |
 | [batch-terminal-combine.md](batch-terminal-combine.md) | `Par.mapAndCombine` 批次终端汇总契约：一次准入准备并 bind、恰好一次的成功门控提交、共享 deadline/取消生命周期、图边诚实、空输入拒绝 |
 | [batch-settle-attribution.md](batch-settle-attribution.md) | 批次元素与终端汇总按**落定时刻**归因：bind 前注册的钉子监听器、冻结等待钉子而非 cleanup budget、执行自抛 CE/IE 为 `USER_FAILURE`、与冻结时分类的差异范围与接受的残余 |
-| [task-group-adopted-futures.md](task-group-adopted-futures.md) | **组成员收养外部 future 契约**：`adopt` 把在途 `ListenableFuture` 声明为成员；组 token 以同一取消意图取消 source、先 bind 后连接、准入失败放弃 source；值进入普通组合与冻结结果，资源由外部管道或接收方管理；生产者 `Par` 让嵌套等待进入执行器等待图，与线程池饥饿观测互补 |
+| [task-group-adopted-futures.md](task-group-adopted-futures.md) | **组成员收养外部 future 契约**：`adopt` 把在途 `ListenableFuture` 声明为成员；组 token 以同一取消意图取消 source、先 bind 后连接、准入失败放弃 source；恰好一次的值交接（combine 入口或成功的调用方）与其余值的 `ResourceCloser` 关闭；closer 在 completion 发布后运行并计入执行-exit 槽；生产者 `Par` 让嵌套等待进入执行器等待图，与线程池饥饿观测互补 |
 
 相关决策（仅在任务涉及对应决策背景或边界时加载）：
 
@@ -165,6 +165,7 @@
 ## 在途提案
 | 提案 | 摘要 |
 |---|---|
+| [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | 将 `ImmediateResult.fold` 从三类处理细化为四类稳定终态，区分用户失败与提交失败；不引入 FuturePath 或 staged 链 |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | 灰度评测中的复杂度注意力路由证据；不设质量分或 CI 门禁 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |
