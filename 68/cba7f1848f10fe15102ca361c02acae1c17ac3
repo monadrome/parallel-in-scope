@@ -1,0 +1,9 @@
+ledger/2026-11-06-remove-resource-closer.json
+  ai_agent 1-237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "68cba7f1848f10fe15102ca361c02acae1c17ac3",
+  "prompts": {}
+}
