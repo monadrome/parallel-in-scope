@@ -1,0 +1,25 @@
+README.md
+  s_8029e92a443aa7::t_71b9c9da7608cf 158
+.github/workflows/release.yml
+  s_8029e92a443aa7::t_dc2b7165d50107 15,42-60,96,98,101-117
+design/synchronous-scope-exit.md
+  s_8029e92a443aa7::t_1c13e292b54746 162
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_8029e92a443aa7::t_1c13e292b54746 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "eca954a95737e84764d86af840f4fe939bc5a41f",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
