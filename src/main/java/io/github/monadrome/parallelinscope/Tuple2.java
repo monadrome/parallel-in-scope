@@ -1,25 +1,27 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable pair of two nullable values.
  *
- * <p>{@code Tuple2} is the static result shape of a task group: the {@code V} of a submitted {@link
- * TaskGroup} is the first member's type for a one-member group, and left-nested pairs for larger
+ * <p>{@code Tuple2} is the static result shape of a task group: the {@code V} of a {@link
+ * GroupStep} is the first member's type for a one-member group, and left-nested pairs for larger
  * groups — {@code Tuple2<T1, T2>} for two members, {@code Tuple2<Tuple2<T1, T2>, T3>} for three, and
  * so on. The nesting is produced by the step builder, so callers normally never write {@link #of};
  * they read {@link #first()} and {@link #second()} off {@link GroupValues#typedValues()} or off the
- * value handed to a terminal {@link CombineBody}.
+ * value handed to a terminal {@link Combiner}.
  *
- * <p>Both components may be null: a member body that returns null is a successful member, and its
+ * <p>Both components may be null: a member execution that returns null is a successful member, and its
  * slot holds null in the same way it would hold any other value.
  *
  * @param <A> the first component type
  * @param <B> the second component type
  * @since 0.3.0
  */
+@Immutable(containerOf = {"A", "B"})
 public final class Tuple2<A, B> {
     private final @Nullable A first;
     private final @Nullable B second;

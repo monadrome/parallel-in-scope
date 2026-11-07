@@ -2,11 +2,11 @@
 
 # Demo 文章索引
 
-这些文章是基于 `0.3.0` API（以 `0.3.0-SNAPSHOT` 发布）的问题导向示例；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。
+这些文章跟随 `0.4.1` 发布版，提供问题导向示例；公共契约以[完整使用指南](../../../docs/zh/user-guide.md)和[协作式取消说明](../../../docs/zh/reference/cooperative-cancellation.md)为准。
 
 ## 推荐起点
 
-- [5 分钟快速上手](articles/QUICK-START-5-minutes.md)
+- [批量调用入门示例（详细）](articles/QUICK-START-5-minutes.md)
 - [批量调用最佳实践](articles/BATCH-best-practices.md)
 
 ## 取消与超时

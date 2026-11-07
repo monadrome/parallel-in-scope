@@ -16,9 +16,10 @@
   约束。分类失败或观测快照无法构建都是内核缺陷：冻结 MUST 以 `AssertionError` 报出，MUST NOT
   挂起。为此观测的落定信号 MUST 在受保护的调用内构建快照，失败时以异常结束该观测，MUST NOT 让
   失败逃出 fan-out——Guava 的 fan-out 在第一个逃出的 `Error` 处停止，排在后面的钉子将永不运行。
-- body 自己抛出 `CancellationException` / `InterruptedException`、且落定时 token 未提交任何
+- 执行自己抛出 `CancellationException` / `InterruptedException`、且落定时 token 未提交任何
   框架取消：元素 MUST 冻结为 `USER_FAILURE`，`failure()` 为原对象；`valuesOrThrow()` /
-  `terminalValueOrThrow()` 以它为 cause 抛 `ExecutionException`。该元素自身失败引发的
+  `terminalValueOrThrow()` 按 [聚合读取规则](synchronous-scope-exit.md) 原样抛出 `CancellationException`，
+  把 `InterruptedException` 包装为 `CompletionException`。该元素自身失败引发的
   fail-fast 级联 MUST NOT 事后改写它。落定时 token 已提交（检查点观察到级联、deadline
   backstop 已提交 `TIMEOUT`）则照旧经 token 归因。
 
@@ -29,9 +30,9 @@
 `get()` 等待者再跑监听器，调用线程因此可能在提交前或提交后冻结。旧实现在冻结时刻按 token
 分类：
 
-- 单元素 body 自抛 CE：`USER_FAILURE` / `FAIL_FAST` 随机（实测约各半），`valuesOrThrow()`
-  随之在 `ExecutionException` 与 `CancellationException` 之间切换，`report().firstException()`
-  为 null。
+- 单元素执行自抛 CE：`USER_FAILURE` / `FAIL_FAST` 随机（实测约各半），`valuesOrThrow()`
+  随之在 `ExecutionException` 与 `CancellationException` 之间切换，当时的 `report().firstException()`
+  为 null（0.3 的批次读取口，0.4 已删除）。
 - 多元素全部自抛 CE：调用线程等完全部元素时级联早已提交，**确定性**全部 `FAIL_FAST`。
 - direct executor：元素在提交期间同步落定，级联必然先于冻结，确定性错归。
 - `mapAndCombine` 的终端汇总自抛 CE 同理。
@@ -72,7 +73,7 @@
 同样在 `setException` 之后运行）。触发级联的那个元素恒为 `USER_FAILURE`：它的钉子先于它自己的
 bind 监听器执行，而这种形状下 `FAIL_FAST` 只能由 bind 的聚合回调提交。
 
-**未提交取消的政策边界**：body 在 deadline 已过、timer 尚未提交时自抛 CE/IE，batch 与 group
+**未提交取消的政策边界**：执行在 deadline 已过、timer 尚未提交时自抛 CE/IE，batch 与 group
 仍保留 USER_FAILURE。真实 checkpoint backstop 提交 TIMEOUT 是已取消路径，其组级上升由
 [组取消契约](task-group-cancellation.md) 约束。仅凭时钟经过增加 RUNNING 后备是
 [P0020](proposal/P0020-deadline-attribution-policy.md) 的未决政策，不在本契约中默默引入。
@@ -81,12 +82,12 @@ bind 监听器执行，而这种形状下 `FAIL_FAST` 只能由 bind 的聚合�
 
 - **冻结时排除"自身引发的 FAIL_FAST"**：共享 token 不记录由谁触发，需要新增每元素触发者身份；
   并发失败时谁是"自身"仍是竞态，还多出状态。
-- **以已发布观测快照的 outcome 冻结**：快照在落定与 body 退出两个信号中较晚的一个计算，运行中
-  被取消的元素在 body 退出时才读 token；零 closeGrace 下可能尚未发布，回退到冻结时读取，残余同
+- **以已发布观测快照的 outcome 冻结**：快照在落定与执行退出两个信号中较晚的一个计算，运行中
+  被取消的元素在执行退出时才读 token；零 closeGrace 下可能尚未发布，回退到冻结时读取，残余同
   一竞态。正确性还要依赖 `ScopedCallable` 先发布退出再落定的顺序，远不如注册顺序直观。
 - **观测内 volatile 字段 + 冻结时兜底计算**：Guava 先唤醒等待者，调用方可能早于监听器读取，
   需要二次读取的复杂论证。
-- **无界等待观测发布**：观测还等 body 退出，忽略中断的 body 会让冻结永久挂起。
+- **无界等待观测发布**：观测还等执行退出，忽略中断的执行会让冻结永久挂起。
 
 ## 6. 验证
 

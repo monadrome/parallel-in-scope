@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Mapping, Sequence
 
 from . import labels
+from .gates import pit_tally
 from .issues import render_marker, sanitize
 
 ATTRIBUTION = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
@@ -74,8 +75,7 @@ def run_comment(run_id: str, headline: str, details: Sequence[str], marker: Mapp
 def pr_body(number: int, report: Mapping, gates: Sequence, pit: Mapping) -> str:
     rows = [f"| {cell(item)} | agent |" for item in report.get("verification") or []]
     rows += [f"| runner gate `{g.name}` | {g.status}{': ' + cell(g.detail) if g.detail else ''} |" for g in gates]
-    survivors = pit.get("survivors") or []
-    pit_line = f"{pit.get('killed', 0)} killed, {len(survivors)} surviving" if pit else "not applicable"
+    pit_line = pit_tally(pit) if pit else "not applicable"
     breaking = bool(report.get("breaking"))
     link = "Closes" if report.get("completes_issue") else "Refs"
     return "\n".join([

@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -26,9 +25,10 @@ import org.junit.jupiter.api.Test;
  * Contract tests for the observation futures: {@link TaskFuture#completionFuture()} and {@link
  * TaskBatch#completionFuture()} publish the final immutable {@link TaskCompletion} snapshot
  * of every task — including tasks that never started — once the task future is terminal and the
- * task body has exited.
+ * task execution has exited.
  */
 class ObservationFutureTest {
+    private static final TaskKey<String> KEY_USER_STRING = TaskKey.named("user");
 
     private static final Duration SCOPE_TIMEOUT = Duration.ofSeconds(30);
 
@@ -45,7 +45,7 @@ class ObservationFutureTest {
                             Arrays.asList("first", "second", "third"),
                             item -> {
                                 if ("second".equals(item)) {
-                                    // The fail-fast cascade races the sibling's settle: a body that
+                                    // The fail-fast cascade races the sibling's settle: an execution that
                                     // returned but has not settled yet can still be cancelled into
                                     // FAIL_FAST. Failing only after first's future settled keeps the
                                     // expected attribution deterministic. A settled future fires an
@@ -102,25 +102,30 @@ class ObservationFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
+        CountDownLatch started = new CountDownLatch(1);
         try {
             TaskBatch<String> batch = global.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList("blocker", "queued-a", "queued-b"),
-                            item -> holdUninterruptibly(block, item),
-                            BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
+                            item -> {
+                                started.countDown();
+                                return holdUninterruptibly(block, item);
+                            },
+                            BatchOptions.timeout("window", SCOPE_TIMEOUT)
+                                    .parallelism(1)
+                                    .closeGrace(Duration.ZERO));
 
-            // Element 0 occupies the only slot; the other two are still waiting for one and the
-            // batch close abandons them before submission.
+            assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             batch.close();
             block.countDown();
 
             List<TaskCompletion<String>> completions = batch.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(completions).hasSize(3);
+            assertThat(completions.get(0).startTimeNanos()).isGreaterThan(0L);
             for (int index = 1; index < 3; index++) {
                 TaskCompletion<String> abandoned = completions.get(index);
                 assertThat(abandoned.taskIndex()).isEqualTo(index);
                 assertThat(abandoned.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-                // Never started: zero timings and durations, but a real outcome and identity.
                 assertThat(abandoned.startTimeNanos()).isZero();
                 assertThat(abandoned.endTimeNanos()).isZero();
                 assertThat(abandoned.executionTime()).isZero();
@@ -244,25 +249,25 @@ class ObservationFutureTest {
     }
 
     @Test
-    void cancelMidRunPublishesObservationOnlyAfterBodyExit() throws Exception {
+    void cancelMidRunPublishesObservationOnlyAfterExecutionExit() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
-        CountDownLatch bodyEntered = new CountDownLatch(1);
-        CountDownLatch releaseBody = new CountDownLatch(1);
+        CountDownLatch executionEntered = new CountDownLatch(1);
+        CountDownLatch releaseExecution = new CountDownLatch(1);
         try {
             TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
                             "raced",
                             () -> {
-                                bodyEntered.countDown();
+                                executionEntered.countDown();
                                 boolean interrupted = false;
                                 for (; ; ) {
                                     try {
-                                        if (releaseBody.await(50, TimeUnit.MILLISECONDS)) {
+                                        if (releaseExecution.await(50, TimeUnit.MILLISECONDS)) {
                                             break;
                                         }
-                                    } catch (InterruptedException interruptedBody) {
+                                    } catch (InterruptedException interruptedTaskCode) {
                                         interrupted = true;
                                     }
                                 }
@@ -273,14 +278,14 @@ class ObservationFutureTest {
                             },
                             TaskOptions.timeout(SCOPE_TIMEOUT));
 
-            assertThat(bodyEntered.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(executionEntered.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(task.cancel(true)).isTrue();
 
-            // The future is already cancelled, but the body is still inside its finally: the
-            // observation must wait for the body exit and its final end time.
+            // The future is already cancelled, but the execution is still inside its finally: the
+            // observation must wait for the execution exit and its final end time.
             assertThat(task.completionFuture().isDone()).isFalse();
 
-            releaseBody.countDown();
+            releaseExecution.countDown();
             TaskCompletion<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
             // A direct cancel of a submitted task trips the token's fail-fast binding, exactly as
             // task.outcome() already reads it; the snapshot agrees with that attribution.
@@ -288,14 +293,14 @@ class ObservationFutureTest {
             assertThat(snapshot.startTimeNanos()).isGreaterThan(0L);
             assertThat(snapshot.endTimeNanos()).isGreaterThanOrEqualTo(snapshot.startTimeNanos());
         } finally {
-            releaseBody.countDown();
+            releaseExecution.countDown();
             global.close();
             pool.shutdownNow();
         }
     }
 
     @Test
-    void awaitBodyCompletionTrueImpliesObservationAvailable() throws Exception {
+    void awaitExecutionExitTrueImpliesObservationAvailable() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
@@ -304,7 +309,7 @@ class ObservationFutureTest {
                     .submitBatch(
                             Arrays.asList(1, 2, 3), value -> value, BatchOptions.timeout("awaited", SCOPE_TIMEOUT));
 
-            assertThat(batch.awaitBodyCompletion(Duration.ofSeconds(2))).isTrue();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             // No polling and no further wait: the observation future is already done.
             assertThat(batch.completionFuture().isDone()).isTrue();
             assertThat(batch.completionFuture().get()).hasSize(3);
@@ -359,7 +364,7 @@ class ObservationFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> "alice")
+                    .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
 
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
@@ -377,9 +382,8 @@ class ObservationFutureTest {
 
             // The member's own observation keeps its per-task direct attribution, while the group
             // result remains the authority for post-convergence attribution.
-            TaskCompletion<String> member = group.futureOf("user", TypeToken.of(String.class))
-                    .completionFuture()
-                    .get(2, TimeUnit.SECONDS);
+            TaskCompletion<String> member =
+                    group.futureOf(KEY_USER_STRING).completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(member.taskName()).isEqualTo("user");
             assertThat(member.successful()).isTrue();
             assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
@@ -398,7 +402,7 @@ class ObservationFutureTest {
         IllegalStateException boom = new IllegalStateException("boom");
         try {
             TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
-                    .par("user", global.par(ParId.of("worker")), String.class, () -> {
+                    .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         throw boom;
                     })
                     .submitAll();

@@ -47,6 +47,7 @@ List<String> results = urls.parallelStream()
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("http-pool"), pool)
+        .defaultPar(ParId.of("http-pool"))
         .build();
 Par par = config.defaultPar();
 
@@ -71,4 +72,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[B2_FunctionSignatureBloatTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java)
+> 📁 完整测试代码：[B2_FunctionSignatureBloatTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java)

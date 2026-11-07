@@ -8,11 +8,6 @@ import java.time.Duration;
 /**
  * The argument checks the public option types, identities, and declaration entries share.
  *
- * <p>Four rules were spelled out once per entry point, and the copies had drifted: "non-blank name"
- * existed in four wordings, three of which never named the offending value, and "positive timeout"
- * in three identical ones. A caller that hits the same rule from two entry points should read the
- * same sentence, and the rule should be fixable in one place.
- *
  * <p>Each method returns its argument so it can wrap a field assignment, and each throws what
  * Guava's taxonomy prescribes for a caller contract violation: {@link NullPointerException} for a
  * null rejection, {@link IllegalArgumentException} for a value the caller could have checked.
@@ -49,8 +44,8 @@ final class Validation {
     }
 
     /**
-     * Rejects a null or negative duration, for a budget where zero is a meaningful choice — a
-     * zero close grace makes {@code close()} cancel-only.
+     * Rejects a null or negative duration, for a budget where zero is a meaningful choice — a zero
+     * close grace makes {@code close()} cancel-only.
      *
      * @param duration the duration to check
      * @param what the argument's role, used to open the message ({@code "closeGrace"})

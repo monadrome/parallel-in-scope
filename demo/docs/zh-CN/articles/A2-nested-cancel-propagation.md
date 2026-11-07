@@ -44,6 +44,7 @@ outer.cancel(true); // 取消外层任务
 ```java
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("pool"), Executors.newFixedThreadPool(8))
+        .defaultPar(ParId.of("pool"))
         .build();
 Par par = config.defaultPar();
 
@@ -72,4 +73,4 @@ TaskBatchResult<String> result = par.map( orders, order -> {
 
 ---
 
-> 📁 完整测试代码：[A2_NestedCancelPropagationTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java)
+> 📁 完整测试代码：[A2_NestedCancelPropagationTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java)

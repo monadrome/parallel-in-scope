@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "defaultBase": "origin/dev/v0.4.0",
+  "codeExtensions": [".java", ".py", ".ts"],
+  "commentPrefixes": {
+    ".java": ["//", "/*", "*", "*/"],
+    ".ts": ["//", "/*", "*", "*/"],
+    ".py": ["#"]
+  },
+  "excludeGlobs": [
+    "*/node_modules/*",
+    "tools/*/dist/*",
+    "tools/*/dist-test/*",
+    "*/target/*"
+  ],
+  "pathClasses": [
+    {"class": "test", "globs": ["src/test/java/*", "demo/src/test/*", "integrations/src/test/*", "scripts/tests/*", "tools/*/test/*"]},
+    {"class": "main", "globs": ["src/main/java/*", "demo/src/main/*", "integrations/src/main/*"]},
+    {"class": "script", "globs": ["scripts/*", "tools/*/src/*"]}
+  ],
+  "lenses": [
+    {
+      "id": "M",
+      "name": "modules",
+      "file": "lenses/modules.md",
+      "classes": ["main", "script", "test"],
+      "minFiles": 2,
+      "shardable": false
+    },
+    {
+      "id": "C",
+      "name": "concurrency",
+      "file": "lenses/concurrency.md",
+      "classes": ["main", "test"],
+      "extensions": [".java"],
+      "changedLinePattern": "\\bsynchronized\\b|\\bvolatile\\b|Atomic[A-Z]\\w*|compareAndSet|getAndSet|LockSupport|\\.wait\\(|\\.notify(All)?\\(|interrupt|Monitor\\b|Lock\\b|Condition\\b|Future\\b|Executor\\w*|ThreadLocal",
+      "pathGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"],
+      "shardable": true
+    },
+    {
+      "id": "D",
+      "name": "defensive",
+      "file": "lenses/defensive.md",
+      "classes": ["main", "script"],
+      "shardable": true
+    },
+    {
+      "id": "S",
+      "name": "structure",
+      "file": "lenses/structure.md",
+      "classes": ["main", "script"],
+      "shardable": true
+    },
+    {
+      "id": "V",
+      "name": "conventions",
+      "file": "lenses/conventions.md",
+      "classes": ["main"],
+      "extensions": [".java"],
+      "shardable": true
+    },
+    {
+      "id": "T",
+      "name": "tests",
+      "file": "lenses/tests.md",
+      "classes": ["test"],
+      "shardable": true
+    }
+  ],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  },
+  "routes": [
+    {"classes": ["main", "script", "test"], "read": ["AGENTS.md#key-conventions", "AGENTS.md#design-decisions"]},
+    {"pathGlobs": ["src/main/java/io/github/monadrome/parallelinscope/*"], "excludeGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"], "read": ["design/AGENTS.md"]},
+    {"pathGlobs": ["src/*/java/io/github/monadrome/parallelinscope/queue/*"], "read": ["src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md", "adr/0006-queues-ship-with-core.md"]},
+    {"pathGlobs": ["demo/*"], "read": ["demo/AGENTS.md"]},
+    {"pathGlobs": ["integrations/*"], "read": ["integrations/AGENTS.md"]},
+    {"pathGlobs": ["scripts/issue-agent.py", "scripts/issue_agent/*"], "read": ["design/issue-automation.md"]},
+    {"pathGlobs": ["tools/llm-review-bench/*"], "read": ["design/llm-review-benchmark.md"]},
+    {"extensions": [".java"], "changedLinePattern": "interrupt|InterruptedException", "read": ["design/interruption-contract.md"]},
+    {"extensions": [".java"], "commentLines": true, "read": ["adr/0012-contract-and-implementation-comment-layers.md"]}
+  ],
+  "oracleLinePattern": "\\bassert\\w*|\\bverify\\w*\\(|\\bexpect\\w*\\(|\\bfail\\(|Thread\\.sleep|\\bawait\\w*\\(|TimeUnit\\.|Duration\\.of|@Test\\b|@Timeout\\b",
+  "reportDir": ".agents/reviews",
+  "complexity": {
+    "enabled": true,
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "excludeGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"],
+    "thresholds": {
+      "cyclomatic": 10,
+      "codeLines": 80,
+      "maxNesting": 4,
+      "deltaCyclomatic": 2,
+      "deltaCodeLines": 10,
+      "deltaMaxNesting": 1
+    },
+    "maxCandidatesPerAgent": 5
+  }
+}

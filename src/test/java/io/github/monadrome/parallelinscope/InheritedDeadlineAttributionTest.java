@@ -44,10 +44,10 @@ class InheritedDeadlineAttributionTest {
             Par par = runtime.par(ParId.of("worker"));
             GroupStep<Integer> group = runtime.group("deadline", Duration.ofNanos(10))
                     .closeGrace(Duration.ZERO)
-                    .par("member", par, Integer.class, () -> terminal ? 1 : expireAtCheckpoint(nanos));
+                    .par(TaskKey.<Integer>named("member"), par, () -> terminal ? 1 : expireAtCheckpoint(nanos));
             TaskGroupResult<Integer, Integer> combined;
             if (terminal) {
-                combined = group.combine("terminal", par, Integer.class, value -> expireAtCheckpoint(nanos))
+                combined = group.combine(TaskKey.<Integer>named("terminal"), par, value -> expireAtCheckpoint(nanos))
                         .runAll();
                 assertThat(combined.terminalResult()).isNotNull();
                 assertThat(combined.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);

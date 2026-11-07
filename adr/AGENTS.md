@@ -4,7 +4,10 @@
 
 These instructions apply to every Architecture Decision Record in `adr/`.
 An ADR records why an important decision was made, not general documentation,
-temporary analysis, or a progress log.
+temporary analysis, or a progress log. Which decisions belong in an ADR rather
+than a design contract's rejected-alternatives section or
+`design/decision-log.md` is defined in `design/AGENTS.md` (document maintenance
+principle 10); this file governs only the ADR format.
 
 ## File And Status Rules
 
@@ -12,8 +15,36 @@ temporary analysis, or a progress log.
 - Use one record for one decision.
 - Include `Status`, `Date`, `Decision scope`, and `Supersedes` metadata.
 - Use these statuses: `Proposed`, `Accepted`, `Deprecated`, or `Superseded`.
-- Do not rewrite an accepted decision when the decision changes. Add a new ADR,
-  mark the old record `Superseded`, and link both records.
+  A record whose decision only partly changed stays `Accepted` and adds a
+  `Partially superseded by` line naming what changed and where it now lives.
+- Never rewrite a decision into its replacement. When a decision changes, add a
+  successor ADR, or name the live `design/` contract that replaced it; mark the
+  old record `Superseded` (or partially superseded) and link both directions.
+- When a successor ADR overturns only a rule or premise inside an older record,
+  edit that text in place so the older record no longer states the overturned
+  rule: state the current rule in one line, name the successor ADR inline, and
+  add it to `Partially superseded by`. Keep the rest of the record as decided;
+  the successor holds the reasoning. Record the overturned wording in one
+  sentence in the `History` section, so a reader can see what the record
+  originally decided without a copy of the old file.
+
+## Condensing Records
+
+Records may be condensed so that outdated content does not pose as current:
+
+- Delete content that carries no decision value: implementation mappings, type,
+  field, and test catalogs, work plans, acceptance checklists, usage examples,
+  and contract-style rules whose authority now lives in `design/`.
+- Keep the decision as it was made: `Context`, `Decision`, `Alternatives
+  Considered`, `Consequences`, and reconsideration criteria. Condensing MUST NOT
+  change what was decided or why, and MUST NOT add hindsight justification.
+- Keep the terms the decision was made in; where a type was later renamed, add
+  the current name once (`GlobalPar` (now `ParRuntime`)). Facts that changed
+  after the decision go in a dated note, not into the original reasoning.
+- End a condensed record with a `History` section that gives the condensation
+  date and lists what was removed. The repository keeps no copy of the
+  previous full text, so condensing MUST NOT remove a decision, a rejected
+  alternative, or its reason. Never cite a commit hash or line numbers.
 
 ## Required Content
 

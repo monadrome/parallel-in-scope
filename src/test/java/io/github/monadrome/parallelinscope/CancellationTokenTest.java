@@ -170,7 +170,7 @@ public class CancellationTokenTest {
 
         @Override
         public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-            token.cancel(true);
+            token.cancel();
             throw new java.util.concurrent.RejectedExecutionException("retired");
         }
     }
@@ -186,7 +186,7 @@ public class CancellationTokenTest {
     @Test
     public void testManualCancel() {
         CancellationToken token = CancellationToken.create();
-        token.cancel(false);
+        token.cancel();
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(token.state().shouldInterruptCurrentThread()).isTrue();
     }
@@ -199,7 +199,7 @@ public class CancellationTokenTest {
         assertThat(parent.state()).isEqualTo(CancellationToken.State.RUNNING);
         assertThat(child.state()).isEqualTo(CancellationToken.State.RUNNING);
 
-        parent.cancel(false);
+        parent.cancel();
         assertThat(parent.state()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
@@ -287,7 +287,6 @@ public class CancellationTokenTest {
         f2.set("b");
         f3.set("c");
 
-        // Allow callback propagation
         Thread.sleep(50);
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
         assertAggregateDone(aggregate);
@@ -297,11 +296,10 @@ public class CancellationTokenTest {
     public void testBind_timeout_stateTransitionsToTimeoutCancelled() throws Exception {
         CancellationToken token = withDeadlineAfter(100);
 
-        SettableFuture<String> f1 = SettableFuture.create(); // never completed
+        SettableFuture<String> f1 = SettableFuture.create();
 
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(f1), Futures.immediateVoidFuture(), TIMER);
 
-        // Wait for timeout to fire
         Thread.sleep(300);
         assertThat(token.state()).isEqualTo(CancellationToken.State.TIMEOUT);
         assertAggregateDone(aggregate);
@@ -321,7 +319,6 @@ public class CancellationTokenTest {
 
         f1.setException(new RuntimeException("boom"));
 
-        // Allow callback propagation
         Thread.sleep(50);
         assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
         assertAggregateDone(aggregate);
@@ -329,7 +326,7 @@ public class CancellationTokenTest {
 
     @Test
     public void businessTimeoutExceptionIsFailFastNotFrameworkTimeout() {
-        // A member body may legitimately throw java.util.concurrent.TimeoutException; the token
+        // A member execution may legitimately throw java.util.concurrent.TimeoutException; the token
         // must classify by event source, not by exception type: only the armed deadline produces
         // TIMEOUT. Here the 60s deadline cannot have expired, so the failure is a business
         // failure and the token must commit FAIL_FAST.
@@ -393,7 +390,7 @@ public class CancellationTokenTest {
 
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(task), submitCanceller, TIMER);
 
-        token.cancel(true);
+        token.cancel();
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(task).isCancelled();
@@ -411,28 +408,11 @@ public class CancellationTokenTest {
 
         await().until(() -> token.state() == CancellationToken.State.SUCCESS);
 
-        token.cancel(true);
+        token.cancel();
 
         assertThat(task.isDone()).isTrue();
         assertThat(task.get()).isEqualTo("done");
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
-        assertAggregateDone(aggregate);
-    }
-
-    @Test
-    public void parentCancelWithoutInterruptPropagatesWithoutInterrupt() {
-        CancellationToken parent = CancellationToken.create();
-        CancellationToken child = new CancellationToken(parent);
-        InterruptRecordingFuture childWork = new InterruptRecordingFuture();
-        ListenableFuture<?> aggregate = child.bind(ImmutableList.of(childWork), Futures.immediateVoidFuture(), TIMER);
-
-        parent.cancel(false);
-
-        assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
-        assertThat(childWork.isCancelled()).isTrue();
-        assertThat(childWork.cancelInterrupt)
-                .as("cancel(false) keeps its no-interrupt policy across the parent link")
-                .hasValue(false);
         assertAggregateDone(aggregate);
     }
 
@@ -443,7 +423,7 @@ public class CancellationTokenTest {
         InterruptRecordingFuture childWork = new InterruptRecordingFuture();
         ListenableFuture<?> aggregate = child.bind(ImmutableList.of(childWork), Futures.immediateVoidFuture(), TIMER);
 
-        parent.cancel(true);
+        parent.cancel();
 
         assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertThat(childWork.cancelInterrupt).hasValue(true);
@@ -451,7 +431,7 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void nonInterruptingCancelPropagatesAcrossMultipleGenerations() {
+    public void cancelPropagatesWithInterruptAcrossMultipleGenerations() {
         CancellationToken root = CancellationToken.create();
         CancellationToken child = new CancellationToken(root);
         CancellationToken grandchild = new CancellationToken(child);
@@ -459,20 +439,18 @@ public class CancellationTokenTest {
         ListenableFuture<?> aggregate =
                 grandchild.bind(ImmutableList.of(grandchildWork), Futures.immediateVoidFuture(), TIMER);
 
-        root.cancel(false);
+        root.cancel();
 
         assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertThat(grandchild.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertThat(grandchildWork.cancelInterrupt)
-                .as("the interrupt intent survives every intermediate generation")
-                .hasValue(false);
+                .as("every generation propagates the cancellation with interruption")
+                .hasValue(true);
         assertAggregateDone(aggregate);
     }
 
     @Test
     public void propagatedDeadlineAndFailFastStillInterrupt() {
-        // Only an explicit cancel(false) relaxes interruption; deadline expiry and fail-fast keep
-        // the interrupting cascade, because their liveness depends on it.
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
         InterruptRecordingFuture childWork = new InterruptRecordingFuture();
@@ -486,49 +464,44 @@ public class CancellationTokenTest {
     }
 
     @Test
-    public void directBoundCancelWithoutInterruptDoesNotUpgradeDuringCascade() {
-        CancellationToken token = CancellationToken.create();
-        InterruptRecordingFuture work = new InterruptRecordingFuture();
-        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), TIMER);
-
-        token.cancel(false);
-
-        assertThat(work.cancelInterrupt)
-                .as("direct cancel(false) must reach bound work without an interrupt")
-                .hasValue(false);
-        assertAggregateDone(aggregate);
-    }
-
-    @Test
-    public void cancelWithoutInterruptBeforeBindStaysNonInterrupting() {
+    public void cancelBeforeBindInterruptsWorkBoundLater() {
         CancellationToken token = CancellationToken.create();
         InterruptRecordingFuture work = new InterruptRecordingFuture();
 
-        token.cancel(false);
+        token.cancel();
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), TIMER);
 
         assertThat(work.cancelInterrupt)
-                .as("pre-bind cancel(false) must retain its intent when binding later")
-                .hasValue(false);
+                .as("a pre-bind cancellation reaches later-bound work with interruption")
+                .hasValue(true);
         assertAggregateDone(aggregate);
     }
 
     @Test
-    public void expiredDeadlineDoesNotUpgradeEarlierCancelWithoutInterrupt() {
-        CancellationToken token = new CancellationToken(null, System.nanoTime() - 1L);
-        InterruptRecordingFuture work = new InterruptRecordingFuture();
+    public void reentrantFailureInsideTheWinnersListenerWindowStillCascadesWithInterrupt() {
+        CancellationToken token = CancellationToken.create();
+        SettableFuture<String> trigger = SettableFuture.create();
+        InterruptRecordingFuture victim = new InterruptRecordingFuture();
+        InterruptRecordingFuture submission = new InterruptRecordingFuture();
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(trigger, victim), submission, TIMER);
+        // The business failure fires inside the CANCELLED listener window, before the winner's own
+        // cascade runs: the losing fail-fast callback must still cascade unconditionally.
+        token.addStateListener(state -> {
+            if (state == CancellationToken.State.CANCELLED) {
+                trigger.setException(new RuntimeException("listener failure"));
+            }
+        });
 
-        token.cancel(false);
-        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), TIMER);
+        token.cancel();
 
-        assertThat(work.cancelInterrupt)
-                .as("an already-cancelled token must retain cancel(false) at an expired bind")
-                .hasValue(false);
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(victim.cancelInterrupt).hasValue(true);
+        assertThat(submission.cancelInterrupt).hasValue(true);
         assertAggregateDone(aggregate);
     }
 
     @Test
-    public void alreadyDispatchedTimerActionRetainsCancelFalseIntent() {
+    public void alreadyDispatchedTimerLoserStillCascadesWithInterrupt() {
         ManualClock clock = new ManualClock();
         CancellationToken token =
                 new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker());
@@ -538,86 +511,34 @@ public class CancellationTokenTest {
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), submission, timer);
         Runnable timerAction = timer.dispatched.get();
         assertThat(timerAction).isNotNull();
+        // The timer thread already dispatched the timeout action when the explicit cancel wins: the
+        // action runs inside the winner's listener window and loses first-wins. Completing the work
+        // first settles the futureToken bridge, so the winner's own futureToken cancel is a no-op
+        // and the losing timer action is the only canceller that can reach the submission handle.
+        token.addStateListener(state -> {
+            work.set("done");
+            timerAction.run();
+        });
 
-        // The timer thread already dispatched the timeout action when the user thread commits
-        // cancel(false): the action runs between the winning transition and the cancellation
-        // cascade, loses the first-wins race, and must cascade with the committed intent — not
-        // with its own TIMEOUT interrupting policy. The state listener stands in for that
-        // interleaving deterministically; at that point the winner's futureToken cascade has not
-        // run yet, so the losing action is the first canceller to reach the submission handle.
-        token.addStateListener(state -> timerAction.run());
-        token.cancel(false);
+        token.cancel();
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
-        assertThat(submission.cancelInterrupt)
-                .as("an already-dispatched timer loser must cascade with the winning cancel(false) intent")
-                .hasValue(false);
+        assertThat(submission.cancelInterrupt).hasValue(true);
         assertAggregateDone(aggregate);
     }
 
     @Test
-    public void directCancelFalsePublishesIntentBeforeStateListenersRun() {
-        CancellationToken token = CancellationToken.create();
-        SettableFuture<String> trigger = SettableFuture.create();
-        InterruptRecordingFuture victim = new InterruptRecordingFuture();
-        ListenableFuture<?> aggregate =
-                token.bind(ImmutableList.of(trigger, victim), Futures.immediateVoidFuture(), TIMER);
-        token.addStateListener(state -> {
-            if (state == CancellationToken.State.CANCELLED) {
-                trigger.setException(new RuntimeException("listener failure"));
-            }
-        });
-
-        token.cancel(false);
-
-        assertThat(victim.cancelInterrupt)
-                .as("a reentrant business failure must observe cancel(false)'s intent")
-                .hasValue(false);
-        assertAggregateDone(aggregate);
-    }
-
-    @Test
-    public void propagatedCancelFalsePublishesIntentBeforeChildListenersRun() {
-        CancellationToken parent = CancellationToken.create();
-        CancellationToken child = new CancellationToken(parent);
-        SettableFuture<String> trigger = SettableFuture.create();
-        InterruptRecordingFuture victim = new InterruptRecordingFuture();
-        ListenableFuture<?> aggregate =
-                child.bind(ImmutableList.of(trigger, victim), Futures.immediateVoidFuture(), TIMER);
-        child.addStateListener(state -> {
-            if (state == CancellationToken.State.PROPAGATED_CANCELLED) {
-                trigger.setException(new RuntimeException("listener failure"));
-            }
-        });
-
-        parent.cancel(false);
-
-        assertThat(victim.cancelInterrupt)
-                .as("a reentrant child failure must retain the propagated non-interrupting intent")
-                .hasValue(false);
-        assertAggregateDone(aggregate);
-    }
-
-    @Test
-    public void losingReentrantTransitionDoesNotEmitItsOwnCancellation() {
-        CancellationToken token = CancellationToken.create();
+    public void requestSourceWinsExpiredBindAndInterrupts() {
+        CancellationToken token = new CancellationToken(null, System.nanoTime() - 1L);
+        SettableFuture<Void> source = SettableFuture.create();
         InterruptRecordingFuture work = new InterruptRecordingFuture();
-        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), TIMER);
-        // A reentrant losing transition inside the winner's listener window must not cancel
-        // futureToken with its own intent: the winner's cascade runs after the listeners and is
-        // the only cancellation this token emits.
-        token.addStateListener(state -> {
-            if (state == CancellationToken.State.CANCELLED) {
-                token.timeoutCancel();
-            }
-        });
+        token.cancelOn(source);
 
-        token.cancel(false);
+        source.set(null);
+        ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), TIMER);
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
-        assertThat(work.cancelInterrupt)
-                .as("a losing reentrant transition must not cancel bound work with its own intent")
-                .hasValue(false);
+        assertThat(work.cancelInterrupt).hasValue(true);
         assertAggregateDone(aggregate);
     }
 
@@ -650,7 +571,7 @@ public class CancellationTokenTest {
     @Test
     public void retiredDomainSchedulerFallsBackToTheBindParameter() {
         // The token tree's scheduler belongs to the ancestor runtime, which may already be closed:
-        // a cancelled body that is still running can nest new work into another runtime, and the
+        // a cancelled execution that is still running can nest new work into another runtime, and the
         // nested token inherits the retired scheduler. Rejection there must arm the deadline on the
         // caller's live scheduler instead of failing the bind.
         ManualClock clock = new ManualClock();
@@ -694,7 +615,7 @@ public class CancellationTokenTest {
         CancellationToken token = new CancellationToken(null, System.nanoTime() + TimeUnit.MINUTES.toNanos(1));
         SettableFuture<String> work = SettableFuture.create();
         SettableFuture<Void> submission = SettableFuture.create();
-        token.cancel(false);
+        token.cancel();
         AlreadyDispatchedTimer timer = new AlreadyDispatchedTimer();
 
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), submission, timer);
@@ -718,7 +639,7 @@ public class CancellationTokenTest {
         CancellationToken token =
                 new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker(), retired);
         SettableFuture<String> work = SettableFuture.create();
-        token.cancel(true);
+        token.cancel();
 
         ListenableFuture<?> aggregate = token.bind(ImmutableList.of(work), Futures.immediateVoidFuture(), retired);
 
@@ -808,7 +729,7 @@ public class CancellationTokenTest {
         childWork.complete("done");
         await().until(() -> child.state() == CancellationToken.State.SUCCESS);
 
-        parent.cancel(false);
+        parent.cancel();
 
         assertThat(child.state()).isEqualTo(CancellationToken.State.SUCCESS);
         assertThat(childWork.isCancelled()).isFalse();
@@ -827,9 +748,8 @@ public class CancellationTokenTest {
         // the child as propagating cancellation even if its own future has not completed yet.
         ListenableFuture<?> aggregate = child.bind(ImmutableList.of(f1), Futures.immediateVoidFuture(), TIMER);
 
-        parent.cancel(true);
+        parent.cancel();
 
-        // Allow callback propagation
         Thread.sleep(50);
         assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertAggregateDone(aggregate);
@@ -838,7 +758,7 @@ public class CancellationTokenTest {
     @Test
     public void testBind_parentAlreadyCancelled_childImmediatelyCancelled() {
         CancellationToken parent = CancellationToken.create();
-        parent.cancel(true);
+        parent.cancel();
         assertThat(parent.state().shouldInterruptCurrentThread()).isTrue();
 
         CancellationToken child = new CancellationToken(parent);
@@ -870,9 +790,9 @@ public class CancellationTokenTest {
         AtomicInteger notifications = new AtomicInteger();
         token.addStateListener(state -> notifications.incrementAndGet());
 
-        token.cancel(true);
+        token.cancel();
         token.timeoutCancel(); // loses the CAS: already CANCELLED
-        token.cancel(true); // loses again
+        token.cancel(); // loses again
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(notifications).hasValue(1);
@@ -891,7 +811,7 @@ public class CancellationTokenTest {
             taskStillPending.set(!task.isDone());
         });
 
-        token.cancel(true);
+        token.cancel();
 
         assertThat(observed.get()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(taskStillPending).isTrue();
@@ -924,7 +844,7 @@ public class CancellationTokenTest {
         Level previousLevel = logger.getLevel();
         logger.setLevel(Level.ALL);
         try {
-            token.cancel(true);
+            token.cancel();
         } finally {
             logger.removeHandler(handler);
             logger.setLevel(previousLevel);
@@ -957,7 +877,7 @@ public class CancellationTokenTest {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
 
-        parent.cancel(true);
+        parent.cancel();
 
         assertThat(child.originState()).isEqualTo(CancellationToken.State.CANCELLED);
     }
@@ -968,7 +888,7 @@ public class CancellationTokenTest {
         CancellationToken child = new CancellationToken(origin);
         CancellationToken grandchild = new CancellationToken(child);
 
-        child.cancel(true);
+        child.cancel();
 
         assertThat(grandchild.originState()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(origin.state()).isEqualTo(CancellationToken.State.RUNNING);

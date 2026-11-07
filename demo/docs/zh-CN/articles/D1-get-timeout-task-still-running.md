@@ -38,7 +38,7 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 
 1. **请求取消**：批次级 `CancellationToken` 在任何任务进入执行器之前完成绑定；超时触发后取消所有未完成任务，并尝试中断正在执行的任务线程。
 
-2. **协作式取消**：对于不会因中断自动退出的任务，可在循环或阶段边界调用 `Checkpoints.checkpoint("api-call", true)`（名称需与 `BatchOptions` 的任务名一致），主动检测当前 scope 的取消状态并提前退出。
+2. **协作式取消**：对于不会因中断自动退出的任务，可在循环或阶段边界调用 `Checkpoints.checkpoint()`，主动检测当前 scope 的取消状态并提前退出。
 
 3. **批量管理**：无需逐个处理每个 Future，`Par.map()` 统一管理所有任务的生命周期，超时后自动取消剩余任务。
 
@@ -50,11 +50,12 @@ pool.submit(() -> "new task"); // 这个任务必须等待前面的任务完成
 ExecutorService pool = Executors.newFixedThreadPool(2);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 
 // 设置选项：2 并发，500ms 超时
-BatchOptions opts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.IO_BOUND);
+BatchOptions opts = BatchOptions.timeout("api-call", java.time.Duration.ofMillis(500)).parallelism(2).taskType(TaskType.BLOCKING);
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2");
@@ -70,4 +71,4 @@ TaskBatchResult<String> result = par.map( urls, url -> {
 
 ---
 
-> 📁 完整测试代码：[D1_GetTimeoutStillRunningTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java)
+> 📁 完整测试代码：[D1_GetTimeoutStillRunningTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java)

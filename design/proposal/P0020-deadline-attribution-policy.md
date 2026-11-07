@@ -15,16 +15,16 @@ P0015 的已提交成员/terminal TIMEOUT 上升遗漏已并入
 
 ```java
 TaskGroupResult<Integer, Void> result = runtime.group("load", timeout)
-        .par("member", par, Integer.class, () -> { throw ownCancellation; })
+        .par(TaskKey.<Integer>named("member"), par, () -> { throw ownCancellation; })
         .runAll();
 TaskOutcome outcome = result.resultOf("member").outcome();
 ```
 
-今日同一代码在 token 未提交框架取消时保留 USER_FAILURE，即使 body 恰在预算之后自抛 CE。
+今日同一代码在 token 未提交框架取消时保留 USER_FAILURE，即使执行恰在预算之后自抛 CE。
 候选改后同一代码或许读为 TIMEOUT，但需先证明这是错误模式并选择外部直消、自抛 CE/IE
 与业务 TimeoutException 的边界。若改变监控归因，需要写明迁移路径；目前没有获批规则。
 
 验收必须以晚到或不执行 timer 的受控时钟分别验证真实胜出事件与仅时间经过，覆盖失败优先级、
 独立紧预算、继承预算、嵌套与未到期输入。不得以历史压力次数或评审共识代替新政策选择。
-历史输入为 PR #56 的 `04b46a9`、`4edf3ea`、`3e91d36`、`4a66581`；其原论证由 P0015 的 git
-历史取回。[批次落定契约](../batch-settle-attribution.md) 仍是当前约束。
+历史输入为 PR #56 的四轮修订；其原论证
+未入库。[批次落定契约](../batch-settle-attribution.md) 仍是当前约束。

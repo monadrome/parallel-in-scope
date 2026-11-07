@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *   <li>大数据集分批处理
  *   <li>并行度控制
- *   <li>错误处理
+ *   <li>聚合结果读取
  *   <li>性能监控
  * </ul>
  */
@@ -71,18 +71,8 @@ public class BatchProcessingDemo {
             // 5. 查看结果
             System.out.println("执行报告: " + result.reportString());
 
-            // 6. 性能分析（使用实际计算结果，而非输入数据）
-            List<Integer> computedResults = new ArrayList<>();
-            for (java.util.concurrent.Future<Integer> future : result.results().stream()
-                    .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
-                    .collect(java.util.stream.Collectors.toList())) {
-                try {
-                    computedResults.add(future.get());
-                } catch (Exception e) {
-                    computedResults.add(-1);
-                }
-            }
-            analyzePerformance(computedResults);
+            // 6. 性能分析（聚合读取：valuesOrThrow 按输入顺序返回全部成功值，0.4 起为非受检读取）
+            analyzePerformance(result.valuesOrThrow());
 
         } finally {
             global.close();

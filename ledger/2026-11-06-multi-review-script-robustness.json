@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-multi-review-script-robustness",
+  "date": "2026-11-06",
+  "topic": "multi-review-script-robustness",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "fix: harden multi-review liveness and progress"
+    ],
+    "files": 7,
+    "insertions": 205,
+    "deletions": 7
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Added reviewer CLI health probes, periodic review.progress events, status --watch query, and hard timeout coverage. npm test: 50 passed."
+}

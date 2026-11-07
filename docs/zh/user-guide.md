@@ -1,10 +1,10 @@
 # 使用指南
 
-> 本文档面向 `0.3.0` 正式版。使用 `ParConfig` 或 `ParOptions` 的 `0.1.x` 示例不能直接用于本版本，请先阅读 [v0.2 迁移指南](migration-v0.2.md)；从 `0.2.x` 升级请阅读 [v0.3 迁移指南](migration-v0.3.md)。
+> 本文档跟随 `0.4.1`；这是 `0.4.1` 正式版；从 `0.3.x` 升级请按 [v0.4 迁移指南](migration-v0.4.md) 改用类型化 key；更早的迁移见 [v0.3 迁移指南](migration-v0.3.md) 与 [v0.2 迁移指南](migration-v0.2.md)。
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
-它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).runAll()`——每个成员在同一个 `par(...)` 里同时写出名称、`Par`、声明类型与本次运行的 body；它不是可动态增长的批次。
+它还把一小组固定的、名称各异的操作协调为 `TaskGroup`。任务组以一条一次性链式草稿声明并提交——`runtime.group(name, timeout).par(...).runAll()`——每个成员在同一个 `par(...)` 里同时写出类型化 key、`Par` 与本次运行的执行（已在途的 future 改用 `adopt` 加入）；它不是可动态增长的批次。
 
 ## 构建执行拓扑
 
@@ -23,11 +23,13 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定、标签、构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 只会关闭内部 timer 与 timeout-action 服务，绝不会关闭它们。队列清理由执行器所有者负责。
+注册时还可以声明该条目预期承载的工作：`register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)`。声明可选，只用于诊断，见[声明任务类型](#task-type)。
+
+id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定和构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 会在已准入运行排空、饥饿观测关闭后释放内部 timer、timeout-action 和采样服务，绝不会关闭已注册执行器。队列清理由执行器所有者负责。
 
 注册的执行器必须遵守 `Executor` 契约：交给 `execute()` 的任务恰好执行一次。因此 `build()` 会拒绝直接注册、且拒绝策略为 `DiscardPolicy` / `DiscardOldestPolicy` 的 `ThreadPoolExecutor`——这两种策略会"接受后丢弃"，既不执行也不抛异常，任务 future 将永远无法完成。`AbortPolicy`（拒绝表现为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。库看不透的执行器（例如预先包装的 `listeningDecorator`）会被接受并打一次警告：对它们而言阻塞风险检测失效。
 
-注册时读取执行器自身的结构，读不出的事实不做任何声明。它判断池上的任务体在等待子任务时会不会被饿死线程。库看不透的形态——注册前被你自己包装过的池、`ForkJoinPool`、框架托管的执行器——取保守答案，并在组成根提示一次。
+注册时读取执行器自身的结构，读不出的事实不做任何声明。它判断池上的任务代码在等待子任务时会不会被饿死线程。库看不透的形态——注册前被你自己包装过的池、`ForkJoinPool`、框架托管的执行器——取保守答案，并在组成根提示一次。
 
 因此请注册物理池，不要注册装饰器。`Executors.newFixedThreadPool(n)` 与 `Executors.newCachedThreadPool()` 直接返回 `ThreadPoolExecutor` 本身，阻塞风险检测可用；而 `Executors.newSingleThreadExecutor()` 与 Guava 的 `listeningDecorator(...)` 返回的是库看不透的包装器。需要单线程池时，显式构造物理池：
 
@@ -61,9 +63,10 @@ List<Account> accounts = batch.valuesOrThrow();
 ImmediateResult<Account> first = batch.results().get(0);
 ```
 
-输入顺序固定；null 或空输入返回成功的空结果。调用期间不可结构性修改 List，其他集合在
-入口复制。函数保持 JDK Function；业务受检异常须在函数内处理，需要 Callable 的单任务
-用单成员组。
+输入顺序固定；null 或空输入返回成功的空结果。所有非空输入集合（包括 List）在准备任务前
+浅复制为不可变快照；复制期间不要无同步地修改非并发集合。null 输入元素会在任何任务执行前
+被拒绝，但 mapper 成功返回 null 仍然合法。映射使用 JDK `Function`，受检业务异常须在函数内
+处理；需要 `Callable` 的单任务使用单成员组。
 
 `.parallelism(n)` 的显式值必须为正，否则入口抛 IllegalArgumentException；缺省值为
 Integer.MAX_VALUE，表示不设额外上限——解析时被任务总数封顶，即整批一次性提交。需要
@@ -71,33 +74,50 @@ Integer.MAX_VALUE，表示不设额外上限——解析时被任务总数封顶
 
 timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `inheritTimeout(name)`。
 继承要求处于库管理的任务内，deadline 不超过父级。首个失败取消未完成的兄弟，包括滑窗外
-尚未提交的元素。`valuesOrThrow()` 即时读取：按输入顺序首个已记录执行失败优先，
-以 ExecutionException 报告；纯取消抛 CancellationException。成功值允许 null。
+尚未提交的元素。`valuesOrThrow()` 即时读取，先经过 `orThrow()`：按输入顺序首个已记录执行
+失败优先，unchecked 原样抛、checked 包装为 CompletionException；纯取消抛 CancellationException。
+成功值允许 null。`outcomeCounts()` 统计各 outcome，`failedTaskResult()` 返回首个失败元素，
+与 `TaskGroupResult` 同名。
 
-TaskType/rejectEnqueue 影响 SmartBlockingQueue 准入，不选择 executor；普通队列上
-rejectEnqueue 与 CPU_BOUND 都无效，每个 `Par` 输出一次诊断。executor handoff 失败记录为 SUBMISSION_FAILURE，内部
-SubmissionException 保留原 cause，包括 Error。参数校验和关闭后的准入错误仍从入口抛出。
+executor handoff 失败记录为 SUBMISSION_FAILURE，内部 SubmissionException 保留原 cause，包括
+Error。参数校验和关闭后的准入错误仍从入口抛出。
 
-TaskType 默认 IO_BOUND，rejectEnqueue 默认 false。把 SmartBlockingQueue 装到物理池上，并按批次声明策略：
+`rejectEnqueue` 是唯一改变入队准入的选项，也只有 `SmartBlockingQueue` 读取它；换成其他任何队列
+它都是惰性的，经某个 `Par` 的首次此类提交会在 runtime 自有线程上打一条告警。它默认是 false。把 SmartBlockingQueue
+装到物理池上，并按批次显式选择：
 
 ```java
 ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
         4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool)
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
         .build();
 
 TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
         records, this::score,
-        BatchOptions.timeout("score", Duration.ofSeconds(5))
-                .taskType(TaskType.CPU_BOUND)
-                .rejectEnqueue(true));
+        BatchOptions.timeout("score", Duration.ofSeconds(5)).rejectEnqueue(true));
 ```
 
-CPU_BOUND 任务会让 offer 返回 false（单独如此，或与 rejectEnqueue(true) 一起），因此池子要么
-开新线程、要么走拒绝处理器，而不会把 CPU 任务排在 IO 任务后面；rejectEnqueue(true) 与它是冗余的，
-只用于表明意图。换成其他任何队列，TaskType 都不改变库的行为，rejectEnqueue 则是惰性的。
+offer 被拒绝时，池子要么开新线程、要么走拒绝处理器，而不是把任务缓冲起来。空闲 worker 只从
+队列取任务，所以固定大小的池建满 worker 之后，每个被拒绝的任务都会走拒绝处理器，即使有 worker
+空闲。
+
+### 声明任务类型 {#task-type}
+
+`TaskType` 是两侧都可选的负载声明：条目在注册时声明预期承载的工作，批次或任务用
+`BatchOptions.taskType` / `TaskOptions.taskType` 声明任务代码本身。取值为 `COMPUTE`、`BLOCKING`
+（任何等待：I/O、锁、sleep、join、等待嵌套工作）和缺省值 `UNKNOWN`。嵌套批次与
+`mapAndCombine` 的终端 combine 不继承父单元的类型。
+
+声明从不改变准入、入队、拒绝、取消、deadline 或 outcome，只供两项诊断使用：
+
+- **提交时比对。** 条目和单元都声明了类型且不一致时，按条目与单元名记录一次：`COMPUTE` 条目上的
+  `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。日志只说明两侧声明不一致，并在 runtime 自有线程上
+  记录，抛异常或阻塞的日志 handler 不会影响提交；各条日志独立投递，可能不按提交顺序出现。运行时最多记住 1024 对，
+  之后只打一条汇总，新对的不一致不再记录。单元名请用固定业务名，不要按调用拼接。
+- **低 CPU 筛查。** runtime 始终比较经 `COMPUTE` 条目或单元准入的任务代码的线程 CPU 时间与执行时间，见
+  [筛查负载匹配](#workload-fit)。它能发现作者自己都不知道会阻塞的任务，这是单靠声明做不到的。
 
 ### 批次终端汇总 {#batch-combine}
 
@@ -113,28 +133,30 @@ Report report = run.terminalValueOrThrow();
 TaskBatchResult<Price> elements = run.batchResult();
 ```
 
+`terminalValueOrThrow()` 先检查元素：失败的价格以它自己的异常抛出，不会被报成 combine 的
+`FAIL_FAST` 取消；combine 自身失败按同一规则处理。
+
 汇总任务随批次一起准备（TTL 捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
 才向它自己的 Par 恰好提交一次。任一元素失败或 deadline 先到，汇总不会运行，其
 `terminalResult()` 记录批次的归因（`FAIL_FAST` / `TIMEOUT`）；汇总提交被拒则记
-`SUBMISSION_FAILURE`。汇总体以 `CombineBody<List<@Nullable E>, C>` 接收按输入顺序排列的元素值——因此
+`SUBMISSION_FAILURE`。汇总体以 `Combiner<List<@Nullable E>, C>` 接收按输入顺序排列的元素值——因此
 可以抛 checked 异常——成功但为 null 的元素以 null 条目出现，元素级可空直接写在签名上。输入必须非空：零元素的汇总没有
-fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`bodyCompletionConfirmed()` 与
-`unfinishedBodies()` 同样覆盖汇总任务体。
+fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`executionExitConfirmed()` 与
+`unexitedExecutions()` 同样覆盖汇总任务代码。
 
 ## 执行异构任务组 {#task-group}
 
-声明每个成员的名称、Par、类型和 body。`runAll()` 消耗草稿、执行一次并返回有类型的终态
+声明每个成员的类型化 key、Par 和执行。`runAll()` 消耗草稿、执行一次并返回有类型的终态
 结果。声明期不提交、不计算 deadline、不创建 timer/TTL 快照，timeout 从执行边界起算。
-草稿仅创建线程可使用；旧阶段、重复执行、外国 Par、重名、原始类型和未解析类型变量均被拒绝。
+草稿仅创建线程可使用；旧阶段、重复执行、外国 Par 和重名均被拒绝。
 
 ```java
 TaskGroupResult<Tuple2<User, Account>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .closeGrace(Duration.ofSeconds(1))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
-        .par("account", httpPar, Account.class, () -> loadAccount(userId))
-        .combine("profile", httpPar, Profile.class,
-                values -> buildProfile(values.first(), values.second()))
+        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
+        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
+        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> buildProfile(values.first(), values.second()))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
@@ -146,38 +168,93 @@ deadline，任务外调用失败。成员/combine 的 TaskOptions 可缩短预�
 combine 在提交线程 inline，明确注册的 direct executor 保持支持。
 
 ```java
+TaskKey<User> userKey = TaskKey.named("user");
 TaskGroupResult<User, Void> one = global.group("user", Duration.ofSeconds(2))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
+        .par(userKey, databasePar, () -> loadUser(userId))
         .runAll();
-ImmediateResult<User> user = one.resultOf("user", TypeToken.of(User.class));
+ImmediateResult<User> user = one.resultOf(userKey);
 User value = user.valueOrThrow();
 ```
 
-`resultOf/resultAt` 按名称/声明位置查询成员终态，TypeToken 必须精确匹配，不能拓宽；
-null 或失败值也不跳过校验。普通类型可用 Class（带不带自定义 TaskOptions 均可），参数化类型用
-TypeToken。运行期对非 null 值校验 raw class，不对泛型元素做深度校验。
+`resultOf(key)` 返回类型化结果；按名称/声明位置查询成员终态的 `resultOf(name)` 和
+`resultAt(index)` 返回 `ImmediateResult<?>`，动态值查询返回 `Object`。
+不再保存或检查运行期类型令牌。
+
+也可以用 `TaskKey<T>` 将名称与类型集中声明一次，再按原 key 读取：
+
+```java
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .combineValues(profileKey, httpPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
+        .runAll();
+ImmediateResult<User> user = result.resultOf(userKey);
+Profile profile = result.terminalValueOrThrow();
+```
+
+泛型结果用 `TaskKey<List<Order>> orders = TaskKey.named("orders")`。key 按对象身份区分，
+同名同类型的新 key 不能读取旧槽位；应复用原对象，常用 key 可保存为 `static final`。
+同一个 key 可跨运行复用，结果与执行 ID 逐次隔离。组内成员和终端的名称仍须唯一。
+`valueOf(key)` 只读成功成员值，允许 null；未知 key 抛 `IllegalArgumentException`。
+`resultOf(key)` 可读成员或终端的成功、失败、取消容器。key 不证明成员已经注册。
+
+`combineValues` 接收 `GroupValues<V>`，通过 key 读取成员，不能读取终端自己；
+它复用原有 terminal 的 deadline、TTL、取消、成功门控和拒绝规则。原有 `combine` 仍接收
+静态元组，也支持终端 key。两者均可在任务代码前传入 `TaskOptions`。声明和读取共享 `T`，
+错误的 lambda 体或赋值类型在正常泛型调用中不能编译；不做结果的运行期类型校验，
+raw type 和 unchecked cast 造成的类型违规由调用方负责。
 
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
-组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 保持原异常习惯：unchecked 原样抛、
+组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 遵循所有聚合结果共用的规则：unchecked 原样抛、
 checked 包装为 CompletionException、纯取消抛 CancellationException。combine 失败也
 使聚合成员值失败，但单独的成功成员结果仍可读。
 
 combine 体内，唯一的成员成功返回 null 时 `values` 整体为 null；两个及以上成员时
 `values` 本身是非 null 的 `Tuple2`，但各分量可为 null。combine 返回 null 也是成功
-combine，因此 body 可以直接写 `values -> null`。
+combine，因此执行可以直接写 `values -> null`。
 
 ### 三个及以上成员
 
-第一个之后的每次 `par` 都让聚合类型左嵌套一层 `Tuple2`，因此三成员组 combine 里的 `values`
-是 `Tuple2<Tuple2<A, B>, C>`。用 `first()`/`second()` 展开，并在类型仍然明确时就地构造扁平对象：
+三个及以上成员时，优先用保存的 key 配合 `combineValues`：combine 体通过 key 读取每个成员，
+嵌套形态不会进入你的代码。
+
+```java
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Order> orderKey = TaskKey.named("order");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+        .group("profile", Duration.ofSeconds(3))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .par(orderKey, httpPar, () -> loadOrder(userId))
+        .combineValues(profileKey, httpPar, values -> new Profile(
+                values.valueOf(userKey),
+                values.valueOf(accountKey),
+                values.valueOf(orderKey)))
+        .runAll();
+Profile profile = result.terminalValueOrThrow();
+```
+
+聚合成员类型仍随成员数左嵌套 `Tuple2`——上例结果的 `V` 是
+`Tuple2<Tuple2<User, Account>, Order>`——但用 `combineValues` 时这一形态只存在于声明内部。
+若要直接拿聚合后的 `V`，用 `combine(key, par, taskCode)`：三成员组的 tuple combine 里 `values`
+是 `Tuple2<Tuple2<A, B>, C>`，用 `first()`/`second()` 展开：
 
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
         .group("profile", Duration.ofSeconds(3))
-        .par("user", databasePar, User.class, () -> loadUser(userId))
-        .par("account", httpPar, Account.class, () -> loadAccount(userId))
-        .par("order", httpPar, Order.class, () -> loadOrder(userId))
-        .combine("profile", httpPar, Profile.class, values -> new Profile(
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .par(orderKey, httpPar, () -> loadOrder(userId))
+        .combine(profileKey, httpPar, values -> new Profile(
                 values.first().first(),
                 values.first().second(),
                 values.second()))
@@ -185,11 +262,58 @@ TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
 Profile profile = result.terminalValueOrThrow();
 ```
 
-按位置访问不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位。成员变多时，应让
-combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
+key 对象与按位置访问都不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位。成员变多时，
+应让 combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
 下游不应为了读一个值而重建成员顺序。
 
-<a id="task-attribution"></a>
+### 收养已在途的 future {#adopted-futures}
+
+已经在别处运行的工作——异步 HTTP/RPC 客户端、`ListeningExecutorService.submit`、`FluentFuture` 链、
+`ClosingFuture.finishToFuture()`——通过 `adopt(key, future)` 加入组。成员结果就是该 future 的结果，并与
+`par` 成员共用组 deadline、fail-fast、`cancelOn`、类型化读取与冻结结果。
+
+```java
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+TaskKey<Orders> ordersKey = TaskKey.named("orders");
+TaskKey<Page> pageKey = TaskKey.named("page");
+
+TaskGroupResult<Tuple2<Profile, Orders>, Page> result = global
+        .group("page", Duration.ofSeconds(2))
+        .adopt(profileKey, client.getProfile())
+        .adopt(ordersKey, client.getOrders())
+        .combine(pageKey, cpuPar, both -> render(both.first(), both.second()))
+        .runAll();
+```
+
+- 从 `runAll()` 起组拥有每个被收养的 future。取消组内未完成成员的任何原因——失败、deadline、`cancelOn`、
+  外层作用域——都以 `cancel(true)` 取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
+  线程不符的拒绝不触及它们）。不要自己取消它：那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
+- future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
+- 组从不关闭 source 的值，包括组失败时已成功的兄弟值和取消之后才产生的迟到值。资源生命周期由 source 自己的
+  管道或读取该值的接收方管理。`executionExitConfirmed()` 只确认所有被收养的 future 已落定，不确认外部机制的
+  异步清理已经完成。忽略取消的 future 在落定前出现在 `unexitedExecutions()` 中。
+- 需要在成功、失败或取消时自动关闭的中间资源，应登记到 `ClosingFuture` 管道，再收养 `finishToFuture()`：
+
+  ```java
+  ListenableFuture<Profile> profile = ClosingFuture.from(client.get("/profile"))
+          .transform((closer, response) -> {
+              closer.eventuallyClose(response, closingExecutor);
+              return response.readProfile();
+          }, executor)
+          .finishToFuture();
+  ```
+
+  取消被收养的 future 会取消管道并触发其登记资源的关闭。不要再把同一资源交给第二个关闭所有者。
+  仅用 `ClosingFuture.from(future)` 不会关闭普通 future 的返回值。
+- `adopt(key, producerPar, future)` 声明完成该 future 的注册执行器。组由某个任务代码运行时，这次等待像 `par`
+  成员一样进入[执行器等待报告](#nested-observation)：在 `io` 池上收养由 `io` 池完成的 future 是自环。只在该
+  执行器确实完成这个 future 时声明生产者；不声明则不记录等待。「观测直接提交的工作」照常对生产者池采样，
+  因此排在等待者自己身后的 future 会同时表现为等待环与 `POTENTIAL_STARVATION`，组则在 deadline 处以
+  `TIMEOUT` 结束。
+
+收养成员不运行任何执行：不提交任务、不回放 TTL 上下文，任务类型诊断与负载匹配计时都不适用。
+
+<a id="read-task-attribution-from-a-future"></a>
 
 ## 即时结果 {#task-future-attribution}
 
@@ -202,6 +326,24 @@ failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括
 未记录成员/combine 失败的取消作为失败值，get 抛 ExecutionException，cause 是取消异常；
 组一旦记录了成员或 combine 失败，即使组 outcome 是取消形状，cause 仍为该存储失败。
 手动 `failed(outcome, failure)` 保留传入异常；outcome 是元数据，不转换异常类型。
+
+`fold` 按四类公共终态消费结果：用户代码失败与提交失败分别处理，fail-fast 的兄弟不会被算作失败：
+
+```java
+Price price = batch.results().get(i).fold(
+        value -> value,
+        userFailure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, userFailure);
+            return Price.UNKNOWN;
+        },
+        submissionFailure -> Price.UNKNOWN,
+        (outcome, detail) -> Price.UNKNOWN);
+```
+
+`onValue` 接收可能为 null 的成功值；第二个处理器接收 `USER_FAILURE` 的异常，第三个处理器接收
+`SUBMISSION_FAILURE` 的异常；`onCancelled` 接收取消类 outcome 及其存储的异常，该异常不一定是
+`CancellationException`。四个处理器都必须提供，`fold` 返回被选处理器的结果。
+`successful()` 只判断是否为 `SUCCESS`。
 两个 get 都立即读并保留中断标志；带 timeout 的 get 校验 TimeUnit，不会超时。
 Future 静态签名仍声明受检异常。listener 经消费者指定的 executor 执行，在已完成的业务
 scope 及其资源生命周期之外。
@@ -212,27 +354,47 @@ map/runAll 的结果等待与有界清理不响应中断退出，结束恢复标
 deadline、fail-fast、祖先 token、worker 中断、Checkpoints 保持有效。
 ParRuntime.awaitQuiescence 仍传播 InterruptedException。
 
+库保管调用线程的中断标志，但不解释它：标志不记录是谁、为什么设置的。处理它是调用方的责任：
+
+- `map`/`runAll` 返回后标志仍在，按你自己的线程政策处理，例如
+  `Thread.currentThread().isInterrupted()` 为 true 时停止后续工作。
+- 已带中断标志的线程照常执行；如果这个中断表示"停止"，请在开始执行之前自行检查。
+- 要让外部事件提前结束工作，把它接入[请求取消](#request-cancellation)来源。只中断调用线程，
+  工作会继续到完成、fail-fast 或 deadline。
+
+```java
+SettableFuture<Void> stop = SettableFuture.create();
+outerFuture.addListener(() -> {
+    if (outerFuture.isCancelled()) {
+        stop.set(null);
+    }
+}, MoreExecutors.directExecutor());
+par.map(ids, this::fetch, BatchOptions.timeout("fetch", timeout).cancelOn(stop));
+```
+
 取消中断投递与 runner 退出相互协调：取消中断尚在投递时，任务不会把线程交还 executor，
-因此复用同一线程的后继任务不会收到前一任务的迟到取消中断。仅确认 body 已结束，
+因此复用同一线程的后继任务不会收到前一任务的迟到取消中断。仅确认执行已结束，
 不表示线程交接已经完成。
 
-direct executor/CallerRuns 可能在进入等待前用调用线程执行 body；现有借用线程隔离恢复
-body 入口的中断状态，不保证保留 inline body 期间新收到的外部中断。阻塞或不合作的 body、
+direct executor/CallerRuns 可能在进入等待前用调用线程执行执行；现有借用线程隔离恢复
+执行入口的中断状态，不保证保留 inline 执行期间新收到的外部中断。阻塞或不合作的执行、
 executor handoff 可使墙钟耗时超过 deadline。
 
 结果全部终态后，按 closeGrace 等待退出；未配置则使用剩余执行预算，零预算不等待。
-中断不重置、不跳过预算。每次执行不关闭 executor；Java 无法强制停止任意 body 或 close。
+以 deadline 结束的运行剩余预算为零，未显式配置 closeGrace 时派生等待为零——要在超时后等待
+执行退出，请显式声明 closeGrace。
+中断不重置、不跳过预算。每次执行不关闭 executor；Java 无法强制停止任意执行或 close。
 
-bodyCompletionConfirmed 只确认直接 batch 元素、group 成员及 combine 已退出 finally，
-或被原子阻止永远不启动；它是返回时冻结的事实，不是轮询。unfinishedBodies 列出未确认
+executionExitConfirmed 只确认直接 batch 元素、group 成员及 combine 已退出 finally，
+或被原子阻止永远不启动；它是返回时冻结的事实，不是轮询。unexitedExecutions 列出未确认
 退出的任务并发出 WARN。结果终态不等于资源已经释放。
 
-任务局部资源写在 body 内：
+任务局部资源写在执行内：
 
 ```java
 TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2))
         .closeGrace(Duration.ofSeconds(1))
-        .par("read", databasePar, String.class, () -> {
+        .par(TaskKey.<String>named("read"), databasePar, () -> {
             try (Reader reader = openReader()) {
                 return readAll(reader);
             }
@@ -241,20 +403,25 @@ TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2
 ```
 
 共享资源须保留到全部使用者退出。嵌套结果要分别确认：子调用预算更短或零 grace 时，
-父 body 可先退出，子 body 仍运行。确认失败则由应用继续持有并安排后续清理；
-runtime 关闭且 awaitQuiescence 成功后，全部已接纳 body 才确认退出。关闭失败保持 Java
+父执行可先退出，子执行仍运行。确认失败则由应用继续持有并安排后续清理；
+runtime 关闭且 awaitQuiescence 成功后，全部已接纳执行才确认退出。关闭失败保持 Java
 主异常/suppressed 规则；取消先落定后才抛出的异常按任务身份记录日志，不改写取消结果。
+执行只是确认取消（经读到取消的 `Checkpoints` 调用退出，或经被内核取消中断唤醒的 JDK 阻塞调用退出）时
+记 `FINE`；其他迟到失败（包括带 suppressed close 失败的）记 `WARNING`。见
+[取消之后的日志](reference/cooperative-cancellation.md#logging-after-cancellation)。
 库不自动发现或关闭捕获/返回对象，也不管理用户额外启动的线程或外部异步操作。
 
 ### 应用停机
 
-停机时有三方各自收尾：runtime 停止接纳新工作并释放自身服务，runtime 等待已接纳 body 退出，
+停机时有三方各自收尾：runtime 停止接纳新工作并释放自身服务，runtime 等待已接纳执行退出，
 应用关闭自己注册的执行器。按这个顺序执行：
 
+等待静止前先关闭所有线程池饥饿观测 scope。
+
 ```java
-runtime.close();                                      // 拒绝新工作；释放 timer 服务
+runtime.close();                                      // 拒绝新工作；观测关闭后释放服务
 try {
-    runtime.awaitQuiescence(Duration.ofSeconds(30));  // 等待全部已接纳 body 退出
+    runtime.awaitQuiescence(Duration.ofSeconds(30));  // 等待全部已接纳 taskCode 退出
 } catch (InterruptedException interrupted) {
     Thread.currentThread().interrupt();               // 恢复标志；停机流程仍需走完
 } finally {
@@ -263,20 +430,22 @@ try {
 }
 ```
 
-`close()` 幂等，且绝不关闭已注册的执行器；它只释放框架的 timer 与 timeout-action 服务，也不等待
-在途 body。body 级等待由 `awaitQuiescence(Duration)` 完成，但它必须先 `close()`：不先关闭就
-只是把超时等满，超时返回 false。非正的超时只做一次检查、不等待，直接报告当前状态。它可被
-中断，被中断时恢复标志并继续停机。中断检查先于状态答复，即使在已经静止的 runtime 上用非正超时
-调用也一样：已被中断的调用方看到的是 `InterruptedException`，而不是 `true`。已注册执行器仍归应用，
-应在静止之后由应用用 `shutdown()`、`shutdownNow()` 或容器自身的生命周期停止。
+`close()` 幂等，且绝不关闭已注册的执行器。只要有打开的线程池饥饿观测，框架的 timer、
+timeout-action 和采样 scheduler 会保留到报告发布，并用 WARNING 记录数量；观测全部关闭后才
+释放服务，也不等待在途执行。`awaitQuiescence(Duration)` 会同时等待这些观测、future 排空和
+执行退出，但它必须先 `close()`：不先关闭就只是把超时等满，超时返回 false。非正的超时只做一次
+检查、不等待，直接报告当前状态。它可被中断，被中断时恢复标志并继续停机。中断检查先于状态答复，
+即使在已经静止的 runtime 上用非正超时调用也一样：已被中断的调用方看到的是 `InterruptedException`，
+而不是 `true`。已注册执行器仍归应用，应在静止之后由应用用 `shutdown()`、`shutdownNow()` 或容器
+自身的生命周期停止。
 
-不要把 `inFlight()` 当成 body 计数。它统计的是正在装配批次的准入数加上尚未排空的批次数——
-future 级跟踪，不是仍在用户代码里的 body。运行中被取消的任务会立即结束其 future，而 body 可能
-仍在回卷，因此 `inFlight()` 可能已经归零而某个 body 仍在运行。真正同时等待 future 排空与 body
-退出的是 `awaitQuiescence`。
+不要把 `inFlight()` 当成执行计数。它统计正在装配批次的准入数、尚未排空的批次和打开的饥饿观测——
+future 级跟踪加诊断作用域，不是仍在用户代码里的执行。运行中被取消的任务会立即结束其 future，
+而执行可能仍在回卷，因此 `inFlight()` 可能已经归零而某个执行仍在运行。真正同时等待 future
+排空、执行退出和观测关闭的是 `awaitQuiescence`。
 
 当 `awaitQuiescence` 返回 false 时，`ParRuntime.snapshot()` 可以解释原因：把 `closed`、进行中
-准入数、未排空批次数和未退出 body 信号数采样成一份诊断记录。各计数独立读取，快照不可线性化
+准入数、未排空批次数、打开的观测数和未退出执行信号数（五项）采样成一份诊断记录。各计数独立读取，快照不可线性化
 ——用于日志诊断，不要据此分支。
 
 组失败时，`TaskGroupResult.failedTaskResult()` 直接返回被记录失败任务的 `ImmediateResult`
@@ -288,89 +457,200 @@ Batch.completions 是输入顺序的最终 TaskCompletion 列表；null 表示�
 Group.members 按名称包含可用最终快照，terminal 是可用 combine 快照或 null。
 快照含身份、submit/start/end、耗时、outcome、failure、真实成功值；未启动任务的
 start/end 为零。不完整项在冻结结果中始终缺失，不返回 pending 业务 future。
-report/reportString、组 outcomeCounts 仍统计所有终态成员。
+批次与组的 outcomeCounts/reportString 仍统计所有终态成员。
 
 `failure()` 承载的是细节而非结论。成功任务一定返回 null。其余 outcome 都带 throwable：
-`USER_FAILURE` 记录 body 自己抛出的异常——包括 body 主动抛出的 InterruptedException 或
+`USER_FAILURE` 记录执行自己抛出的异常——包括执行主动抛出的 InterruptedException 或
 CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常记录一个以 outcome 命名的
 `LeanCancellationException`。判定任务归类要用 `successful()` 或 `outcome()`。
 
 ## 取消与嵌套批次
 
 嵌套 map/runAll 自动继承取消与最小 deadline。TTL 在准备任务时捕获、worker 上恢复；
-普通 ThreadLocal 不传播。body 使用 checkpoint 与有限 IO 超时。没有运行句柄提供
+普通 ThreadLocal 不传播。执行使用 checkpoint 与有限 IO 超时。没有运行句柄提供
 成员直消或异步提交；需同时执行的业务放入同一组。应用自行包装的异步执行有自己的生命周期，
 取消外层 future 不能证明内部同步调用已经退出。
 
-### 在 body 内读取嵌套结果 {#nested-reads}
+### 请求完成时取消执行 {#request-cancellation}
+
+用调用方持有的 `ListenableFuture<?>` 表示请求断开等外部事件。来源以成功、失败或取消中的任一方式
+完成，都会取消整个批次或任务组，包括 `mapAndCombine` 的终端汇总，并像 deadline、fail-fast 一样中断
+正在运行的执行；没有不中断的变体。库不会完成或反向取消来源。
+
+```java
+SettableFuture<Void> disconnect = SettableFuture.create();
+onClientDisconnect(() -> disconnect.set(null));
+TaskBatchResult<Price> prices = par.map(
+        skus,
+        this::fetchPrice,
+        BatchOptions.timeout("prices", Duration.ofSeconds(3)).cancelOn(disconnect));
+```
+
+组的取消输入在 `GroupStart` 上声明一次，必须位于首个成员之前。`TaskOptions` 刻意不提供成员级
+`cancelOn`：请求取消属于整个作用域，而不是一套独立的成员政策。
+
+```java
+TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
+        .cancelOn(disconnect)
+        .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
+        .runAll();
+```
+
+请求来源先赢时归因为 `GROUP_CANCELLED`；与祖先取消、deadline、fail-fast 的竞态仍按 first-wins。
+只有全部准备成功后才注册来源，随后立即 bind 和提交，因此预完成来源能阻止 inline 执行进入用户代码。
+空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 仍拒绝空输入。
+
+执行正常到达终态时会确定性地切断监听到执行的连接，但不会完成来源。同一来源跨多次执行复用时，
+每次都有独立连接；options 会持有来源本身，因此具有请求寿命。同步返回与有界清理不变。中断是协作
+信号，不能证明任意 HTTP/JDBC IO 或用户代码已经停止；仍需有限 IO 超时，并检查执行退出结果。
+
+### 在执行内读取嵌套结果 {#nested-reads}
 
 嵌套的 `map` 或 `runAll` 返回时已经结束：结果是冻结数据，读取从不阻塞，不需要
-`asFuture().get()`。唯一的摩擦是批次 body 是 JDK `Function`，抛不出 `valuesOrThrow()` 的受检
-`ExecutionException`。把执行失败包装成非受检异常，`CancellationException` 原样放行：
+`asFuture().get()`。批次与组的 `valuesOrThrow()` 都是非受检的，批次执行内的嵌套读取不需要
+try/catch：
 
 ```java
 TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
-    List<Order> orders;
-    try {
-        orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
-                .valuesOrThrow();
-    } catch (ExecutionException failed) {
-        throw new OrderLookupException(customer.id(), failed.getCause());
-    }
+    List<Order> orders = dbPar.map(customer.orderIds(), this::loadOrder, BatchOptions.inheritTimeout("orders"))
+            .valuesOrThrow();
     return Report.of(customer, orders);
 }, BatchOptions.timeout("reports", Duration.ofSeconds(5)));
 ```
 
-放行取消异常是归因正确的前提。外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），
-无论 body 之后抛什么，元素都按那次取消归因。外层已提交取消、而元素自己的 body 先结束时，取消
-异常经外层归因（`TIMEOUT`、`FAIL_FAST`），包装成业务异常则读作 `USER_FAILURE`。内层批次自己
-走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带该异常。
+内层失败原样到达外层元素，内层的 `CancellationException` 也原样穿过，这正是归因正确的前提。
+外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），无论执行之后抛什么，元素都按那次
+取消归因。外层已提交取消、而元素自己的执行先结束时，取消异常经外层归因（`TIMEOUT`、
+`FAIL_FAST`）。内层批次自己走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带
+该异常。只有调用方需要额外上下文时才把内层失败包装成业务异常；不要包装 `CancellationException`，
+否则它会读作 `USER_FAILURE`。
 
 想保留部分结果而不让元素失败，就逐个读 `results()`：`outcome()` 给出每个元素的归类，
-`failure()` 携带它的异常。body 内的 `runAll` 完全不需要包装：`TaskGroupResult.valuesOrThrow()`
-本来就以非受检形式重抛，而组成员 body 是 `Callable`，可以抛受检异常。
+`failure()` 携带它的异常，也可以用 `fold` 在一个表达式里处理四种公共终态。执行内的 `runAll` 遵循
+同一规则，而组成员执行是 `Callable`，还可以抛受检异常。
 
 ## 观测嵌套工作 {#nested-observation}
 
-任务图观测显式绑定到一个 `ParRuntime`。作用域负责清理任务图，并在请求结束时（已启用时）对 `close()` 冻结的图运行一次潜在死锁检测，把结果发布到 `reportFuture()`。检测到循环只表示结构风险，不证明线程当前已经死锁。
+每个 `ParRuntime` 都常开地记录其注册的执行器之间「谁同步等待谁」，不需要作用域。任务代码里调用 `map`、`mapAndCombine` 或 `runAll` 时，它等待自己准入的每一个单元；被等待的单元运行在饥饿型池上时，就记一条从任务代码所在池到那个池的等待。汇总只消费输入，不增加自己的等待；顶层调用没有等待方。记录下来的等待第一次形成环（包括池等待自己）时，运行时在自有线程上（从不在提交线程上）打一条 JUL `WARNING`。
+
+任何时候都可以读取当前状态，例如在测试末尾：
+
+```java
+ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), ioPool).build();
+service.handleRequest();
+assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
+```
+
+`cyclicComponents()` 列出每个有环强连通分量：`members()`、一个按等待顺序排列的具体 `cycle()`，以及 `toString()` 中每条等待首次观测到的一对任务单元。每个执行器以其全部注册 `ParId` 的集合表示——两个 id 指向同一个池就是同一个执行器，单凭名称永远构不成环。
+
+报告在运行时的整个生命周期内累积，因此是结构性风险信号，不是死锁证明：一个环可能由从未重叠的不同请求的等待组成——两个请求在两个有界池上互相饿死正是这种形状——而留有余量的池也可能永远不会饿死。报告为空不说明未声明生产者 `Par` 的外部 future、直接提交给执行器的任务、锁、看不透或未注册的执行器以及其他运行时的情况。等待记在单元提交到的执行器上；`CallerRunsPolicy` 内联执行任务代码时，被阻塞的线程可能属于另一个池。告警是尽力而为的——失败的日志 handler 可能让它丢失——报告则始终可读。需要对某段代码单独下结论时，让它跑在一个专用的 `ParRuntime` 上。
+
+## 筛查负载匹配 {#workload-fit}
+
+在计算池里阻塞的任务代码（藏着的 JDBC、同步日志、后来加的一次 RPC）会占住为数不多的线程，却几乎不用
+CPU。声明池的用途，runtime 就会一直筛查，不需要打开任何作用域：
 
 ```java
 ParRuntime global = ParRuntime.builder()
-        .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
+        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
         .build();
-ListenableFuture<TaskGraphReport> reportFuture;
-try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-    // 这里及其嵌套调用使用 global 中的多个 Par 时，写入同一张任务图。
-    reportFuture = observation.reportFuture();
-    service.handleRequest();
-}
-TaskGraphReport report = Futures.getDone(reportFuture);
-if (report.status() == TaskGraphReport.Status.ISSUE) {
-    log.warn("Potential deadlock: {}", report);
+
+WorkloadFitReport report = global.workloadFitReport();
+for (WorkloadFitReport.ParMeasurement par : report.pars()) {
+    if (par.issue()) {
+        log.warn("Low CPU use on a compute pool: {}", par);
+    }
+    for (WorkloadFitReport.UnitMeasurement unit : par.units()) {
+        log.info("{} on {}: CPU/execution {}", unit.unit(), par.par(), unit.cpuToExecutionRatio());
+    }
 }
 ```
 
-报告 future 在作用域关闭前保持 pending；任何正常返回的 `close()` 都保证它已终态，因此可以在关闭后用 `Futures.getDone` 同步读取，或用 `Futures.addCallback` 观测——关闭后再注册 callback 也不会错过结果。`status()` 区分三种结局：策略未启用（`DISABLED`）、检测无问题（`NO_ISSUE`）、检测到环或自环（`ISSUE`）；检测异常则让 future 以 failure 终结，而不是产出报告。该 future 是只读的：`cancel(...)` 返回 `false`，既不影响检测也不影响业务任务。不同 `ParRuntime` 的观测作用域不会合并任务图。
+runtime 只给条目或单元声明为 `COMPUTE` 的任务代码计时，比较每个任务代码的线程 CPU 时间与执行时间
+（运行时间，不含排队）。它按条目汇总，每 10 秒执行时间判定一次：第一个 CPU 时间不到执行时间一半的
+周期会让 `issue()` 在 runtime 生命周期内保持为 true，并在 runtime 自有线程上记一条 `WARNING`。按整个
+条目判定，分散在许多小单元里的阻塞也能被发现；按周期判定，长时间健康之后的退化不会被之前的历史稀释。
+`units()` 把累计值归到每个条目至多 256 个单元下，单元按单元名加声明类型区分；更多单元的任务代码只计入
+`unattributedExecutions()`。
+声明为 `COMPUTE` 的单元按同样的方式判定 `suspectedDeclarationDrift()`，记一条 `INFO`；漂移从不设置
+`issue()`。
 
-报告先发布，再写 ISSUE 日志。直接 report listener 的 Error 仍可从 close 传播，但不会撤回
-报告或跳过诊断尝试；日志 handler 失败仍被隔离。检测与发布都抛 Error 时，检测错误保持为
-主异常与 future cause，不同的发布错误保留为 suppressed。
+计数是累计值，只增不减，两次报告相减就是这段时间的测量值。`COMPUTE` 条目上的 `BLOCKING` 单元会被
+计时并计入条目；条目和单元都未声明或为 `BLOCKING` 的任务代码从不计时，没有开销。直接 `execute` 提交的
+工作从不测量；不在 `pars()` 里的条目没有被筛查。线程 CPU 时间不受支持、
+未开启或读取失败时，被筛查的任务代码计入 `unmeasuredExecutions()`，并有一条 `WARNING` 说明；库不会自行开启
+CPU 计时。每个被筛查的任务代码多两次线程 CPU 读取和两次墙钟读取，以及单元与条目累计值的一次原子更新。
 
-任务图记录本运行时每次准入创建的单元（批次、组成员、汇总）以及「谁等待谁」：`map`、`mapAndCombine`、`runAll` 的调用方等待它准入的每一个单元，汇总只消费它的输入。检测把等待关系投影到执行器上：一个 body 阻塞等待排在饥饿型池里的工作，就是两个池之间的一条边；这类边形成环（包括池等待自己）时报告 `ISSUE`，由 `executorCycle()` / `executorSelfLoop()` 标出。渲染出的 `executorEdges()` 与 `taskEdges()` 只列环上的等待关系及其背后的单元。
+### 限制 {#workload-fit-limits}
 
-`TaskGraphObservationScope.hasExecutorCycle()` 等查询覆盖调用前已记录的全部准入；`close()` 发布的报告中，各标志与渲染文本来自同一份一致的请求图快照。
+- 低 CPU 占用是筛查线索，不是阻塞的证明：GC、safepoint、CPU 配额限流和可运行线程多于核数会压低
+  比值，自旋等待会抬高比值。周期长度与阈值是内部校准值，不是稳定契约。
+- 等待嵌套批次的任务代码在等待期间占住自己的线程，这不说明嵌套批次所在的池选错了。
+- 计算任务进了阻塞池，只有两侧都声明时才能由提交时比对发现。
 
-executor 环与自环只按注册的 executor 对象本身检测，从不按 `ParId` 名称：两个 `ParId` 指向同一个池即为同一节点，单凭名称永远构不成环。顶层调用没有父 executor，不产生 executor 边；只有任务体内的嵌套调用才会产生。
+## 观测直接提交的工作
+
+任务图观测只覆盖通过本库准入的工作。直接提交到注册 executor 的任务没有依赖边；应用同时
+运行这类非结构化工作时，可以显式开启线程池饥饿观测。下面的有界诊断窗口应在独立于请求
+worker 的应用控制线程上运行；有界等待用于保持观测，不应加入请求处理逻辑：
+
+```java
+ListenableFuture<ThreadPoolStarvationReport> reportFuture;
+Duration samplingInterval = Duration.ofSeconds(1);
+try (ThreadPoolStarvationObservationScope observation =
+        global.openThreadPoolStarvationObservation(samplingInterval)) {
+    reportFuture = observation.reportFuture();
+    pool.execute(requestHandler);
+    submitOtherDirectWork(pool);
+    TimeUnit.MILLISECONDS.sleep(samplingInterval.multipliedBy(10).toMillis());
+}
+ThreadPoolStarvationReport report = Futures.getDone(reportFuture);
+if (report.status() == ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION) {
+    log.warn("Potential thread-pool starvation: {}", report);
+}
+```
+
+作用域只采样 `global` 注册的不同物理 `ThreadPoolExecutor`，不会包装、提交、取消或中断用户任务。
+采样使用独立 daemon scheduler，最小间隔为 10 毫秒。只有相隔至少一个 interval 的样本对同时看到
+当前 worker 全部忙、队列有积压且完成数没有前进时，才报告 `POTENTIAL_STARVATION`。证据是窗口内
+捕获的粘性快照，`stagnantIntervals()` 表示满足间隔门槛的停滞样本对；恢复不会清除它。
+采样异常报告为 `SAMPLING_FAILED`，原因在 `failureMessage()`；有证据时证据优先。`NO_ISSUE` 表示
+所有注册 executor 都可观测、采样成功且没有捕获到信号；包装器或无法读取的 executor 会列在
+`unsupportedExecutors()` 中，且在没有证据或采样失败时状态为 `INSUFFICIENT_VISIBILITY`。
+预计需要诊断积压时，作用域至少保持两个采样间隔。
+报告的 `samplingInterval()` 是请求间隔，`samples()` 是实际完成的采样次数。证据计数取自捕获时刻；
+判断 close 时刻的状态需重新采样。
+报告只在 scope 关闭时发布，周期采样不是实时告警流。示例假设任务入队执行；`CallerRunsPolicy`
+可能在提交线程内联执行 handler，此时诊断控制线程还需独立于提交线程。任务入队执行时，控制
+线程关闭窗口不依赖 handler 返回。按控制线程的策略传播 `InterruptedException` 或恢复中断标志；
+try-with-resources 仍会关闭窗口。提交后立即关闭不能诊断持续积压；仅靠请求结束钩子，也无法
+为永不返回的请求发布报告。
+示例保持十个已配置的采样间隔。提前或被中断关闭可能在没有有效样本对时得到 `NO_ISSUE`，
+它不是健康断言。采样 `Error` 在报告发布后重抛；如需在错误处理路径读取报告，应在关闭前保留
+future，并在错误处理逻辑中检查已发布的报告。
+
+### 限制
+
+- 计数器按池统计，库内任务和直接 `execute` 任务同等计入；库内长 CPU/慢 I/O 任务也可能误报。
+- `NO_ISSUE` 不等于没有死锁：空队列全员阻塞、`SynchronousQueue`/零容量 handoff 池、未注册到本
+  runtime 的池，以及部分 worker 永久阻塞但其他 worker 仍完成短任务，都可能不可见。
+- 直接任务与库内任务之间没有依赖边，报告不能说明谁等谁，也不覆盖跨池/跨 runtime 的等待关系。
+- 开观测不会给直接任务补上取消、deadline、TTL、`SmartBlockingQueue` 或 `rejectEnqueue` 准入语义。
+  只有 TTL wrapper 会被看穿；Guava/自定义装饰器应注册底层池，否则进入 `unsupportedExecutors()`。
+- 忘记 `close()` 会让服务和采样在 `runtime.close()` 后继续、使 `awaitQuiescence` 返回 false 且
+  `activeObservations()` 保持非零。推荐 try-with-resources 或一个长生命周期 scope，不要每个请求开一个；
+  scope 不会自动关闭。
+- 自定义队列的计数读取若阻塞，scope close 在等待该次采样时也可能无界等待。
 
 ## 清理已取消的排队任务
 
-库不再自动 purge 注册的执行器。取消项可能留在物理队列里，直到 worker 取出或执行器所有者主动移除。有界队列里的取消项仍占用容量，可能使后续提交被拒绝。执行前取消仍会释放任务的 Callable 捕获和 body slot。
+库不再自动 purge 注册的执行器。取消项可能留在物理队列里，直到 worker 取出或执行器所有者主动移除。有界队列里的取消项仍占用容量，可能使后续提交被拒绝。执行前取消仍会释放任务的 Callable 捕获和执行 slot。
 
 ```java
 ioThreadPool.purge(); // 执行器所有者的维护流程
 ```
 
-对物理 `ThreadPoolExecutor`，prepared future 就是排队的 RunnableFuture，JDK `purge()` 可以移除这些取消项。自行包装 runnable 的执行器需管理实际排队对象。purge 无法停止忽略中断的任务体。需要周期清理的应用自行管理维护调度及其关闭；原取消驱动 purger 保存在 `dev/experimental` 分支。
+对物理 `ThreadPoolExecutor`，prepared future 就是排队的 RunnableFuture，JDK `purge()` 可以移除这些取消项。自行包装 runnable 的执行器需管理实际排队对象。purge 无法停止忽略中断的任务代码。需要周期清理的应用自行管理维护调度及其关闭；原取消驱动 purger 保存在 `dev/experimental` 分支。
 
 ## 生命周期队列
 
@@ -385,7 +665,7 @@ queue.awaitDrained();   // 可选：等待排空
 Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 ```
 
-关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/main/design/draining-queue-contract.md)。
+关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/design/draining-queue-contract.md)。
 
 ## 集成配方 {#integration-recipes}
 
@@ -396,44 +676,69 @@ Par.map 在准入前拒绝 null mapping function，即使输入为空或 null。
 ### 与 MDC（SLF4J）协作
 
 库的上下文传播基于 Alibaba TransmittableThreadLocal：准备任务时捕获，worker 上恢复。MDC 是
-普通 ThreadLocal，既不跨池传播，也不会被库自动捕获。用一个 TTL 持有诊断 Map，在 body 入口
-写入 MDC、在 finally 恢复原值：
+普通 ThreadLocal，既不跨池传播，也不会被库自动捕获。用一个 TTL 持有诊断 Map，在执行入口
+写入 MDC、在 finally 恢复原值。与其在每个调用点重写保存/恢复样板，不如把下面的应用侧助手
+复制一份：
 
 ```java
-private static final TransmittableThreadLocal<Map<String, String>> DIAGNOSTIC =
-        new TransmittableThreadLocal<>();
+import com.alibaba.ttl.TransmittableThreadLocal;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.slf4j.MDC;
 
-// 提交线程：声明本次调用的诊断字段
-Map<String, String> previousDiagnostic = DIAGNOSTIC.get();
-DIAGNOSTIC.set(Collections.singletonMap("traceId", traceId));
-try {
-    TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
-            BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
-} finally {
-    if (previousDiagnostic == null) DIAGNOSTIC.remove();
-    else DIAGNOSTIC.set(previousDiagnostic);
-}
+/** 用 TTL 携带本次调用的诊断字段，并在每个 taskCode 内桥接进 MDC。 */
+public final class MdcBridge {
+    private static final TransmittableThreadLocal<Map<String, String>> FIELDS =
+            new TransmittableThreadLocal<>();
 
-Account fetchAccount(String id) {
-    Map<String, String> fields = DIAGNOSTIC.get();
-    Map<String, String> previousMdc = MDC.getCopyOfContextMap();
-    try {
-        if (fields != null) fields.forEach(MDC::put);
-        return load(id);
-    } finally {
-        if (previousMdc == null) MDC.clear();
-        else MDC.setContextMap(previousMdc);
+    private MdcBridge() {}
+
+    /** 在提交外围声明本次调用的字段；结束后恢复原字段。 */
+    public static <R> R withFields(Map<String, String> fields, Supplier<R> submission) {
+        Map<String, String> previous = FIELDS.get();
+        FIELDS.set(fields);
+        try {
+            return submission.get();
+        } finally {
+            if (previous == null) FIELDS.remove();
+            else FIELDS.set(previous);
+        }
+    }
+
+    /** 在 MDC 已桥接的前提下运行一个 taskCode；退出时恢复 MDC。 */
+    public static <R> R inExecution(Supplier<R> taskCode) {
+        Map<String, String> fields = FIELDS.get();
+        Map<String, String> previousMdc = MDC.getCopyOfContextMap();
+        try {
+            if (fields != null) fields.forEach(MDC::put);
+            return taskCode.get();
+        } finally {
+            if (previousMdc == null) MDC.clear();
+            else MDC.setContextMap(previousMdc);
+        }
     }
 }
 ```
 
-这只覆盖经本库管理的任务：库在每次任务前后自行做 TTL 捕获与恢复，因此这些 body 无需 TTL agent；
+提交用 `withFields` 包裹，执行用 `inExecution` 包裹：
+
+```java
+TaskBatchResult<Account> batch = MdcBridge.withFields(
+        Collections.singletonMap("traceId", traceId),
+        () -> httpPar.map(accountIds, id -> MdcBridge.inExecution(() -> fetchAccount(id)),
+                BatchOptions.timeout("accounts", Duration.ofSeconds(3))));
+```
+
+如果字段本来就存放在应用自己设置的 TTL 里（例如在本库介入之前的过滤器中），捕获是自动的，
+执行内只需要 `inExecution`。
+
+这只覆盖经本库管理的任务：库在每次任务前后自行做 TTL 捕获与恢复，因此这些执行无需 TTL agent；
 同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。保存并恢复两者的原值，才能在
 direct/CallerRuns 或嵌套调用时保留外层上下文。
 
 ### 与 OpenTelemetry 协作
 
-在本次调用线程上捕获完整 OTel `Context`，然后在每个 body 内将它设为当前上下文。
+在本次调用线程上捕获完整 OTel `Context`，然后在每个执行内将它设为当前上下文。
 捕获值包含父 span、baggage 与自定义 context key：
 
 ```java
@@ -448,19 +753,19 @@ TaskBatchResult<String> batch = databasePar.map(ids, id -> {
 }, BatchOptions.timeout("load", Duration.ofSeconds(3)));
 ```
 
-应用自己提供 OTel API，库没有 OTel 运行时依赖。关闭 `Scope` 才会在该 body 线程上恢复原
-context；`span.end()` 只结束 body 的 span，不恢复 context。嵌套调用应在外层 body 的 Scope
+应用自己提供 OTel API，库没有 OTel 运行时依赖。关闭 `Scope` 才会在该执行线程上恢复原
+context；`span.end()` 只结束执行的 span，不恢复 context。嵌套调用应在外层执行的 Scope
 仍生效时重新捕获 `Context.current()`，不要复用请求根的旧快照。仅设置 span 父级不会让
 baggage 或自定义 key 成为当前值。
 
-包装器只为实际进入它的 body 建 span。取消或同步返回可能早于忽略中断的 body 退出，
-因此不能据此提前结束该 body 的 span。库不自动建任务 span，也不承诺传播任意 ThreadLocal。
+包装器只为实际进入它的执行建 span。取消或同步返回可能早于忽略中断的执行退出，
+因此不能据此提前结束该执行的 span。库不自动建任务 span，也不承诺传播任意 ThreadLocal。
 OTel Java agent 可能为支持的 executor 和配置提供传播；仅仅挂了 agent，不能保证所有补窗、
 汇总或自定义 executor 路径都得到正确上下文。
 
 ### 客户端超时
 
-库的 deadline 是协作式的：它中断 worker，但无法终止阻塞在 socket 读上的线程。因此 body 内的
+库的 deadline 是协作式的：它中断 worker，但无法终止阻塞在 socket 读上的线程。因此执行内的
 每次 HTTP/DB 调用都必须自带 connect/read 超时：
 
 ```java
@@ -475,7 +780,7 @@ String fetch(String url) throws IOException {
     }
 }
 
-TaskBatchResult<String> bodies = httpPar.map(urls, url -> {
+TaskBatchResult<String> executions = httpPar.map(urls, url -> {
     try {
         return fetch(url);
     } catch (IOException failure) {
@@ -486,7 +791,7 @@ TaskBatchResult<String> bodies = httpPar.map(urls, url -> {
 ```
 
 批 deadline 对整批请求取消。HttpURLConnection 的 connect/read 超时分别约束对应的等待，
-read timeout 不是读取整个响应的总 deadline。忽略中断的 body 或资源 close 仍可能超过有界清理预算。
+read timeout 不是读取整个响应的总 deadline。忽略中断的执行或资源 close 仍可能超过有界清理预算。
 
 ### 指标回调
 
@@ -539,8 +844,20 @@ account.addListener(() -> {
 }, executor);
 ```
 
-因为 `map`/`runAll` 是同步的，互操作发生在结果侧：没有可组合的提交侧 future，只有已经冻结的
-`ImmediateResult`。
+因为 `map`/`runAll` 是同步的，结果以已经冻结的 `ImmediateResult` 返回，没有运行中的库 future 可组合。
+其他库产出的 future 以[收养成员](#adopted-futures)加入组。
+
+### 与 Resilience4j、Sentinel、Spring 协作
+
+独立的[集成样例](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/integrations/README.md)
+演示了这些库与批次、任务组的配合。以下三条规则适用于任何容错或流控库：
+
+- 在任务代码内围绕一次下游调用获取许可。在调用方围绕 `map` 获取的熔断许可或 Sentinel 入口会把整个扇出算成一次调用。
+- 不要把取消计为下游故障。fail-fast、截止时间和 `cancelOn` 会中断任务代码；记录这些失败的熔断器或降级规则会因为兄弟任务被取消而打开。
+- 时间和并发限制交给批次或任务组。时间限制器或线程池隔离会把调用移到作用域取消信号到不了的线程上。
+
+Resilience4j 1.7 的重试在退避被中断时会以未声明的 `InterruptedException` 抛出并清除中断标志；样例会恢复中断标志并报告取消。
+在 Spring 中注册物理 `ThreadPoolExecutor` Bean，并在 lifecycle 的 stop 阶段关闭运行时、等待静默，再销毁线程池 Bean。
 
 ## 运行规则
 

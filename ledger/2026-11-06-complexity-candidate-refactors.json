@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-complexity-candidate-refactors",
+  "date": "2026-11-06",
+  "topic": "complexity-candidate-refactors",
+  "routes": [
+    "concurrency",
+    "other"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor: clarify coordination hotspots",
+      "refactor: apply complexity review follow-ups"
+    ],
+    "files": 5,
+    "insertions": 355,
+    "deletions": 213
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "refactor-complexity-candidates-1ad1e93f-20261106-152323-50dbeb",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 1196626,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 78786,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "claude",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 1115751,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 78786,
+          "systemsWithUsage": 1,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-complexity-candidates-2026-11-06",
+        "head": "96e8075def2b08ed00cb93c20dc9db631a21b1f0",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M01"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "llm-review-bench build": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-complexity-refactor/mutations.xml",
+      "statuses": {
+        "KILLED": 592,
+        "NO_COVERAGE": 13,
+        "SURVIVED": 20,
+        "TIMED_OUT": 14
+      },
+      "total": 639,
+      "inconclusive": 14,
+      "inconclusiveRate": 0.0219
+    },
+    {
+      "source": "tmp/pit-complexity-refactor-review/mutations.xml",
+      "statuses": {
+        "KILLED": 527,
+        "NO_COVERAGE": 9,
+        "SURVIVED": 23,
+        "TIMED_OUT": 12
+      },
+      "total": 571,
+      "inconclusive": 12,
+      "inconclusiveRate": 0.021
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Seven behavior-preserving candidates plus seven review follow-ups; PIT inconclusive with raw dispositions; user directed no subagents and authorized all review findings"
+}

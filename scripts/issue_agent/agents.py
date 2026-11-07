@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
 from . import config as config_module
-from .proc import run_logged
+from .proc import run_logged, terminate_process_group
 
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 DENIED_TOOLS = (
@@ -112,7 +112,17 @@ def claude(
     raw_path = log_path.with_suffix(".json")
     env = agent_env(config, java_home)
     with prompt_path.open("r", encoding="utf-8") as source, raw_path.open("w", encoding="utf-8") as sink, log_path.open("w", encoding="utf-8") as errors:
-        completed = subprocess.run(args, cwd=cwd, env=env, stdin=source, stdout=sink, stderr=errors, timeout=timeout_min * 60)
+        process = subprocess.Popen(
+            args, cwd=cwd, env=env, stdin=source, stdout=sink, stderr=errors,
+            start_new_session=True,
+        )
+        try:
+            process.wait(timeout=timeout_min * 60)
+        except subprocess.TimeoutExpired:
+            terminate_process_group(process, grace=5)
+            raise
+        terminate_process_group(process)
+        completed = subprocess.CompletedProcess(args, process.returncode)
     parsed = parse_claude(raw_path.read_text(encoding="utf-8"))
     if completed.returncode != 0 and parsed.ok:
         parsed.error = f"claude exited {completed.returncode}"

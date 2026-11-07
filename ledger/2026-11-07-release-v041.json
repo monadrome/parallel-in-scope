@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-07-release-v041",
+  "date": "2026-11-07",
+  "topic": "release-v041",
+  "routes": [
+    "release"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "fix: align null checks and race claim proofs",
+      "fix: restore race claim evidence",
+      "chore: prepare v0.4.1 release",
+      "fix: retain taskgroup race proof"
+    ],
+    "files": 29,
+    "insertions": 94,
+    "deletions": 79
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-release-v0.4.1-2026-11-07",
+        "head": "a98a74f94853e321bfe50a556f77f3780f9a982b",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn clean verify": 1,
+      "scripts unittest": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Independent multi-review run completed separately; Spring 5.3.39 remains under a documented Java 8/Maven Central availability exception; dependency audit network resolution stalled twice; PIT not run."
+}

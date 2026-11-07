@@ -1,5 +1,10 @@
 # A False Positive in an AI Concurrency Review
 
+> This page is a condensed English case study. The full Chinese original under
+> `docs/zh/case-studies/ai-concurrency-review-false-positive.md` (published at
+> `/zh/case-studies/ai-concurrency-review-false-positive/`) carries the historical-API caveat, the
+> complete code and reproduction output, and the assertion table, and is the authoritative version.
+
 ## Background
 
 An AI review flagged the cancellation and future aggregation code as unsafe. The warning sounded plausible because the code combines `catchingAsync`, `withTimeout`, `allAsList`, and explicit cancellation. The issue was not a compiler error; it was a misunderstanding of Guava future state semantics.
@@ -14,7 +19,8 @@ The review also assumed that a timeout callback immediately stopped every task. 
 
 1. Read the actual future state transitions instead of inferring behavior from method names.
 2. Separate exception recovery from cancellation propagation.
-3. Trace the late-binding point where all task futures receive the same cancellation token.
+3. Trace preparation and binding to confirm that every task future is connected to its cancellation
+   token before submission.
 4. Check whether a task is blocked, queued, or CPU-bound before claiming that interruption is sufficient.
 5. Reproduce the state transition with a focused test using settable futures.
 

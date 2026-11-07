@@ -243,7 +243,7 @@ for (TaskFuture<Account> future : result.results()) {
 }
 ```
 
-See the [user guide](user-guide.md#read-task-attribution-from-a-future) for the attribution rules.
+See the [user guide](user-guide.md#task-future-attribution) for the attribution rules.
 
 ## Abandoned batch elements fail with `SubmissionException`
 

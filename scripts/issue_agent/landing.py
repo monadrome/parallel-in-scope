@@ -4,6 +4,7 @@ import time
 from typing import List, Optional
 
 from . import agents, render, schemas, workspace
+from .gates import pit_tally
 from .github import failed_checks
 from .outcomes import machine_id, post_run
 from .pipeline import Outcome, Run, check_gates, fix, head, implement, local_gates, overdue, values
@@ -85,9 +86,8 @@ def independent_review(run: Run) -> Optional[dict]:
 
 
 def pit_text(run: Run) -> str:
-    survivors = run.pit.get("survivors") or []
-    counted = f"{run.pit.get('killed', 0)} killed, {len(survivors)} surviving" if run.pit else "not run"
-    listing = "\n".join(f"- {s}" for s in survivors[:40])
+    counted = pit_tally(run.pit) if run.pit else "not run"
+    listing = "\n".join(f"- {s}" for s in (run.pit.get("survivors") or [])[:40])
     return f"Runner count: {counted}\n{listing}\n\nAgent classification: {run.report.get('pit') or '(none)'}"
 
 
@@ -157,8 +157,9 @@ def land(run: Run) -> Outcome:
     if head(run) != run.pushed_sha:
         run.base_sha = fresh_base
         failed = check_gates(run, check_pit=False)
-        if failed or run.human_paths:
-            detail = "; ".join(f"{g.name}: {g.detail[:200]}" for g in failed) or "the rebased diff touches maintainer-merge paths"
+        reasons = human_reasons(run)
+        if failed or reasons:
+            detail = "; ".join([f"{g.name}: {g.detail[:200]}" for g in failed] + reasons)
             return Outcome("review", f"after rebasing onto {run.config.base_branch}: {detail}")
         run.pushed_sha = workspace.push(run.config, run.clone, run.branch, run.pushed_sha)
         state, _ = wait_ci(run, run.pushed_sha)

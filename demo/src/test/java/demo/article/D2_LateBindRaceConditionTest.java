@@ -156,7 +156,7 @@ class D2_LateBindRaceConditionTest {
             BatchOptions options = BatchOptions.timeout(
                             "unified-timeout-test", java.time.Duration.ofMillis(batchTimeoutMs))
                     .parallelism(PARALLELISM)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             long startTime = System.currentTimeMillis();
 

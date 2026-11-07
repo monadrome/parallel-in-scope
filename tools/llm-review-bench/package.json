@@ -1,0 +1,32 @@
+{
+  "name": "llm-review-bench",
+  "version": "0.1.0",
+  "description": "Cross-agent LLM code review benchmark",
+  "main": "./dist/cli.js",
+  "scripts": {
+    "clean": "node -e \"const fs=require('fs'); for (const d of ['dist','dist-test']) fs.rmSync(d,{recursive:true,force:true})\"",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "npm run build && node -e \"require('fs').rmSync('dist-test',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node --test dist-test/test/*.test.js",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [],
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "llm-review-bench": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  },
+  "types": "./dist/cli.d.ts"
+}

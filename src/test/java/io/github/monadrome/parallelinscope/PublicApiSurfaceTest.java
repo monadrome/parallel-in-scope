@@ -20,42 +20,44 @@ class PublicApiSurfaceTest {
     private static final Set<String> EXPECTED_PUBLIC_TYPES = new TreeSet<>(Arrays.asList(
             BASE_PACKAGE + ".BatchCombinedResult",
             BASE_PACKAGE + ".BatchOptions",
-            BASE_PACKAGE + ".CancellationToken",
             BASE_PACKAGE + ".Checkpoints",
             BASE_PACKAGE + ".CombinedGroupStep",
-            BASE_PACKAGE + ".CombineBody",
+            BASE_PACKAGE + ".Combiner",
+            BASE_PACKAGE + ".ExecutorWaitReport",
             BASE_PACKAGE + ".GroupStart",
             BASE_PACKAGE + ".GroupStep",
             BASE_PACKAGE + ".GroupValues",
             BASE_PACKAGE + ".ImmediateResult",
             BASE_PACKAGE + ".ParRuntime",
             BASE_PACKAGE + ".ParRuntimeSnapshot",
-            BASE_PACKAGE + ".ParRuntimeDeadlockPolicy",
             BASE_PACKAGE + ".LeanCancellationException",
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".ParId",
             BASE_PACKAGE + ".SmartBlockingQueue",
             BASE_PACKAGE + ".TaskBatchResult",
             BASE_PACKAGE + ".TaskCompletion",
-            BASE_PACKAGE + ".TaskGraphObservationScope",
-            BASE_PACKAGE + ".TaskGraphReport",
+            BASE_PACKAGE + ".ThreadPoolStarvationObservationScope",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport",
             BASE_PACKAGE + ".TaskGroupResult",
             BASE_PACKAGE + ".TaskGroupRun",
             BASE_PACKAGE + ".TaskId",
+            BASE_PACKAGE + ".TaskKey",
             BASE_PACKAGE + ".TaskOptions",
             BASE_PACKAGE + ".TaskOutcome",
             BASE_PACKAGE + ".TaskType",
             BASE_PACKAGE + ".TaskUnit",
             BASE_PACKAGE + ".Tuple2",
+            BASE_PACKAGE + ".WorkloadFitReport",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue",
             BASE_PACKAGE + ".queue.VariableLinkedBlockingQueue",
             // Nested types are named with the binary '$' separator; the visibility of a nested
             // type is part of the API just like a top-level one, so it is pinned here too.
-            BASE_PACKAGE + ".CancellationToken$State",
+            BASE_PACKAGE + ".ExecutorWaitReport$Component",
             BASE_PACKAGE + ".ParRuntime$Builder",
-            BASE_PACKAGE + ".ParRuntimeDeadlockPolicy$Builder",
-            BASE_PACKAGE + ".TaskBatchResult$BatchReport",
-            BASE_PACKAGE + ".TaskGraphReport$Status",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
+            BASE_PACKAGE + ".ThreadPoolStarvationReport$Status",
+            BASE_PACKAGE + ".WorkloadFitReport$ParMeasurement",
+            BASE_PACKAGE + ".WorkloadFitReport$UnitMeasurement",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$MutationsStrategy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy",
             BASE_PACKAGE + ".queue.DrainingBlockingQueue$ShutdownPolicy$Builder"));
@@ -82,7 +84,7 @@ class PublicApiSurfaceTest {
             assertThat(java.util.concurrent.Future.class.isAssignableFrom(type)).isFalse();
             assertThat(AutoCloseable.class.isAssignableFrom(type)).isFalse();
             assertThat(Arrays.stream(type.getMethods()).map(java.lang.reflect.Method::getName))
-                    .doesNotContain("cancel", "close", "awaitBodyCompletion", "completionFuture", "submitCanceller");
+                    .doesNotContain("cancel", "close", "awaitExecutionExit", "completionFuture", "submitCanceller");
         }
     }
 

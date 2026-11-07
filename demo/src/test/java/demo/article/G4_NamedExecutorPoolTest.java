@@ -116,7 +116,7 @@ class G4_NamedExecutorPoolTest {
             // IO 任务：按名引用 io-pool
             BatchOptions ioOpts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000))
                     .parallelism(4)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
             TaskBatchResult<String> ioResult = par.map(
                     items,
                     item -> {
@@ -127,7 +127,7 @@ class G4_NamedExecutorPoolTest {
             // CPU 任务：按名引用 cpu-pool
             BatchOptions cpuOpts = BatchOptions.timeout("compute", java.time.Duration.ofMillis(5000))
                     .parallelism(4)
-                    .taskType(TaskType.CPU_BOUND);
+                    .taskType(TaskType.COMPUTE);
             TaskBatchResult<String> cpuResult = cpuPar.map(
                     items,
                     item -> {
