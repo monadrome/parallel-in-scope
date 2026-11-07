@@ -44,12 +44,13 @@ try {
 ```java
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("http-pool"), pool)
+        .defaultPar(ParId.of("http-pool"))
         .build();
 Par par = config.defaultPar();
 
 BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
         .parallelism(4)           // 最多 4 个并发
-        .taskType(TaskType.IO_BOUND);
+        .taskType(TaskType.BLOCKING);
 
 TaskBatchResult<String> result = par.map( services, svc -> {
     return callService(svc);  // 纯业务逻辑
@@ -66,4 +67,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 完整测试代码：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)
+> 完整测试代码：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)

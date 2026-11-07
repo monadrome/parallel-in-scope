@@ -103,7 +103,7 @@ class E1_QueueFloodingTest {
 
             BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofSeconds(5))
                     .parallelism(parallelism)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             TaskBatchResult<Void> result = par.map(
                     input,
@@ -111,7 +111,7 @@ class E1_QueueFloodingTest {
                         int cur = concurrency.incrementAndGet();
                         maxConcurrency.updateAndGet(prev -> Math.max(prev, cur));
                         try {
-                            Checkpoints.sleep(10);
+                            Checkpoints.checkSleep(10, TimeUnit.MILLISECONDS);
                         } finally {
                             concurrency.decrementAndGet();
                         }
@@ -119,7 +119,7 @@ class E1_QueueFloodingTest {
                     },
                     options);
 
-            // The synchronous result returns only after every body has updated the measurements.
+            // The synchronous result returns only after every execution has updated the measurements.
             assertThat(result.valuesOrThrow()).hasSize(TASK_COUNT);
             assertThat(maxConcurrency.get())
                     .as("Max concurrency should be bounded by parallelism=%d", parallelism)

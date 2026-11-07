@@ -15,7 +15,7 @@
 ```java
 BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000))
         .parallelism(6)
-        .taskType(TaskType.IO_BOUND);   // 统一 5 秒超时
+        .taskType(TaskType.BLOCKING);   // 统一 5 秒超时
 
 TaskBatchResult<Object> result = par.map( tasks, task -> {
     if (task instanceof HttpRequest) {
@@ -48,13 +48,13 @@ String report = result.reportString();
 
 ```java
 // 快速 HTTP 调用
-BatchOptions.timeout("http", java.time.Duration.ofMillis(3000)).taskType(TaskType.IO_BOUND);
+BatchOptions.timeout("http", java.time.Duration.ofMillis(3000)).taskType(TaskType.BLOCKING);
 
 // 数据库查询
-BatchOptions.timeout("db", java.time.Duration.ofMillis(30000)).taskType(TaskType.IO_BOUND);
+BatchOptions.timeout("db", java.time.Duration.ofMillis(30000)).taskType(TaskType.BLOCKING);
 
 // 文件处理
-BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskType.IO_BOUND);
+BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskType.BLOCKING);
 ```
 
 ### 2. 并行度要匹配资源
@@ -68,7 +68,7 @@ BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskT
 | 缓存读取 | 10-20 | 缓存通常能扛更高并发 |
 | 文件 IO | 3-5 | 磁盘 IO 是瓶颈 |
 
-### 3. 用 report() 快速判断
+### 3. 用 reportString() / outcomeCounts() 快速判断
 
 ```java
 // 一行看全貌
@@ -76,14 +76,13 @@ String report = result.reportString();
 // "SUCCESS:8,USER_FAILURE:1,FAIL_FAST:1 | firstException=..."
 
 // 结构化访问
-TaskBatchResult.BatchReport r = result.report();
-Map<TaskOutcome, Integer> counts = r.stateCounts();
-Throwable firstError = r.firstException();
+Map<TaskOutcome, Integer> counts = result.outcomeCounts();
+Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult();
 ```
 
 生产环境中，可以把 `reportString()` 打到日志里，配合 `completions()` 的可用终态快照做监控告警（见 G1）。
-返回结果已确定；资源关闭仍是尽力保证。清理超时时查看 `unfinishedBodies()`，
-`bodyCompletionConfirmed()` 只覆盖直接任务，嵌套任务需分别确认。
+返回结果已确定；资源关闭仍是尽力保证。清理超时时查看 `unexitedExecutions()`，
+`executionExitConfirmed()` 只覆盖直接任务，嵌套任务需分别确认。
 
 ### 4. 异常不要吞
 
@@ -100,7 +99,7 @@ par.map( items, item -> {
 }, opts);
 ```
 
-让异常自然抛出，框架会自动记录到 `report()` 里，fail-fast 也会正确触发。
+让异常自然抛出，框架会自动记录到 `outcomeCounts()` / `failedTaskResult()` 里，fail-fast 也会正确触发。
 
 ---
 
@@ -145,4 +144,4 @@ par.map( items, item -> {
 
 ---
 
-> 完整测试代码：[BatchBestPracticesTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/BatchBestPracticesTest.java)
+> 完整测试代码：[BatchBestPracticesTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/BatchBestPracticesTest.java)

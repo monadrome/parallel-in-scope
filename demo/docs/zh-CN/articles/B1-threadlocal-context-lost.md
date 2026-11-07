@@ -42,6 +42,7 @@ for (int i = 0; i < 3; i++) {
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("biz-pool"), pool)
+        .defaultPar(ParId.of("biz-pool"))
         .build();
 Par par = config.defaultPar();
 
@@ -65,4 +66,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)
+> 📁 完整测试代码：[B1_MdcContextLostTest.java](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.4.0/demo/src/test/java/demo/article/B1_MdcContextLostTest.java)

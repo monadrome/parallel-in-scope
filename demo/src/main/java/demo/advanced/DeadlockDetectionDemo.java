@@ -1,28 +1,24 @@
 package demo.advanced;
 
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.ExecutorWaitReport;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
-import io.github.monadrome.parallelinscope.ParRuntimeDeadlockPolicy;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskGraphObservationScope;
-import io.github.monadrome.parallelinscope.TaskGraphReport;
+import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * 死锁检测示例：演示线程池嵌套调用导致的死锁
  *
- * <p>示例在请求级图观测作用域中运行：作用域关闭时对记录的依赖图运行一次潜在死锁检测，
- * 并通过 {@code reportFuture()} 发布 {@code TaskGraphReport}（状态、环标志与边文本）。
+ * <p>运行时常开地记录执行器之间的同步等待：嵌套调用第一次在饥饿型线程池上形成等待环时，
+ * {@code ParRuntime} 在自有线程上打一条 JUL {@code WARNING}；任何时候都可以用
+ * {@code executorWaitReport()} 读出有环的执行器分量与见证。
  *
  * <p>场景：同一个固定大小线程池（4 线程）被嵌套调用占用，导致循环等待：
  *
@@ -53,14 +49,11 @@ public class DeadlockDetectionDemo {
         ParRuntime global = ParRuntime.builder()
                 .register(ParId.of("shared-pool"), pool)
                 .defaultPar(ParId.of("shared-pool"))
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         Par par = global.par(ParId.of("shared-pool"));
 
-        // 请求级图观测作用域：关闭时对记录的依赖图运行一次检测，经 reportFuture() 发布报告
-        ListenableFuture<TaskGraphReport> reportFuture;
-        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            reportFuture = observation.reportFuture();
+        ExecutorWaitReport report;
+        try {
             System.out.println("线程池大小: 4（固定）");
             System.out.println("task-A 并行度=4，占满全部线程");
             System.out.println("每个 task-A 子任务内部调用 task-B，需要同一个池分配线程");
@@ -68,7 +61,7 @@ public class DeadlockDetectionDemo {
 
             BatchOptions optionsA = BatchOptions.timeout("task-A", java.time.Duration.ofSeconds(5))
                     .parallelism(4)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             long start = System.currentTimeMillis();
 
@@ -83,22 +76,16 @@ public class DeadlockDetectionDemo {
                     },
                     optionsA);
 
-            // 等待完成 — 由于死锁，会超时
-            try {
-                Futures.allAsList(result.results().stream()
-                                .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
-                                .collect(java.util.stream.Collectors.toList()))
-                        .get(6, TimeUnit.SECONDS);
-                System.out.println("[main] 所有任务完成（意外！）");
-            } catch (TimeoutException e) {
+            // map 同步返回时全部元素已终态：直接读冻结的 outcome 分布，按 TIMEOUT 归因识别死锁
+            if (result.outcomeCounts().getOrDefault(TaskOutcome.TIMEOUT, 0) > 0) {
                 long elapsed = System.currentTimeMillis() - start;
                 System.out.println("[main] 死锁！超时 " + elapsed + "ms");
                 System.out.println("[main] 4 个线程全被 task-A 占住");
                 System.out.println("[main] task-B 需要线程但永远分配不到 → 循环等待");
-            } catch (Exception e) {
-                long elapsed = System.currentTimeMillis() - start;
-                System.out.println("[main] 异常完成: " + e.getMessage() + " (" + elapsed + "ms)");
+            } else {
+                System.out.println("[main] 所有任务完成（意外！）");
             }
+            System.out.println("[main] 执行报告: " + result.reportString());
 
             System.out.println("\n=== 解决方案 ===");
             System.out.println("1. 拆分线程池：task-A 和 task-B 使用不同的池");
@@ -106,29 +93,20 @@ public class DeadlockDetectionDemo {
             System.out.println("3. 使用 CachedThreadPool：无界线程池不会死锁");
 
             System.out.println("\n=== 示例完成 ===");
-
+            report = global.executorWaitReport();
         } finally {
             global.close();
             pool.shutdownNow();
         }
 
-        // close() 返回时报告必然已发布：直接读取检测结果
-        try {
-            TaskGraphReport report = Futures.getDone(reportFuture);
-            System.out.println("\n[检测报告] status=" + report.status());
-            if (report.anyIssue()) {
-                System.out.println("[检测报告] " + report);
-            }
-        } catch (java.util.concurrent.ExecutionException detectionFailure) {
-            System.out.println("\n[检测报告] 检测异常: " + detectionFailure.getCause());
-        }
+        System.out.println("\n[等待环] " + report);
     }
 
     /** task-B：从 task-A 内部调用，向同一个线程池提交任务 → 死锁 */
     private static void callTaskB(Par par, int parentItem) {
         BatchOptions optionsB = BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5))
                 .parallelism(2)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         List<String> items = Arrays.asList("x", "y");
         TaskBatchResult<String> resultB = par.map(
@@ -144,14 +122,7 @@ public class DeadlockDetectionDemo {
                 },
                 optionsB);
 
-        try {
-            Futures.allAsList(resultB.results().stream()
-                            .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
-                            .collect(java.util.stream.Collectors.toList()))
-                    .get(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            System.out.println(
-                    "  [task-B-" + parentItem + "] 失败: " + e.getClass().getSimpleName());
-        }
+        // 嵌套 map 返回时结果已冻结；死锁场景下 task-B 以 TIMEOUT/FAIL_FAST 归因结束
+        System.out.println("  [task-B-" + parentItem + "] 结果分布: " + resultB.reportString());
     }
 }
