@@ -48,7 +48,6 @@ import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -69,8 +68,6 @@ public final class QuickStart {
                     n -> n * n,
                     BatchOptions.timeout("squares", Duration.ofSeconds(5)).parallelism(2));
             System.out.println("SUCCESS:" + squares.valuesOrThrow());
-        } catch (ExecutionException failure) {
-            System.out.println("FAILED:" + failure.getCause());
         } finally {
             runtime.close();
             pool.shutdownNow();
@@ -158,7 +155,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 | [v0.4 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Frozen source for the stable release |
 | [0.4 documentation](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Release guide for `0.4.0` |
 | [Demo project](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/demo) | Runnable examples and the article catalog |
-| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/integrations) | 0.4 development: standalone Resilience4j, Sentinel, and Spring examples |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/integrations) | 0.4.0 standalone Resilience4j, Sentinel, and Spring examples |
 | [Contributing](CONTRIBUTING.md) | Development and contribution workflow |
 | [Changelog](CHANGELOG.md) | Release history |
 | [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.4.0` line |

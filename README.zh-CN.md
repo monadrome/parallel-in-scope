@@ -46,7 +46,6 @@ import io.github.monadrome.parallelinscope.TaskBatchResult;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -66,8 +65,6 @@ public final class QuickStart {
                     n -> n * n,
                     BatchOptions.timeout("squares", Duration.ofSeconds(5)).parallelism(2));
             System.out.println("SUCCESS:" + squares.valuesOrThrow());
-        } catch (ExecutionException failure) {
-            System.out.println("FAILED:" + failure.getCause());
         } finally {
             runtime.close();
             pool.shutdownNow();
