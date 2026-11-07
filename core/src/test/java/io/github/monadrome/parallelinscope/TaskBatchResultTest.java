@@ -75,12 +75,24 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void report_deliversEveryElementAsATaskFuture() {
+    public void report_deliversEveryElementAsATaskFutureInInputOrder() {
         CancellationToken token = new CancellationToken();
-        TaskBatch<String> batch = TaskBatch.of(Arrays.asList(
-                task(token, Futures.immediateFuture("ok")), task(token, Futures.immediateCancelledFuture())));
+        TaskFuture<String> first = task(token, Futures.immediateFuture("ok"));
+        TaskFuture<String> second = task(token, Futures.immediateCancelledFuture());
+        TaskBatch<String> batch = TaskBatch.of(Arrays.asList(first, second));
 
-        assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
+        assertThat(batch.results()).containsExactly(first, second);
+    }
+
+    @Test
+    public void batchReport_toStringIncludesCountsAndFirstException() {
+        RuntimeException failure = new RuntimeException("boom");
+        TaskBatch.BatchReport report =
+                new TaskBatch.BatchReport(Collections.singletonMap(TaskOutcome.USER_FAILURE, 1), failure);
+
+        assertThat(report.toString())
+                .isEqualTo(
+                        "BatchReport{stateCounts={USER_FAILURE=1}, firstException=java.lang.RuntimeException: boom}");
     }
 
     @Test
