@@ -1,0 +1,79 @@
+verification/pit-audit/2026-11-04/reports/initial-p0034.xml
+  ai_agent 1-166
+verification/pit-audit/2026-10-31/reports/final-batch-C.xml
+  ai_agent 1-589
+ledger/2026-11-06-remove-resource-closer.json
+  ai_agent 1-237
+verification/pit-audit/2026-10-31/scripts/rerun-final-batches-b-c.sh
+  ai_agent 1-11
+verification/lincheck.md
+  ai_agent 1-74
+ledger/2026-11-06-multi-review-script-robustness.json
+  ai_agent 1-39
+verification/pit-audit/2026-11-04/dispositions.md
+  ai_agent 1-176
+verification/pit-audit/2026-10-31/reports/final-batch-B.xml
+  ai_agent 1-269
+verification/race-claims/claims.json
+  ai_agent 1-128
+verification/pit-audit/2026-10-31/inventory.md
+  ai_agent 1-101
+ledger/2026-11-06-p0036-gray-complexity-eval.json
+  ai_agent 1-43
+verification/spotbugs-exclude.xml
+  ai_agent 1-32
+verification/pit-audit/2026-10-31/dispositions.md
+  ai_agent 1-309
+todo.md
+  ai_agent 1-191
+verification/pit-audit/2026-10-31/README.md
+  ai_agent 1-140
+verification/pit-audit/2026-10-31/reports/final-batch-D.xml
+  ai_agent 1-295
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  ai_agent 3-4,14,19,36,45-101,109,124,133-170,173,185-188,201-203,222-224,281,314,354,388,420,423,425,431
+verification/complexity-metrics.md
+  ai_agent 1-18
+verification/pit-audit/2026-10-31/scripts/rerun-final-batches.sh
+  ai_agent 1-10
+verification/pit-audit/2026-11-04/README.md
+  ai_agent 1-158
+verification/java-conventions.md
+  ai_agent 1-138
+verification/maven-central-consumer/pom.xml
+  ai_agent 21,43,57,66
+verification/pit-audit/2026-10-31/reports/final-batch-E.xml
+  ai_agent 1-320
+ledger/2026-11-05-process-ledger.json
+  ai_agent 1-123
+ledger/2026-11-06-script-robustness-batch.json
+  ai_agent 1-44
+verification/race-claims/README.md
+  ai_agent 1-76
+verification/spotbugs.md
+  ai_agent 1-49
+verification/pit-audit/2026-11-04/SHA256SUMS
+  ai_agent 1-4
+ledger/2026-11-06-complexity-candidate-refactors.json
+  ai_agent 1-208
+verification/pit.md
+  ai_agent 1-149
+verification/pit-audit/2026-11-04/reports/final-checkpoints.xml
+  ai_agent 1-90
+verification/pit-audit/2026-10-31/SHA256SUMS
+  ai_agent 1-14
+verification/pit-audit/2026-10-31/reports/final-batch-A.xml
+  ai_agent 1-238
+ledger/2026-11-06-p0036-script-robustness.json
+  ai_agent 1-41
+verification/delivery-ledger.md
+  ai_agent 1-96
+ledger/2026-11-06-four-way-immediate-result-fold.json
+  ai_agent 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "059609edd007626f11aaea843e90d77b9afe312c",
+  "prompts": {}
+}
