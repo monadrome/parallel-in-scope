@@ -9,6 +9,7 @@ including rejections: the reasons are what a later run needs.
 - Base / behavior head: <base sha> / <head sha>
 - Plan: <mode>, <agent count> detectors, lenses <ids>; uncovered: <none or list>
 - Rules read from: <base | head (absent at base)>
+- Evaluation: `gray-evaluation` complexity evidence is advisory and does not change pass/fail gates.
 
 ## Detectors
 

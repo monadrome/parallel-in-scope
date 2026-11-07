@@ -92,5 +92,20 @@
     {"extensions": [".java"], "commentLines": true, "read": ["adr/0012-contract-and-implementation-comment-layers.md"]}
   ],
   "oracleLinePattern": "\\bassert\\w*|\\bverify\\w*\\(|\\bexpect\\w*\\(|\\bfail\\(|Thread\\.sleep|\\bawait\\w*\\(|TimeUnit\\.|Duration\\.of|@Test\\b|@Timeout\\b",
-  "reportDir": ".agents/reviews"
+  "reportDir": ".agents/reviews",
+  "complexity": {
+    "enabled": true,
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "excludeGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"],
+    "thresholds": {
+      "cyclomatic": 10,
+      "codeLines": 80,
+      "maxNesting": 4,
+      "deltaCyclomatic": 2,
+      "deltaCodeLines": 10,
+      "deltaMaxNesting": 1
+    },
+    "maxCandidatesPerAgent": 5
+  }
 }

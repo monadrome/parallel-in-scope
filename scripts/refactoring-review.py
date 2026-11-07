@@ -39,6 +39,9 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import complexity_metrics
+
 RULES_DIR = "refactoring-review"
 CONFIG_PATH = f"{RULES_DIR}/config.json"
 BRIEF_PATH = f"{RULES_DIR}/detector-brief.md"
@@ -123,11 +126,11 @@ def fill_missing_keys(config: dict, newer: dict) -> list[str]:
         if key not in config:
             config[key] = value
             added.append(key)
-        elif key == "limits" and isinstance(value, dict):
-            for limit, number in value.items():
-                if limit not in config[key]:
-                    config[key][limit] = number
-                    added.append(f"limits.{limit}")
+        elif isinstance(value, dict) and isinstance(config[key], dict):
+            for nested, nested_value in value.items():
+                if nested not in config[key]:
+                    config[key][nested] = nested_value
+                    added.append(f"{key}.{nested}")
     return added
 
 
@@ -429,6 +432,70 @@ def build_plan(files: list[ChangedFile], config: dict) -> dict:
     return plan
 
 
+def complexity_inputs(repo: Path, base: str, head: str, config: dict) -> tuple[dict[str, str], dict[str, str], str]:
+    """Return the core Java sources and the diff used by the gray-stage collector."""
+    paths = git(repo, "diff", "--name-only", "--diff-filter=AM", base, head).splitlines()
+    paths = [
+        path
+        for path in paths
+        if path.startswith("src/main/java/io/github/monadrome/parallelinscope/")
+        and path.endswith(".java")
+        and "/queue/" not in path
+    ]
+    base_files: dict[str, str] = {}
+    head_files: dict[str, str] = {}
+    for path in paths:
+        base_text = git(repo, "show", f"{base}:{path}", check=False)
+        head_text = git(repo, "show", f"{head}:{path}", check=False)
+        if base_text:
+            base_files[path] = base_text
+        if head_text:
+            head_files[path] = head_text
+    diff = git(repo, "diff", "--no-color", "--no-ext-diff", "--unified=0", base, head, "--", *paths) if paths else ""
+    return base_files, head_files, diff
+
+
+def build_complexity_evidence(repo: Path, base: str, head: str, config: dict) -> dict:
+    """Collect gray-stage evidence without changing the review gate."""
+    complexity = config.get("complexity")
+    if not complexity or not complexity.get("enabled", False):
+        return {
+            "version": "complexity-metrics/v1",
+            "stage": "disabled",
+            "purpose": "attention-routing evidence; not a quality score or CI gate",
+            "summary": {"methods": 0, "touchedCandidates": 0, "injectedCandidates": 0},
+            "candidates": [],
+        }
+    base_files, head_files, diff = complexity_inputs(repo, base, head, config)
+    collector_config = dict(config)
+    collector_config["_base"] = base
+    collector_config["_head"] = head
+    return complexity_metrics.collect(repo, base_files, head_files, diff, collector_config)
+
+
+def complexity_brief(evidence: dict, files: list[str]) -> str:
+    if evidence.get("stage") != "gray-evaluation":
+        return "Complexity evidence is disabled for this run."
+    candidates = [candidate for candidate in evidence.get("candidates", []) if candidate["path"] in files]
+    if not candidates:
+        return (
+            "Gray evaluation is enabled, but no complexity candidate was assigned to this detector. "
+            "This evidence is advisory only and never a quality score or CI gate."
+        )
+    lines = [
+        "Gray evaluation evidence (advisory only; not a quality score or CI gate):",
+        "Before creating a finding, explain the semantic responsibility that makes a candidate worth restructuring. "
+        "High complexity may be intrinsic to an algorithm or concurrency protocol and may be rejected.",
+    ]
+    for index, candidate in enumerate(candidates, start=1):
+        lines.append(
+            f"- C{index}: `{candidate['path']}` `{candidate['symbol']}`; "
+            f"CC={candidate['cyclomatic']}, codeLines={candidate['codeLines']}, "
+            f"maxNesting={candidate['maxNesting']}; triggers={', '.join(candidate['triggers'])}"
+        )
+    return "\n".join(lines)
+
+
 def assign_reviewers(plan: dict, reviewers: list[str], base: str, head: str) -> None:
     if not reviewers:
         return
@@ -488,6 +555,7 @@ def command_plan(args: argparse.Namespace, repo: Path) -> int:
             raise RunError("commit the behavior change first; uncommitted code paths: " + ", ".join(dirty))
 
     plan = build_plan(changed_files(repo, merge_base, head, config), config)
+    evidence = build_complexity_evidence(repo, merge_base, head, config)
     plan = {
         "version": 1,
         "baseRef": base_ref,
@@ -495,6 +563,11 @@ def command_plan(args: argparse.Namespace, repo: Path) -> int:
         "head": head,
         "rulesSource": source,
         "configKeysFromHead": keys_from_head,
+        "evaluation": {
+            "stage": "gray-evaluation",
+            "purpose": "attention-routing evidence; not a quality score or CI gate",
+            "complexity": evidence,
+        },
         **plan,
     }
     assign_reviewers(plan, [r for r in (args.reviewers or "").split(",") if r], merge_base, head)
@@ -503,6 +576,7 @@ def command_plan(args: argparse.Namespace, repo: Path) -> int:
     if (run_dir / "plan.json").exists() and not args.force:
         raise RunError(f"{run_dir}/plan.json already exists; pass --force or another --output-dir")
     run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "metrics.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
 
     if plan["required"]:
         # A pathspec of new names shows a renamed file as added in full; detectors need its content anyway.
@@ -544,6 +618,9 @@ def command_plan(args: argparse.Namespace, repo: Path) -> int:
                 "budget": str(agent["budget"]),
                 "principles": rules[PRINCIPLES_PATH].strip(),
                 "lens_rules": "\n\n".join(lens_texts[lens] for lens in agent["lenses"]),
+                "complexity_evidence": complexity_brief(evidence, agent["files"])
+                if "S" in agent["lenses"]
+                else "Complexity evidence is assigned only to the structure lens.",
             }
             brief_path = agent_dir / "brief.md"
             brief_path.write_text(render_brief(rules[BRIEF_PATH], values), encoding="utf-8")

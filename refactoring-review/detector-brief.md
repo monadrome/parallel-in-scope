@@ -70,3 +70,12 @@ code by symbol, never by line number. Return `"findings": []` when nothing quali
 ## Lens rules
 
 {{lens_rules}}
+
+## Complexity evidence
+
+{{complexity_evidence}}
+
+This is a gray-stage evaluation signal. It routes attention only; it is not a quality score,
+not a CI gate, and not a requirement to refactor. Reject a candidate when the complexity is
+intrinsic to an algorithm, exhaustive dispatch, or a concurrency protocol. Any accepted finding
+still needs a concrete behavior-preserving move and guarding tests.
