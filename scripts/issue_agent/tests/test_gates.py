@@ -85,6 +85,17 @@ class RepoGateTest(unittest.TestCase):
         self.assertEqual(statuses["pit"], "skip")
         self.assertEqual(statuses["reverse-verify"], "skip")
 
+    def test_repo_checks_include_documentation_reference_validation(self):
+        for name in gates.REPO_CHECKS:
+            path = self.repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# check\n")
+        with mock.patch.object(gates, "run_logged", return_value=0) as run_logged:
+            gate = gates.repo_checks(self.repo, Path(self.tmp.name) / "logs")
+        self.assertEqual(gate.status, "pass")
+        checked = {call.args[0][-1] for call in run_logged.call_args_list}
+        self.assertIn("scripts/check-doc-refs.py", checked)
+
     def test_renames_report_both_paths(self):
         git(self.repo, "mv", "docs/a.md", "docs/b.md")
         git(self.repo, "commit", "-qm", "rename")

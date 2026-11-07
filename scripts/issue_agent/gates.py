@@ -24,7 +24,12 @@ PIT_REPORT = Path("target/pit-reports/mutations.xml")
 PIT_SURVIVORS = frozenset({"SURVIVED", "NO_COVERAGE"})
 PIT_VERDICTS = frozenset({"KILLED", "TIMED_OUT", "MEMORY_ERROR"}) | PIT_SURVIVORS
 PIT_UNLOADABLE = frozenset({"NON_VIABLE"})
-REPO_CHECKS = ("scripts/check-english-docs.py", "scripts/check-local-links.py", "scripts/check-design-routes.py")
+REPO_CHECKS = (
+    "scripts/check-english-docs.py",
+    "scripts/check-local-links.py",
+    "scripts/check-design-routes.py",
+    "scripts/check-doc-refs.py",
+)
 TERMINAL_GATES = frozenset({"diff-policy", "secret-scan"})
 
 
