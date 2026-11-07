@@ -1,0 +1,127 @@
+CHANGELOG.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 5-6
+docs/en/migration-v0.4.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 116
+demo/docs/zh-CN/articles/E1-queue-flooding.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 87
+docs/en/user-guide.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 3,774,967
+demo/pom.xml
+  s_8029e92a443aa7::t_40dfbe8ae29cad 9,21
+docs/zh/migration-v0.4.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 107
+demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 75
+verification/maven-central-consumer/pom.xml
+  s_8029e92a443aa7::t_40dfbe8ae29cad 21
+demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 64
+docs/zh/migration-v0.3.md
+  s_8029e92a443aa7::t_1c12733e097bea 6
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 83
+demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 90
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 3,15,19,131
+  s_8029e92a443aa7::t_008685c1dbd946 9
+docs/zh/visuals/parallel-in-scope-architecture.html
+  s_8029e92a443aa7::t_1c12733e097bea 17
+  s_8029e92a443aa7::t_40dfbe8ae29cad 26
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 71
+demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 82
+scripts/verify-maven-central.sh
+  s_8029e92a443aa7::t_40dfbe8ae29cad 4,9
+.github/ISSUE_TEMPLATE/bug_report.yml
+  s_8029e92a443aa7::t_40dfbe8ae29cad 22,29
+demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 74
+docs/zh/index.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 3,17-20
+.github/ISSUE_TEMPLATE/config.yml
+  s_8029e92a443aa7::t_40dfbe8ae29cad 7-9
+integrations/pom.xml
+  s_8029e92a443aa7::t_40dfbe8ae29cad 9,24
+demo/README.en.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 7
+demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 69
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 90
+README.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 136,160-161
+  s_8029e92a443aa7::t_b70fd5e37b4b52 11-12,36,99-100,116-117,120-122,125-127,134-135,157-159,164
+demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 76
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 117
+docs/en/index.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 3,15,18-20
+demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 74
+demo/docs/zh-CN/articles/G6-batch-db-query.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 93
+demo/docs/zh-CN/articles/I3-sliding-window-vs-semaphore.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 95
+demo/README.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 5,56
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 99
+CONTRIBUTING.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 51,130-132
+docs/en/quickstart.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 1,5,11
+docs/zh/testing/testing-your-code.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 5
+pom.xml
+  s_8029e92a443aa7::t_40dfbe8ae29cad 9,22
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 79
+docs/zh/design/philosophy.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 207
+demo/docs/zh-CN/README.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 5
+docs/zh/user-guide.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 3,668,852
+README.zh-CN.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 116,141
+  s_8029e92a443aa7::t_f99f8bf3926e1a 11-12,34,83,97-98,101-103,106-108,115,137-139,142
+docs/en/migration-v0.3.md
+  s_8029e92a443aa7::t_1c12733e097bea 7
+docs/zh/quickstart.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 1,5,11
+demo/docs/zh-CN/articles/G1-completion-future-monitoring.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 84
+demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 69
+docs/en/testing/testing-your-code.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 6
+demo/docs/en/README.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 7
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 147
+scripts/test-verify-maven-central.sh
+  s_8029e92a443aa7::t_40dfbe8ae29cad 102
+demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 67
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  s_8029e92a443aa7::t_40dfbe8ae29cad 70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6e86f8008c2568fb07d5cd35f4ac0cee09814e83",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
