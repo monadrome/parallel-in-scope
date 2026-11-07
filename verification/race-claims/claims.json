@@ -90,7 +90,8 @@
       "claim": "A true awaitExecutionExit result must wait until every member observation future carries the final snapshot after execution exit settlement.",
       "method": "code-proof",
       "file": "src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
-      "note": "No deterministic test currently covers the window where awaitExecutionExit could return before a member observation listener publishes; retain the ordering as a code proof and record that test gap."
+      "note": "No deterministic test currently covers the window where awaitExecutionExit could return before a member observation listener publishes; retain the ordering as a code proof and record that test gap.",
+      "proof": "TaskGroup.awaitExecutionExit waits for each member and terminal observation view after execution exit settlement. The observation listener publishes the frozen snapshot only after the execution exit barrier, and the await loop returns false on timeout before claiming confirmation; the per-member wait is the ordering guard even though no deterministic test currently covers its publication window."
     },
     {
       "id": "adopted-end-time-before-mirror-settle",
