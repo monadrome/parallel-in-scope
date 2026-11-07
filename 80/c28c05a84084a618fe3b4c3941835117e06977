@@ -1,0 +1,40 @@
+scripts/complexity_metrics.py
+  s_ce73de3a0acc3d::t_7e83c2a9ed89c7 73-75
+  s_ce73de3a0acc3d::t_d542d1908f751e 1-72,76-287
+refactoring-review/report-template.md
+  s_ce73de3a0acc3d::t_98d6e4d5b0b87e 12
+scripts/refactoring-review.py
+  s_ce73de3a0acc3d::t_9b65339babc413 42
+  s_ce73de3a0acc3d::t_9894cf06a67d7c 43-44,435-498,558,566-570,621-623
+  s_ce73de3a0acc3d::t_ba146b93e17a83 129-133
+  s_ce73de3a0acc3d::t_5c591512010b33 579
+verification/complexity-metrics.md
+  s_ce73de3a0acc3d::t_a8c01e33f50da9 1-18
+refactoring-review/detector-brief.md
+  s_ce73de3a0acc3d::t_fa5dd3bfb5748f 73-81
+design/proposal/P0036-complexity-review-signals.md
+  s_ce73de3a0acc3d::t_a8c01e33f50da9 1-41
+design/AGENTS.md
+  s_ce73de3a0acc3d::t_98d6e4d5b0b87e 168
+refactoring-review/config.json
+  s_ce73de3a0acc3d::t_fa5dd3bfb5748f 95-110
+scripts/tests/test_refactoring_review.py
+  s_ce73de3a0acc3d::t_87e77234b0b182 36,371-414
+  s_ce73de3a0acc3d::t_8f8d1fa85d2685 137-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "80c28c05a84084a618fe3b4c3941835117e06977",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
