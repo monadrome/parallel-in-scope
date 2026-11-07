@@ -16,11 +16,15 @@
     "commits": [
       "refactor!: use keyed GroupValues for task groups",
       "refactor: align task group validation and completion docs",
-      "docs: complete v0.5 TaskGroup migration notes"
+      "docs: complete v0.5 TaskGroup migration notes",
+      "chore: record delivery group-values-canonical",
+      "fix: restore CI and PIT verification",
+      "test: correct race claim path root",
+      "fix: point API check at core classes"
     ],
-    "files": 77,
-    "insertions": 852,
-    "deletions": 947
+    "files": 83,
+    "insertions": 1148,
+    "deletions": 961
   },
   "reviews": {
     "adversarial": [
@@ -239,12 +243,13 @@
       "mvn-core-test": 1,
       "targeted-test-selection": 1,
       "npm-review-build": 1,
-      "pit-plugin": 1
+      "pit-plugin": 1,
+      "ci-api-surface": 1
     }
   },
   "pit": [],
   "interventions": {
-    "asks": 0,
+    "asks": 1,
     "corrections": 1
   },
   "usage": {
@@ -252,5 +257,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Full core suite, Lincheck, Java 8 consumer, docs gates, refactoring review, and independent review completed; PIT blocked because org.pitest:pitest-maven is unavailable in the local plugin repositories, and OCR/Kiro reviewers failed after one retry."
+  "notes": "Rebased onto dev/v0.5.0; fixed PIT plugin resolution, race-claim module paths, runtime Maven cache restoration, javadoc reactor setup, and API surface base class path; PR #70 CI/CD is fully green."
 }
