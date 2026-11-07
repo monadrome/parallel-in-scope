@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-07
+
+- Fix Guava null-check convention violations in the execution kernel.
+- Correct race-claim verification metadata for observation publication and adopted-member settlement ordering.
+- Document the Java 8-compatible Spring 5.3.39 integration dependency exception for the unavailable upstream security fixes.
+
 ## [0.4.0] - 2026-11-07
 
 ### Breaking changes

@@ -1,6 +1,6 @@
 # 使用指南
 
-> 本文档跟随 `0.4.0`；这是 `0.4.0` 正式版；从 `0.3.x` 升级请按 [v0.4 迁移指南](migration-v0.4.md) 改用类型化 key；更早的迁移见 [v0.3 迁移指南](migration-v0.3.md) 与 [v0.2 迁移指南](migration-v0.2.md)。
+> 本文档跟随 `0.4.1`；这是 `0.4.1` 正式版；从 `0.3.x` 升级请按 [v0.4 迁移指南](migration-v0.4.md) 改用类型化 key；更早的迁移见 [v0.3 迁移指南](migration-v0.3.md) 与 [v0.2 迁移指南](migration-v0.2.md)。
 
 `parallel-in-scope` 将一个有限列表作为可取消的批次执行。应用装配层负责长期资源，`Par` 负责一个已绑定的执行器，`MultiTaskContext` 负责单次调用的运行时状态。
 
@@ -665,7 +665,7 @@ queue.awaitDrained();   // 可选：等待排空
 Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 ```
 
-关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/design/draining-queue-contract.md)。
+关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/design/draining-queue-contract.md)。
 
 ## 集成配方 {#integration-recipes}
 
@@ -849,7 +849,7 @@ account.addListener(() -> {
 
 ### 与 Resilience4j、Sentinel、Spring 协作
 
-独立的[集成样例](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/integrations/README.md)
+独立的[集成样例](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/integrations/README.md)
 演示了这些库与批次、任务组的配合。以下三条规则适用于任何容错或流控库：
 
 - 在任务代码内围绕一次下游调用获取许可。在调用方围绕 `map` 获取的熔断许可或 Sentinel 入口会把整个扇出算成一次调用。

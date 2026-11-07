@@ -6,13 +6,13 @@
 
 ## 1. 添加依赖
 
-正式版使用 `0.4.0`，可直接从 Maven Central 获取：
+正式版使用 `0.4.1`，可直接从 Maven Central 获取：
 
 ```xml
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
 </dependency>
 ```
 
@@ -128,4 +128,4 @@ Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // �
 更多用法请参考项目 README 和 `demo/` 目录下的示例代码。
 
 ---
-> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/QuickStartTest.java)
+> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/src/test/java/demo/article/QuickStartTest.java)
