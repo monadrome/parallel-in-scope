@@ -1,3 +1,5 @@
+# Dependabot reads this file from the repository's default branch. Maintainers must
+# sync this configuration to main; target-branch keeps generated PRs on dev/v0.5.0.
 version: 2
 updates:
   - package-ecosystem: maven

@@ -130,9 +130,8 @@ jobs:
             echo "::notice::Nothing to publish: the published snapshot is not older than the branch tip in UTC days."
           fi
 
-      # A snapshot is still a public artifact, and the development branch has no continuous
-      # test run of its own (`ci.yml` runs on `main` and on pull requests), so verify before
-      # deploying rather than after.
+      # A snapshot is still a public artifact, so verify the library and demo again immediately
+      # before deploying rather than relying only on the branch and pull-request CI runs.
       - name: Verify the library and the demo
         if: steps.gate.outputs.publish == 'yes'
         run: |

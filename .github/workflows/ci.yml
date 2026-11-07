@@ -157,7 +157,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # Two different JDKs on purpose: the library is built by a JDK that Error Prone/NullAway
-      # support, and the JDK 8 runtime below only exercises the resulting artifact.
+      # support, and each selected runtime below only exercises the resulting artifact.
       - name: Set up build JDK 25
         uses: actions/setup-java@v6
         with:
