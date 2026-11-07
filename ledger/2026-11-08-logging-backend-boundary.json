@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-08-logging-backend-boundary",
+  "date": "2026-11-08",
+  "topic": "logging-backend-boundary",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: record logging backend boundary"
+    ],
+    "files": 2,
+    "insertions": 91,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "ADR records JUL core boundary and application-side bridge policy; documentation-only change."
+}
