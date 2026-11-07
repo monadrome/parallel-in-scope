@@ -300,6 +300,8 @@ separates `USER_FAILURE` from `SUBMISSION_FAILURE` so callers can apply differen
 infrastructure policies without rereading `outcome()`. It does not reopen the rejected FuturePath,
 visitor, or typestate directions; ordinary `ListenableFuture` values still lack the frozen attribution
 needed for this classification. The current contract is in `synchronous-scope-exit.md`.
+The alternative returning a new `ImmediateResult<R>` was rejected because it changes `fold`'s
+existing `R`-return semantics and introduces a second result to process.
 
 ### Removed `TaskCompletion` and `SmartBlockingQueue` factories (2026-10-27, maintainer decision)
 
