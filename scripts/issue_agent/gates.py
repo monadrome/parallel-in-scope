@@ -96,7 +96,10 @@ def race_claims(workdir: Path, logs: Path, timeout_min: int) -> Gate:
     except subprocess.TimeoutExpired:
         return Gate("race-claims", "fail", "registered race claims exceeded the verification timeout")
     if code != 0:
-        return Gate("race-claims", "fail", "registered race claims failed; see " + str(log))
+        detail = "registered race claims failed; see " + str(log)
+        if log.is_file():
+            detail += "\n" + log.read_text(errors="replace")[-2000:]
+        return Gate("race-claims", "fail", detail)
     return Gate("race-claims", "pass")
 
 
