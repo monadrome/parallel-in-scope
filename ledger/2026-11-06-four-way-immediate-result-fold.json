@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-four-way-immediate-result-fold",
+  "date": "2026-11-06",
+  "topic": "four-way-immediate-result-fold",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "feat: split ImmediateResult fold failures",
+      "fix: finish four-way fold migration",
+      "docs: clarify four-way fold history"
+    ],
+    "files": 10,
+    "insertions": 126,
+    "deletions": 53
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-feat-four-way-immediate-result-fold-2026-11-06",
+        "head": "68190b76fd78d8eab444627dcd367c29768dfb3a",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "integrations mvn test": 1,
+      "check-doc-refs": 1,
+      "check-design-routes": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Four-way ImmediateResult.fold; multi-review rounds completed with Claude/OCR, Kiro blocked twice because claude-haiku-5.5 was unavailable; findings were fixed. Full root and integrations tests pass."
+}
