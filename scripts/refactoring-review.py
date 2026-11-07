@@ -33,9 +33,12 @@ import datetime
 import fnmatch
 import hashlib
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -710,24 +713,88 @@ def extract_findings(text: str) -> dict | None:
     return found
 
 
-def run_detector(agent: dict, reviewer: str, repo: Path, run_dir: Path, timeout: int) -> dict:
+def _terminate_process_group(process: subprocess.Popen[str], grace: float) -> str:
+    def group_exists() -> bool:
+        try:
+            os.killpg(process.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            # macOS may report a transient EPERM while a process in the group is
+            # exiting. Treat the group as alive so timeout cleanup continues to
+            # SIGKILL instead of rewriting the result as not-runnable.
+            return True
+
+    if process.poll() is not None and not group_exists():
+        return "exited"
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return "exited" if process.poll() is not None else "terminated"
+    except PermissionError:
+        pass
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline and group_exists():
+        if process.poll() is not None and not group_exists():
+            return "terminated"
+        time.sleep(0.05)
+    if group_exists():
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+    return "killed"
+
+
+def run_detector(agent: dict, reviewer: str, repo: Path, run_dir: Path, timeout: int, kill_grace: int) -> dict:
     agent_dir = run_dir / "agents" / agent["id"]
     attempt = len(list(agent_dir.glob("attempt-*.stdout.log"))) + 1
     stdout_path = agent_dir / f"attempt-{attempt}.stdout.log"
     stderr_path = agent_dir / f"attempt-{attempt}.stderr.log"
     last_message = agent_dir / f"attempt-{attempt}.last-message.txt"
+    progress_path = agent_dir / f"attempt-{attempt}.progress.jsonl"
     argv = REVIEWERS[reviewer]((agent_dir / "brief.md").read_text(encoding="utf-8"), repo, agent_dir, last_message)
     started = datetime.datetime.now()
     status = "completed"
-    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr, progress_path.open("w", encoding="utf-8") as progress:
+        process: subprocess.Popen[str] | None = None
+        deadline = time.monotonic() + timeout
         try:
-            completed = subprocess.run(argv, cwd=repo, stdout=stdout, stderr=stderr, timeout=timeout, check=False)
-            if completed.returncode != 0:
-                status = f"exit-{completed.returncode}"
-        except subprocess.TimeoutExpired:
-            status = "timeout"
+            process = subprocess.Popen(
+                argv,
+                cwd=repo,
+                stdout=stdout,
+                stderr=stderr,
+                start_new_session=True,
+                text=True,
+            )
+            while process.poll() is None:
+                now = time.monotonic()
+                progress.write(json.dumps({
+                    "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "elapsedSeconds": round(now - (deadline - timeout), 3),
+                    "pid": process.pid,
+                }) + "\n")
+                progress.flush()
+                remaining = deadline - now
+                if remaining <= 0:
+                    _terminate_process_group(process, kill_grace)
+                    status = "timeout"
+                    break
+                try:
+                    process.wait(timeout=min(1.0, remaining))
+                except subprocess.TimeoutExpired:
+                    continue
+            if process.poll() is not None and status == "completed" and process.returncode != 0:
+                status = f"exit-{process.returncode}"
         except OSError as error:
             status = f"not-runnable: {error}"
+        finally:
+            if process is not None:
+                _terminate_process_group(process, kill_grace)
+                if process.poll() is None:
+                    process.wait()
     text = last_message.read_text(encoding="utf-8", errors="replace") if last_message.exists() else ""
     payload = extract_findings(text) or extract_findings(stdout_path.read_text(encoding="utf-8", errors="replace"))
     if payload is not None:
@@ -741,6 +808,7 @@ def run_detector(agent: dict, reviewer: str, repo: Path, run_dir: Path, timeout:
         "status": status,
         "seconds": round((datetime.datetime.now() - started).total_seconds()),
         "findings": None if payload is None else len(payload["findings"]),
+        "progress": str(progress_path.relative_to(run_dir)),
     }
 
 
@@ -765,7 +833,7 @@ def command_detect(args: argparse.Namespace, repo: Path) -> int:
     if missing:
         raise RunError(f"no runner for reviewer(s) {', '.join(missing)}; known: {', '.join(sorted(REVIEWERS))}")
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-        futures = [pool.submit(run_detector, agent, choices[agent["id"]], repo, run_dir, args.timeout) for agent in agents]
+        futures = [pool.submit(run_detector, agent, choices[agent["id"]], repo, run_dir, args.timeout, args.kill_grace) for agent in agents]
         results = [future.result() for future in futures]
     after = git(repo, "status", "--porcelain")
     snapshot_modified = after != before
@@ -984,6 +1052,7 @@ def parser() -> argparse.ArgumentParser:
     detect.add_argument("--reviewer", default="kimi", help="reviewer for detectors the plan left unassigned")
     detect.add_argument("--concurrency", type=int, default=3, help="detectors running at once (default: 3)")
     detect.add_argument("--timeout", type=int, default=1500, help="seconds per detector (default: 1500)")
+    detect.add_argument("--kill-grace", type=int, default=10, help="seconds to wait after SIGTERM before SIGKILL")
     detect.add_argument("--only", help="comma-separated detector ids to (re)run")
 
     merge = commands.add_parser("merge", help="validate and merge detector findings")

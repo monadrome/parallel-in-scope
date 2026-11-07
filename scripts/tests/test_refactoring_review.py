@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -308,9 +309,21 @@ class MergeTest(RepoTestCase):
 
 FAKE_REVIEWER = """
 import json, pathlib, sys
+import time
+import os, subprocess
 prompt = sys.argv[1]
 agent = prompt.split("detector `", 1)[1].split("`", 1)[0]
 mode = sys.argv[2]
+if mode == "hang":
+    time.sleep(60)
+if mode == "hang-child":
+    child = subprocess.Popen([sys.executable, "-c", "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)"])
+    pathlib.Path(sys.argv[3], "child.pid").write_text(str(child.pid))
+    time.sleep(60)
+if mode == "exit-child":
+    child = subprocess.Popen([sys.executable, "-c", "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)"])
+    pathlib.Path(sys.argv[3], "child.pid").write_text(str(child.pid))
+    raise SystemExit(0)
 if mode == "edit":
     pathlib.Path("touched.txt").write_text("x")
 print("thinking...")
@@ -326,7 +339,9 @@ class DetectTest(RepoTestCase):
         script = Path(self.temp.name) / "fake_reviewer.py"
         script.write_text(FAKE_REVIEWER, encoding="utf-8")
         self.mode = "ok"
-        review.REVIEWERS["fake"] = lambda prompt, repo, agent_dir, last: [sys.executable, str(script), prompt, self.mode]
+        review.REVIEWERS["fake"] = lambda prompt, repo, agent_dir, last: [
+            sys.executable, str(script), prompt, self.mode, str(agent_dir)
+        ]
         self.addCleanup(review.REVIEWERS.pop, "fake")
 
     def test_detect_runs_every_detector_and_saves_findings(self):
@@ -349,6 +364,51 @@ class DetectTest(RepoTestCase):
         self.assertEqual(status, 1)
         self.assertTrue(result["snapshotModified"])
         self.assertEqual(result["detectors"][0]["attempt"], 1)
+
+    def test_detector_timeout_records_progress_and_terminates(self):
+        self.mode = "hang"
+        started = time.monotonic()
+        status, result, _ = self.run_script(
+            "detect", str(self.run_dir), "--reviewer", "fake", "--only", "M", "--timeout", "1", "--kill-grace", "1"
+        )
+        self.assertEqual(status, 1)
+        self.assertEqual(result["detectors"][0]["status"], "timeout")
+        self.assertLess(time.monotonic() - started, 5)
+        progress = self.run_dir / "agents" / "M" / "attempt-1.progress.jsonl"
+        self.assertTrue(progress.exists())
+        self.assertTrue(progress.read_text(encoding="utf-8").strip())
+
+    def test_detector_timeout_terminates_descendants_in_the_process_group(self):
+        self.mode = "hang-child"
+        status, result, _ = self.run_script(
+            "detect", str(self.run_dir), "--reviewer", "fake", "--only", "M", "--timeout", "1", "--kill-grace", "1"
+        )
+        self.assertEqual(status, 1)
+        self.assertEqual(result["detectors"][0]["status"], "timeout")
+        child_pid = int((self.run_dir / "agents" / "M" / "child.pid").read_text(encoding="utf-8"))
+        for _ in range(20):
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(child_pid, 0)
+
+    def test_detector_normal_exit_terminates_descendants_in_the_process_group(self):
+        self.mode = "exit-child"
+        status, result, _ = self.run_script("detect", str(self.run_dir), "--reviewer", "fake", "--only", "M")
+        self.assertEqual(status, 1)
+        self.assertEqual(result["detectors"][0]["status"], "unparsable")
+        child_pid = int((self.run_dir / "agents" / "M" / "child.pid").read_text(encoding="utf-8"))
+        for _ in range(20):
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(child_pid, 0)
 
     def test_detect_refuses_a_working_tree_away_from_the_plan_head(self):
         self.write(f"{MAIN}/C.java", java("C", 3))
