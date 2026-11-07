@@ -107,9 +107,10 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
+            TaskKey<Integer> ordersKey = TaskKey.named("orders");
             TaskGroup<Tuple2<String, Integer>, String> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), memberOptions(), () -> "alice")
-                    .par(TaskKey.<Integer>named("orders"), global.par(ParId.of("worker")), memberOptions(), () -> 7)
+                    .par(ordersKey, global.par(ParId.of("worker")), memberOptions(), () -> 7)
                     .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
                         Tuple2<String, Integer> members = Objects.requireNonNull(values);
                         return members.first() + ":" + members.second();
@@ -122,8 +123,7 @@ class TaskFutureTest {
             assertThat(group.terminalFuture().orElseThrow(() -> new AssertionError("no combine declared")))
                     .isInstanceOf(TaskFuture.class);
             assertThat(group.findMember("user")).contains(userFuture);
-            assertThat(group.members().values())
-                    .allSatisfy(future -> assertThat(future).isNotNull());
+            assertThat(group.members().values()).containsExactlyInAnyOrder(userFuture, group.futureOf(ordersKey));
             assertThat(group.completionFuture()).isInstanceOf(TaskFuture.class);
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
