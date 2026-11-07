@@ -3,7 +3,7 @@ import { mkdtemp, readFile, readFile as readTextFile, rm, writeFile } from 'node
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { runLoggedProcess } from '../src/adapters/process.js';
+import { probeCommand, runLoggedProcess } from '../src/adapters/process.js';
 import {
   addFix,
   createBaseRepo,
@@ -20,6 +20,17 @@ import {
 
 const SHORT_TIMEOUTS = ['--timeout', '60', '--review-timeout', '2', '--adjudication-timeout', '5', '--cleanup-timeout', '5', '--kill-grace', '1'];
 
+test('command probes distinguish healthy, missing, failed, and timed-out CLIs', async () => {
+  const healthy = await probeCommand(process.execPath, ['-e', 'process.stdout.write("v1")'], 1_000);
+  assert.deepEqual(healthy, { found: true, status: 'ok', version: 'v1', error: null });
+  const missing = await probeCommand('definitely-missing-reviewer-cli', ['--version'], 100);
+  assert.equal(missing.status, 'missing');
+  const failed = await probeCommand(process.execPath, ['-e', 'process.exit(3)'], 1_000);
+  assert.equal(failed.status, 'failed');
+  const timedOut = await probeCommand(process.execPath, ['-e', 'setTimeout(() => {}, 1000)'], 20);
+  assert.equal(timedOut.status, 'timed_out');
+});
+
 test('timeout keeps the grace kill armed after the leader exits', async (t) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'lrb-process-timeout-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -32,6 +43,7 @@ test('timeout keeps the grace kill armed after the leader exits', async (t) => {
     'fs.writeFileSync(process.argv[1], "ready");',
     'setInterval(() => {}, 1000);',
   ].join('');
+  const progress: number[] = [];
   const parentSource = [
     "const { spawn } = require('node:child_process');",
     "const fs = require('node:fs');",
@@ -48,10 +60,13 @@ test('timeout keeps the grace kill armed after the leader exits', async (t) => {
     stderrPath: path.join(dir, 'stderr.log'),
     timeoutMs: 800,
     graceMs: 100,
+    progressMs: 20,
+    onProgress: (value) => progress.push(value.elapsedMs),
   });
   assert.equal(await readTextFile(childReadyFile, 'utf8'), 'ready');
   const childPid = Number(await readTextFile(childPidFile, 'utf8'));
   assert.equal(result.status, 'timed_out');
+  assert.ok(progress.length > 0, 'long-running reviewer should emit progress heartbeats');
   assert.equal(isProcessAlive(childPid), false);
 });
 
@@ -81,6 +96,11 @@ test('hard timeout kills the whole process group and records a timeout instead o
   const system = json.systems.fixture;
   assert.equal(system.status, 'timed_out');
   assert.equal(system.findings, 0);
+  const status = await runCliJson<Record<string, any>>([
+    'status', json.runId as string, '--output', bench, '--json',
+  ]);
+  assert.equal(status.json.status, 'failed');
+  assert.equal((status.json.reviewers as Array<Record<string, any>>).find((item) => item.agent === 'fixture')?.status, 'timed_out');
   const record = await readJson<Record<string, any>>(path.join(runDir, 'reviews', 'fixture', 'attempt-1.json'));
   assert.equal(record.status, 'timed_out');
   assert.equal(record.timedOut, true);

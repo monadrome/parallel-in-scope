@@ -226,6 +226,19 @@ async function runOneReview(
         timeoutMs,
         graceMs: manifest.config.timeouts.killGraceSeconds * 1000,
         env: plan.env,
+        onProgress: (progress) => {
+          void store.event(
+            'review.progress',
+            {
+              attempt: attemptNumber,
+              pid: progress.pid,
+              elapsedMs: progress.elapsedMs,
+              stdoutBytes: progress.stdoutBytes,
+              stderrBytes: progress.stderrBytes,
+            },
+            { agent, step: 'review' },
+          );
+        },
       });
       const dirtyAfter = await statusPorcelain(context.snapshotDir);
       worktreeModified = dirtyAfter.trim().length > 0;

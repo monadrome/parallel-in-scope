@@ -11,6 +11,7 @@ import { reportCommand } from './commands/report.js';
 import { judgmentCommand } from './commands/judgment.js';
 import { cleanupCommand } from './commands/cleanup.js';
 import { leaderboardCommand } from './commands/leaderboard.js';
+import { statusCommand } from './commands/status.js';
 import { printJson } from './commands/shared.js';
 
 const USAGE = `llm-review-bench - cross-agent code review benchmark
@@ -20,6 +21,7 @@ Usage:
   llm-review-bench run --fix SHA [options]
   llm-review-bench review [--commit SHA] [--base SHA] [options]
   llm-review-bench resume RUN_ID [--output DIR] [--json]
+  llm-review-bench status RUN_ID [--output DIR] [--watch] [--interval S] [--json]
   llm-review-bench rerun RUN_ID [--output DIR] [--json]
   llm-review-bench link --run RUN_ID --fix SHA [--gold FILE] [--output DIR] [--json]
   llm-review-bench rescore RUN_ID [--output DIR] [--json]
@@ -96,6 +98,8 @@ const OPTIONS = {
   'judge-model': { type: 'string' },
   'confirmed-by': { type: 'string' },
   limit: { type: 'string' },
+  interval: { type: 'string' },
+  watch: { type: 'boolean' },
   all: { type: 'boolean' },
   'dry-run': { type: 'boolean' },
   'include-fixture': { type: 'boolean' },
@@ -237,6 +241,18 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
           throw new UsageError('resume accepts exactly one run id');
         }
         return await resumeCommand(runId, { output, json });
+      }
+      case 'status': {
+        const runId = requirePositional(rest, 0, 'run id');
+        if (rest.length > 1) {
+          throw new UsageError('status accepts exactly one run id');
+        }
+        return await statusCommand(runId, {
+          output,
+          json,
+          watch: values['watch'] === true,
+          intervalSeconds: intValue(values, 'interval', 1, 3600),
+        });
       }
       case 'rerun': {
         const runId = requirePositional(rest, 0, 'run id');

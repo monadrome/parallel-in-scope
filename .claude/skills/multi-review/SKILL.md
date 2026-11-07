@@ -56,6 +56,27 @@ node tools/llm-review-bench/dist/cli.js resume <run-id> --json
 `run --fix` 不接受 `--working`/`--commit`/`--base`；`review --working` 不能与 `--commit` 组合。
 默认输出根是 `<repo>/.review-benchmark`，可用 `--output` 指定。
 
+启动前 CLI 会对选中的 reviewer 做探活：缺失、非零退出和探活超时都会在 run 创建前报告，
+不会等到长时间 review 后才暴露。运行时每个 reviewer 都有硬超时和 SIGTERM→SIGKILL 收尾；
+可按任务缩短或放宽：
+
+```bash
+node tools/llm-review-bench/dist/cli.js review --commit <sha> \
+  --review-timeout 900 --timeout 1200 --kill-grace 10 --json
+```
+
+运行中可查询状态和进度：
+
+```bash
+node tools/llm-review-bench/dist/cli.js status <run-id> --json
+node tools/llm-review-bench/dist/cli.js status <run-id> --watch --interval 5
+```
+
+状态会列出每个 reviewer 的 attempt、状态、日志字节数、最近活动时间和 `stale` 标记。
+运行目录的 `events.jsonl` 会周期写入 `review.progress`，因此即使 reviewer 尚未结束，仍能
+判断它是在输出、停滞还是已被超时终止。`stale` 只表示超过进度观察窗口没有心跳，不等于
+审查失败；最终以 attempt 的 `completed`/`failed`/`timed_out` 为准。
+
 ## 3. 读取 run 与原始 findings
 
 从 JSON stdout 读取 `runId`、`runDir`、`systems`、`gold`、`reports`；没有 `--json` 时也会打印 run id。
