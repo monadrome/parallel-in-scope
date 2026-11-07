@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Build
+
+- Start the `0.5.0-SNAPSHOT` development line on `dev/v0.5.0`, preserving the snapshot publication gate and carrying forward the approved proposal context from the v0.4 line.
+
 ## [0.4.1] - 2026-11-07
 
 - Fix Guava null-check convention violations in the execution kernel.

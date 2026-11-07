@@ -12,12 +12,12 @@ Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
 
 ## Current Development Line
 
-- All new work targets `dev/v0.4.0`, including agent pull requests. Do not
+- All new work targets `dev/v0.5.0`, including agent pull requests. Do not
   commit to `main` or target it with development pull requests; release
   integration is a separate maintainer action.
-- The library, demo, and default verification consumer track `0.4.0-SNAPSHOT`.
-  Keep stable installation examples on the latest published release, `0.3.0`.
-- Preserve the snapshot publishing policy: pushes to `dev/v0.4.0`, the daily
+- The library, demo, and default verification consumer track `0.5.0-SNAPSHOT`.
+  Keep stable installation examples on the latest published release, `0.4.1`.
+- Preserve the snapshot publishing policy: pushes to `dev/v0.5.0`, the daily
   scheduled Snapshot run, and manual Snapshot runs consult Central metadata and
   publish only when no snapshot exists or the branch tip's UTC date is later
   than the last publication's UTC date. Verify the library and demo before
@@ -25,7 +25,7 @@ Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
   fires `schedule` only from the default branch's copy of that file, so opening
   a development line or changing the workflow includes syncing that copy on
   `main` -- a maintainer action outside the development line. A matching
-  `v0.4.0-SNAPSHOT` tag remains the manual publication path that bypasses this
+  `v0.5.0-SNAPSHOT` tag remains the manual publication path that bypasses this
   date gate; snapshot tags never create a GitHub Release.
 
 ## Commands

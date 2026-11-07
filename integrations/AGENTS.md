@@ -5,8 +5,8 @@
 Standalone Java 8 sample project showing `parallel-in-scope` together with
 Resilience4j, Sentinel, and Spring. It consumes the published library artifact,
 like `demo/`, but stays a separate project so its third-party dependencies never
-reach the demo or the library. The current development line is `dev/v0.4.0`;
-the module and its default library dependency track `0.4.0-SNAPSHOT`.
+reach the demo or the library. The current development line is `dev/v0.5.0`;
+the module and its default library dependency track `0.5.0-SNAPSHOT`.
 
 | Package | Content |
 |---|---|

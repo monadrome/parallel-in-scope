@@ -1,6 +1,6 @@
 # English Documentation
 
-> This repository page follows `0.4.1`. For the released `0.4.1` line, use the
+> This repository page follows `0.5.0-SNAPSHOT`. For the released `0.4.1` line, use the
 > [stable online documentation](https://monadrome.github.io/parallel-in-scope/).
 
 Start with the [5-minute quickstart](quickstart.md), then use the full user guide for supported
