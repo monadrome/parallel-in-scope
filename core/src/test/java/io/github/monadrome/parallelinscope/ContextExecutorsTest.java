@@ -29,11 +29,11 @@ class ContextExecutorsTest {
             };
 
     @Test
-    void capturesAtExecutorCreationInsteadOfCommandExecution() throws Exception {
+    void registrationExecutorCapturesAtCreationInsteadOfCommandExecution() throws Exception {
         ExecutorService completionThread = Executors.newSingleThreadExecutor();
         try {
             TTL.set("registration");
-            Executor direct = ContextExecutors.directExecutor();
+            Executor direct = ContextExecutors.registrationContextExecutor();
             TTL.set("completion");
             AtomicReference<String> seen = new AtomicReference<>();
 
@@ -51,7 +51,7 @@ class ContextExecutorsTest {
     @Test
     void restoresTheEnclosingContextAfterMutationAndFailure() {
         TTL.set("registration");
-        Executor direct = ContextExecutors.directExecutor();
+        Executor direct = ContextExecutors.registrationContextExecutor();
         TTL.set("caller");
         try {
             assertThatThrownBy(() -> direct.execute(() -> {
@@ -70,9 +70,9 @@ class ContextExecutorsTest {
     @Test
     void nestedExecutionRestoresTheOuterCapturedContext() {
         TTL.set("outer");
-        Executor outer = ContextExecutors.directExecutor();
+        Executor outer = ContextExecutors.registrationContextExecutor();
         TTL.set("inner");
-        Executor inner = ContextExecutors.directExecutor();
+        Executor inner = ContextExecutors.registrationContextExecutor();
         try {
             AtomicReference<String> afterInner = new AtomicReference<>();
             outer.execute(() -> {
@@ -92,27 +92,29 @@ class ContextExecutorsTest {
         assertThatThrownBy(() -> ContextExecutors.directExecutor().execute(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("command cannot be null");
-        assertThatThrownBy(() -> ContextExecutors.lazyDirectExecutor().execute(null))
+        assertThatThrownBy(() -> ContextExecutors.registrationContextExecutor().execute(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("command cannot be null");
     }
 
     @Test
-    void hasAStableDiagnosticNameWithoutExposingTheCapturedContext() {
+    void hasStableDiagnosticNamesWithoutExposingTheCapturedContext() {
         assertThat(ContextExecutors.directExecutor()).hasToString("ContextExecutors.directExecutor()");
+        assertThat(ContextExecutors.registrationContextExecutor())
+                .hasToString("ContextExecutors.registrationContextExecutor()");
     }
 
     @Test
-    void lazyExecutorCapturesTheCurrentContextForEachCommand() {
-        Executor lazy = ContextExecutors.lazyDirectExecutor();
+    void directExecutorCapturesTheCurrentContextForEachCommand() {
+        Executor direct = ContextExecutors.directExecutor();
         try {
             TTL.set("first");
             AtomicReference<String> first = new AtomicReference<>();
-            lazy.execute(() -> first.set(TTL.get()));
+            direct.execute(() -> first.set(TTL.get()));
 
             TTL.set("second");
             AtomicReference<String> second = new AtomicReference<>();
-            lazy.execute(() -> second.set(TTL.get()));
+            direct.execute(() -> second.set(TTL.get()));
 
             assertThat(first).hasValue("first");
             assertThat(second).hasValue("second");
@@ -123,19 +125,19 @@ class ContextExecutorsTest {
     }
 
     @Test
-    void lazyExecutorRunsTheCopierForEachCommandAndRestoresTheCallerBinding() {
+    void directExecutorRunsTheCopierForEachCommandAndRestoresTheCallerBinding() {
         List<String> original = new ArrayList<>(Arrays.asList("a"));
         COPYING_TTL.set(original);
-        Executor lazy = ContextExecutors.lazyDirectExecutor();
+        Executor direct = ContextExecutors.directExecutor();
         try {
             AtomicReference<List<String>> first = new AtomicReference<>();
-            lazy.execute(() -> {
+            direct.execute(() -> {
                 first.set(COPYING_TTL.get());
                 COPYING_TTL.get().add("first");
             });
 
             AtomicReference<List<String>> second = new AtomicReference<>();
-            lazy.execute(() -> second.set(COPYING_TTL.get()));
+            direct.execute(() -> second.set(COPYING_TTL.get()));
 
             assertThat(first.get()).containsExactly("a", "first");
             assertThat(second.get()).containsExactly("a");
@@ -147,11 +149,11 @@ class ContextExecutorsTest {
     }
 
     @Test
-    void lazyExecutorRestoresTheCallerBindingAfterFailure() {
+    void directExecutorRestoresTheCallerBindingAfterFailure() {
         TTL.set("caller");
-        Executor lazy = ContextExecutors.lazyDirectExecutor();
+        Executor direct = ContextExecutors.directExecutor();
         try {
-            assertThatThrownBy(() -> lazy.execute(() -> {
+            assertThatThrownBy(() -> direct.execute(() -> {
                         assertThat(TTL.get()).isEqualTo("caller");
                         TTL.set("command");
                         throw new IllegalStateException("boom");
@@ -165,16 +167,11 @@ class ContextExecutorsTest {
     }
 
     @Test
-    void lazyExecutorHasAStableDiagnosticName() {
-        assertThat(ContextExecutors.lazyDirectExecutor()).hasToString("ContextExecutors.lazyDirectExecutor()");
-    }
-
-    @Test
     void oneCapturedExecutorCanBeUsedConcurrentlyWithoutCrossingCallerBindings() throws Exception {
         ExecutorService callers = Executors.newFixedThreadPool(2);
         try {
             TTL.set("registration");
-            Executor direct = ContextExecutors.directExecutor();
+            Executor direct = ContextExecutors.registrationContextExecutor();
             Future<?> first = callers.submit(() -> runWithCallerValue(direct, "caller-one"));
             Future<?> second = callers.submit(() -> runWithCallerValue(direct, "caller-two"));
             first.get();
@@ -200,7 +197,7 @@ class ContextExecutorsTest {
         Map<String, String> original = new HashMap<>();
         original.put("trace", "request");
         MUTABLE_TTL.set(original);
-        Executor direct = ContextExecutors.directExecutor();
+        Executor direct = ContextExecutors.registrationContextExecutor();
         try {
             direct.execute(() -> MUTABLE_TTL.set(new HashMap<>()));
             assertThat(MUTABLE_TTL.get()).isSameAs(original);
@@ -214,7 +211,7 @@ class ContextExecutorsTest {
         Map<String, String> context = new HashMap<>();
         context.put("trace", "request");
         MUTABLE_TTL.set(context);
-        Executor direct = ContextExecutors.directExecutor();
+        Executor direct = ContextExecutors.registrationContextExecutor();
         try {
             // CRR restores the binding, but the default TTL copier does not deep-copy this Map.
             direct.execute(() -> MUTABLE_TTL.get().put("trace", "changed"));

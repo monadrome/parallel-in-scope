@@ -35,6 +35,14 @@ TaskGroupResult<Profile> result = runtime
 for compile-time type safety, or `valueAt(int)`/`valueOf(String)` for dynamic access. Recompile
 consumers against the v0.5 line.
 
+## Context-propagating direct executors
+
+`ContextExecutors.directExecutor()` now captures TTL context at each `execute` call. This is the
+reusable default for commands whose context belongs to the call site. The old creation-time
+behavior is available as `ContextExecutors.registrationContextExecutor()` and is intended for a
+Future listener or callback that must retain the context from registration. `lazyDirectExecutor()`
+is removed; replace it with `directExecutor()`.
+
 | Removed name | Replacement |
 |---|---|
 | `io.github.monadrome.parallelinscope.SmartBlockingQueue` | `io.github.monadrome.parallelinscope.SubmissionAwareBlockingQueue` |
