@@ -12,6 +12,7 @@ concurrency:
 jobs:
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -58,6 +59,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     permissions:
       contents: read
 
@@ -90,6 +92,9 @@ jobs:
       - name: Build and test library on build JDK ${{ matrix.java-version }}
         run: mvn -B -ntp clean install
 
+      - name: Verify library bytecode targets Java 8
+        run: python3 scripts/check-java-bytecode.py target/classes --release 8
+
       - name: Verify registered race claims
         timeout-minutes: 30
         run: python3 scripts/check-race-claims.py
@@ -112,6 +117,9 @@ jobs:
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           package
 
+      - name: Verify demo bytecode targets Java 8
+        run: python3 scripts/check-java-bytecode.py demo/target/classes --release 8
+
       - name: Check public API changes against the merge base
         if: github.event_name == 'pull_request'
         run: |
@@ -123,10 +131,27 @@ jobs:
             --head-classes target/classes \
             --base "$BASE"
 
-  java8-runtime:
+      - name: Upload build test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/surefire-reports/
+            demo/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 7
+
+  runtime-consumer:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 8, 11, 17, 21, 25 ]
 
     steps:
       - uses: actions/checkout@v7
@@ -145,14 +170,14 @@ jobs:
           echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
           mvn -B -ntp -Dmaven.test.skip=true -Dmaven.javadoc.skip=true clean install
 
-      - name: Set up Java 8 runtime
+      - name: Set up Java ${{ matrix.java-version }} runtime
         uses: actions/setup-java@v6
         with:
-          java-version: 8
+          java-version: ${{ matrix.java-version }}
           distribution: temurin
           cache: maven
 
-      - name: Run the public API consumer on the Java 8 runtime
+      - name: Run the public API consumer on Java ${{ matrix.java-version }}
         working-directory: verification/maven-central-consumer
         env:
           # The root .mvn/jvm.config carries the --add-exports/--add-opens flags Error Prone
@@ -164,9 +189,7 @@ jobs:
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           clean test
 
-      # The demo keeps a Java 8 test-runtime baseline; run its tests on the JDK 8
-      # runtime so a post-Java-8 test dependency cannot slip through the JDK 25 build.
-      - name: Run the demo on the Java 8 runtime
+      - name: Run the demo on Java ${{ matrix.java-version }}
         working-directory: demo
         env:
           MAVEN_BASEDIR: ${{ github.workspace }}/demo
@@ -174,3 +197,33 @@ jobs:
           mvn -B -ntp
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           test
+
+      - name: Upload runtime test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-test-reports-${{ matrix.java-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            verification/maven-central-consumer/target/surefire-reports/
+            demo/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 7
+
+  javadoc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up build JDK 25
+        uses: actions/setup-java@v6
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+
+      - name: Validate library Javadocs
+        run: mvn -B -ntp -DskipTests javadoc:javadoc
