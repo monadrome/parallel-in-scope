@@ -41,7 +41,7 @@ from typing import Iterable, Iterator, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = "src/main/java"
-DEV_LINE = re.compile(r"^origin/dev/v(?P<major>\d+)\.(?P<minor>\d+)$")
+DEV_LINE = re.compile(r"^origin/dev/v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
 # The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
 EXCLUDED_PREFIXES = ("io/github/monadrome/parallelinscope/queue/",)
 
@@ -489,7 +489,7 @@ def default_base() -> str:
     for ref in refs:
         match = DEV_LINE.match(ref)
         if match:
-            candidates.append(((int(match.group("major")), int(match.group("minor"))), ref))
+            candidates.append(((int(match.group("major")), int(match.group("minor")), int(match.group("patch"))), ref))
     if not candidates:
         raise CheckError("no origin/dev/vX.Y.Z ref is available; pass --base explicitly")
     upstream = max(candidates)[1]
