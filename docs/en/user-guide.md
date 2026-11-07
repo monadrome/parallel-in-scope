@@ -858,6 +858,11 @@ instance for each request context; it is reusable for listeners belonging to tha
 `MoreExecutors.directExecutor()` with a TTL executor is insufficient here because the wrapper captures when
 the future completes, which is too late.
 
+CRR restores the TTL bindings; it does not deep-copy mutable objects stored in those bindings. If a listener
+mutates a `Map`, `List`, or mutable request context returned by `TTL.get()`, that object can be shared with the
+captured snapshot and with later listeners. Prefer immutable or copy-on-write context values, or configure an
+appropriate TTL copier when deep isolation is required.
+
 This covers library-managed work only. The library performs the TTL capture and restore around each
 task, so these executions need no TTL agent; code on the same pool that submits directly, outside this
 library, still has to wrap TTL itself. Saving and restoring both values also preserves enclosing

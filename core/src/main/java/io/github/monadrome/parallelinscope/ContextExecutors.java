@@ -17,6 +17,14 @@ import java.util.concurrent.Executor;
  * listeners. A wrapper that captures inside {@code execute} captures the completion thread instead of
  * the listener-registration thread and therefore cannot provide the same guarantee.
  *
+ * <p>Capture/replay/restore restores the TTL bindings, not the deep state of values held by those
+ * bindings. A mutable value returned by {@code TransmittableThreadLocal.get()} can still be shared and
+ * changed by a command when the TTL copier keeps the same reference. Use immutable or copy-on-write
+ * context values, or configure a copier that makes an appropriate deep copy when isolation is required.
+ *
+ * <p>Creating one executor per request context prevents unrelated requests from sharing a captured
+ * snapshot, but it does not turn mutable values into independent copies.
+ *
  * @since 0.5.0
  */
 public final class ContextExecutors {

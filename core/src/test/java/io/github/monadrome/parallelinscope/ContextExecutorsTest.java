@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 class ContextExecutorsTest {
 
     private static final TransmittableThreadLocal<String> TTL = new TransmittableThreadLocal<>();
+    private static final TransmittableThreadLocal<Map<String, String>> MUTABLE_TTL = new TransmittableThreadLocal<>();
 
     @Test
     void capturesAtExecutorCreationInsteadOfCommandExecution() throws Exception {
@@ -79,5 +82,34 @@ class ContextExecutorsTest {
         assertThatThrownBy(() -> ContextExecutors.directExecutor().execute(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("command cannot be null");
+    }
+
+    @Test
+    void restoresTheBindingWhenACommandReplacesTheTtlValue() {
+        Map<String, String> original = new HashMap<>();
+        original.put("trace", "request");
+        MUTABLE_TTL.set(original);
+        Executor direct = ContextExecutors.directExecutor();
+        try {
+            direct.execute(() -> MUTABLE_TTL.set(new HashMap<>()));
+            assertThat(MUTABLE_TTL.get()).isSameAs(original);
+        } finally {
+            MUTABLE_TTL.remove();
+        }
+    }
+
+    @Test
+    void mutatingAReferencedMutableValueStillChangesTheSharedObject() {
+        Map<String, String> context = new HashMap<>();
+        context.put("trace", "request");
+        MUTABLE_TTL.set(context);
+        Executor direct = ContextExecutors.directExecutor();
+        try {
+            // CRR restores the binding, but the default TTL copier does not deep-copy this Map.
+            direct.execute(() -> MUTABLE_TTL.get().put("trace", "changed"));
+            assertThat(MUTABLE_TTL.get()).containsEntry("trace", "changed");
+        } finally {
+            MUTABLE_TTL.remove();
+        }
     }
 }
