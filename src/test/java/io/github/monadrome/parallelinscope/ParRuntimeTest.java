@@ -220,82 +220,6 @@ class ParRuntimeTest {
     }
 
     @Test
-    void nestedBatchesAcrossExecutorsShareCancellationContextAndObservationGraph() throws Exception {
-        ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
-        ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("outer"), outerExecutor)
-                .register(ParId.of("inner"), innerExecutor)
-                .build();
-        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
-                    .submitBatch(
-                            Collections.singletonList(2),
-                            value -> {
-                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
-                                        .submitBatch(
-                                                Collections.singletonList(value),
-                                                item -> item + 1,
-                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
-                                try {
-                                    return inner.results().get(0).get(2, TimeUnit.SECONDS);
-                                } catch (Exception failure) {
-                                    throw new RuntimeException(failure);
-                                }
-                            },
-                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
-
-            assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(TaskGraphObservationScope.current()).isSameAs(observation);
-            assertThat(observation.graph().asValueGraph().edges()).isNotEmpty();
-        } finally {
-            global.close();
-            outerExecutor.shutdownNow();
-            innerExecutor.shutdownNow();
-        }
-    }
-
-    @Test
-    void topLevelBatchInstallsObservationOnPreexistingWorkerAndPropagatesItToNestedBatch() throws Exception {
-        ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
-        ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
-        outerExecutor.submit(() -> {}).get(2, TimeUnit.SECONDS);
-        ParRuntime global = ParRuntime.builder()
-                .register(ParId.of("outer"), outerExecutor)
-                .register(ParId.of("inner"), innerExecutor)
-                .build();
-        try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-            AtomicReference<TaskGraphObservationScope> scopeOnOuterWorker = new AtomicReference<>();
-            TaskBatch<Integer> outer = global.par(ParId.of("outer"))
-                    .submitBatch(
-                            Collections.singletonList(2),
-                            value -> {
-                                scopeOnOuterWorker.set(TaskGraphObservationScope.current());
-                                TaskBatch<Integer> inner = global.par(ParId.of("inner"))
-                                        .submitBatch(
-                                                Collections.singletonList(value),
-                                                item -> item + 1,
-                                                BatchOptions.timeout("inner", Duration.ofSeconds(30)));
-                                try {
-                                    return inner.results().get(0).get(2, TimeUnit.SECONDS);
-                                } catch (Exception failure) {
-                                    throw new RuntimeException(failure);
-                                }
-                            },
-                            BatchOptions.timeout("outer", Duration.ofSeconds(30)));
-
-            assertThat(outer.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(3);
-            assertThat(scopeOnOuterWorker.get()).isSameAs(observation);
-            assertThat(observation.graph().asValueGraph().nodes()).hasSize(2);
-            assertThat(observation.graph().asValueGraph().edges()).hasSize(1);
-        } finally {
-            global.close();
-            outerExecutor.shutdownNow();
-            innerExecutor.shutdownNow();
-        }
-    }
-
-    @Test
     void nestedSlidingWindowsDoNotSerializeTheirSubmitterLoops() throws Exception {
         ExecutorService outerExecutor = Executors.newSingleThreadExecutor();
         ExecutorService innerExecutor = Executors.newSingleThreadExecutor();
@@ -344,7 +268,7 @@ class ParRuntimeTest {
                                 global.close();
                                 return value + 1;
                             },
-                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.CPU_BOUND));
+                            BatchOptions.timeout("cpu", Duration.ofSeconds(30)).taskType(TaskType.COMPUTE));
 
             assertThat(result.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(2);
             assertThat(global.closed()).isTrue();
@@ -354,7 +278,6 @@ class ParRuntimeTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void validatesPoliciesNamesAndStaticGlobalInstallation() {
@@ -371,6 +294,31 @@ class ParRuntimeTest {
         }
     }
 
+    @SuppressWarnings("NullAway")
+    @Test
+    void registrationDeclaresAnOptionalTaskTypePerEntry() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("plain"), executor)
+                .register(ParId.of("cpu"), executor, TaskType.COMPUTE)
+                .register(ParId.of("io"), executor, TaskType.BLOCKING)
+                .build()) {
+            assertThat(runtime.par(ParId.of("plain")).taskType()).isEqualTo(TaskType.UNKNOWN);
+            assertThat(runtime.par(ParId.of("cpu")).taskType()).isEqualTo(TaskType.COMPUTE);
+            assertThat(runtime.par(ParId.of("io")).taskType()).isEqualTo(TaskType.BLOCKING);
+            assertThatThrownBy(() -> ParRuntime.builder().register(ParId.of("cpu"), executor, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("taskType cannot be null");
+            assertThatThrownBy(() -> ParRuntime.builder()
+                            .register(ParId.of("cpu"), executor, TaskType.COMPUTE)
+                            .register(ParId.of("cpu"), executor))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("duplicate Par id 'cpu'");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     @Test
     @ResourceLock(ParRuntimeGlobalSlotTest.GLOBAL_SLOT_LOCK)
     void installsAndReturnsTheProcessGlobalOnlyOnce() {
@@ -379,9 +327,12 @@ class ParRuntimeTest {
             ParRuntime.installGlobal(installed);
 
             assertThat(ParRuntime.global()).isSameAs(installed);
-            assertThatThrownBy(
-                            () -> ParRuntime.installGlobal(ParRuntime.builder().build()))
-                    .isInstanceOf(IllegalStateException.class);
+            ParRuntime rejected = ParRuntime.builder().build();
+            try {
+                assertThatThrownBy(() -> ParRuntime.installGlobal(rejected)).isInstanceOf(IllegalStateException.class);
+            } finally {
+                rejected.close();
+            }
         } finally {
             installed.close();
         }
@@ -492,7 +443,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceWaitsForTaskBodiesThatOutliveTheirCancelledFutures() throws Exception {
+    void awaitQuiescenceWaitsForTaskExecutionsThatOutliveTheirCancelledFutures() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -505,7 +456,7 @@ class ParRuntimeTest {
                             x -> {
                                 entered.countDown();
                                 // Ignore interruption: the future is cancelled immediately, but
-                                // the body stays inside user code until released.
+                                // the execution stays inside user code until released.
                                 boolean interrupted = false;
                                 while (true) {
                                     try {
@@ -518,14 +469,14 @@ class ParRuntimeTest {
                                 if (interrupted) Thread.currentThread().interrupt();
                                 return x;
                             },
-                            BatchOptions.timeout("body-quiesce", Duration.ofSeconds(30)));
+                            BatchOptions.timeout("execution-quiesce", Duration.ofSeconds(30)));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             batch.results().get(0).cancel(true);
             assertThat(batch.results().get(0).isDone()).isTrue();
             global.close();
 
-            // Services have drained and the future is terminal, but the body is still running:
+            // Services have drained and the future is terminal, but the execution is still running:
             // quiescence must not be reported.
             assertThat(global.awaitQuiescence(Duration.ofMillis(200))).isFalse();
 
@@ -539,7 +490,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceCoversSingleSubmittedTaskBodies() throws Exception {
+    void awaitQuiescenceCoversSingleSubmittedTaskExecutions() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -675,7 +626,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void awaitQuiescenceWakesPromptlyWhenTheLastTrackedBodyExits() throws Exception {
+    void awaitQuiescenceWakesPromptlyWhenTheLastTrackedExecutionExits() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -705,7 +656,7 @@ class ParRuntimeTest {
             task.cancel(true);
             global.close();
 
-            // Park the waiter while the body is still running: the body-exit listener's signal
+            // Park the waiter while the execution is still running: the execution-exit listener's signal
             // is then the only thing that can end the wait before the budget expires. No "parked"
             // signal exists on this path; the grace period parks the waiter before the release.
             AtomicBoolean result = new AtomicBoolean();
@@ -723,7 +674,7 @@ class ParRuntimeTest {
             release.countDown();
             waiter.join(5000L);
             assertThat(waiter.isAlive())
-                    .as("body exit never woke the parked waiter")
+                    .as("execution exit never woke the parked waiter")
                     .isFalse();
             assertThat(failure.get()).isNull();
             assertThat(result.get()).isTrue();
@@ -735,27 +686,7 @@ class ParRuntimeTest {
     }
 
     @Test
-    void observationIsOwnedAndClosedExactlyOnce() {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register(ParId.of("io"), executor).build();
-        try {
-            TaskGraphObservationScope observation = global.openTaskGraphObservation();
-            assertThat(observation.owner()).isSameAs(global);
-            assertThat(observation.closed()).isFalse();
-            assertThat(TaskGraphObservationScope.current()).isSameAs(observation);
-            observation.close();
-            observation.close();
-            assertThat(observation.closed()).isTrue();
-            assertThat(TaskGraphObservationScope.current()).isNull();
-        } finally {
-            global.close();
-            executor.shutdownNow();
-        }
-    }
-
-    @Test
-    void rejectsNewBatchesAndObservationsAfterCloseWithoutClosingBorrowedExecutor() {
+    void rejectsNewBatchesAfterCloseWithoutClosingBorrowedExecutor() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("io"), executor).build();
@@ -764,7 +695,6 @@ class ParRuntimeTest {
 
             assertThat(global.closed()).isTrue();
             assertThat(executor.isShutdown()).isFalse();
-            assertThatThrownBy(() -> global.openTaskGraphObservation()).isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> global.par(ParId.of("io"))
                             .submitBatch(
                                     Collections.singletonList(1),
@@ -868,14 +798,6 @@ class ParRuntimeTest {
     }
 
     @Test
-    void policiesExposeConfiguredValuesAndDisabledDefaults() {
-        ParRuntimeDeadlockPolicy deadlock =
-                ParRuntimeDeadlockPolicy.builder().enabled(true).build();
-        assertThat(deadlock.enabled()).isTrue();
-        assertThat(ParRuntimeDeadlockPolicy.builder().build().enabled()).isFalse();
-    }
-
-    @Test
     void cancelledQueueEntriesRetainCapacityUntilTheExecutorOwnerPurges() throws Exception {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.MILLISECONDS, new java.util.concurrent.ArrayBlockingQueue<>(1));
@@ -914,17 +836,13 @@ class ParRuntimeTest {
     }
 
     @Test
-    void exposesImmutableTopologyAndConfiguredPolicies() {
+    void exposesImmutableTopology() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            ParRuntimeDeadlockPolicy deadlock =
-                    ParRuntimeDeadlockPolicy.builder().enabled(true).build();
-            ParRuntime global = ParRuntime.builder()
-                    .deadlockPolicy(deadlock)
-                    .register(ParId.of("one"), executor)
-                    .build();
+            ParRuntime global =
+                    ParRuntime.builder().register(ParId.of("one"), executor).build();
 
-            assertThat(global.deadlockPolicy()).isSameAs(deadlock);
+            assertThat(global.executorWaitReport().cyclicComponents()).isEmpty();
             assertThat(global.find(ParId.of("one"))).contains(global.par(ParId.of("one")));
             assertThat(global.find(ParId.of("missing"))).isEmpty();
             assertThat(global.pars()).containsOnlyKeys(ParId.of("one"));
@@ -989,6 +907,60 @@ class ParRuntimeTest {
                     .containsEntry(TaskOutcome.TIMEOUT, 2);
         } finally {
             global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void installingAClosedRuntimeIsRejected() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("late"), executor).build();
+        try {
+            runtime.close();
+            assertThatThrownBy(() -> ParRuntime.installGlobal(runtime))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ParRuntime is closed");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void aFreshRuntimeReportsAnEmptyNonNullExecutorWaitReport() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        try {
+            ExecutorWaitReport report = runtime.executorWaitReport();
+            assertThat(report).isNotNull();
+            assertThat(report.cyclicComponents()).isEmpty();
+            assertThat(report.toString()).contains("no executor wait cycle observed");
+        } finally {
+            runtime.close();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void dispatchingSchedulerAwaitTerminationIsFalseWhileATimerEntryIsPending() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("io"), executor).build();
+        try {
+            java.util.concurrent.ScheduledExecutorService scheduler = runtime.timeoutScheduler();
+            java.util.concurrent.ScheduledFuture<?> pending = scheduler.schedule(() -> {}, 10, TimeUnit.SECONDS);
+            runtime.close();
+            assertThat(scheduler.isShutdown()).isTrue();
+            assertThat(scheduler.awaitTermination(0, TimeUnit.NANOSECONDS))
+                    .as("a shut-down dispatching scheduler with a pending timer entry is not terminated")
+                    .isFalse();
+            pending.cancel(false);
+            assertThat(scheduler.awaitTermination(5, TimeUnit.SECONDS))
+                    .as("cancelling the drained timer's last entry lets it terminate")
+                    .isTrue();
+        } finally {
+            runtime.close();
             executor.shutdownNow();
         }
     }

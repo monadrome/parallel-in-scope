@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -31,7 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 /**
- * A batch element whose body raises its own {@link CancellationException} or {@link
+ * A batch element whose execution raises its own {@link CancellationException} or {@link
  * InterruptedException}, with no framework cancellation committed, ends as {@link
  * TaskOutcome#USER_FAILURE} carrying that throwable, exactly as a group member does.
  *
@@ -64,7 +65,7 @@ class BatchSettleAttributionTest {
     @Test
     void anElementThatThrowsItsOwnCancellationIsAUserFailure() {
         Par par = directPar();
-        CancellationException own = new CancellationException("the body's own");
+        CancellationException own = new CancellationException("the execution's own");
 
         TaskBatchResult<String> result = par.map(
                 Collections.singletonList("x"),
@@ -79,16 +80,14 @@ class BatchSettleAttributionTest {
         assertThat(completion).isNotNull();
         assertThat(completion.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(completion.failure()).isSameAs(own);
-        assertThat(result.report().firstException()).isSameAs(own);
-        assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCause(own);
+        assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(own);
+        assertThatThrownBy(result::valuesOrThrow).isSameAs(own);
     }
 
     @Test
     void anElementThatThrowsItsOwnInterruptionIsAUserFailure() {
         Par par = directPar();
-        InterruptedException own = new InterruptedException("the body's own");
+        InterruptedException own = new InterruptedException("the execution's own");
 
         TaskBatchResult<String> result = par.map(
                 Collections.singletonList("x"),
@@ -100,8 +99,8 @@ class BatchSettleAttributionTest {
         assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.results().get(0).failure()).isSameAs(own);
         assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCause(own);
+                .isInstanceOf(CompletionException.class)
+                .hasCauseReference(own);
     }
 
     @Test
@@ -111,19 +110,19 @@ class BatchSettleAttributionTest {
         TaskBatchResult<String> result = par.map(
                 Arrays.asList("a", "b", "c", "d"),
                 item -> {
-                    throw new CancellationException("the body's own " + item);
+                    throw new CancellationException("the execution's own " + item);
                 },
                 BatchOptions.timeout("own-cancellations", TIMEOUT));
 
         List<ImmediateResult<String>> elements = result.results();
         assertThat(elements.get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThat(elements.get(0).failure()).hasMessage("the body's own a");
+        assertThat(elements.get(0).failure()).hasMessage("the execution's own a");
         for (ImmediateResult<String> sibling : elements.subList(1, elements.size())) {
             assertThat(sibling.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         }
         assertThatThrownBy(result::valuesOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasRootCauseMessage("the body's own a");
+                .isInstanceOf(CancellationException.class)
+                .hasMessage("the execution's own a");
     }
 
     @Test
@@ -148,9 +147,7 @@ class BatchSettleAttributionTest {
         TaskCompletion<Integer> terminal = result.terminal();
         assertThat(terminal).isNotNull();
         assertThat(terminal.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-        assertThatThrownBy(result::terminalValueOrThrow)
-                .isInstanceOf(ExecutionException.class)
-                .hasCause(own);
+        assertThatThrownBy(result::terminalValueOrThrow).isSameAs(own);
     }
 
     /**
@@ -184,12 +181,15 @@ class BatchSettleAttributionTest {
             TaskBatchResult<String> result = par.map(
                     Collections.singletonList("x"),
                     item -> {
-                        throw new CancellationException("the body's own");
+                        throw new CancellationException("the execution's own");
                     },
                     BatchOptions.timeout("own-cancellation", TIMEOUT).closeGrace(Duration.ZERO));
 
             assertThat(result.results().get(0).outcome()).as("run %s", run).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThatThrownBy(result::valuesOrThrow).as("run %s", run).isInstanceOf(ExecutionException.class);
+            assertThatThrownBy(result::valuesOrThrow)
+                    .as("run %s", run)
+                    .isInstanceOf(CancellationException.class)
+                    .hasMessage("the execution's own");
         }
     }
 
@@ -201,7 +201,7 @@ class BatchSettleAttributionTest {
             TaskBatchResult<String> result = par.map(
                     Arrays.asList("a", "b", "c", "d"),
                     item -> {
-                        throw new CancellationException("the body's own");
+                        throw new CancellationException("the execution's own");
                     },
                     BatchOptions.timeout("own-cancellations", TIMEOUT));
 
@@ -211,8 +211,8 @@ class BatchSettleAttributionTest {
                     .contains(TaskOutcome.USER_FAILURE);
             assertThatThrownBy(result::valuesOrThrow)
                     .as("run %s", run)
-                    .isInstanceOf(ExecutionException.class)
-                    .hasRootCauseMessage("the body's own");
+                    .isInstanceOf(CancellationException.class)
+                    .hasMessage("the execution's own");
         }
     }
 
@@ -356,7 +356,7 @@ class BatchSettleAttributionTest {
         assertThat(pin).isNotNull();
         assertThat(pin.isDone()).isFalse();
 
-        delegate.setException(new CancellationException("the body's own"));
+        delegate.setException(new CancellationException("the execution's own"));
         token.failFastCancel();
 
         assertThat(Futures.getDone(pin)).isEqualTo(TaskOutcome.USER_FAILURE);
@@ -442,7 +442,7 @@ class BatchSettleAttributionTest {
         }
     }
 
-    /** Converts any throwable into an unchecked throw site for lambda bodies. */
+    /** Converts any throwable into an unchecked throw site for lambda executions. */
     private static final class SneakyThrow {
 
         private SneakyThrow() {}

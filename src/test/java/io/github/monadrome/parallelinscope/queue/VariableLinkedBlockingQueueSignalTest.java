@@ -135,7 +135,6 @@ class VariableLinkedBlockingQueueSignalTest {
         assertEquals(2, queue.size());
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void capacityAndElementValidationStayGuarded() {
@@ -188,7 +187,7 @@ class VariableLinkedBlockingQueueSignalTest {
         IteratorDrivenAssertions.assertExhausted(queue.iterator());
     }
 
-    /** Tiny helper keeping iterator assertions off the main test body. */
+    /** Tiny helper keeping iterator assertions off the main test execution. */
     private static final class IteratorDrivenAssertions {
         private static void assertExhausted(Iterator<?> iterator) {
             assertFalse(iterator.hasNext());

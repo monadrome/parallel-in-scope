@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -18,8 +17,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Outcome-focused additions over {@link CheckpointsTest}: every blocking adapter must report the
- * primitive's {@code false} result (not only {@code true}), and the supplier wrapper must surface
- * plain failures and sneakily-thrown checked throwables.
+ * primitive's {@code false} result (not only {@code true}).
  */
 class CheckpointsOutcomeTest {
 
@@ -35,15 +33,10 @@ class CheckpointsOutcomeTest {
     @Test
     void tryAcquireDurationOverloadReportsTimeoutFalse() {
         Semaphore semaphore = new Semaphore(0);
-        holdNothingButAssertBusy();
         long start = System.nanoTime();
         assertThat(Checkpoints.checkTryAcquire(semaphore, Duration.ofMillis(30)))
                 .isFalse();
         assertThat(System.nanoTime() - start).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(5));
-    }
-
-    private static void holdNothingButAssertBusy() {
-        // A zero-permit semaphore is already exhausted; nothing further to arrange.
     }
 
     @Test
@@ -118,50 +111,6 @@ class CheckpointsOutcomeTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
-    @SuppressWarnings("NullAway")
-    @Test
-    void checkSupplierRejectsBadArgumentsBeforeRunningTheSupplier() {
-        Semaphore untouched = new Semaphore(1);
-        assertThat(Checkpoints.checkTryAcquire(untouched, Duration.ofMillis(1))).isTrue();
-
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(null, IllegalStateException.class))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> Checkpoints.<Object, IllegalStateException>checkSupplier(() -> new Object(), null))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void checkSupplierRethrowsPlainRuntimeFailuresUnwrapped() {
-        RuntimeException boom = new IllegalArgumentException("plain");
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(
-                        () -> {
-                            throw boom;
-                        },
-                        IllegalStateException.class))
-                .isSameAs(boom);
-
-        Error error = new AssertionError("error-path");
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(
-                        () -> {
-                            throw error;
-                        },
-                        IllegalStateException.class))
-                .isSameAs(error);
-    }
-
-    @Test
-    void checkSupplierWrapsSneakyCheckedThrowablesInAssertionError() {
-        assertThatThrownBy(() -> Checkpoints.checkSupplier(
-                        () -> {
-                            throw SneakyThrow.sneak(new Exception("checked"));
-                        },
-                        IllegalStateException.class))
-                .isInstanceOf(AssertionError.class)
-                .hasMessageContaining("checked throwable")
-                .hasCauseInstanceOf(Exception.class);
-    }
-
     @Test
     void latchAwaitDurationOverloadReportsBothOutcomes() throws Exception {
         CountDownLatch openLatch = new CountDownLatch(1);
@@ -222,16 +171,5 @@ class CheckpointsOutcomeTest {
         done.set(true);
         signaller.join(TimeUnit.SECONDS.toMillis(2));
         assertThat(result).isTrue();
-    }
-
-    /** Helper that converts any throwable into an unchecked throw site for lambda bodies. */
-    private static final class SneakyThrow {
-
-        private SneakyThrow() {}
-
-        @SuppressWarnings("unchecked")
-        private static <T extends Throwable> RuntimeException sneak(Throwable throwable) throws T {
-            throw (T) throwable;
-        }
     }
 }

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * A business {@link TimeoutException} thrown by a task body is a user failure, not the framework
+ * A business {@link TimeoutException} thrown by a task execution is a user failure, not the framework
  * deadline: the group must converge on the recorded failure's outcome with the original throwable,
  * and unfinished siblings must read {@link TaskOutcome#FAIL_FAST} — never {@link
  * TaskOutcome#TIMEOUT} while the group deadline has not expired.
@@ -39,12 +39,12 @@ class BusinessFailureAttributionTest {
             TimeoutException businessFailure = new TimeoutException("business-level timeout");
 
             TaskGroupResult<Tuple2<Integer, Integer>, Void> result = global.group("load", Duration.ofSeconds(30))
-                    .par("failing", global.par(ParId.of("worker")), Integer.class, () -> {
-                        // Wait until the sibling is mid-flight so the cascade reaches a running body.
+                    .par(TaskKey.<Integer>named("failing"), global.par(ParId.of("worker")), () -> {
+                        // Wait until the sibling is mid-flight so the cascade reaches a running execution.
                         assertThat(siblingStarted.await(30, TimeUnit.SECONDS)).isTrue();
                         throw businessFailure;
                     })
-                    .par("sibling", global.par(ParId.of("worker")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("sibling"), global.par(ParId.of("worker")), () -> {
                         siblingStarted.countDown();
                         Thread.sleep(TimeUnit.SECONDS.toMillis(30));
                         return 2;
@@ -72,9 +72,9 @@ class BusinessFailureAttributionTest {
             TimeoutException businessFailure = new TimeoutException("business-level timeout");
 
             TaskGroupResult<Tuple2<Integer, Integer>, Integer> result = global.group("load", Duration.ofSeconds(30))
-                    .par("left", global.par(ParId.of("worker")), Integer.class, () -> 1)
-                    .par("right", global.par(ParId.of("worker")), Integer.class, () -> 2)
-                    .combine("join", global.par(ParId.of("worker")), Integer.class, values -> {
+                    .par(TaskKey.<Integer>named("left"), global.par(ParId.of("worker")), () -> 1)
+                    .par(TaskKey.<Integer>named("right"), global.par(ParId.of("worker")), () -> 2)
+                    .combine(TaskKey.<Integer>named("join"), global.par(ParId.of("worker")), values -> {
                         throw businessFailure;
                     })
                     .runAll();

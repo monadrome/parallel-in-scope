@@ -42,7 +42,7 @@ class SlidingWindowClaimRaceTest {
                 MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                         BatchOptions.timeout("batch", Duration.ofSeconds(30))
                                 .parallelism(1)
-                                .taskType(TaskType.IO_BOUND)
+                                .taskType(TaskType.BLOCKING)
                                 .spec(),
                         SIZE));
                 SlidingWindowSubmitter<Integer> submitter = new SlidingWindowSubmitter<>(workers, unit);
