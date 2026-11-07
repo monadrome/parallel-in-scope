@@ -1,0 +1,27 @@
+AGENTS.md
+  s_4d4bea29d57e17::t_8fcadd6571dc9d 30-31
+.github/workflows/dependency-audit.yml
+  s_4d4bea29d57e17::t_ce72d0f7ec19e9 32,48
+.github/workflows/snapshot.yml
+  s_4d4bea29d57e17::t_192a2f0f053882 133-134
+.github/workflows/ci.yml
+  s_4d4bea29d57e17::t_192a2f0f053882 160
+.github/dependabot.yml
+  s_4d4bea29d57e17::t_ce72d0f7ec19e9 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "cf139f137eac1e3c4c2d3ae2c16c36359209cd29",
+  "prompts": {},
+  "sessions": {
+    "s_4d4bea29d57e17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b50b-48c6-7be0-af37-e37e28ae2d12",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
