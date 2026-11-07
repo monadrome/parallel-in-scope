@@ -16,14 +16,15 @@
 当前最稳妥的结构化写法是放进一个外层成员，然后让顺序步骤继承预算：
 
 ```java
+TaskKey<List<Report>> pipeline = TaskKey.named("pipeline");
 runtime.group("request", totalTimeout)
-        .par(TaskKey.<List<Report>>named("pipeline"), coordinatorPar, () -> {
+        .par(pipeline, coordinatorPar, () -> {
             List<Value> values = ioPar.map(ids, this::fetch,
                     BatchOptions.inheritTimeout("fetch")).valuesOrThrow();
             return reportPar.map(values, this::render,
                     BatchOptions.inheritTimeout("render")).valuesOrThrow();
         })
-        .runAll().valuesOrThrow().typedValues();
+        .runAll().valuesOrThrow().valueOf(pipeline);
 ```
 
 这是可行替代。`coordinatorPar` 可以注册 Guava 的 direct executor service，在调用线程执行

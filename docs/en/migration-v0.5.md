@@ -2,6 +2,39 @@
 
 The queue public type names now describe their observable contracts. This is a source- and binary-breaking rename; no compatibility aliases are retained.
 
+## TaskGroup member values
+
+The v0.5 development line also removes the recursive `Tuple2` member shape. `GroupStep` and
+`CombinedGroupStep` no longer carry an aggregate member type, and `TaskGroupResult<R>` carries only
+the terminal result type. `combine` and `combineValues` receive a non-null `GroupValues` snapshot.
+
+Before:
+
+```java
+TaskGroupResult<Tuple2<User, Account>, Profile> result = runtime
+        .group("profile", timeout)
+        .par(userKey, ioPar, this::loadUser)
+        .par(accountKey, httpPar, this::loadAccount)
+        .combine(profileKey, cpuPar, values -> buildProfile(values.first(), values.second()))
+        .runAll();
+```
+
+After:
+
+```java
+TaskGroupResult<Profile> result = runtime
+        .group("profile", timeout)
+        .par(userKey, ioPar, this::loadUser)
+        .par(accountKey, httpPar, this::loadAccount)
+        .combineValues(profileKey, cpuPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
+        .runAll();
+```
+
+`GroupValues.typedValues()` and the public `Tuple2` type are removed. Use `valueOf(TaskKey<T>)`
+for compile-time type safety, or `valueAt(int)`/`valueOf(String)` for dynamic access. Recompile
+consumers against the v0.5 line.
+
 | Removed name | Replacement |
 |---|---|
 | `io.github.monadrome.parallelinscope.SmartBlockingQueue` | `io.github.monadrome.parallelinscope.SubmissionAwareBlockingQueue` |

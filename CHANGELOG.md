@@ -9,6 +9,7 @@
 ### Breaking changes
 
 - Rename `SmartBlockingQueue` to `SubmissionAwareBlockingQueue` and `VariableLinkedBlockingQueue` to `ResizableBlockingQueue`. The queue admission, dynamic-capacity, and `DrainingBlockingQueue` contracts are unchanged. `DrainingBlockingQueue` and `ResizableBlockingQueue` now ship from `io.github.monadrome:blocking-queues` in `io.github.monadrome.queues`; update the dependency and imports as described in the [v0.5 migration guide](docs/en/migration-v0.5.md).
+- Replace recursive TaskGroup `Tuple2` member values with keyed `GroupValues`; `TaskGroupResult<V,R>` becomes `TaskGroupResult<R>`, and `typedValues()` plus tuple-input combines are removed. See the [v0.5 migration guide](docs/en/migration-v0.5.md).
 
 
 ## [0.4.1] - 2026-11-07

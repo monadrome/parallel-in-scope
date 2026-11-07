@@ -14,11 +14,15 @@
 
 ## 目标与论证
 
-当前三成员汇总：
+当前三成员汇总（现行按 key 的形状）：
 
 ```java
-.combine(TaskKey.<Profile>named("profile"), cpuPar, values -> buildProfile(
-        values.first().first(), values.first().second(), values.second()))
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Order> orderKey = TaskKey.named("order");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+.combineValues(profileKey, cpuPar, values -> buildProfile(
+        values.valueOf(userKey), values.valueOf(accountKey), values.valueOf(orderKey)))
 ```
 
 可选草图，复用现有 `GroupValues` 和同一个 prepared terminal；它仍未实现，且当前
@@ -32,7 +36,7 @@
 ```
 
 消除插入/调换同类型成员时的位置误取，但名称和类型查询转为运行期校验，不能称为提升
-编译期类型安全。采用不同名字避免 lambda 重载歧义；保留 typed combine，无迁移。
+编译期类型安全。采用不同名字避免 lambda 重载歧义；保留按 key 的 combine，无迁移。
 这是上轮 E6 的剩余候选，只有真实的大组消费需求足以覆盖新增接口成本时才实施。
 
 主动采用新入口才改变终端输入形状，旧 typed combine 无迁移；执行、预算与取消管线不变。
