@@ -1,0 +1,35 @@
+.github/workflows/ci.yml
+  ai_agent 5,19-23,26,44-52,73,78,87-89,93-105,132,137,149,166-176
+.github/workflows/release.yml
+  ai_agent 37,55
+.gitignore
+  ai_agent 26-32,37-41,51-52
+mkdocs/mkdocs.yml
+  ai_agent 14,18,28,154,158,168
+.github/workflows/snapshot.yml
+  ai_agent 3-4,6-12,14-21,24-28,30-31,48-51,54,59,73,84
+.github/workflows/greetings.yml
+  ai_agent 12
+pom.xml
+  ai_agent 9,22,49,51-54,60-62,74-92,117-118,126-136,167,177,196,219-245,251,263,268,273,315-345,353,372-377,394
+.github/workflows/dependency-review.yml
+  ai_agent 15
+.github/pull_request_template.md
+  ai_agent 37-40
+.github/workflows/dependency-audit.yml
+  ai_agent 30,36
+.github/workflows/codeql.yml
+  ai_agent 5,7,21,25
+.github/workflows/gh-pages.yml
+  ai_agent 27,32,50,66
+.github/workflows/summary.yml
+  ai_agent 17,21,30
+mkdocs/requirements.txt
+  ai_agent 2-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "bf271032a85a1e1f5c7ca7905d849615c393e743",
+  "prompts": {}
+}
