@@ -12,7 +12,7 @@ on:
         description: Existing release tag to publish
         required: true
         type: string
-        default: v0.4.0
+        default: v0.4.1
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -107,7 +107,7 @@ jobs:
 
       - name: Verify Java 8 consumers
         env:
-          LIBRARY_VERSION: 0.4.0
+          LIBRARY_VERSION: 0.4.1
         run: |
           MAVEN_BASEDIR="$GITHUB_WORKSPACE/verification/maven-central-consumer" \
             mvn -B -ntp -f verification/maven-central-consumer \

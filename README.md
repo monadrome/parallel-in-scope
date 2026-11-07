@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 [![Interactive demo](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
-> Latest stable release: `0.4.0`. This release adds typed task keys, request cancellation, adopted
+> Latest stable release: `0.4.1`. This release adds typed task keys, request cancellation, adopted
 > futures, and runtime diagnostics. Migrating from `0.3.x`? Read the [v0.4 migration guide](docs/en/migration-v0.4.md) first.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution,
@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
 </dependency>
 ```
 
@@ -130,7 +130,7 @@ Profile value = profile.terminalValueOrThrow();
 `runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
 The first member failure cancels its siblings, and a member timeout cancels the group. Batch
 aggregate reads are unchecked in `0.4.0`; group reads were already unchecked. See the
-[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/docs/en/migration-v0.4.md).
+[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/docs/en/migration-v0.4.md).
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
@@ -151,14 +151,14 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 |---|---|
 | [Online documentation](https://monadrome.github.io/parallel-in-scope/) | Published guide for the released line |
 | [Interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | Single-file animated walkthrough of the four core semantics (Chinese UI) |
-| [Stable English documentation](https://monadrome.github.io/parallel-in-scope/) | Guide for the released `0.4.0` line |
-| [v0.4 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Frozen source for the stable release |
-| [0.4 documentation](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Release guide for `0.4.0` |
-| [Demo project](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/demo) | Runnable examples and the article catalog |
-| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/integrations) | 0.4.0 standalone Resilience4j, Sentinel, and Spring examples |
+| [Stable English documentation](https://monadrome.github.io/parallel-in-scope/) | Guide for the released `0.4.1` line |
+| [v0.4 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/docs/en) | Frozen source for the stable release |
+| [0.4 documentation](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/docs/en) | Release guide for `0.4.1` |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/demo) | Runnable examples and the article catalog |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/integrations) | 0.4.1 standalone Resilience4j, Sentinel, and Spring examples |
 | [Contributing](CONTRIBUTING.md) | Development and contribution workflow |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.4.0` line |
+| [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.4.1` line |
 
 ## Compatibility and Build
 

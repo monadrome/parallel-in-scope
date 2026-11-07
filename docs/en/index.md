@@ -1,6 +1,6 @@
 # English Documentation
 
-> This repository page follows `0.4.0`. For the released `0.4.0` line, use the
+> This repository page follows `0.4.1`. For the released `0.4.1` line, use the
 > [stable online documentation](https://monadrome.github.io/parallel-in-scope/).
 
 Start with the [5-minute quickstart](quickstart.md), then use the full user guide for supported
@@ -15,9 +15,9 @@ workflows. Use the reference pages for exact contracts and the migration guides 
 | [v0.4 migration guide](migration-v0.4.md) | Typed task keys, aggregate result reads, and runtime diagnostics on the release line |
 | [v0.3 migration guide](migration-v0.3.md) | The one-shot task-group chain and runtime contract changes from `0.2.x` |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |
-| [Demo project](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/README.en.md) | Runnable examples and build commands |
-| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/docs/en/README.md) | Documentation map for the example catalog (the articles themselves are in Chinese) |
-| [Integration samples](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/integrations/README.en.md) | Standalone Resilience4j, Sentinel, and Spring examples |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/README.en.md) | Runnable examples and build commands |
+| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/docs/en/README.md) | Documentation map for the example catalog (the articles themselves are in Chinese) |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/integrations/README.en.md) | Standalone Resilience4j, Sentinel, and Spring examples |
 
 ## API and Contracts
 

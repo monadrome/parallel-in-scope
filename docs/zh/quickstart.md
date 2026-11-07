@@ -1,4 +1,4 @@
-<!-- docs-version: 0.4.0 -->
+<!-- docs-version: 0.4.1 -->
 
 # 5 分钟快速上手
 
@@ -8,7 +8,7 @@
 <dependency>
   <groupId>io.github.monadrome</groupId>
   <artifactId>parallel-in-scope</artifactId>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
 </dependency>
 ```
 

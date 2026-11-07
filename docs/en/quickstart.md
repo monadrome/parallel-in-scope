@@ -1,4 +1,4 @@
-<!-- docs-version: 0.4.0 -->
+<!-- docs-version: 0.4.1 -->
 
 # 5-Minute Quickstart
 
@@ -8,7 +8,7 @@ Add the release dependency to a new Maven project:
 <dependency>
   <groupId>io.github.monadrome</groupId>
   <artifactId>parallel-in-scope</artifactId>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
 </dependency>
 ```
 

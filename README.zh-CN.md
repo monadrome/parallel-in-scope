@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 [![交互式演示](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
-> 最新稳定版：`0.4.0`。本版本新增类型化任务 key、请求级取消、在途 future 收养和运行时诊断。
+> 最新稳定版：`0.4.1`。本版本新增类型化任务 key、请求级取消、在途 future 收养和运行时诊断。
 > 从 `0.3.x` 升级请先阅读 [v0.4 迁移指南](docs/zh/migration-v0.4.md)。
 
 面向 Java 8+ 的结构化并发工具包，提供协作式取消、快速失败、上下文传播、滑动窗口调度和线程池死锁与饥饿诊断。
@@ -31,7 +31,7 @@
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
 </dependency>
 ```
 
@@ -110,7 +110,7 @@ Profile value = profile.terminalValueOrThrow();
 
 `runAll()` 一次性消费声明并返回冻结结果，没有需要关闭的句柄。首个成员失败会取消其余成员，
 成员超时则取消整个组。批次的聚合读取在 0.4.0 中改为非受检，组的聚合读取在 0.3.x 本就是非受检；参见
-[v0.4 迁移指南](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/docs/zh/migration-v0.4.md)。
+[v0.4 迁移指南](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/docs/zh/migration-v0.4.md)。
 
 仍在使用稳定版 `0.2.0`？它的 API 不同（`GlobalPar` / `ParName`），请参阅
 [v0.2.0 使用指南](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/zh/user-guide.md)。
@@ -131,12 +131,12 @@ Profile value = profile.terminalValueOrThrow();
 |---|---|
 | [在线文档](https://monadrome.github.io/parallel-in-scope/) | 已发布版本的使用指南 |
 | [交互式演示](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | 单文件动画演示四条核心语义 |
-| [稳定版中文文档](https://monadrome.github.io/parallel-in-scope/zh/) | `0.4.0` 发布线指南 |
-| [v0.4 文档源码](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/zh) | 发布版冻结源码 |
-| [0.4 中文文档](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/zh) | `0.4.0` 发布线指南 |
+| [稳定版中文文档](https://monadrome.github.io/parallel-in-scope/zh/) | `0.4.1` 发布线指南 |
+| [v0.4 文档源码](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/docs/zh) | 发布版冻结源码 |
+| [0.4 中文文档](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/docs/zh) | `0.4.1` 发布线指南 |
 | [English documentation](https://monadrome.github.io/parallel-in-scope/) | 英文稳定版入口 |
-| [示例项目](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/demo) | 可运行示例与文章目录 |
-| [集成示例](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/integrations) | 0.4.0：Resilience4j、Sentinel、Spring 独立示例 |
+| [示例项目](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/demo) | 可运行示例与文章目录 |
+| [集成示例](https://github.com/monadrome/parallel-in-scope/tree/v0.4.1/integrations) | 0.4.1：Resilience4j、Sentinel、Spring 独立示例 |
 
 ## 兼容性与构建
 

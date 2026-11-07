@@ -16,6 +16,12 @@
       "kind": "toolchain",
       "component": "Maven",
       "reason": "runner default accepted; pinning deferred"
+    },
+    {
+      "kind": "maven-dependency",
+      "component": "org.springframework:spring-context",
+      "module": "integrations",
+      "reason": "Java 8 integration baseline requires Spring 5.3.x. Spring 5.3.40-5.3.43 are not published to Maven Central; GHSA-4gc7-5j7h-4qph (CVE-2024-38820) and GHSA-4wp7-92pw-q264 (CVE-2025-22233) remain documented exceptions pending an available Java 8-compatible fixed artifact. Upstream support and version guidance: https://github.com/spring-projects/spring-framework/wiki/Spring-Framework-Versions"
     }
   ]
 }

@@ -16,3 +16,7 @@ jobs:
 
       - name: Dependency review
         uses: actions/dependency-review-action@v5
+        with:
+          # Spring 5.3.39 is the latest Java 8-compatible artifact available on Maven Central.
+          # The fixed 5.3.40-5.3.43 artifacts are unavailable; see scripts/dependency-audit-exceptions.json.
+          allow-ghsas: GHSA-4gc7-5j7h-4qph, GHSA-4wp7-92pw-q264
