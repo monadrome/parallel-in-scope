@@ -1,0 +1,19 @@
+.github/workflows/release.yml
+  s_8029e92a443aa7::t_3bcb7b65205537 119-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a7b9dd178e916ccca826361c208aca170409c318",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
