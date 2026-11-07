@@ -2,11 +2,25 @@ version: 2
 updates:
   - package-ecosystem: maven
     directory: /
+    target-branch: dev/v0.5.0
+    schedule:
+      interval: daily
+      time: "02:00"
+  - package-ecosystem: maven
+    directory: /demo
+    target-branch: dev/v0.5.0
+    schedule:
+      interval: daily
+      time: "02:00"
+  - package-ecosystem: maven
+    directory: /verification/maven-central-consumer
+    target-branch: dev/v0.5.0
     schedule:
       interval: daily
       time: "02:00"
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev/v0.5.0
     schedule:
       interval: daily
       time: "02:00"
