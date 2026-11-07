@@ -105,6 +105,16 @@ class RepoGateTest(unittest.TestCase):
         self.assertEqual(gate.status, "fail")
         self.assertEqual(run_logged.call_args.args[0][:2], [sys.executable, str(script)])
 
+    def test_failed_verification_does_not_start_race_claims(self):
+        self.commit("src/main/java/a/B.java", "class B {}\n")
+        scratch = Path(self.tmp.name) / "scratch"
+        failed = [gates.Gate("spotless", "pass"), gates.Gate("verify", "fail", "compile failed")]
+        with mock.patch.object(gates, "fresh_verify", return_value=failed), \
+             mock.patch.object(gates, "race_claims") as race:
+            result = gates.run_all(self.repo, self.base, "bug", scratch, scratch / "logs", "", 1, check_pit=False)[0]
+        self.assertIn(("verify", "fail"), [(gate.name, gate.status) for gate in result])
+        race.assert_not_called()
+
 
 class ReverseVerifyTest(unittest.TestCase):
     def test_classification(self):

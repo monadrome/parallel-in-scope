@@ -208,8 +208,10 @@ def run_all(
     gates = [Gate("diff-policy", "pass", "; ".join(human)), scan]
     if any(p.startswith(BUILD_INPUTS) for _, p in entries):
         verify_workdir = scratch / "verify"
-        gates += fresh_verify(clone, verify_workdir, logs, java_home, timeout_min)
-        gates.append(race_claims(verify_workdir, logs, timeout_min))
+        verification = fresh_verify(clone, verify_workdir, logs, java_home, timeout_min)
+        gates += verification
+        if all(g.status == "pass" for g in verification):
+            gates.append(race_claims(verify_workdir, logs, timeout_min))
     gates.append(repo_checks(clone, logs))
     if issue_type == "bug":
         gates.append(reverse_verify(clone, base_sha, entries, scratch / "reverse", logs, java_home, timeout_min))
