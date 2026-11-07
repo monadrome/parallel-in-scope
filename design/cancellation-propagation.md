@@ -2,6 +2,7 @@
 
 > `CancellationToken.bind` 的正确性依赖一组 Guava 取消传播语义，这些语义并不直观。
 > 本文记录这套机制与正确用法。全部结论对 `guava-33.6.0-jre` 源码逐条验证过，每节附源码位置。
+> 取消机制各层如何衔接、各问题归哪份契约，见 [取消机制总览](cancellation-model.md)。
 
 ## 1. 当前 bind 形态
 
@@ -26,7 +27,7 @@ public <T> void bind(
         // 静默丢弃存活 deadline 违背超时契约（§5.2）。
         @Nullable ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
             transitionTo(TIMEOUT);
-            cancelBoundWork(allFutures); // uses the winning token's interrupt intent
+            cancelBoundWork(allFutures); // always cancel(true): every cancellation interrupts
         }, remaining);
         // token 以任何路径终态都会完成 futureToken，在那里取消已调度的任务，
         // 避免共享 timer 把一个已终态 token 保留到 deadline；吸收路径返回 null，无事可挂。
@@ -133,25 +134,32 @@ fallback 里的任何逻辑在这条路径上都是死代码。
 - `maybePropagateCancellationTo`: `related.cancel(wasInterrupted())` — 链式传播不丢中断位
 - `AggregateFuture.afterDone` 级联 inputs 用 `wasInterrupted()`
 - `allAsList` 对 cancelled input 的自我取消用 `cancel(false)`——那是「以取消完成」的语义，不是「要求取消」，不该带中断
-- `cancel(false)` 契约：级联照常，但运行中任务不被中断（有测试钉死此行为）
+- `cancel(false)` 契约：级联照常，但运行中任务不被中断。本库的取消路径不使用它（§5.1），
+  只在「以取消完成」的镜像与组合器内部出现
 
-## 5.1 中断意图沿 token 树传播
+## 5.1 框架取消一律中断
 
-`CancellationToken` 用单个 `AtomicReference<Decision>` 原子发布终态：不可变的 `Decision`
-同时携带 state 与 interrupt 意图，`transitionTo` 的一次 CAS 同时提交两者，状态监听在
-CAS 成功之后才运行。只有显式 `cancel(false)` 记 `false`；TIMEOUT、FAIL_FAST 始终保持
-`true`，因为它们的活性依赖中断。这样就不存在「状态已提交、意图尚未写入」的观察窗——
-状态监听可以同步引发业务回调（例如让触发 future 失败），该回调的级联取消读到的一定是
-同一终态的意图，而不会因意图写入滞后把 `cancel(false)` 升级为中断。
+MUST：框架发起的每一次取消——deadline、fail-fast、显式与请求来源取消、祖先传播——都以
+`cancel(true)` 取消绑定工作并中断运行中的执行。token 不记录中断意图：终态只有 state，
+`transitionTo` 以一次 `compareAndSet(RUNNING, terminal)` 提交，状态监听在 CAS 成功之后才运行。
+`ParentLink.parentFinished()` 先提交子的 `PROPAGATED_CANCELLED`，再以 `cancel(true)` 取消子的
+`futureToken`；级联取消统一走 `cancelBoundWork`，对 `allFutures` 调用 `cancel(true)`。first-wins
+不变：已终态的子不受父取消影响，输掉 first-wins 的回调仍无条件级联（§7 第 5 条）。
 
-`ParentLink.parentFinished()` 读父 decision 的意图，并以同一意图原子提交子的
-`PROPAGATED_CANCELLED`——意图与状态一起 CAS，之后才取消子的 `futureToken`，子的终态
-完成是下一代 listener 的观察点。因此 `cancel(false)` 的不中断策略沿整棵树逐代保留；
-first-wins 不变：已终态的子不受父取消影响。
+MUST NOT：不提供不中断的取消入口，公开 `cancelOn` 也不接收中断参数。
 
-级联取消统一走 `cancelBoundWork`：读当前 winning decision 的意图后取消 `allFutures`。
-first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之后运行）保留已提交
-的意图，不再升级为 `true`。
+依据：是否能承受中断是执行的性质，取消来源不知道；deadline 与 fail-fast 的活性依赖中断，
+因此只在某一个来源上关闭中断只能半覆盖，怕中断的执行仍会被另外三个来源中断。取消时结果
+已经落定，不中断只会让线程多占用一段时间，执行迟到的值无人读取。
+
+被否决：保留 `cancelOn(signal, boolean interrupt)` 与 token 中的中断意图（`Decision` 同时发布
+state 与意图、意图沿父链传播、输家不得升级意图）——只给一个来源提供半覆盖的保护，却要求内核
+维护整套意图不变量；作用域或成员级「不中断」政策——需要对四个来源同时生效并削弱 deadline
+的活性，没有真实需求前不引入。重开条件：出现真实需求，且新设计对全部取消来源一致生效。
+
+不视为缺陷：输掉 first-wins 的转换再取消一次 `futureToken`——对已终态 future 的取消是 no-op，其值从不被读取，
+父传播与 timer 撤销都重读 state；被收养成员的镜像不会从外部以 `cancel(false)` 取消——公开面没有成员句柄，
+被收养成员也不交给执行器。
 
 ## 5.2 截止时钟域（内部时间缝）
 
@@ -165,7 +173,7 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
   `timeoutScheduler()`（同一个测试缝的两半，包内 Builder 钩子，不是公开 SPI，替换时必须
   成对）取得两者；子 token 与父 token 继承同一个调度器。bind 优先使用 token 树携带的域
   调度器，形参 scheduler 只是无运行时缝的 token 的兜底——否则嵌套单元的 deadline 会带着
-  虚拟域的延迟值坐上子运行时的真实调度器，受控时间下永不触发。  例外配对：域调度器所属的祖先 runtime 可能已关闭（被取消的 body 仍在运行并向其他
+  虚拟域的延迟值坐上子运行时的真实调度器，受控时间下永不触发。  例外配对：域调度器所属的祖先 runtime 可能已关闭（被取消的执行仍在运行并向其他
   runtime 嵌套提交），其调度器拒绝新任务；此时 bind 回退到调用方的存活 scheduler 来布防
   deadline——祖先在真实时钟上退役时延迟值仍有效，手动时钟退役后本不会再前进，回退不会
   更晚触发。
@@ -185,8 +193,55 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
   timer，取父域只是不让配对规则出现例外。
 - 有界清理等待与观测时间戳（submitTime/start/end、报告时间）MUST 保持真实时钟：它们是跨线程
   的真实时间观测，虚拟时钟只管辖 deadline 的判定与调度，不伪造等待的流逝。
-- 虚拟时间不运行真实 worker：body 的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
+- 虚拟时间不运行真实 worker：执行的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
   交错测试（gate/latch）照旧，不被时间缝取代。
+
+## 5.3 token 是包私有内核类型
+
+`CancellationToken` 与 `CancellationToken.State` MUST 保持包私有：没有公开成员接收或返回 token，
+用户自建的 token 不会接入任何执行（无调度器、deadline 不触发、`cancel()` 无作用对象），公开它只会制造
+「手里有取消句柄」的错觉。公开归因词汇 MUST 只有 `TaskOutcome`；公开 javadoc 与用户文档 MUST NOT 链接或
+教授 token。外部取消一次运行 MUST 通过 §5.4 的显式取消输入接入已有执行 token，MUST NOT 重新公开
+token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
+公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、
+deadline、bind 与归因状态机）。历史来源：`proposal:P0025`（internal-cancellation-token）。
+
+## 5.4 显式请求取消输入
+
+`BatchOptions.cancelOn(ListenableFuture<?> signal)` 与
+`GroupStart.cancelOn(ListenableFuture<?> signal)` 把请求断开等外部事件接入
+现有执行 token。它们只表达作用域级取消；`TaskOptions` MUST NOT 增加同名能力，以免在成员上
+制造第二套政策与归因表面。声明只保存来源，MUST NOT 创建运行状态或注册监听。
+
+- 来源以成功、失败或取消中的任一方式完成时，MUST 调用现有执行 token 的 `CANCELLED` 路径，
+  像其他取消来源一样中断运行中的执行（§5.1）。MUST NOT 完成或反向取消用户所有的来源。
+  不新增 parent 树、请求作用域或公共取消句柄。
+- 全部准备成功后、token bind 与任何提交之前 MUST 完成注册；组路径先经过空组捷径。先安装可切断的
+  持有者，再调用 `signal.addListener(..., directExecutor())`，使已完成来源的同步回调先于任何
+  inline 执行生效。准备失败 MUST NOT 留下监听；注册后准入失败 MUST 切断持有者并保持原异常行为。
+- 执行 token 的任一终态 MUST 确定性地切断来源到执行的引用。来源监听只到达持有间接取消动作的
+  持有者；终态清空该动作后，不得再直接保留执行 token、运行 future 或结果。MUST NOT 用
+  `WeakReference` 代替显式切断。一个来源跨多次执行复用时，每次准入有独立持有者与生命周期。
+- 来源先赢时沿用 `CANCELLED -> GROUP_CANCELLED` 归因；与祖先、deadline、fail-fast 的竞态继续
+  first-wins。
+- 空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 的空输入拒绝保持不变。
+  同步出口、有界清理与执行退出确认保持不变；中断是协作信号，MUST NOT 宣称任意 HTTP/JDBC IO
+  或用户代码已经停止。
+
+被否决的替代方向：重新公开 token 或新增公共 `CancellationSource`（重复概念并暴露内部状态机）；
+接收 `CompletionStage`（形成第二套 future 体系）；ambient `RequestScope` 或第二棵 parent 树
+（增加归因与封口协议）；要求 immutable options 自动清空来源（来源字段本来就随请求寿命持有）。
+历史来源：`proposal:P0001`；中断参数的移除见 §5.1。
+
+评审中驳回的主张（2026-11-04，§5.1 中断意图移除的三轮评审）：要求统计终态竞争输家的第二次
+取消——输家只多调用一次 `futureToken.cancel(true)`，该 future 的值从不被读取，其监听（父传播、timer
+撤销）都重读 state，SUCCESS 已提交时父传播是 no-op，与不调用等价；要求被收养成员支持 `cancel(false)`——
+公开面没有成员句柄，被收养成员也不交给执行器，不存在可选择的中断意图。更早的时钟域评审驳回过
+「普通 bound 直消或父传 `cancel(false)` 一律升级为 `true`」：Guava 沿 futureToken→allAsList 链先以
+`wasInterrupted()=false` 取消输入，聚合回调的 `cancel(true)` 落在已终态 future 上是 no-op，反向验证
+在旧代码下全部通过；该区分随 §5.1 的意图移除失去对象，不重提。同轮还驳回「combine 超时回归须断言
+token 归因」：评审的故障注入直接把批次决定写成 `TIMEOUT`，生产路径不可达（只有 timer 能提交
+`TIMEOUT`），而业务 `TimeoutException` 按契约恒为 `USER_FAILURE`，与 token 状态无关。
 
 ## 6. 速查表
 
@@ -205,11 +260,9 @@ first-wins 输家路径（TIMEOUT/FAIL_FAST 回调在显式 `cancel(false)` 之�
 2. **统一取消句柄选还 pending 的组合 future（`successfulAsList`）**，不要选会提前终态的（`allAsList`）。
 3. **归因不靠猜**：`isCancelled()` 事后看不出谁取消的。token 状态机先 CAS 再执行取消动作，观察者读状态即可归因（`CancellationToken.transitionTo` 的 CAS-notify-cancel 顺序）。
 4. 链式简洁是有代价的：每层组合器对取消的处理不同，重写前先核对 §6 的表格。
-5. **onFailure 里的取消动作无条件执行，但保留中断意图**：转换输掉 first-wins（例如显式
-   cancel 已先提交 CANCELLED）时，业务回调仍是到达 submitCanceller 的唯一路径；对已终态
-   future 的 cancel 是 no-op，所以重复级联无害，跳过才会漏取消。`cancelBoundWork` 传入
-   token 已记录的 intent：TIMEOUT/FAIL_FAST 使用 true，显式 `cancel(false)` 及其父级传播
-   使用 false。无条件表示“仍然级联”，不表示“总是 interrupt”。
+5. **onFailure 里的取消动作无条件执行**：转换输掉 first-wins（例如显式 cancel 已先提交
+   CANCELLED）时，业务回调仍是到达 submitCanceller 的唯一路径；对已终态 future 的 cancel 是
+   no-op，所以重复级联无害，跳过才会漏取消。`cancelBoundWork` 总是 `cancel(true)`（§5.1）。
 
 ## 8. 父监听的终态切断（结果保留契约）
 

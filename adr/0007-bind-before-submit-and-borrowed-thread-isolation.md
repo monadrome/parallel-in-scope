@@ -5,6 +5,16 @@
 - Decision scope: batch admission handles, cancellation-wiring order, and thread state on inline execution
 - Supersedes: [ADR 0002](0002-separate-task-execution-and-future-lifecycle.md), placeholder admission and late binding only
 
+> Note (2026-10-27): two facts in the context below changed after this decision; the decision
+> holds for both, as it was written to. The `runOnCallerThread` option was removed before 0.3.0,
+> so inline execution now comes from the user's executor, such as a `CallerRunsPolicy` or a direct
+> executor service, and the interrupt-loss limit is documented in the user guide rather than on that
+> option. The sliding-window refill no longer runs on a library submitter thread: the listener of the
+> completing element claims and hands
+> off the next one ([sliding-window refill](../design/sliding-window-refill.md)), so the
+> borrowed threads are the caller's, the completing thread, and any thread a rejection handler
+> borrows. Isolation in the Future's run method covers each of them unchanged.
+
 ## Context
 
 [ADR 0002](0002-separate-task-execution-and-future-lifecycle.md) separated task
@@ -76,7 +86,7 @@ rest. Settlement SHALL therefore claim every affected element — recording its
 attribution and publishing its observation — before settling any of them, and
 an element's recorded submission failure SHALL outrank the Future's own state
 when the two disagree. The externally visible contract recorded in
-[decision-log.md](../design/decision-log.md) (batch submission failure semantics entry)
+[decision-log.md](../design/decision-log.md) ("Submission failures end the affected futures")
 is unchanged; only the mechanism that upholds it is.
 
 **Borrowed-thread isolation.** A prepared Future SHALL clear the interrupt flag
@@ -112,7 +122,7 @@ thread.** Rejected as a change of meaning rather than a fix. The option's purpos
 is to run the body on the submitting thread as back-pressure; moving it
 elsewhere deletes the option under the guise of repairing it. Removing the
 option outright remains open, and is tracked in
-[decision-log.md](../design/decision-log.md) (caller-runs support after inline deletion entry);
+[decision-log.md](../design/decision-log.md) ("Executor rejection belongs to the executor");
 this decision deliberately holds whether or not that removal lands, because a
 user-configured `CallerRunsPolicy` reaches the same code with no library option
 involved.
