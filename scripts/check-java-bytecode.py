@@ -61,8 +61,16 @@ def main() -> int:
 
     failures = []
     class_files = sorted(args.classes.rglob("*.class"))
+    if not class_files:
+        print(f"class directory contains no class files: {args.classes}", file=sys.stderr)
+        return 2
+
     for path in class_files:
-        actual = class_major(path)
+        try:
+            actual = class_major(path)
+        except (OSError, ValueError) as error:
+            print(f"cannot read class file {path}: {error}", file=sys.stderr)
+            return 2
         if actual != expected:
             failures.append((path, actual))
 
