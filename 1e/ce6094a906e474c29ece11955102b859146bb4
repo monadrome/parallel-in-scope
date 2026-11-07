@@ -1,0 +1,19 @@
+verification/race-claims/claims.json
+  s_44e518d835c1aa::t_07dd9668c64f53 90,93,99,103-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1ece6094a906e474c29ece11955102b859146bb4",
+  "prompts": {},
+  "sessions": {
+    "s_44e518d835c1aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b5f4-3092-7953-9a4c-c21b448c3d3c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
