@@ -118,6 +118,15 @@ class RepoGateTest(unittest.TestCase):
         self.assertEqual(gate.status, "fail")
         self.assertEqual(run_logged.call_args.args[0][:2], [sys.executable, str(script)])
 
+    def test_race_claims_timeout_is_a_failure(self):
+        script = self.repo / "scripts/check-race-claims.py"
+        script.parent.mkdir()
+        script.write_text("# harness\n")
+        with mock.patch.object(gates, "run_logged", side_effect=subprocess.TimeoutExpired("race", 60)):
+            gate = gates.race_claims(self.repo, Path(self.tmp.name) / "logs", 1)
+        self.assertEqual(gate.status, "fail")
+        self.assertIn("exceeded", gate.detail)
+
     def test_failed_verification_does_not_start_race_claims(self):
         self.commit("src/main/java/a/B.java", "class B {}\n")
         scratch = Path(self.tmp.name) / "scratch"
