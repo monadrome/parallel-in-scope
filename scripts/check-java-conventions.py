@@ -19,7 +19,7 @@ and normalized source text, and a key fails only when the head holds it more tim
 the base. An unchanged pre-existing violation therefore passes wherever it moves, while a
 newly added duplicate of it fails.
 
-The base is a git revision (default: the merge base of origin/dev/v0.4.0 and HEAD),
+The base is a git revision (default: the merge base of the newest origin/dev/vX.Y.Z ref and HEAD),
 extracted with `git archive`, or a directory given by --base-root. The head is the working
 tree's src/main/java unless --head-root names another directory. Violations print as
 `path:line: rule: message`. Exit status: 0 pass, 1 new violations, 2 the check could not run.
@@ -41,7 +41,7 @@ from typing import Iterable, Iterator, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = "src/main/java"
-DEFAULT_UPSTREAM = "origin/dev/v0.4.0"
+DEV_LINE = re.compile(r"^origin/dev/v(?P<major>\d+)\.(?P<minor>\d+)$")
 # The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
 EXCLUDED_PREFIXES = ("io/github/monadrome/parallelinscope/queue/",)
 
@@ -484,7 +484,16 @@ def git(*args: str) -> bytes:
 
 
 def default_base() -> str:
-    return git("merge-base", DEFAULT_UPSTREAM, "HEAD").decode().strip()
+    refs = git("for-each-ref", "--format=%(refname:strip=2)", "refs/remotes/origin/dev/v*").decode().splitlines()
+    candidates = []
+    for ref in refs:
+        match = DEV_LINE.match(ref)
+        if match:
+            candidates.append(((int(match.group("major")), int(match.group("minor"))), ref))
+    if not candidates:
+        raise CheckError("no origin/dev/vX.Y.Z ref is available; pass --base explicitly")
+    upstream = max(candidates)[1]
+    return git("merge-base", upstream, "HEAD").decode().strip()
 
 
 def extract_base(revision: str, target: Path) -> Path:
@@ -507,7 +516,7 @@ def revision_argument(value: str) -> str:
 def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     base = parser.add_mutually_exclusive_group()
-    base.add_argument("--base", type=revision_argument, help=f"base revision (default: merge base of {DEFAULT_UPSTREAM} and HEAD)")
+    base.add_argument("--base", type=revision_argument, help="base revision (default: merge base of the newest origin/dev/vX.Y.Z ref and HEAD)")
     base.add_argument("--base-root", type=Path, help="base source root directory, instead of a git revision")
     parser.add_argument("--head-root", type=Path, default=ROOT / SOURCE_DIR, help=f"head source root (default: {SOURCE_DIR})")
     return parser.parse_args(argv)
