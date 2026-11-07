@@ -25,10 +25,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import signal
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,8 +47,73 @@ MAX_LOG_BYTES = 200_000
 BROKEN_RESULTS = frozenset({"INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT"})
 
 
+def _group_exists(pid: int) -> bool:
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _kill_group(process: subprocess.Popen[str], grace: float = 1.0) -> None:
+    def group_exists() -> bool:
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    if not group_exists():
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        pass
+    try:
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline and group_exists():
+            time.sleep(0.05)
+    except subprocess.TimeoutExpired:
+        pass
+    if group_exists():
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+    try:
+        process.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
 def run(command: list[str], cwd: Path, timeout: int = DEFAULT_TIMEOUT):
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, timeout=timeout)
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    deadline = time.monotonic() + timeout
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        _kill_group(process)
+        try:
+            stdout, stderr = process.communicate(timeout=1)
+        except subprocess.TimeoutExpired as drained:
+            stdout = drained.stdout or exc.output or ""
+            stderr = drained.stderr or exc.stderr or ""
+        raise subprocess.TimeoutExpired(command, timeout, output=stdout, stderr=stderr)
+    if _group_exists(process.pid):
+        _kill_group(process)
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
 def run_tests(cwd: Path, tests: str, timeout: int):
@@ -194,7 +262,10 @@ def record(results: list[dict], entry: dict) -> None:
     results[:] = [existing for existing in results if existing["id"] != entry["id"]]
     results.append(entry)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    (RESULTS_DIR / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    target = RESULTS_DIR / "results.json"
+    temporary = target.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
+    os.replace(temporary, target)
     print(f"{entry['result']:20s} {entry['id']:45s} {entry['note']}", flush=True)
 
 

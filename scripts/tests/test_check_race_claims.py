@@ -9,9 +9,11 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -128,6 +130,37 @@ class ExitCodeTest(unittest.TestCase):
                 with contextlib.redirect_stderr(io.StringIO()) as stderr:
                     self.assertEqual(race.exit_code(entries), 1)
                 self.assertIn("bad", stderr.getvalue())
+
+
+class ProcessCleanupTest(unittest.TestCase):
+    def test_normal_command_returns_completed_process(self):
+        result = race.run([sys.executable, "-c", "print('ok')"], Path.cwd(), timeout=5)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "ok")
+
+    def test_timeout_kills_descendants_even_after_group_leader_exits(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = root / "parent.py"
+            script.write_text(
+                "import pathlib, signal, subprocess, sys, time\n"
+                "child = subprocess.Popen([sys.executable, '-c', "
+                "'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'])\n"
+                "pathlib.Path(sys.argv[1]).write_text(str(child.pid))\n"
+                "time.sleep(60)\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(subprocess.TimeoutExpired):
+                race.run([sys.executable, str(script), str(root / "child.pid")], root, timeout=0.2)
+            child_pid = int((root / "child.pid").read_text(encoding="utf-8"))
+            for _ in range(20):
+                try:
+                    os.kill(child_pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.05)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
 
 
 class RegistryTest(unittest.TestCase):
