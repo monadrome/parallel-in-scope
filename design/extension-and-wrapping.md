@@ -225,6 +225,25 @@ for (TaskCompletion<T> event : batch.completions()) {
 
 需要跨线程组合时才对 `ImmediateResult.asFuture()` 自行注册 callback；同步出口本身不提供运行中回调。
 
+### 5.4.1 注册时上下文的直接回调
+
+Guava 的 `MoreExecutors.directExecutor()` 在调用 `execute` 的线程 inline 执行 listener；对异步 future，
+该线程通常是完成线程，因而不会保留 listener 注册线程的 TTL。应用需要这个语义时，可在注册点创建
+`ContextExecutors.directExecutor()`：
+
+```java
+Executor listenerExecutor = ContextExecutors.directExecutor();
+future.addListener(listener, listenerExecutor);
+```
+
+该 executor 在创建时捕获 TTL 快照，每次命令执行前 replay，结束后 restore 执行线程原值，并继续保持
+direct executor 的同步执行特性。每个请求上下文 MUST 创建独立实例；同一请求的 listener 可以复用实例。
+在 `execute` 内调用 `TtlRunnable.get` 被排除，因为捕获时机已经落在完成线程；全局单例也被排除，因为会
+长期持有请求上下文。该 API 只覆盖应用 callback，不替换库内部的框架 direct callbacks，避免把应用上下文
+扩大到 future 记账和完成通知。
+
+此规则承接 proposal:P0039。
+
 ### 5.5 重试
 
 ```java

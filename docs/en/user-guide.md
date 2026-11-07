@@ -841,6 +841,23 @@ TaskBatchResult<Account> batch = MdcBridge.withFields(
 When the fields already live in a TTL the application sets — in a filter, before this library is
 involved — the capture is automatic and only `inExecution` is needed inside executions.
 
+### Direct callbacks with the registration context
+
+Guava's `MoreExecutors.directExecutor()` runs a listener on whichever thread completes the future. It
+does not retain the TTL context from the thread that registered the listener. When that registration
+context matters, create a direct executor at the registration point:
+
+```java
+Executor listenerExecutor = ContextExecutors.directExecutor();
+future.addListener(listener, listenerExecutor);
+```
+
+`ContextExecutors.directExecutor()` captures the current TTL context when it is created, replays it around
+each inline command, and restores the completion thread's previous values afterwards. Create a separate
+instance for each request context; it is reusable for listeners belonging to that same context. Wrapping
+`MoreExecutors.directExecutor()` with a TTL executor is insufficient here because the wrapper captures when
+the future completes, which is too late.
+
 This covers library-managed work only. The library performs the TTL capture and restore around each
 task, so these executions need no TTL agent; code on the same pool that submits directly, outside this
 library, still has to wrap TTL itself. Saving and restoring both values also preserves enclosing
