@@ -27,6 +27,8 @@ Guava `ListenableFuture` and Alibaba `TransmittableThreadLocal`.
   `main` -- a maintainer action outside the development line. A matching
   `v0.5.0-SNAPSHOT` tag remains the manual publication path that bypasses this
   date gate; snapshot tags never create a GitHub Release.
+- Dependabot reads `.github/dependabot.yml` from the default branch. Sync that
+  file to `main` as a maintainer action; its update entries target `dev/v0.5.0`.
 
 ## Commands
 
