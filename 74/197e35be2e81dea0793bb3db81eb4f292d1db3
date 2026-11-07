@@ -1,0 +1,19 @@
+.gitignore
+  s_48260ba9ae4967::t_9da072c8652703 40-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "74197e35be2e81dea0793bb3db81eb4f292d1db3",
+  "prompts": {},
+  "sessions": {
+    "s_48260ba9ae4967": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e786c8b-d866-4d0d-811a-52eb7c68e4dc",
+        "model": "deepseek-v4-1-flash-261017"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
