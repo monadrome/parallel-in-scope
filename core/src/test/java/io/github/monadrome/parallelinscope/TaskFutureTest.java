@@ -87,7 +87,7 @@ class TaskFutureTest {
                                     .parallelism(2)
                                     .taskType(TaskType.BLOCKING));
 
-            assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
+            assertThat(batch.results()).hasSize(2);
             for (TaskFuture<String> element : batch.results()) {
                 assertThat(element.taskName()).isEqualTo("rejected");
                 assertThat(element.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
