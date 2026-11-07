@@ -27,7 +27,7 @@ account-page group
   （成员声明即携带本次 `Callable`），`runAll()` 在唯一的提交时点统一冻结并同步执行至完成；
 - 组级 deadline、取消和默认 fail-fast；
 - 每个成员独立选择已经注册的 `Par`（声明期解析并绑定到 owner）；
-- 类型安全的成员值视图（`GroupValues`/`Tuple2`，按名/按位置的 `TypeToken` 精确匹配查询）；
+- 类型安全的成员值视图（`GroupValues`/`Tuple2`，按原 `TaskKey<T>` 查询；名称/位置查询未类型化）；
 - 所有冻结成员的最终收敛结果和组级 telemetry；
 - 与现有单任务执行、取消、队列清理和观测能力复用。
 
@@ -52,7 +52,7 @@ account-page group
 | executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
 | 调度 | `SlidingWindowSubmitter` 滑动窗口 | submit 时为全部成员准备后逐一独立提交 |
 | 完成 | 固定 futures 全部终态 | submit 时冻结的全部成员终态 |
-| 关系 | 嵌套 Batch 可以形成 TaskGraph 依赖边 | membership 本身不是依赖边 |
+| 关系 | 嵌套 Batch 可以形成执行器等待 | membership 本身不是等待 |
 
 Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外暴露 `TaskBatchResult<Object>`。
 
@@ -76,15 +76,16 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 
 | 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
 |---|---|---|---|
-| `BatchOptions` | `Par.map(..., options)` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace | 批次 unit 解析、滑动窗口并发上限、`SmartBlockingQueue` 入队拒绝、有界清理预算 |
-| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`SmartBlockingQueue` 入队拒绝 |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SmartBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
+| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SmartBlockingQueue` 入队拒绝 |
 
 > 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
 > `RejectedExecutionHandler`）；本节其余字段划分不受影响。
 
 组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `ParRuntime.group(name,
-timeout)`/`ParRuntime.groupInheriting(name)` 入口承担，close grace 由
-`GroupStart.closeGrace(Duration)` 承担（必须在首个 `par` 之前设置）。
+timeout)`/`ParRuntime.groupInheriting(name)` 入口承担，close grace 与请求取消分别由
+`GroupStart.closeGrace(Duration)`、`GroupStart.cancelOn(ListenableFuture<?>)` 承担，
+两者都必须在首个 `par` 之前声明。
 
 ```java
 public final class TaskOptions {
@@ -105,6 +106,7 @@ public final class BatchOptions {
     public BatchOptions taskType(TaskType taskType);
     public BatchOptions rejectEnqueue(boolean rejectEnqueue);
     public BatchOptions closeGrace(Duration closeGrace);
+    public BatchOptions cancelOn(ListenableFuture<?> signal);
 
     public String name();
     public int parallelism();
@@ -132,28 +134,32 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
 状态（遗漏声明是编译错误），两个声明也不可能同时出现（两个工厂都返回终态实例）。这比原先
 "`build()` 时校验二者恰有其一"更强，约束的语义不变。
 
-**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`
-返回新实例，原实例不变；不引入 Builder 与中间可变状态。无参工厂
-（如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
+**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`/
+`closeGrace(...)`/`cancelOn(...)` 返回新实例，原实例不变；不引入 Builder 与中间可变状态。
+无参工厂（如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
+
+请求取消只属于 Batch/Group 作用域：`TaskOptions` MUST NOT 增加 `cancelOn`，否则同一请求会在成员级
+形成第二套中断政策与归因表面。`GroupStart` 的阶段 guard 与创建线程约束同样适用于 `cancelOn`；
+声明期只保存值，准入协议见 [取消传播契约](cancellation-propagation.md) §5.4。历史来源：
+`proposal:P0001`。
 
 语义逐条不变（拆分只改变值的承载类型，不改变任何解析结果或执行行为）：
 
 - name 非空；timeout 为正数，负值或零在工厂期被拒绝；
 - `timeout()` 访问器返回空 `Optional` 表示继承外层 deadline；
 - `groupInheriting` 声明的组要求提交现场存在外层 scoped task，否则提交
-  在运行准备期整体失败（`IllegalArgumentException`，无结果对象，见
-  [decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，增补裁定
-  §19.1，全文见 git 历史 `db2ab2d`）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
+  在运行准备期整体失败（`IllegalArgumentException`，无结果对象；v0.3 重设计的增补裁定，不产生组、future 或 token，也不执行任何代码）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
   timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
 - 成员的诊断名始终取声明名；
-- 成员选项 MAY 省略：不带 options 的 `par(name, par, type, body)` 重载等价于传
+- 成员选项 MAY 省略：不带 options 的 `par(key, par, taskCode)` 重载等价于传
   `TaskOptions.inheritTimeout()`。省略不放宽任何约束——成员始终受组 deadline 上界约束，不可能
   因此获得无界执行；这道强制选择已在组级做过且已写明，成员侧的第二次声明在常态下不携带信息。
   需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
 - 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`、嵌套 group）读取
   的是该嵌套提交自己的选项；
-- options 不保存运行状态，可安全复用；组完成观测由 `runAll()` 的同步返回承担，不存在
-  组完成回调的注册入口，options 也不承担回调注册；
+- options 不保存运行状态，可安全复用；带请求来源的 options 会按设计持有该来源，因而具有请求寿命，
+  不要求执行后自动清空。组完成观测由 `runAll()` 的同步返回承担，不存在组完成回调的注册入口，
+  options 也不承担回调注册；
 - 校验时机：`Par` 在声明期解析——草稿保存已解析的 owner-bound `Par`，不存在
   "submit 时才按注册名解析 executor"的路径，Par 不属于 owner `ParRuntime` 在声明期即失败；
   现场相关校验（inherit deadline 是否存在）仍留在提交时。
@@ -161,8 +167,56 @@ product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOption
 **内核对选项类型无感知。** `MultiTaskContext.resolve(...)` MUST NOT 接收公共选项类型；每个
 选项类型提供一个包私有适配方法，把选项折叠成内核载体（name、requestedParallelism、timeout、
 taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取成员声明名，
-requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。签名与三 parent 解耦语义见
+requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求来源不进入 `UnitSpec`，而在
+准入时单独接入执行 token。签名与三 parent 解耦语义见
 [生命周期与状态机 §5](task-group-lifecycle.md)。
+
+#### 3.2.1 `TaskType`：可选诊断声明
+
+`TaskType` 是任务与线程池两侧共用的可选负载声明，取值 `COMPUTE`（主要消耗 CPU，不应在等待中占住
+线程）、`BLOCKING`（任何阶段会阻塞线程：IO、锁、sleep、join、等待其他任务或嵌套批次）、
+`UNKNOWN`（未声明）。单元侧由 `BatchOptions.taskType` / `TaskOptions.taskType` 声明任务代码本身；
+入口侧由 `ParRuntime.Builder.register(ParId, ExecutorService, TaskType)` 声明该入口预期承载的
+任务类型，两参重载等价于 `UNKNOWN`，读取用 `Par.taskType()`。共享同一物理池的多个入口各自保留
+声明。
+
+- `TaskType` MUST NOT 改变准入、入队、拒绝、取消、deadline、归因或任务 outcome。拒绝入队只由
+  `rejectEnqueue` 表达：`SmartBlockingQueue.offer` 只读 `rejectEnqueue`，惰性拒绝告警也只针对
+  `rejectEnqueue`。
+- 两侧缺省 MUST 为 `UNKNOWN`；`UNKNOWN` 可显式书写，表示刻意不声明。嵌套单元 MUST NOT 继承父单元
+  的类型：任务代码里提交的 `Par.map`、嵌套组与 `Par.mapAndCombine` 的终端 combine 都按自己的声明
+  解析，未声明即 `UNKNOWN`。类型描述任务代码本身，继承等于替用户编造声明；终端 combine 同样不请求
+  拒绝入队。
+- **提交时比对。** 每个单元在准入处（批次、单任务、组成员、组 combine）比对入口与单元的声明：
+  两侧都非 `UNKNOWN` 且不同时，按 `(Par, 单元名)` 记录一次；方向不需要单独的键，因为一个入口只有
+  一种声明。`COMPUTE` 入口配 `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。任一侧为 `UNKNOWN`
+  MUST NOT 告警。告警 MUST 只表述"声明不一致"，MUST NOT 表述为已经发生饿死、过订阅或误用。
+- 去重 MUST 以 `ParRuntime` 为作用域并有上限：最多记住 1024 对，从不淘汰。记满后，新对的不一致
+  只在首次记一条汇总告警，此后不再记录；溢出之后 MUST NOT 声称仍能发现所有新单元。不设被压下告警的
+  计数：溢出只在单元名按调用拼接时出现，汇总告警已让它可见（ADR 0010）。
+- 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。日志
+  MUST 在 runtime 自有线程上投递，准入线程 MUST NOT 调用日志 handler：handler 抛异常或阻塞、投递执行器
+  拒绝或无法为投递创建线程（包括 `OutOfMemoryError`），都不能影响准入，只丢失该条日志。各条日志独立投递，
+  可能不按准入顺序出现。
+  惰性拒绝告警同样遵守这一条。
+  运行时侧的低 CPU 筛查见 [负载匹配筛查契约](workload-fit-screening.md)。
+
+被排除的替代方案：
+
+- 保留 `CPU_BOUND` 驱动入队拒绝：诊断标签兼任行为开关，标错一次同时错掉文档和执行语义，用户因此
+  不敢随手声明；用户需要拒绝入队时显式写 `rejectEnqueue(true)`。
+- 保留 `MIXED`：与 `BLOCKING` 在任何检查里等价。
+- 沿用 `CPU_BOUND`/`IO_BOUND` 名称、只改语义：依赖旧拒绝行为的代码会静默改变行为；改名让它编译
+  失败，迁移时必须看一眼。
+- 两侧声明必填：缺省不危险，只是少一项诊断；必填只换来随手乱填。
+- 按池结构（线程数约等于核数、`ForkJoinPool`）推断用途后告警：核数大小的池用于限制下游并发是
+  合理用法，推断出的告警会很吵。
+
+独立评审处置与变异验证记录见 [负载匹配筛查契约](workload-fit-screening.md) 的 Review history 一节。
+决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) 与
+[ADR 0010](../adr/0010-always-on-workload-fit-screening.md)。历史来源：
+`proposal:P0025`（`P0025-workload-fit-diagnostics`；同号的 `P0025-internal-cancellation-token`
+是另一份已落地提案）。
 
 ### 3.3 结果类型
 
@@ -191,7 +245,7 @@ public enum TaskOutcome {
 `TaskGroupResult<V, R>` 的访问器面以
 [同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
 `valuesResult`/`terminalResult`、`valuesOrThrow()`/`terminalValueOrThrow()`、
-`bodyCompletionConfirmed()`/`unfinishedBodies()` 与 `members()`/`terminal()` 快照）。
+`executionExitConfirmed()`/`unexitedExecutions()` 与 `members()`/`terminal()` 快照）。
 
 成员完成快照统一为 `TaskCompletion`（batch 元素与 group 成员共用），字段为
 `taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/`result()`/`failure()`。组结果中的

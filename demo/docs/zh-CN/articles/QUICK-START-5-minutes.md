@@ -1,29 +1,23 @@
-# 5 分钟快速上手 parallel-in-scope
+# 批量调用入门示例
 
+首次使用请先阅读 [5 分钟快速上手](../../../../docs/zh/quickstart.md)。本文是 Demo 的详细入门示例，继续展开依赖、超时、并发度和结果读取。
 
 `parallel-in-scope` 是一个面向 Java 8+ 的结构化并发工具库。它提供滑动窗口并发控制、协作式取消、跨线程上下文传播等能力，让你用最少的代码完成批量并行任务。
 
 ## 1. 添加依赖
 
-`0.3.0` 线当前以 `0.3.0-SNAPSHOT` 发布，快照不在默认 Central 仓库中，需要先声明快照仓库：
+正式版使用 `0.4.0`，可直接从 Maven Central 获取：
 
 ```xml
-<repositories>
-    <repository>
-        <id>central-snapshots</id>
-        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-    </repository>
-</repositories>
-
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-最新的稳定版是 `0.2.0`，但它的 API 与本篇不同（`GlobalPar` / `ParName`）；从 `0.2.x` 升级请先读
-[v0.3 迁移指南](../../../../docs/zh/migration-v0.3.md)。
+从 `0.3.x` 升级请先读
+[v0.4 迁移指南](../../../../docs/zh/migration-v0.4.md)。
 
 ## 2. 最小示例
 
@@ -77,7 +71,7 @@ TaskBatchResult<Integer> result = par.map(numbers, n -> {
 ```
 
 超时后，未完成的任务会被取消：排队中尚未提交的元素直接不执行，正在运行的线程会被 `interrupt()`；
-任务体仍需响应中断，或改用 `Checkpoints.sleep(...)` 这类协作式原语，才能及时退出——
+任务代码仍需响应中断，或改用 `Checkpoints.checkSleep(...)` 这类协作式原语，才能及时退出——
 `Thread.sleep(...)` 之外的不可中断 IO 无法被强行终止。
 
 ## 4. 控制并发度
@@ -111,22 +105,21 @@ for (ImmediateResult<Integer> element : result.results()) {
     System.out.println(value);
 }
 
-// 方式三：结构化报告
-TaskBatchResult.BatchReport batchReport = result.report();
-Map<TaskOutcome, Integer> counts = batchReport.stateCounts(); // {SUCCESS=3}
-Throwable firstError = batchReport.firstException();          // null if all success
+// 方式三：结构化读取
+Map<TaskOutcome, Integer> counts = result.outcomeCounts();                  // {SUCCESS=3}
+Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // 全部成功时为空
 ```
 
 需要知道的一条契约：**批次默认快速失败**。任意元素失败会取消同批其余元素（包括尚未提交的元素），
 因此 `results()` 里可能出现从未执行的 `FAIL_FAST` 元素；逐元素的结论读 `ImmediateResult.outcome()`，
 逐项的 “全部成功才返回” 可以用 `result.valuesOrThrow()`。结果无需关闭。
-`bodyCompletionConfirmed()` 只确认本批直接任务体退出；清理预算耗尽时查看 `unfinishedBodies()`。
+`executionExitConfirmed()` 只确认本批直接执行退出；清理预算耗尽时查看 `unexitedExecutions()`。
 嵌套调用的未退出任务需分别确认。任务内资源用 try-with-resources 关闭。
 应用关闭时调用 `ParRuntime.close()` / `awaitQuiescence(...)`，然后关闭自有线程池。
 
 ## 下一步
 
-- **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.IO_BOUND)`（或 `TaskType.CPU_BOUND`）区分 IO/CPU 任务，框架会自动选择最优调度策略
+- **TaskType**：通过 `BatchOptions.timeout("name", …).taskType(TaskType.BLOCKING)`（或 `TaskType.COMPUTE`）声明任务类型，注册时也可以声明池的用途；它只用于诊断，从不改变入队或调度。需要 `SmartBlockingQueue` 拒绝入队时显式写 `rejectEnqueue(true)`
 - **completions()**：消费可用终态快照；清理预算内尚未完成的项为 null（见 G1）
 - **asFuture()**：把 `ImmediateResult` 适配为已完成、不可取消的 `ListenableFuture`
 - **Checkpoints**：在长任务中插入无参的 `Checkpoints.checkpoint()`，实现细粒度的协作式取消
@@ -135,4 +128,4 @@ Throwable firstError = batchReport.firstException();          // null if all suc
 更多用法请参考项目 README 和 `demo/` 目录下的示例代码。
 
 ---
-> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/QuickStartTest.java)
+> :file_folder: 完整测试代码：[QuickStartTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/QuickStartTest.java)

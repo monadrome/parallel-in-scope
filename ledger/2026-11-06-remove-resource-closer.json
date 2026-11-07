@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-remove-resource-closer",
+  "date": "2026-11-06",
+  "topic": "remove-resource-closer",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: remove adopted-value resource closers",
+      "docs: align adopted execution-exit contract"
+    ],
+    "files": 22,
+    "insertions": 303,
+    "deletions": 1039
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "remove-resource-closer-410a8323-20261107-025504-141b25",
+        "status": "running",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 236727,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 58844,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "claude",
+            "status": "running",
+            "attempts": 2,
+            "durationMs": 0,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 122745,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "running",
+            "attempts": 2,
+            "durationMs": 477818,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 16958,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 58844,
+          "systemsWithUsage": 1,
+          "systemsTotal": 5,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "remove-resource-closer-f027975e-20261107-030735-a582b1",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 86614,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 11950,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 44220,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 11950,
+          "systemsWithUsage": 1,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-remove-resource-closer-2026-11-06",
+        "head": "410a8323efa4cfabba3995014199c1cdb0b62b25",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1,
+      "check-doc-refs.py": 1,
+      "check-api-surface.py": 1,
+      "llm-review-bench build": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-remove-resource-closer/mutations.xml",
+      "statuses": {
+        "KILLED": 377,
+        "NO_COVERAGE": 7,
+        "SURVIVED": 18,
+        "TIMED_OUT": 4
+      },
+      "total": 406,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0099
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Remove adopted-value closers and withdraw P0031; PIT inconclusive with four unattributed timeouts; follow-up review clean, some first-round reviewers failed or were stopped after repeated startup failures."
+}

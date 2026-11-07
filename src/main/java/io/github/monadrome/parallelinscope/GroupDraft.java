@@ -4,12 +4,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.reflect.TypeToken;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,30 +19,34 @@ import org.jspecify.annotations.Nullable;
  * The mutable declaration state behind one fluent group chain, shared by every stage object the
  * chain hands back.
  *
- * <p>Java has no move semantics, so a stage cannot be invalidated by handing off a value: the same
- * {@code GroupDraft} is reachable from every stage object, and each stage carries the sequence
- * number it was minted at. Any mutating or submitting call verifies that the draft is still at that
- * number and then advances it, which is what makes a saved earlier-stage reference, a second
- * submission, or a fork off an old stage fail with {@link IllegalStateException} instead of quietly
- * corrupting the declaration. Compile-time stage separation in the three public interfaces is the
- * ergonomic guard; this is the correctness guard.
- *
- * <p>Declarations are validated as they are made — before any run state exists — and the bodies
+ * <p>Declarations are validated as they are made — before any run state exists — and the executions
  * stay owned by this draft until {@link #submit} moves them into the preparation kernel, which is
  * also where they are released on every failure path.
  *
  * <p>Not thread-safe by construction: it is usable only from its creating thread.
  */
 final class GroupDraft {
+    /*
+     * Java has no move semantics, so a stage cannot be invalidated by handing off a value: the same
+     * GroupDraft is reachable from every stage object, and each stage carries the sequence number
+     * it was minted at. Any mutating or submitting call verifies that the draft is still at that
+     * number and then advances it, which is what makes a saved earlier-stage reference, a second
+     * submission, or a fork off an old stage fail with IllegalStateException instead of quietly
+     * corrupting the declaration. Compile-time stage separation in the three public interfaces is
+     * the ergonomic guard; this is the correctness guard.
+     */
+
     private final ParRuntime owner;
     private final String name;
     private final @Nullable Duration timeout;
     private final Thread ownerThread = Thread.currentThread();
     private final List<MemberDecl> members = new ArrayList<>();
     private final Set<String> seenNames = new HashSet<>();
+    private final Set<ListenableFuture<?>> adoptedSources = Sets.newIdentityHashSet();
 
     private @Nullable CombineDecl combine;
     private @Nullable Duration closeGrace;
+    private @Nullable ListenableFuture<?> cancellationSignal;
     private int stage;
 
     GroupDraft(ParRuntime owner, String name, @Nullable Duration timeout) {
@@ -54,41 +55,52 @@ final class GroupDraft {
         this.timeout = timeout;
     }
 
-    /** One declared plain member; its body is cleared once the kernel takes it or on failure. */
+    /**
+     * One declared plain member: an execution the library runs on {@code par}, or an adopted source whose
+     * optional {@code par} names the producer. The payload is cleared once the kernel takes it.
+     */
     private static final class MemberDecl {
-        final String name;
-        final Par par;
+        final @Nullable Par par;
         final TaskOptions options;
-        final TypeToken<?> type;
+        final TaskKey<?> key;
 
         @Nullable
-        Callable<?> body;
+        Callable<?> taskCode;
 
-        MemberDecl(String name, Par par, TaskOptions options, TypeToken<?> type, Callable<?> body) {
-            this.name = name;
+        @Nullable
+        AdoptedSource adopted;
+
+        MemberDecl(TaskKey<?> key, Par par, TaskOptions options, Callable<?> taskCode) {
+            this.key = key;
             this.par = par;
             this.options = options;
-            this.type = type;
-            this.body = body;
+            this.taskCode = taskCode;
+        }
+
+        MemberDecl(TaskKey<?> key, @Nullable Par producer, AdoptedSource adopted) {
+            this.key = key;
+            this.par = producer;
+            this.options = TaskOptions.inheritTimeout();
+            this.adopted = adopted;
         }
     }
 
-    /** The declared terminal combine; its body is cleared on the same terms as a member's. */
+    /** The declared terminal combine; its execution is cleared on the same terms as a member's. */
     private static final class CombineDecl {
-        final String name;
         final Par par;
         final TaskOptions options;
-        final TypeToken<?> type;
+        final TaskKey<?> key;
+        final boolean valueView;
 
         @Nullable
-        CombineBody<?, ?> body;
+        Combiner<?, ?> combiner;
 
-        CombineDecl(String name, Par par, TaskOptions options, TypeToken<?> type, CombineBody<?, ?> body) {
-            this.name = name;
+        CombineDecl(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
+            this.key = key;
+            this.valueView = valueView;
             this.par = par;
             this.options = options;
-            this.type = type;
-            this.body = body;
+            this.combiner = combiner;
         }
     }
 
@@ -96,43 +108,46 @@ final class GroupDraft {
         this.closeGrace = Validation.requireNonNegative(grace, "closeGrace");
     }
 
-    void addMember(String memberName, Par par, TaskOptions options, TypeToken<?> type, Callable<?> body) {
-        checkNotNull(memberName, "name cannot be null");
+    void setCancellation(ListenableFuture<?> signal) {
+        this.cancellationSignal = checkNotNull(signal, "signal cannot be null");
+    }
+
+    void addMember(TaskKey<?> key, Par par, TaskOptions options, Callable<?> taskCode) {
+        checkNotNull(key, "key cannot be null");
         checkNotNull(par, "par cannot be null");
         checkNotNull(options, "options cannot be null");
-        checkNotNull(body, "body cannot be null");
-        checkNotNull(type, "type cannot be null");
-        checkNameAvailable(memberName);
+        checkNotNull(taskCode, "task code cannot be null");
+        checkNameAvailable(key.name());
         checkPar(par);
-        checkConcreteType(memberName, type);
-        // The name is reserved only after every check passed. Reserving it earlier would let a
-        // declaration that failed on a foreign Par or a bad token consume the name, so retrying the
-        // same name on the same (unadvanced) stage would report a duplicate that does not exist.
-        seenNames.add(memberName);
-        members.add(new MemberDecl(memberName, par, options, type, body));
+        seenNames.add(key.name());
+        members.add(new MemberDecl(key, par, options, taskCode));
     }
 
-    void addMember(String memberName, Par par, TaskOptions options, Class<?> type, Callable<?> body) {
-        checkNotNull(type, "type cannot be null");
-        addMember(memberName, par, options, TypeToken.of(type), body);
+    void addAdopted(TaskKey<?> key, @Nullable Par producer, ListenableFuture<?> source) {
+        checkNotNull(key, "key cannot be null");
+        checkNotNull(source, "source cannot be null");
+        checkNameAvailable(key.name());
+        if (producer != null) {
+            checkPar(producer);
+        }
+        checkArgument(
+                !adoptedSources.contains(source),
+                "the future adopted as '%s' is already adopted by this group; adopt each future once",
+                key.name());
+        seenNames.add(key.name());
+        adoptedSources.add(source);
+        members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));
     }
 
-    void setCombine(String combineName, Par par, TaskOptions options, TypeToken<?> type, CombineBody<?, ?> body) {
-        checkNotNull(combineName, "name cannot be null");
+    void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner, boolean valueView) {
+        checkNotNull(key, "key cannot be null");
         checkNotNull(par, "par cannot be null");
         checkNotNull(options, "options cannot be null");
-        checkNotNull(body, "body cannot be null");
-        checkNotNull(type, "type cannot be null");
-        checkNameAvailable(combineName);
+        checkNotNull(combiner, "combiner cannot be null");
+        checkNameAvailable(key.name());
         checkPar(par);
-        checkConcreteType(combineName, type);
-        seenNames.add(combineName);
-        combine = new CombineDecl(combineName, par, options, type, body);
-    }
-
-    void setCombine(String combineName, Par par, TaskOptions options, Class<?> type, CombineBody<?, ?> body) {
-        checkNotNull(type, "type cannot be null");
-        setCombine(combineName, par, options, TypeToken.of(type), body);
+        seenNames.add(key.name());
+        combine = new CombineDecl(key, par, options, combiner, valueView);
     }
 
     private void checkNameAvailable(String memberName) {
@@ -145,69 +160,6 @@ final class GroupDraft {
                 par.runtime() == owner,
                 "Par '%s' does not belong to the ParRuntime that declared this group",
                 par.id());
-    }
-
-    /**
-     * Rejects a declared token that cannot describe a runtime value class: a primitive raw type
-     * ({@code int.class}, {@code void.class}) has no instance to check, and a token still holding a
-     * type variable would compare unequal to the concrete token a caller can obtain.
-     */
-    private static void checkConcreteType(String memberName, TypeToken<?> type) {
-        Class<?> rawType = type.getRawType();
-        checkArgument(
-                !rawType.isPrimitive(),
-                "the declared type of '%s' must be a reference type, not %s",
-                memberName,
-                rawType);
-        checkArgument(
-                !containsTypeVariable(type.getType()),
-                "the declared type of '%s' must be a concrete type without type variables, but was %s",
-                memberName,
-                type);
-    }
-
-    private static boolean containsTypeVariable(Type type) {
-        if (type instanceof TypeVariable) {
-            return true;
-        }
-        if (type instanceof ParameterizedType) {
-            ParameterizedType parameterized = (ParameterizedType) type;
-            if (containsTypeVariable(parameterized.getRawType())) {
-                return true;
-            }
-            // An inner class's owner is part of its type: `Outer<T>.Inner` carries T through the
-            // owner, even though Inner declares no type arguments of its own. Walking only the
-            // arguments would accept that token and then compare unequal to every concrete token a
-            // caller can build.
-            Type owner = parameterized.getOwnerType();
-            if (owner != null && containsTypeVariable(owner)) {
-                return true;
-            }
-            for (Type argument : parameterized.getActualTypeArguments()) {
-                if (containsTypeVariable(argument)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        if (type instanceof GenericArrayType) {
-            return containsTypeVariable(((GenericArrayType) type).getGenericComponentType());
-        }
-        if (type instanceof WildcardType) {
-            WildcardType wildcard = (WildcardType) type;
-            for (Type bound : wildcard.getUpperBounds()) {
-                if (containsTypeVariable(bound)) {
-                    return true;
-                }
-            }
-            for (Type bound : wildcard.getLowerBounds()) {
-                if (containsTypeVariable(bound)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        return false;
     }
 
     @SuppressWarnings("ReferenceEquality")
@@ -231,7 +183,7 @@ final class GroupDraft {
     }
 
     /**
-     * Freezes the declaration, moves the bodies into the submission kernel, and submits. The draft
+     * Freezes the declaration, moves the executions into the submission kernel, and submits. The draft
      * is already consumed by the caller, so a failure here cannot be retried either.
      */
     <V, R> TaskGroup<V, R> submit() {
@@ -241,7 +193,7 @@ final class GroupDraft {
             return cast(owner.submitPreparedGroup(definition, payloads));
         } catch (RuntimeException | Error failure) {
             // Admission or preparation failed: prepare cancelled the futures it built and released
-            // the bodies it took; clear whatever was never taken.
+            // the executions it took; clear whatever was never taken.
             payloads.discard();
             throw failure;
         }
@@ -250,33 +202,40 @@ final class GroupDraft {
     private TaskGroupDefinition freeze() {
         List<TaskGroupDefinition.Slot> memberSlots = new ArrayList<>();
         for (MemberDecl member : members) {
-            memberSlots.add(new TaskGroupDefinition.Slot(member.name, member.par, member.options, member.type));
+            memberSlots.add(
+                    member.adopted == null
+                            ? new TaskGroupDefinition.Slot(member.key, checkNotNull(member.par), member.options, false)
+                            : TaskGroupDefinition.Slot.adopted(member.key, member.par));
         }
         CombineDecl declaredCombine = combine;
         TaskGroupDefinition.Slot combineSlot = declaredCombine == null
                 ? null
                 : new TaskGroupDefinition.Slot(
-                        declaredCombine.name, declaredCombine.par, declaredCombine.options, declaredCombine.type);
-        return new TaskGroupDefinition(name, timeout, closeGrace, memberSlots, combineSlot);
+                        declaredCombine.key, declaredCombine.par, declaredCombine.options, declaredCombine.valueView);
+        return new TaskGroupDefinition(name, timeout, closeGrace, cancellationSignal, memberSlots, combineSlot);
     }
 
     /**
-     * Moves every body out of the draft into the one-shot carrier the kernel consumes, clearing the
+     * Moves every execution out of the draft into the one-shot carrier the kernel consumes, clearing the
      * draft's own references as it goes so a submitted draft retains no request closure.
      */
     private TaskGroup.RunBindings takePayloads() {
-        @Nullable Callable<?>[] taskBodies = new Callable<?>[members.size()];
+        Callable<?>[] taskCodes = new Callable<?>[members.size()];
+        AdoptedSource[] adopted = new AdoptedSource[members.size()];
         for (int index = 0; index < members.size(); index++) {
             MemberDecl member = members.get(index);
-            taskBodies[index] = member.body;
-            member.body = null;
+            taskCodes[index] = member.taskCode;
+            adopted[index] = member.adopted;
+            member.taskCode = null;
+            member.adopted = null;
         }
+        adoptedSources.clear();
         CombineDecl combineDecl = combine;
-        CombineBody<?, ?> combineBody = combineDecl == null ? null : combineDecl.body;
+        Combiner<?, ?> combiner = combineDecl == null ? null : combineDecl.combiner;
         if (combineDecl != null) {
-            combineDecl.body = null;
+            combineDecl.combiner = null;
         }
-        return new TaskGroup.RunBindings(taskBodies, combineBody);
+        return new TaskGroup.RunBindings(taskCodes, adopted, combiner);
     }
 
     @SuppressWarnings("unchecked")
@@ -293,6 +252,37 @@ final class GroupDraft {
         }
 
         @Override
+        public <T> Step<T> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
+            return par(key, par, TaskOptions.inheritTimeout(), taskCode);
+        }
+
+        @Override
+        public <T> Step<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
+            draft.checkThread();
+            draft.checkStage(0);
+            draft.addMember(key, par, options, taskCode);
+            return next();
+        }
+
+        @Override
+        public <T> Step<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
+            return adopted(key, null, source);
+        }
+
+        @Override
+        public <T> Step<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
+            return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
+        }
+
+        private <T> Step<T> adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
+            draft.checkThread();
+            draft.checkStage(0);
+            draft.addAdopted(key, producer, source);
+            return next();
+        }
+
+        @Override
+        @CanIgnoreReturnValue
         public Start closeGrace(Duration grace) {
             draft.checkThread();
             draft.checkStage(0);
@@ -301,39 +291,12 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<T> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body) {
+        @CanIgnoreReturnValue
+        public Start cancelOn(ListenableFuture<?> signal) {
             draft.checkThread();
             draft.checkStage(0);
-            draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
-            return next();
-        }
-
-        @Override
-        public <T> Step<T> par(String name, Par par, Class<T> type, Callable<? extends T> body) {
-            // Thread and stage are checked before the argument null checks, so a stale-stage or
-            // foreign-thread call reports the lifecycle violation it is, even when the type argument
-            // is also null. The TypeToken overloads order their checks the same way.
-            draft.checkThread();
-            draft.checkStage(0);
-            draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
-            return next();
-        }
-
-        @Override
-        public <T> Step<T> par(
-                String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body) {
-            draft.checkThread();
-            draft.checkStage(0);
-            draft.addMember(name, par, options, type, body);
-            return next();
-        }
-
-        @Override
-        public <T> Step<T> par(String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body) {
-            draft.checkThread();
-            draft.checkStage(0);
-            draft.addMember(name, par, options, type, body);
-            return next();
+            draft.setCancellation(signal);
+            return this;
         }
 
         @Override
@@ -365,76 +328,63 @@ final class GroupDraft {
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body) {
-            draft.checkThread();
-            draft.checkStage(expectedStage);
-            draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
-            return next();
-        }
-
-        @Override
-        public <T> Step<Tuple2<V, T>> par(String name, Par par, Class<T> type, Callable<? extends T> body) {
-            draft.checkThread();
-            draft.checkStage(expectedStage);
-            draft.addMember(name, par, TaskOptions.inheritTimeout(), type, body);
-            return next();
+        public <T> Step<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode) {
+            return par(key, par, TaskOptions.inheritTimeout(), taskCode);
         }
 
         @Override
         public <T> Step<Tuple2<V, T>> par(
-                String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body) {
+                TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.addMember(name, par, options, type, body);
+            draft.addMember(key, par, options, taskCode);
             return next();
         }
 
         @Override
-        public <T> Step<Tuple2<V, T>> par(
-                String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body) {
+        public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source) {
+            return adopted(key, null, source);
+        }
+
+        @Override
+        public <T> Step<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
+            return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
+        }
+
+        private <T> Step<Tuple2<V, T>> adopted(
+                TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.addMember(name, par, options, type, body);
+            draft.addAdopted(key, producer, source);
             return next();
         }
 
         @Override
-        public <R> Combined<V, R> combine(
-                String name, Par par, TypeToken<R> type, CombineBody<? super V, ? extends R> body) {
-            draft.checkThread();
-            draft.checkStage(expectedStage);
-            draft.setCombine(name, par, TaskOptions.inheritTimeout(), type, body);
-            return nextCombined();
+        public <R> Combined<V, R> combine(TaskKey<R> key, Par par, Combiner<? super V, ? extends R> combiner) {
+            return combine(key, par, TaskOptions.inheritTimeout(), combiner);
         }
 
         @Override
         public <R> Combined<V, R> combine(
-                String name, Par par, Class<R> type, CombineBody<? super V, ? extends R> body) {
+                TaskKey<R> key, Par par, TaskOptions options, Combiner<? super V, ? extends R> combiner) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.setCombine(name, par, TaskOptions.inheritTimeout(), type, body);
+            draft.setCombine(key, par, options, combiner, false);
             return nextCombined();
         }
 
         @Override
-        public <R> Combined<V, R> combine(
-                String name,
-                Par par,
-                TaskOptions options,
-                TypeToken<R> type,
-                CombineBody<? super V, ? extends R> body) {
-            draft.checkThread();
-            draft.checkStage(expectedStage);
-            draft.setCombine(name, par, options, type, body);
-            return nextCombined();
+        public <R> Combined<V, R> combineValues(
+                TaskKey<R> key, Par par, Combiner<GroupValues<V>, ? extends R> combiner) {
+            return combineValues(key, par, TaskOptions.inheritTimeout(), combiner);
         }
 
         @Override
-        public <R> Combined<V, R> combine(
-                String name, Par par, TaskOptions options, Class<R> type, CombineBody<? super V, ? extends R> body) {
+        public <R> Combined<V, R> combineValues(
+                TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues<V>, ? extends R> combiner) {
             draft.checkThread();
             draft.checkStage(expectedStage);
-            draft.setCombine(name, par, options, type, body);
+            draft.setCombine(key, par, options, combiner, true);
             return nextCombined();
         }
 

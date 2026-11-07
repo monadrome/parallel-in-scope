@@ -97,6 +97,45 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 由 `outcome()` 暴露并返回 `TaskOutcome`（由早期的
 `completionReason()` 改名而来）。
 
+访问器统一收敛为裸 `x()` 风格；公共 API 与内部都不再保留 `getX()`/`isX()` 形式。早期的
+`0.2.0-SNAPSHOT` 构建使用 bean 风格命名，请机械地重命名调用点：
+
+| 早期快照 | `0.2.0` |
+|---|---|
+| `Par.getGlobalPar()` | `Par.globalPar()` |
+| `Par.getDisplayName()` | `Par.name()`（现返回 `ParName`；字符串请调用 `name().value()`） |
+| `AsyncBatchResult.getSubmitCanceller()` | `TaskBatchResult.submitCanceller()` |
+| `AsyncBatchResult.getResults()` | `TaskBatchResult.results()` |
+| `AsyncBatchResult.BatchReport.getStateCounts()` | `BatchReport.stateCounts()` |
+| `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
+| `GlobalPar.isClosed()` | `GlobalPar.closed()` |
+| `CancellationToken.getState()` / `State.getCode()` | `state()`；`code()` 已删除——中断语义由枚举值本身表达 |
+| `TaskGroupMemberResult.completionReason()` | `TaskCompletion.outcome()`（成员快照现在是 `TaskGroupResult.members()` 的值，类型为 `TaskCompletion`） |
+| `TaskGroupMemberResult.taskContext()` | 已删除；计时扁平化为 `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
+| `TaskEvent.getTaskContext()/getTaskName()` | `TaskListener` 现在投递 `TaskCompletion`；`taskContext()` 已删除（扁平化为 `taskName()` / `unitId()` / `taskIndex()` 加计时纳秒） |
+| `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
+| `TaskEvent.isSuccessful()/getResult()/isEnqueued()/getException()` | `TaskCompletion.successful()` / `result()` / `enqueued()` / `failure()` |
+| `DeadlockDetectionListener.getTaskEdges()/getExecutorEdges()` | `taskEdges()` / `executorEdges()` |
+| `TaskGraphObservationScope.isClosed()` | `closed()` |
+| `DrainingBlockingQueue.isShutdown()/isDraining()/isDrained()` | `shutdown()` / `draining()` / `drained()` |
+| `SmartBlockingQueue.getCapacity()` / `VariableLinkedBlockingQueue.getCapacity()` | `capacity()` |
+
+实现 JDK 或第三方契约的方法保留其规定命名（`Monitor.Guard.isSatisfied()`、
+`ExecutorService.isShutdown()/isTerminated()`、`Thread.getState()`、`Map.Entry.getKey()/getValue()`）。
+
+## 取消令牌变更
+
+`CancellationToken.lateBind(futures, timeout, submitCanceller, timer)` 现在是
+`CancellationToken.bind(futures, submitCanceller, timer)`。timeout 参数移入 token 本身：以
+`new CancellationToken(parent, deadlineNanos)` 构造（生效 deadline 是请求值与父 token 的较小者），
+用 `deadlineNanos()` / `remaining()` 读取。批次与任务组在构造时计算并传入 deadline；直接使用
+`bind` 的调用方也应如此。`bind` 运行时已过期的 deadline 只是立即调度超时执行。`State.NO_OP` 已删除。
+`addCompletionListener` 没有公开替代；状态迁移监听器现在是执行内核的内部机制。
+
+任务组语义随之变化：取消单个成员（其 future 或其 token）现在级联到整组，与批次 fail-fast
+行为一致。被直接取消的成员报告 `MEMBER_CANCELLED`，未完成的兄弟成员报告 `GROUP_CANCELLED`，
+组整体收敛为 `GROUP_CANCELLED`。
+
 ## 终态词汇统一
 
 `TaskGroupCompletionReason` 已删除，组级结果复用 `TaskOutcome`：
@@ -176,7 +215,7 @@ for (TaskFuture<Account> future : result.results()) {
 }
 ```
 
-归因规则见[使用指南](user-guide.md#task-attribution)。
+归因规则见[使用指南](user-guide.md#task-future-attribution)。
 
 ## 被放弃的批次元素改为以 `SubmissionException` 失败
 

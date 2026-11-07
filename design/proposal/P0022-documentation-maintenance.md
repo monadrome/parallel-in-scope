@@ -4,7 +4,8 @@
 
 - 核心出发点：用户示例、现行契约与历史记录各自承担不同责任，修复错误教学与漂移的事实源。
 - 不变量与拟议 MUST：示例 MUST 编译并遵守上下文恢复及 P1–P4；MUST 区分中断投递与 IO 停止、
-  Future 终态与 body 退出。已接受 ADR MUST 保持历史正文，变更使用后继 ADR 与 Superseded 链接。
+  Future 终态与执行退出。ADR 的决定 MUST NOT 被改写，变更使用后继 ADR 与 Superseded 链接；
+  过时的非决策内容按 adr/AGENTS.md 蒸馏。
 - 被否决方向及理由：不恢复已删除 listener/运行句柄来迎合旧文档，不恢复 throwing Function，
   不按符号零命中宣布整篇 ADR 失效，不将本地路径门禁通过称为示例或语义验证通过。
 
@@ -13,7 +14,7 @@
 承接 documentation-audit-2026-10-08 的 D1–D10、doc-value-audit-2026-10-09、
 decision-brief-2026-10-09 的文档与流程项，以及四代核心审计的文档维护建议。
 这些是历史审计输入；实施前逐项对照当前树，不照抄行号、计数或“全部仍成立”。
-`6588e97` 已修 graveyard 死链接与两参 map 示例，不能再作为待修项。
+graveyard 死链接与两参 map 示例已修，不能再作为待修项。
 分析稿退出与提案可见性由 [生命周期契约](../proposal-lifecycle.md) 承接。
 
 ## 用户示例的具体修复目标
@@ -30,17 +31,14 @@ P0011 的 MDC/TTL、checked Function、缺少成功返回、中断处理和 IO �
 - task-group-cancellation 的已删 listener/直接 CANCELLED 观察与共享归因描述；
   lifecycle 的 resolve 签名枚举：逐项按机制统一，取消与观测 MUST 保留单一事实源。
 - task-group-api-and-options 中 failure 只属于业务/提交失败的过强表述、lifecycle 中把直接
-  body 确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
+  执行确认与观测发布混为一谈的文字需复核；nested Function 读取 batch 的 checked 异常
   与 group 的 unchecked 包装用具体消费代码解释，不为统一表面添加 throwing callback 家族。
-- PR #56 重落分支 `c4ddfc7` 的 O-13/O-14 还需明确教学：批次 report().firstException()
-  只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时可为 null，不代表所有任务成功；取消细节
+- PR #56 重落分支的 O-13/O-14 还需明确教学：批次 failedTaskResult()
+  只取 USER_FAILURE/SUBMISSION_FAILURE，纯超时为空，不代表所有任务成功；取消细节
   从逐元素 ImmediateResult 读取。FAIL_FAST 可同时覆盖已运行后取消与未提交的元素，单靠
   outcome 不能推断执行历史，应结合可用最终观测。维持现有归因，不为区分这两者增加开关。
-  若要让 firstException 聚合取消，须独立评估 valuesOrThrow 的失败优先级与迁移，不能借
+  若要让 failedTaskResult 聚合取消，须独立评估 orThrow 的失败优先级与迁移，不能借
   文档修订改变契约；历史 O-15 的跨版本 API diff 已实现，不再立项。
-- 0002 的 Everything else stands、0003 的自动 purge、0005 的 GlobalPar 历史形状与现行规则
-  区分；遵循 adr/AGENTS 的后继记录规程，MUST NOT 删改已接受正文来蒸馏它。
-  0001 的旧测试清单、0004 的长尾、0006 的历史行数只是历史证据，不强制同步枚举数字。
 - CHANGELOG 的 0.3 开发项错放 0.2 节须逐项核对引入提交并去重归位；已发布措辞的拼写保留。
   提出 changelog 与行为变更同步约定时补清晰触发条件，不据审计旧列表机械追加条目。
 - BACKLOG 重验开放条目、压缩已关闭条目并统一落点；不要用旧 submitter/purge/签名、旧数字
@@ -72,7 +70,39 @@ reviewer 只读，Maven 在单 checkout 串行。外部 consumer 与 NullAway �
 OTel 的完整 Context 示例已按当前包装机制校正，剩余真实 SDK/agent 验证与接入边界归
 [P0013](P0013-opentelemetry-verification.md)。不重新复制各自清单，不把已有 API diff、dev
 贡献基线、自动 snapshot 或已补 TaskGroupResult Javadoc 列为待新建内容。
-结果匹配链与单任务获取的历史剩余方向由 [P0019](P0019-result-exhaustive-matching.md)
+结果匹配链与单任务获取的历史剩余方向由 `proposal:P0019`
 承接，不并入文档修复，也不把修复 failure 中断敏感当作新增 API 的理由。
 
 本提案承接 P0011 尚未实施的方向；其具体缺陷修复已并入活契约。
+
+## Review Disposition (2026-10-28)
+
+Independent Standards and Spec seats reviewed the English documentation and Javadoc diff, then
+rechecked the first-round fixes against source and tests.
+
+- Retained: the CONTRIBUTING link claimed the issue page already linked v0.4. Reverted to the actual
+  stable v0.3 destination; added the development v0.4 guide to README and the English index instead.
+- Retained: `ParRuntime.close()` omitted observation scopes from the rejected-admission list, and
+  `Checkpoints` overclaimed which methods inspect cancellation. Both contracts now name their actual
+  scope. The starvation close documentation says publication is attempted before a sampling `Error`
+  is rethrown, covering publication failure as well as success.
+- Retained: `TaskCompletion.result()` initially overgeneralized null results. The final text
+  distinguishes embedded values, value-less group-report member/terminal snapshots, and group
+  summaries, matching `withResult`, `memberSnapshot`, `groupSummary`, and `ObservationFutureTest`.
+- Retained: the migration guide's "ImmediateResult reads" was too broad; it now says "value reads".
+  The equivalent CHANGELOG correction and duplicate Features-heading removal are factual cleanup,
+  not changes to released behavior.
+- Downgraded to wording precision: ADR notes now say "direct executor service". The edits remain
+  inside dated notes and do not rewrite either decision.
+- Rejected as scope: Chinese parity changes and the concurrently appearing P0028 proposal/route are
+  outside this English-only task and are not part of its diff. A low-value idea-graveyard paraphrase
+  was reverted rather than creating unnecessary locale drift.
+
+A subsequent Codex review of the fix commit found no Standards issues and retained two Spec findings:
+
+- Retained: `ParRuntime.Builder.build()` described only directly registered pools, although the
+  guard also rejects recognized TTL-wrapped discarding pools. Its Javadoc now includes that case.
+- Retained: the `TaskCompletion` class summary still said every successful observation contained
+  its actual value. It now distinguishes value-bearing public execution observations from value-less
+  snapshots inside a group report and the report-bearing group summary. Codex confirmed both fixes
+  and its follow-up clarification was applied to the public `TaskGroupResult` observation wording.

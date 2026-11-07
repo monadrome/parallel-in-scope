@@ -1,5 +1,7 @@
 # Subtractive Design: `parallel-in-scope` Design Review
 
+> This page is a condensed English overview. The long-form Chinese design review under `docs/zh/design/philosophy.md` (published at `/zh/design/philosophy/`) carries the full reasoning and is the authoritative version for design tradeoffs.
+
 ## Introduction
 
 The library targets three recurring Java 8 problems: cancellation that cannot reach CPU-bound work, context lost across thread pools, and deadlocks caused by nested work submitted to a bounded pool. Its design is intentionally narrow: batch execution with explicit cancellation and diagnostics, rather than a general asynchronous workflow framework.
@@ -22,7 +24,7 @@ Normal cancellation is a control-flow event, so `LeanCancellationException` avoi
 
 ## Sliding-window scheduling
 
-Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. CPU and I/O task types can use different scheduling policies, but both remain inside the same structured scope.
+Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. Only an explicit `rejectEnqueue` makes `SmartBlockingQueue` refuse a task; `TaskType` is a diagnostic declaration that never selects an executor or changes scheduling, so queue policy does not change the structured scope.
 
 ## Explicit execution context and deadlock visibility
 
@@ -30,9 +32,9 @@ Submitting every item at once can flood a queue and make nested calls deadlock. 
 the current task's cancellation and nesting ownership. A separate internal submission scope exists
 only while work is handed to an executor, so `SmartBlockingQueue` can apply batch enqueue policy
 before a task starts. Neither context is relayed through arbitrary user executor submissions.
-`TaskGraphObservationScope` records which task units wait for which in a request-scoped graph and
-projects those waits onto executors, so the library can detect pool wait cycles that a thread dump
-would otherwise reveal only after production impact. This is executor deadlock detection, not a
+Every `ParRuntime` records which of its executors synchronously wait for which, always on, so the
+library can report pool wait cycles — including ones formed by separate requests — that a thread
+dump would otherwise reveal only after production impact. This is executor deadlock detection, not a
 replacement for lock analysis.
 
 ## Deliberate boundaries

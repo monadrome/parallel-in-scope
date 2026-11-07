@@ -38,11 +38,11 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 直接推论：
 
-- combine 的用户 body 只在 join 后、经目标 executor **执行**；准备阶段不触碰用户 body。
+- combine 的用户执行只在 join 后、经目标 executor **执行**；准备阶段不触碰用户执行。
   线程池的拒绝 inline 与显式 direct executor 的例外见下方线程角色说明；
 - TTL 快照时点与 member 一致（提交准备阶段），不捕获 join 回调线程的上下文；
 - combine 在提交时已完成 ParRuntime admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"提交后 `ParRuntime.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
-- combine 在线程池拒绝处理器借用提交线程时不得进入 body，记 `SUBMISSION_FAILURE`。
+- combine 在线程池拒绝处理器借用提交线程时不得进入执行，记 `SUBMISSION_FAILURE`。
   显式 direct executor 按注册者选择的契约允许 inline；不按策略名称拒绝正常未饱和的池；
 - combine 的结构 parent 与 member 相同（提交现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
 
@@ -50,26 +50,29 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 ## 4. API
 
-combine 在链尾声明：`GroupStep.combine(name, par, [options,] type, body)` 返回
+类型化 key 与 `combineValues` 的输入选择见
+[组声明契约 §4.1](group-one-shot-api-refactor-codex.md#41-类型化声明键)。它只参数化同一个
+prepared terminal 的输入组装，下面的准备、join、取消、TTL 与拒绝规则对两种输入一致。
+
+combine 在链尾声明：`GroupStep.combine(key, par, [options,] taskCode)` 返回
 `CombinedGroupStep`，其上只有 `runAll()`——不能再声明 `par` 或第二个 combine（编译期排除，
-对过期 step 引用的重复调用由草稿阶段守卫在运行期拒绝）。combine body 是
-`CombineBody<V, R>`，直接接收普通成员的值视图 `V`（单成员为值本身，多成员为左嵌套
+对过期 step 引用的重复调用由草稿阶段守卫在运行期拒绝）。combine 执行是
+`Combiner<V, R>`，直接接收普通成员的值视图 `V`（单成员为值本身，多成员为左嵌套
 `Tuple2`，分量可为 null）：
 
 ```java
 TaskGroupResult<Tuple2<Tuple2<User, List<Order>>, Inventory>, AccountPage> result =
         runtime.group("account-page", Duration.ofSeconds(3))
-                .par("user", databasePar, User.class, () -> users.load(request.userId()))
-                .par("orders", httpPar, new TypeToken<List<Order>>() {}, () -> orderClient.load())
-                .par("inventory", inventoryPar, Inventory.class, () -> inventoryClient.load())
-                .combine("assemble-page", cpuPar, AccountPage.class,
-                        values -> new AccountPage(
+                .par(TaskKey.<User>named("user"), databasePar, () -> users.load(request.userId()))
+                .par(TaskKey.<List<Order>>named("orders"), httpPar, () -> orderClient.load())
+                .par(TaskKey.<Inventory>named("inventory"), inventoryPar, () -> inventoryClient.load())
+                .combine(TaskKey.<AccountPage>named("assemble-page"), cpuPar, values -> new AccountPage(
                                 values.first().first(), values.first().second(), values.second()))
                 .runAll();
 AccountPage page = result.terminalValueOrThrow();
 ```
 
-`CombineBody` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为
+`Combiner` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为
 `USER_FAILURE`），combine 与 member 并列在同一声明链上，受检异常处理必须对称；JDK
 函数式接口中没有"单参且抛受检异常"的类型，这是新增此接口的唯一理由。注意 Batch
 （`Par.map`）的用户函数是不抛受检异常的 JDK `Function`——这是既有分叉（batch 元素仿
@@ -78,8 +81,8 @@ AccountPage page = result.terminalValueOrThrow();
 
 要点：
 
-- combine 的值视图只提供已成功的值，不暴露 future，也不执行等待；成员值的类型由声明时的
-  `TypeToken`/`Class` 精确匹配保证（见 group-one-shot 的 `GroupValues` 契约），成功 member
+- combine 的值视图只提供已成功的值，不暴露 future，也不执行等待；成员值的类型由声明与读取
+  共享的 `TaskKey<T>` 在编译期保证（见 group-one-shot 的 `GroupValues` 契约），成功 member
   的返回值可以为 null；
 - 至多一个 combine、且只能在所有 `par` 之后声明：链尾 `CombinedGroupStep` 只暴露
   `runAll()`，第二个 combine 与 combine 后再 `par` 都在编译期不可表达；
@@ -90,11 +93,12 @@ AccountPage page = result.terminalValueOrThrow();
   `terminalValueOrThrow()`，观测快照用 `terminal()`（@Nullable，无 combine 时为 null）；
   `members()` 保持只含普通 member；
 - `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用
-  timeout/taskType/rejectEnqueue，与 member 一致；被拒绝即记 `SUBMISSION_FAILURE`，
-  若目标池的拒绝处理器会 inline 执行（`CallerRunsPolicy` 饱和时），body 同样不执行、记
-  `SUBMISSION_FAILURE`（§9 验收项 1）。`taskType`/`rejectEnqueue` 对 combine 仍然有效：
-  默认 `IO_BOUND` + `rejectEnqueue=false` 让 `SmartBlockingQueue` 正常入队，combine 在队列里
-  等 worker；显式要求拒绝入队才会把它的命运交给拒绝处理器。
+  timeout/rejectEnqueue，与 member 一致；被拒绝即记 `SUBMISSION_FAILURE`，
+  若目标池的拒绝处理器会 inline 执行（`CallerRunsPolicy` 饱和时），执行同样不执行、记
+  `SUBMISSION_FAILURE`（§9 验收项 1）。`rejectEnqueue` 对 combine 仍然有效：
+  默认 `rejectEnqueue=false` 让 `SmartBlockingQueue` 正常入队，combine 在队列里
+  等 worker；显式要求拒绝入队才会把它的命运交给拒绝处理器。`taskType` 与 member 一样只是诊断
+  声明（[API 与选项 §3.2.1](task-group-api-and-options.md)），不改变入队。
   身份取 combine 的声明名。`TaskOptions`
   不含 name/listeners，因此 combine 不可能通过选项覆盖 Group 名称或取消策略（见
   [API 与选项 §3.2](task-group-api-and-options.md)）；
@@ -102,11 +106,10 @@ AccountPage page = result.terminalValueOrThrow();
 
 ## 5. 成员值视图契约
 
-- combine body 接收声明顺序的 `V`：单成员为值本身，多成员为左嵌套 `Tuple2`；分量可为 null；
+- combine 执行接收声明顺序的 `V`：单成员为值本身，多成员为左嵌套 `Tuple2`；分量可为 null；
 - 读取不阻塞：combine 运行时所有 member 已成功；
-- 类型安全由声明时的 `TypeToken`/`Class` 精确匹配承担（primitive 与含未解析类型变量的
-  token 在声明时拒绝）；按名/按位置的事后查询用 `TaskGroupResult.resultOf`/`resultAt`，
-  同样精确匹配；
+- 类型安全由声明与读取共享的 `TaskKey<T>` 承担，不做结果的运行期类型校验；
+  按名/按位置的事后查询返回未类型化结果，原 key 查询返回类型化结果；
 - combine 函数只能依赖 member 值与声明前可达的环境。combine 由框架在最后一个 member 成功时
   调度，与声明之后、提交之前的其他调用线程代码之间没有同步边。
 
@@ -154,7 +157,7 @@ direct executor 时允许其 inline 契约。线程池路径的其余候选被�
 | member 非成功 | 不执行 | 按 group token 归因取消（`FAIL_FAST`/`TIMEOUT`/`GROUP_CANCELLED`） | member 的组级 outcome |
 | combine 用户失败 | 执行 | 失败（原异常） | `USER_FAILURE` |
 | combine 被拒绝 | 提交但被拒（无 inline） | 失败 | `SUBMISSION_FAILURE` |
-| combine 的池会 inline 跑它（`CallerRunsPolicy` 饱和） | 进入 `run()` 后被拦，body 不执行 | 失败 | `SUBMISSION_FAILURE` |
+| combine 的池会 inline 跑它（`CallerRunsPolicy` 饱和） | 进入 `run()` 后被拦，执行不执行 | 失败 | `SUBMISSION_FAILURE` |
 | combine 自身 deadline 先到 | 升级 `groupToken.timeoutCancel()` | 取消 | `TIMEOUT` |
 | group deadline 先到 | 不执行或中断 | 取消 | `TIMEOUT` |
 | 组取消（祖先取消/直消级联） | 不执行或中断 | 取消 | `GROUP_CANCELLED` |
@@ -175,10 +178,10 @@ direct executor 时允许其 inline 契约。线程池路径的其余候选被�
 - combine 永远是最后完成的任务，其失败必须由框架同步提交 `FAIL_FAST`（`groupToken.failFastCancel()`）后再收敛：同步提交保证级联取消观察到已提交的组状态，也使失败记录在收敛时确定可见；member 失败保持既有归因规则不变（组级 outcome 优先沿用已记录失败任务的 outcome，见生命周期契约 §6）；
 - combine 复用 Group 的 token 体系、`ParRuntime.timeoutScheduler()` 和 `TaskSubmissions` 两阶段内核，不创建新 executor 或 timer service。
 
-## 9. 观测与 TaskGraph
+## 9. 观测与执行器等待
 
 - combine 正常产生 `TaskCompletion` 观测快照；执行前取消的快照 start/end 为零，与 member 一致；组结果在 combine 终态后才由 `runAll()` 返回（见观测契约 §10.2）；
-- membership 仍不产生 member-to-member 图边。但 combine 是真实的 all-to-one 依赖：
+- membership 仍不产生 member-to-member 关系。combine 是真实的 all-to-one 数据依赖：
 
 ```text
 member A ──┐
@@ -186,7 +189,7 @@ member B ──┼──> combine
 member C ──┘
 ```
 
-- members→combine 是真实的多父依赖，MUST 作为每个成员 `JOIN` combine 的边写入任务图（与成员、caller 的 `FORK` 同属一个准入片段，见 [task-graph.md](task-graph.md) §4）；`JOIN` 不进入执行器投影，不参与 deadlock 环检测——没有线程为它阻塞。等待 combine 的是 caller，它的 `FORK` 才参与投影。MUST NOT 伪造单父边或虚构 group batch 节点。
+- members→combine 是数据依赖，不是等待，MUST NOT 记入执行器等待图，不参与 deadlock 环检测——没有线程为它阻塞。等待 combine 的是 caller，caller 对成员与 combine 的等待作为一组安装（见 [task-graph.md](task-graph.md) §4）。MUST NOT 伪造单父边或虚构 group batch 节点。
 
 ## 10. 与 idea-graveyard 的关系
 
@@ -217,7 +220,7 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 
 1. 所有 members 成功时 combine 恰好执行一次，callable 在指定 executor 线程运行，即使被拒绝也不 inline 到收敛回调线程（拒绝记 `SUBMISSION_FAILURE`）；
    库自身没有任何 inline 回退路径（`runOnCallerThread` 已删除）；剩下的缺口是用户池的
-   `RejectedExecutionHandler` 在 `execute()` 内部同步跑掉 body 时**根本不抛异常**，这条由
+   `RejectedExecutionHandler` 在 `execute()` 内部同步跑掉执行时**根本不抛异常**，这条由
    `forbidInlineExecution()` 在 `run()` 里按线程身份拦下（仅对 `ThreadPoolExecutor` 启用，见下）。
    没有它时，`CallerRunsPolicy` 池饱和会让 combine 静默跑在收敛回调线程上，group 仍报
    `SUCCESS`——这正是曾经的实际行为。
@@ -230,9 +233,9 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
    正常从队列取出 combine 执行。守卫区分的是当前提交栈上的执行，而非线程曾经承担的角色。
 
    **为什么只对 `ThreadPoolExecutor` 启用：** TPE 要么派发给 worker 要么抛异常，唯一能走到调用方栈上的路径
-   就是它的拒绝处理器，所以"body 跑在提交线程上"与"拒绝处理器跑了它"是同一件事。而 `directExecutor()`
+   就是它的拒绝处理器，所以"执行跑在提交线程上"与"拒绝处理器跑了它"是同一件事。而 `directExecutor()`
    这类总是 inline 的 executor，inline 不是饱和症状而是它的全部契约，由注册者显式选择，
-   `CombineBody` 的 javadoc 明确把它列为已接受的例外，因此放行。
+   `Combiner` 的 javadoc 明确把它列为已接受的例外，因此放行。
 2. 任一 member 非成功时 combine callable 不执行，terminal future 按 token 归因终态，不留下 pending future；
 3. combine 的 `TaskExecutionContext`、TTL 快照和结构 parent 都在提交准备阶段创建：TTL 捕获时点与 member 一致，结构 parent 是提交现场的外层任务而非最后完成的 member；
 4. combine 在提交时完成 admission/retain：提交后 `ParRuntime.close()` 与 join 竞争时，combine 仍正常提交并终态；
@@ -240,5 +243,5 @@ combine 仅用于需要框架调度与观测的非平凡业务计算。combine �
 6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
 7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
 8. `totalTasks` 目标含 terminal future；内部 completion 等 terminal future 终态后才完成，组结果在 combine 终态后才返回；
-9. TaskGraph 不写 membership 边；每个成员 `JOIN` combine 的真实边与 caller 的 `FORK` 作为一个片段写入；
+9. 执行器等待不写 membership 或成员→combine 关系；caller 对每个成员与 combine 的等待作为一组安装；
 10. 所有执行、拒绝和取消路径恢复 ThreadLocal/TTL。

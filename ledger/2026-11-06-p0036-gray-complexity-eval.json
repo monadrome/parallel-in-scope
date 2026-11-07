@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-p0036-gray-complexity-eval",
+  "date": "2026-11-06",
+  "topic": "p0036-gray-complexity-eval",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "feat: add gray complexity review signals",
+      "test: cover gray complexity diff selection",
+      "docs: mark complexity review as gray evaluation"
+    ],
+    "files": 9,
+    "insertions": 511,
+    "deletions": 7
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "scripts unittest": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Gray-stage complexity evidence is advisory; independent refactoring detector stalled and was recorded as blocked."
+}

@@ -71,7 +71,6 @@ class ValidationTest {
 
     @Test
     void theEntryPointsThatShareARuleNowShareItsMessage() {
-        // One rule, four entry points: the wording no longer depends on which one you reached.
         assertThatThrownBy(() -> BatchOptions.timeout("batch", Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("timeout must be positive");

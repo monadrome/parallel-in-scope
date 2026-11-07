@@ -1,18 +1,25 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verifyNotNull;
 
 import com.alibaba.ttl.TtlUnwrap;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Monitor;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.errorprone.annotations.CheckReturnValue;
+import com.google.errorprone.annotations.MustBeClosed;
 import java.time.Duration;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -34,7 +42,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
@@ -45,66 +52,74 @@ import org.jspecify.annotations.Nullable;
  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
  * policies, and executor bindings cannot change. This is an application-scoped resource, normally
  * created at the composition root and closed during application or container shutdown. It owns its
- * deadline timer and the threads that run timeout actions; registered executors are borrowed and
- * are never shut down by this object.
+ * deadline timer, starvation observation scheduler, and the threads that run timeout actions;
+ * registered executors are borrowed and are never shut down by this object.
  *
- * <p>{@link #close()} immediately rejects all new {@link Par#map(Collection, Function, BatchOptions)}
- * calls. Batches admitted before closing retain their submission, timeout, and cancellation
- * processing while the framework-owned services drain; {@code close()} itself does not wait for
- * those batches to finish.
+ * <p>{@link #close()} immediately rejects new batch and group executions and observation scopes.
+ * Runs admitted before closing retain their submission, timeout, and cancellation processing while
+ * the framework-owned services drain; {@code close()} itself does not wait for those runs to
+ * finish.
  *
  * @since 0.3.0
  */
 public final class ParRuntime implements AutoCloseable {
+    private static final Duration MINIMUM_SAMPLING_INTERVAL = Duration.ofMillis(10);
     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
     private static final AtomicReference<@Nullable ParRuntime> INSTALLED = new AtomicReference<>();
     private final Map<ParId, Par> pars;
     private final Map<ParId, ExecutorRuntime> runtimes;
     private final Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity;
     private final @Nullable ParId defaultId;
-    private final ParRuntimeDeadlockPolicy deadlockPolicy;
+    private final ExecutorWaitGraph executorWaits;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger activeAdmissions = new AtomicInteger();
     private final AtomicInteger activeBatches = new AtomicInteger();
+    private final AtomicInteger activeObservations = new AtomicInteger();
     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
     private final Monitor quiescenceMonitor = new Monitor();
-    private final Set<ListenableFuture<@Nullable Void>> liveBodySignals = Sets.newConcurrentHashSet();
+    private final Set<ListenableFuture<@Nullable Void>> liveExecutionSignals = Sets.newConcurrentHashSet();
+    private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
+    private final WorkloadClock workloadClock;
 
-    /**
-     * Satisfied once shutdown has completed and no tracked task body remains in flight. A waiter
-     * on this guard is re-evaluated whenever a thread occupies and releases the monitor, so each
-     * state change that can satisfy it is followed by an enter/leave pair rather than a hand-built
+    /*
+     * Satisfied once shutdown has completed and no tracked task execution remains in flight. A waiter on
+     * this guard is re-evaluated whenever a thread occupies and releases the monitor, so each state
+     * change that can satisfy it is followed by an enter/leave pair rather than a hand-built
      * wait/notify protocol.
      */
     private final Monitor.Guard quiescent = new Monitor.Guard(quiescenceMonitor) {
         @Override
         public boolean isSatisfied() {
-            return servicesShutdown.get() && liveBodySignals.isEmpty();
+            return servicesShutdown.get() && liveExecutionSignals.isEmpty();
         }
     };
 
-    /**
+    /*
      * The root clock domain for tokens this runtime creates without a cancellation parent.
      * Package-private and defaulted to the system clock; tests inject a manual clock together with
-     * a manual {@link #timeoutScheduler} so deadline detection becomes deterministic. A unit with
-     * a cancellation parent inherits that parent's clock instead, so nested runtimes share the
-     * ancestor's domain (see {@link MultiTaskContext}).
+     * a manual timeoutScheduler so deadline detection becomes deterministic. A unit with a
+     * cancellation parent inherits that parent's clock instead, so nested runtimes share the
+     * ancestor's domain (see MultiTaskContext).
      */
     private final Ticker ticker;
 
     private final ScheduledExecutorService timerService;
+    private final ScheduledExecutorService starvationScheduler;
     private final ExecutorService timeoutActionPool;
 
-    /**
-     * Deadline scheduler handed to every {@link CancellationToken#bind}. Immutable and stateless
-     * over its two services, so one instance serves every bind: a group allocated one per member
-     * plus one for itself when this was built per call.
+    /** The runtime-owned executor that delivers diagnostic log messages; see {@link Announcements}. */
+    private final Executor announcements;
+
+    /*
+     * Deadline scheduler handed to every CancellationToken.bind. Immutable and stateless over its
+     * two services, so one instance serves every bind: a group allocated one per member plus one
+     * for itself when this was built per call.
      */
     private final ScheduledExecutorService timeoutScheduler;
 
     private ParRuntime(Builder builder) {
-        this.deadlockPolicy = builder.deadlockPolicy;
         this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
+        this.workloadClock = builder.workloadClock == null ? SystemWorkloadClock.INSTANCE : builder.workloadClock;
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -112,6 +127,13 @@ public final class ParRuntime implements AutoCloseable {
         ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1, factory);
         timer.setRemoveOnCancelPolicy(true);
         this.timerService = timer;
+        ThreadFactory starvationFactory = new ThreadFactoryBuilder()
+                .setNameFormat("ParRuntime-starvation-%d")
+                .setDaemon(true)
+                .build();
+        ScheduledThreadPoolExecutor starvation = new ScheduledThreadPoolExecutor(1, starvationFactory);
+        starvation.setRemoveOnCancelPolicy(true);
+        this.starvationScheduler = starvation;
         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
         this.timeoutScheduler = builder.timeoutScheduler != null
                 ? builder.timeoutScheduler
@@ -120,71 +142,82 @@ public final class ParRuntime implements AutoCloseable {
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
+        ImmutableSetMultimap.Builder<ExecutorIdentity, ParId> aliases = ImmutableSetMultimap.builder();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
-            ExecutorRuntime runtime = identityRuntimes.get(identity);
-            if (runtime == null) {
-                // A TTL wrapper hides the physical pool, so every structural fact below is read
-                // through it. Without this the wrapper is indistinguishable from a foreign
-                // executor: blocking-risk detection silently downgrades, and the
-                // discarding-policy guard below never runs at all.
-                ExecutorService introspectable = TtlUnwrap.unwrap(entry.getValue());
-                if (!(introspectable instanceof ThreadPoolExecutor)) {
-                    // Detection that silently downgrades is worse than a diagnostic: a decorated
-                    // or foreign executor hides the physical pool from deadlock-risk
-                    // classification, so say so once at the composition root.
-                    LOGGER.warning(
-                            "Par '" + entry.getKey() + "' is registered with "
-                                    + entry.getValue().getClass().getName()
-                                    + ", which this library cannot see through:"
-                                    + " blocking-risk detection is disabled for it. If this executor only"
-                                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
-                                    + " instead of the wrapper to keep it. An executor that starts a fresh"
-                                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
-                                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
-                } else {
-                    // A discarding policy never reports rejection: DiscardPolicy drops the new
-                    // task outright, and DiscardOldestPolicy drops the oldest queued task to make
-                    // room for it. Either way the framework would keep waiting on a future whose
-                    // body may never run. Refuse to register such a pool at all.
-                    RejectedExecutionHandler policy =
-                            ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
-                    if (policy instanceof ThreadPoolExecutor.DiscardPolicy
-                            || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
-                        // CallerRunsPolicy is legitimate and not refused, but only AbortPolicy is
-                        // named: rejection as a thrown exception is the more direct contract, and
-                        // running the body on the submitting thread carries consequences a caller
-                        // has to opt into knowingly — see ADR-0007.
-                        throw new IllegalArgumentException("Par '" + entry.getKey() + "' is registered with "
-                                + introspectable.getClass().getName() + " using "
-                                + policy.getClass().getName()
-                                + ", which discards rejected tasks silently: submission of an"
-                                + " overflowing task would never complete and the batch would hang. Register a"
-                                + " pool with AbortPolicy instead, which fails such a submission as"
-                                + " SUBMISSION_FAILURE.");
-                    }
-                }
-                if (TtlUnwrap.isWrapper(entry.getValue())) {
-                    // The facts above survive because they are read through the wrapper. What a
-                    // wrapper still costs is a second TTL capture: the executor boundary adds one
-                    // on top of the one prepare already performs. That boundary is the caller's
-                    // executor, so it is named rather than unwrapped.
-                    LOGGER.warning("Par '" + entry.getKey() + "' is registered with the TTL wrapper "
-                            + entry.getValue().getClass().getName()
-                            + "; register the physical pool instead. TTL capture then happens twice"
-                            + " for every task: once at the executor boundary and once at prepare.");
-                }
-                runtime = new ExecutorRuntime(entry.getValue());
-                identityRuntimes.put(identity, runtime);
-            }
+            ExecutorRuntime runtime =
+                    identityRuntimes.computeIfAbsent(identity, ignored -> runtimeFor(entry.getKey(), entry.getValue()));
+            aliases.put(identity, entry.getKey());
             builtRuntimes.put(entry.getKey(), runtime);
-            builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime));
+            TaskType taskType = verifyNotNull(builder.taskTypes.get(entry.getKey()), "task type of %s", entry.getKey());
+            builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime, taskType));
         }
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
         this.pars = ImmutableMap.copyOf(builtPars);
+        this.announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
+        this.executorWaits = new ExecutorWaitGraph(aliases.build(), announcements);
     }
 
+    /**
+     * Inspects {@code executor} and creates its runtime. The caller's identity registry invokes this
+     * factory only for the first alias, so its warnings and rejection checks run once per identity.
+     *
+     * @throws IllegalArgumentException if the physical executor silently discards rejected tasks
+     */
+    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor) {
+        // A TTL wrapper hides the physical pool, so every structural fact below is read
+        // through it. Without this the wrapper is indistinguishable from a foreign
+        // executor: blocking-risk detection silently downgrades, and the
+        // discarding-policy guard below never runs at all.
+        ExecutorService introspectable = TtlUnwrap.unwrap(executor);
+        if (!(introspectable instanceof ThreadPoolExecutor)) {
+            // Detection that silently downgrades is worse than a diagnostic: a decorated
+            // or foreign executor hides the physical pool from deadlock-risk
+            // classification, so say so once at the composition root.
+            LOGGER.warning("Par '" + id + "' is registered with "
+                    + executor.getClass().getName()
+                    + ", which this library cannot see through:"
+                    + " blocking-risk detection is disabled for it. If this executor only"
+                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
+                    + " instead of the wrapper to keep it. An executor that starts a fresh"
+                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
+        } else {
+            // A discarding policy never reports rejection: DiscardPolicy drops the new
+            // task outright, and DiscardOldestPolicy drops the oldest queued task to make
+            // room for it. Either way the framework would keep waiting on a future whose
+            // execution may never run. Refuse to register such a pool at all.
+            RejectedExecutionHandler policy = ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
+            if (policy instanceof ThreadPoolExecutor.DiscardPolicy
+                    || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
+                // CallerRunsPolicy is legitimate and not refused, but only AbortPolicy is
+                // named: rejection as a thrown exception is the more direct contract, and
+                // running the execution on the submitting thread carries consequences a caller
+                // has to opt into knowingly — see ADR-0007.
+                throw new IllegalArgumentException("Par '" + id + "' is registered with "
+                        + introspectable.getClass().getName() + " using "
+                        + policy.getClass().getName()
+                        + ", which discards rejected tasks silently: submission of an"
+                        + " overflowing task would never complete and the batch would hang. Register a"
+                        + " pool with AbortPolicy instead, which fails such a submission as"
+                        + " SUBMISSION_FAILURE.");
+            }
+        }
+        if (TtlUnwrap.isWrapper(executor)) {
+            // The facts above survive because they are read through the wrapper. What a
+            // wrapper still costs is a second TTL capture: the executor boundary adds one
+            // on top of the one prepare already performs. That boundary is the caller's
+            // executor, so it is named rather than unwrapped.
+            LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
+                    + executor.getClass().getName()
+                    + "; register the physical pool instead. TTL capture then happens twice"
+                    + " for every task: once at the executor boundary and once at prepare.");
+        }
+        return new ExecutorRuntime(executor);
+    }
+
+    /** Returns a mutable builder for a runtime topology. */
     public static Builder builder() {
         return new Builder();
     }
@@ -200,6 +233,7 @@ public final class ParRuntime implements AutoCloseable {
      * IllegalStateException} without occupying the slot, and an install that races {@code close()}
      * of the same instance undoes itself, so the slot never retains an instance that has shut down.
      *
+     * @throws NullPointerException if {@code runtime} is null
      * @throws IllegalStateException if another instance is currently installed, or if the given
      *     runtime is closed or closes while being installed
      */
@@ -218,12 +252,22 @@ public final class ParRuntime implements AutoCloseable {
         }
     }
 
+    /**
+     * Returns the installed process-wide runtime.
+     *
+     * @throws IllegalStateException if no runtime has been installed
+     */
     public static ParRuntime global() {
         ParRuntime value = INSTALLED.get();
         if (value == null) throw new IllegalStateException("ParRuntime has not been installed");
         return value;
     }
 
+    /**
+     * Returns the configured default {@link Par}.
+     *
+     * @throws IllegalStateException if this runtime has no default entry
+     */
     public Par defaultPar() {
         if (defaultId == null) throw new IllegalStateException("ParRuntime has no default Par");
         return par(defaultId);
@@ -241,13 +285,36 @@ public final class ParRuntime implements AutoCloseable {
         return value;
     }
 
-    /** Returns the {@link Par} registered under the given id, or empty when none is. */
+    /**
+     * Returns the {@link Par} registered under the given id, or empty when none is.
+     *
+     * @throws NullPointerException if {@code id} is null
+     */
     public Optional<Par> find(ParId id) {
         return Optional.ofNullable(pars.get(Objects.requireNonNull(id, "id cannot be null")));
     }
 
-    public ParRuntimeDeadlockPolicy deadlockPolicy() {
-        return deadlockPolicy;
+    /**
+     * Returns the executor waits-for structure this runtime has observed so far.
+     *
+     * <p>Every nested synchronous call — {@code Par.map}, {@code Par.mapAndCombine}, or a task
+     * group's {@code runAll()} made inside a task execution — records which registered executor waits
+     * for which; no scope or switch is needed. When those waits first form a cycle among
+     * starvation-prone pools, the runtime also logs one JUL {@code WARNING} per cyclic component,
+     * from a runtime-owned thread rather than the submitting one. The report accumulates for the
+     * runtime's lifetime and is a structural risk signal, not a deadlock proof; see {@link
+     * ExecutorWaitReport}.
+     *
+     * @return the current immutable snapshot
+     * @since 0.4.0
+     */
+    public ExecutorWaitReport executorWaitReport() {
+        return executorWaits.report();
+    }
+
+    /** The runtime's executor waits-for graph, recorded at every nested admission. */
+    ExecutorWaitGraph executorWaits() {
+        return executorWaits;
     }
 
     /** Returns the immutable id-to-entry topology; ids are the registration keys. */
@@ -255,45 +322,72 @@ public final class ParRuntime implements AutoCloseable {
         return pars;
     }
 
-    /** Package-private diagnostic topology for scope tests and internal maintenance. */
+    /** Package-private diagnostic topology for scope tests. */
+    @VisibleForTesting
     Map<ParId, ExecutorRuntime> runtimes() {
         return runtimes;
     }
 
-    /** Package-private identity index; runtime binding is not a public application API. */
+    /** Package-private identity index for scope tests. */
+    @VisibleForTesting
     Map<ExecutorIdentity, ExecutorRuntime> runtimesByIdentity() {
         return runtimesByIdentity;
     }
 
     /**
-     * Opens a request-scoped task-graph observation owned by this topology.
+     * Opens a runtime observation for direct work submitted to this topology's registered
+     * executors.
      *
-     * <p>The caller must close the returned scope. Only nested batches belonging to this same
-     * {@code ParRuntime} join it; crossing to another topology deliberately starts no shared graph.
+     * <p>The scope samples each distinct physical executor at the requested interval and publishes
+     * a {@link ThreadPoolStarvationReport} when closed. Only visible {@link ThreadPoolExecutor}
+     * instances can produce saturation evidence; other registered executors are named in the report
+     * as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise change
+     * user work.
      *
-     * @throws IllegalStateException if this ParRuntime has begun shutdown
+     * @param samplingInterval the interval between samples, at least 10 milliseconds
+     * @return the closeable observation scope
+     * @throws NullPointerException if {@code samplingInterval} is null
+     * @throws IllegalArgumentException if {@code samplingInterval} is less than 10 milliseconds
+     * @throws IllegalStateException if this runtime has begun shutdown
      */
-    public TaskGraphObservationScope openTaskGraphObservation() {
-        return whileOpen(() -> new TaskGraphObservationScope(this));
+    @MustBeClosed
+    public ThreadPoolStarvationObservationScope openThreadPoolStarvationObservation(Duration samplingInterval) {
+        checkNotNull(samplingInterval, "sampling interval cannot be null");
+        checkArgument(
+                samplingInterval.compareTo(MINIMUM_SAMPLING_INTERVAL) >= 0,
+                "sampling interval %s must be at least 10 ms",
+                samplingInterval);
+        return whileOpen(() -> {
+            activeObservations.incrementAndGet();
+            try {
+                return new ThreadPoolStarvationObservationScope(this, samplingInterval, runtimes);
+            } catch (RuntimeException | Error failure) {
+                activeObservations.decrementAndGet();
+                throw failure;
+            }
+        });
     }
 
     /**
      * Opens a one-shot task-group declaration with an explicit group timeout.
      *
-     * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and nothing runs
-     * while it is built: no cancellation token, future, deadline, timer, or TTL snapshot exists and
-     * no executor is called until {@link GroupStep#runAll()} or {@link GroupStart#runAll()}.
-     * The group timeout is a forced explicit choice: use this entry for an explicit budget, or
-     * {@link #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
+     * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and building it
+     * neither executes work nor captures the execution context. Execution budgets and TTL context
+     * are resolved only at {@link GroupStep#runAll()} or {@link GroupStart#runAll()}. The group
+     * timeout is a forced explicit choice: use this entry for an explicit budget, or {@link
+     * #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
      * deadline.
      *
      * <p>The returned stage is single-use and single-threaded; see {@link GroupStart}.
      *
      * @param groupName the group name; diagnostics and result identity
-     * @param timeout the group's explicit execution budget, positive
+     * @param timeout the group's explicit execution budget, positive; a duration whose deadline
+     *     does not fit the clock range resolves to the latest representable deadline, never to "no
+     *     deadline"
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is blank or the timeout is not positive
      */
+    @CheckReturnValue
     public GroupStart group(String groupName, Duration timeout) {
         return groupDraft(groupName, timeout);
     }
@@ -315,6 +409,7 @@ public final class ParRuntime implements AutoCloseable {
      * @throws NullPointerException if {@code groupName} is null
      * @throws IllegalArgumentException if the name is blank
      */
+    @CheckReturnValue
     public GroupStart groupInheriting(String groupName) {
         return groupDraftInheriting(groupName);
     }
@@ -325,7 +420,7 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Admits and starts one frozen group run. Called by {@link GroupDraft#submit()} after the
-     * declaration is complete and its bodies have moved into {@code payloads}.
+     * declaration is complete and its executions have moved into {@code payloads}.
      *
      * <p>The whole startup — preparation, binds, and submission — is one admission against {@link
      * #close()}: either the group is accepted completely or rejected completely, never partially,
@@ -337,10 +432,10 @@ public final class ParRuntime implements AutoCloseable {
      * <p>The admission boundary is the submission boundary: the submit start — structural parent,
      * deadline ceiling, TTL and observation snapshots — is resolved here, so a slow declaration
      * never consumes the group's execution budget and inherited-deadline errors surface before any
-     * body can run.
+     * execution can run.
      *
      * @param definition the frozen structure built from the declaration
-     * @param payloads this run's bodies, already owned by the kernel
+     * @param payloads this run's executions, already owned by the kernel
      * @return the running group, holding the complete member registry
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread
      *     has no enclosing scoped task
@@ -353,7 +448,7 @@ public final class ParRuntime implements AutoCloseable {
         // Batches already hold their admission through submission; groups now match them.
         return whileOpen(() -> {
             TaskGroup<?, ?> group = TaskGroup.prepare(this, definition, payloads);
-            group.start(this);
+            group.start(this, definition);
             group.submitPrepared();
             return group;
         });
@@ -362,7 +457,7 @@ public final class ParRuntime implements AutoCloseable {
     /**
      * Returns whether shutdown has begun.
      *
-     * <p>A {@code true} result means new batch submissions and observation scopes are rejected.
+     * <p>A {@code true} result means new executions and observation scopes are rejected.
      */
     public boolean closed() {
         return closed.get();
@@ -372,28 +467,32 @@ public final class ParRuntime implements AutoCloseable {
      * Rejects new work and begins releasing framework-owned resources.
      *
      * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
-     * a {@link Par#map(Collection, Function, BatchOptions)} call already setting up a batch, so that
-     * call either completes setup and returns its result or is rejected before any task is
-     * submitted. Services drain batches admitted before shutdown; this method does not wait for
-     * their task bodies to finish.
+     * executions already being set up, so each either completes setup and returns its result or is
+     * rejected before any task is submitted. Services drain runs admitted before shutdown; open
+     * starvation observations retain the diagnostic services until their scopes close. This method
+     * does not wait for task executions or observation reports to finish.
      */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            // Symmetric with installGlobal: closing the installed instance releases the slot so a
-            // restarted container context can install a fresh topology.
             INSTALLED.compareAndSet(this, null);
+            int observations = activeObservations.get();
+            if (observations > 0) {
+                LOGGER.warning("ParRuntime.close() is retaining framework services for " + observations
+                        + " open starvation observations; close them to release the services");
+            }
             shutdownServicesWhenAdmissionsComplete();
         }
     }
 
     /**
-     * Waits until this topology is closed and fully drained: no admission is setting up a batch,
-     * no admitted batch retains incomplete futures, every admitted task body has exited, and the
-     * framework-owned services have shut down. Call {@link #close()} first; without it this method
-     * simply waits out the timeout.
+     * Waits until this topology is closed and fully drained: no admission is setting up an
+     * execution, no admitted run retains incomplete futures, every admitted task execution has exited,
+     * no open starvation observation retains the diagnostic services, and the framework-owned
+     * services have shut down. Call {@link #close()} first; without it this method simply waits out
+     * the timeout.
      *
-     * <p>Task-body exit is tracked separately from future completion: a task cancelled while
+     * <p>Task-execution exit is tracked separately from future completion: a task cancelled while
      * running completes its future immediately but may still be executing user code that ignores
      * interruption. Quiescence means both.
      *
@@ -403,6 +502,7 @@ public final class ParRuntime implements AutoCloseable {
      *
      * @param timeout the maximum time to wait
      * @return {@code true} if the topology reached quiescence, or {@code false} on timeout
+     * @throws NullPointerException if {@code timeout} is null
      * @throws InterruptedException if the calling thread is interrupted before or while waiting;
      *     the interrupt flag is cleared per Java interruption convention
      */
@@ -431,20 +531,47 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns the in-flight work this topology still tracks — admissions setting up a batch plus
-     * undrained batches — which is what {@link #awaitQuiescence(Duration)} waits on.
+     * Returns the current always-on workload-fit screening of library-admitted executions.
+     *
+     * <p>Executions are measured when either their entry or unit declares {@link TaskType#COMPUTE}.
+     * Only a compute entry can acquire an entry issue and a {@code WARNING}; a compute unit can
+     * independently acquire declaration drift and an {@code INFO}. Counts are cumulative, so two
+     * reports bound an interval. Library-admitted executions are measured even when their executor
+     * runs them inline; work submitted directly to an executor outside library admission is not
+     * measured. See {@link WorkloadFitReport} for verdicts, calibration, and limitations.
+     *
+     * @return the current immutable report
+     * @since 0.4.0
+     */
+    public WorkloadFitReport workloadFitReport() {
+        List<WorkloadFitReport.ParMeasurement> measurements = new ArrayList<>();
+        for (Par par : pars.values()) {
+            WorkloadFitReport.ParMeasurement measurement = par.workload().measurement(par);
+            if (measurement != null) {
+                measurements.add(measurement);
+            }
+        }
+        return new WorkloadFitReport(measurements);
+    }
+
+    /**
+     * Returns the in-flight work this topology still tracks: admissions setting up an execution,
+     * undrained runs, and open starvation observations. Open observations retain framework services
+     * and therefore participate in {@link #awaitQuiescence(Duration)}.
      */
     public int inFlight() {
-        return activeAdmissions.get() + activeBatches.get();
+        return activeAdmissions.get() + activeBatches.get() + activeObservations.get();
     }
 
     /**
      * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
-     * and how many admitted runs still have an incomplete aggregate body-exit signal (one signal per
-     * run, covering every body of that run).
+     * how many starvation observations are open, and how many admitted runs still have a direct
+     * execution whose exit has not been confirmed (one count per run, regardless of the number of its
+     * outstanding executions). Open observations retain framework services after runtime close until
+     * their reports publish.
      *
-     * <p>The four readings are independent samples of concurrent counters: the snapshot is a
+     * <p>The five readings are independent samples of concurrent counters: the snapshot is a
      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
      * linearizable state — it must not drive control flow, and it never replaces the quiescence
      * guarantee.
@@ -453,7 +580,22 @@ public final class ParRuntime implements AutoCloseable {
      */
     public ParRuntimeSnapshot snapshot() {
         return new ParRuntimeSnapshot(
-                closed.get(), activeAdmissions.get(), activeBatches.get(), liveBodySignals.size());
+                closed.get(),
+                activeAdmissions.get(),
+                activeBatches.get(),
+                activeObservations.get(),
+                liveExecutionSignals.size());
+    }
+
+    /**
+     * The runtime-owned executor that runs adopted members' closers, so a closer never runs on a
+     * {@code runAll()} caller or on the thread that delivers deadlines. It is the deadline action
+     * pool: it grows on demand, so a blocking closer occupies one of its threads and delays nothing
+     * else. It rejects work after the runtime's services shut down, and a refused release then runs on
+     * the thread that hands it over.
+     */
+    Executor releases() {
+        return timeoutActionPool;
     }
 
     /** Runs one synchronous batch setup while this topology remains open. */
@@ -484,8 +626,10 @@ public final class ParRuntime implements AutoCloseable {
         if (closed.get()
                 && activeAdmissions.get() == 0
                 && activeBatches.get() == 0
+                && activeObservations.get() == 0
                 && servicesShutdown.compareAndSet(false, true)) {
             timerService.shutdown();
+            starvationScheduler.shutdown();
             timeoutActionPool.shutdown();
             // Monitor re-evaluates its guards when a thread leaves, waking awaitQuiescence.
             quiescenceMonitor.enter();
@@ -495,8 +639,8 @@ public final class ParRuntime implements AutoCloseable {
 
     /**
      * Keeps a submitted batch's futures from being dropped until every one reaches a terminal
-     * state. Callers that already hold a completion aggregate — such as the one returned by
-     * {@link CancellationToken#bind} over the same futures — pass it to {@link
+     * state. Callers that already hold a completion aggregate — such as the one returned by {@link
+     * CancellationToken#bind} over the same futures — pass it to {@link
      * #retainUntilComplete(ListenableFuture)} instead of building a second aggregate here.
      */
     void retainUntilComplete(List<? extends ListenableFuture<?>> results) {
@@ -516,23 +660,23 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Tracks one submission's task-body completion signal until every body has exited. Task bodies
-     * outlive their futures when a cancellation wins mid-run, so quiescence cannot read body exit
+     * Tracks one submission's execution exit signal until every execution has exited. Task executions
+     * outlive their futures when a cancellation wins mid-run, so quiescence cannot read execution exit
      * from the future drain alone. Must be called inside {@link #whileOpen}: after shutdown begins
      * and admissions drain, no new signal can appear, so {@link #awaitQuiescence} observing an
      * empty set is stable.
      */
     @SuppressWarnings("CollectionUndefinedEquality")
-    void trackBodies(BodyCompletionTracker tracker) {
-        ListenableFuture<@Nullable Void> signal = tracker.bodyExit();
+    void trackExecutions(ExecutionExitTracker tracker) {
+        ListenableFuture<@Nullable Void> signal = tracker.executionExit();
         if (signal.isDone()) return;
-        liveBodySignals.add(signal);
+        liveExecutionSignals.add(signal);
         // directExecutor: the listener runs inside the signal's completion, so a completed
         // signal is always removed before the completing thread returns — the quiescence check
         // never sees a stale entry.
         signal.addListener(
                 () -> {
-                    liveBodySignals.remove(signal);
+                    liveExecutionSignals.remove(signal);
                     quiescenceMonitor.enter();
                     quiescenceMonitor.leave();
                 },
@@ -544,9 +688,33 @@ public final class ParRuntime implements AutoCloseable {
         return timeoutScheduler;
     }
 
+    ScheduledFuture<?> scheduleStarvationSampling(Runnable action, long intervalNanos) {
+        return starvationScheduler.scheduleWithFixedDelay(action, intervalNanos, intervalNanos, TimeUnit.NANOSECONDS);
+    }
+
+    void starvationObservationClosed() {
+        activeObservations.decrementAndGet();
+        shutdownServicesWhenAdmissionsComplete();
+    }
+
     /** The root clock domain for tokens this runtime creates; see the field documentation. */
     Ticker ticker() {
         return ticker;
+    }
+
+    /** The once-per-pair memory of submission-time task-type mismatches. */
+    TaskTypeMismatches taskTypeMismatches() {
+        return taskTypeMismatches;
+    }
+
+    /** The clocks behind always-on workload-fit screening. */
+    WorkloadClock workloadClock() {
+        return workloadClock;
+    }
+
+    /** Delivers a diagnostic log message off the calling thread; never throws or blocks the caller. */
+    void announce(Runnable message) {
+        Announcements.deliver(announcements, message);
     }
 
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
@@ -612,34 +780,74 @@ public final class ParRuntime implements AutoCloseable {
         }
     }
 
+    /**
+     * Mutable composition-root builder for an immutable {@link ParRuntime}. Register every logical
+     * entry and optionally its default before calling {@link #build()}; registered executors remain
+     * owned by the application.
+     *
+     * @since 0.3.0
+     */
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
-        private ParRuntimeDeadlockPolicy deadlockPolicy =
-                ParRuntimeDeadlockPolicy.builder().build();
+        private final Map<ParId, TaskType> taskTypes = new LinkedHashMap<>();
         private @Nullable ParId defaultId;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
+        private @Nullable WorkloadClock workloadClock;
+        private @Nullable Executor announcements;
 
-        public Builder deadlockPolicy(ParRuntimeDeadlockPolicy policy) {
-            this.deadlockPolicy = Objects.requireNonNull(policy);
+        /**
+         * Registers a logical entry with one exact executor object and no declared {@link
+         * TaskType}; equivalent to {@link #register(ParId, ExecutorService, TaskType)} with {@link
+         * TaskType#UNKNOWN}.
+         *
+         * @param id the logical entry id
+         * @param executor the executor used by the entry
+         * @return this builder
+         * @throws NullPointerException if {@code id} or {@code executor} is null
+         * @throws IllegalArgumentException if {@code id} is already registered
+         */
+        public Builder register(ParId id, ExecutorService executor) {
+            return register(id, executor, TaskType.UNKNOWN);
+        }
+
+        /**
+         * Registers a logical entry with one exact executor object and the work it is meant to
+         * carry.
+         *
+         * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
+         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so two
+         * ids may intentionally use the same physical pool; each entry keeps its own task type.
+         *
+         * <p>The task type is diagnostic only. Submission compares it with each unit's declared
+         * type and logs a mismatch once per entry and unit name, and the runtime screens the
+         * entry's executions for low CPU use when it is {@link TaskType#COMPUTE}, reported by {@link
+         * ParRuntime#workloadFitReport()}. It never changes how the executor is used.
+         *
+         * @param id the logical entry id
+         * @param executor the executor used by the entry
+         * @param taskType the work the entry is meant to carry, or {@link TaskType#UNKNOWN}
+         * @return this builder
+         * @throws NullPointerException if {@code id}, {@code executor}, or {@code taskType} is null
+         * @throws IllegalArgumentException if {@code id} is already registered
+         * @since 0.4.0
+         */
+        public Builder register(ParId id, ExecutorService executor, TaskType taskType) {
+            checkNotNull(id, "id cannot be null");
+            checkArgument(!executors.containsKey(id), "duplicate Par id '%s'", id);
+            checkNotNull(executor, "executor cannot be null");
+            checkNotNull(taskType, "taskType cannot be null");
+            executors.put(id, executor);
+            taskTypes.put(id, taskType);
             return this;
         }
 
         /**
-         * Registers a logical entry with one exact executor object.
+         * Sets the default registered entry.
          *
-         * <p>The id is only a build-time lookup and diagnostic label; it is validated once by
-         * {@link ParId#of(String)}. Executor sharing is instead detected by object identity, so
-         * two ids may intentionally use the same physical pool.
+         * @throws NullPointerException if {@code id} is null
+         * @throws IllegalStateException if a default entry was already configured
          */
-        public Builder register(ParId id, ExecutorService executor) {
-            Objects.requireNonNull(id, "id cannot be null");
-            if (executors.containsKey(id)) throw new IllegalArgumentException("duplicate Par id '" + id + "'");
-            Objects.requireNonNull(executor, "executor cannot be null");
-            executors.put(id, executor);
-            return this;
-        }
-
         public Builder defaultPar(ParId id) {
             Objects.requireNonNull(id, "id cannot be null");
             if (defaultId != null) throw new IllegalStateException("default Par already configured");
@@ -648,17 +856,44 @@ public final class ParRuntime implements AutoCloseable {
         }
 
         /** Test seam: the root clock domain. Package-private; not a supported public SPI. */
+        @VisibleForTesting
         Builder ticker(Ticker ticker) {
             this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
             return this;
         }
 
         /** Test seam: the deadline scheduler. Package-private; not a supported public SPI. */
+        @VisibleForTesting
         Builder timeoutScheduler(ScheduledExecutorService scheduler) {
             this.timeoutScheduler = Objects.requireNonNull(scheduler, "scheduler cannot be null");
             return this;
         }
 
+        /** Test seam: the workload-fit clocks. Package-private; not a supported public SPI. */
+        @VisibleForTesting
+        Builder workloadClock(WorkloadClock clock) {
+            this.workloadClock = checkNotNull(clock, "clock cannot be null");
+            return this;
+        }
+
+        /**
+         * Test seam: the executor that delivers diagnostic log messages. Package-private; not a
+         * supported public SPI.
+         */
+        @VisibleForTesting
+        Builder announcements(Executor announcements) {
+            this.announcements = checkNotNull(announcements, "announcements cannot be null");
+            return this;
+        }
+
+        /**
+         * Builds an immutable runtime without taking ownership of registered executors.
+         *
+         * @throws IllegalArgumentException if the configured default id is not registered, or a
+         *     registered thread pool, including one behind a recognized TTL wrapper, uses {@link
+         *     ThreadPoolExecutor.DiscardPolicy} or {@link ThreadPoolExecutor.DiscardOldestPolicy}
+         */
+        @MustBeClosed
         public ParRuntime build() {
             if (defaultId != null && !executors.containsKey(defaultId)) {
                 throw new IllegalArgumentException("default Par is not registered: " + defaultId);

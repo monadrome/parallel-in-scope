@@ -70,7 +70,7 @@ class ParMapAndCombineTest {
             assertThat(result.terminalValueOrThrow()).isEqualTo(20);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(2, 4, 6, 8);
-            assertThat(result.bodyCompletionConfirmed()).isTrue();
+            assertThat(result.executionExitConfirmed()).isTrue();
             TaskCompletion<Integer> terminal = result.terminal();
             assertThat(terminal).isNotNull();
             assertThat(terminal.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -107,6 +107,9 @@ class ParMapAndCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            // One attribution per task: the terminal's own child token reads differently, but its
+            // final observation carries the frozen FAIL_FAST.
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
             ImmediateResult<Integer> failing = result.batchResult().results().get(1);
             assertThat(failing.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(failing.failure()).isSameAs(boom);
@@ -140,7 +143,7 @@ class ParMapAndCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.batchResult().report().stateCounts().get(TaskOutcome.TIMEOUT))
+            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.TIMEOUT))
                     .isEqualTo(2);
         } finally {
             executor.shutdownNow();
@@ -164,14 +167,13 @@ class ParMapAndCombineTest {
                                 throw combineFailure;
                             });
 
-            assertThat(result.batchResult().report().stateCounts().get(TaskOutcome.SUCCESS))
+            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.SUCCESS))
                     .isEqualTo(2);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.terminalResult().failure()).isSameAs(combineFailure);
             assertThatThrownBy(result::terminalValueOrThrow)
-                    .isInstanceOf(java.util.concurrent.ExecutionException.class)
-                    .cause()
-                    .isSameAs(combineFailure);
+                    .isInstanceOf(java.util.concurrent.CompletionException.class)
+                    .hasCauseReference(combineFailure);
         } finally {
             executor.shutdownNow();
         }
@@ -196,7 +198,7 @@ class ParMapAndCombineTest {
 
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.terminalResult().failure()).isSameAs(combineFailure);
-            assertThat(result.batchResult().report().stateCounts().get(TaskOutcome.TIMEOUT))
+            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.TIMEOUT))
                     .isNull();
         } finally {
             executor.shutdownNow();
@@ -290,7 +292,7 @@ class ParMapAndCombineTest {
     }
 
     @Test
-    void combineBodySeesTheAdmissionThreadsTtlContext() throws Exception {
+    void combineExecutionSeesTheAdmissionThreadsTtlContext() throws Exception {
         ExecutorService io = Executors.newFixedThreadPool(1);
         ExecutorService cpu = Executors.newSingleThreadExecutor();
         runtime = ParRuntime.builder()
@@ -326,7 +328,7 @@ class ParMapAndCombineTest {
                 .build();
         try {
             TaskGroupResult<Integer, Void> group = runtime.group("enclosing", Duration.ofSeconds(10))
-                    .par("nested", runtime.par(ParId.of("outer")), Integer.class, () -> {
+                    .par(TaskKey.<Integer>named("nested"), runtime.par(ParId.of("outer")), () -> {
                         BatchCombinedResult<Integer, Integer> combined = runtime.par(ParId.of("inner"))
                                 .mapAndCombine(
                                         Arrays.asList(1, 2),
@@ -348,15 +350,13 @@ class ParMapAndCombineTest {
         }
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     private static java.util.function.Function<Integer, Integer> nullFunction() {
         return null;
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
-    private static CombineBody<List<@Nullable Integer>, Integer> nullBody() {
+    private static Combiner<List<@Nullable Integer>, Integer> nullCombiner() {
         return null;
     }
 
@@ -396,6 +396,9 @@ class ParMapAndCombineTest {
             assertThat(combineRuns).hasValue(0);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(1, 2);
+            assertThatThrownBy(result::terminalValueOrThrow)
+                    .isInstanceOf(SubmissionException.class)
+                    .isSameAs(result.terminalResult().failure());
         } finally {
             release.countDown();
             io.shutdownNow();
@@ -435,12 +438,12 @@ class ParMapAndCombineTest {
             caller.start();
             assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
 
-            // The combined run is retained and body-tracked like any other admission: a runtime
+            // The combined run is retained and execution-tracked like any other admission: a runtime
             // snapshot must see it until it drains.
             org.awaitility.Awaitility.await().untilAsserted(() -> {
                 ParRuntimeSnapshot snapshot = runtime.snapshot();
                 assertThat(snapshot.undrainedBatches()).isEqualTo(1);
-                assertThat(snapshot.unexitedBodySignals()).isGreaterThanOrEqualTo(1);
+                assertThat(snapshot.unexitedExecutionSignals()).isGreaterThanOrEqualTo(1);
             });
 
             release.countDown();
@@ -454,51 +457,27 @@ class ParMapAndCombineTest {
     }
 
     /**
-     * A top-level combined batch records the batch and the combine as nodes joined by the data
-     * dependency between them. There is no caller, so nothing forks either unit, and a join never
-     * reaches the executor projection: the starvation-prone pools stay out of it.
+     * A top-level combined batch has no caller, so nothing waits for either unit and no executor wait
+     * is recorded, even on two starvation-prone pools.
      */
     @Test
-    void combineEdgeIsRecordedInTheObservationGraph() throws Exception {
+    void topLevelCombinedBatchRecordsNoExecutorWait() throws Exception {
         ExecutorService io = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         ExecutorService cpu = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
                 .register(ParId.of("io"), io)
                 .register(ParId.of("cpu"), cpu)
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         try {
-            TaskGraphObservationScope scope = runtime.openTaskGraphObservation();
-            BatchCombinedResult<Integer, Integer> result;
-            try {
-                result = runtime.par(ParId.of("io"))
-                        .mapAndCombine(
-                                Arrays.asList(1, 2),
-                                value -> value,
-                                BatchOptions.timeout("batch", TIMEOUT),
-                                runtime.par(ParId.of("cpu")),
-                                values -> Objects.requireNonNull(values).size());
-                com.google.common.graph.ValueGraph<TaskNode, TaskGraph.Dependency> graph =
-                        scope.graph().asValueGraph();
-                assertThat(graph.nodes()).hasSize(2);
-                assertThat(graph.edges()).hasSize(1);
-                TaskNode batch = graph.nodes().iterator().next();
-                TaskNode combine = graph.successors(batch).iterator().next();
-                assertThat(batch.executorLabel()).isEqualTo("io");
-                assertThat(combine.executorLabel()).isEqualTo("cpu");
-                assertThat(graph.edgeValue(batch, combine)).contains(TaskGraph.Dependency.JOIN);
-                assertThat(ExecutorGraph.projectedFrom(scope.graph())
-                                .asValueGraph()
-                                .edges())
-                        .isEmpty();
-            } finally {
-                scope.close();
-            }
+            BatchCombinedResult<Integer, Integer> result = runtime.par(ParId.of("io"))
+                    .mapAndCombine(
+                            Arrays.asList(1, 2),
+                            value -> value,
+                            BatchOptions.timeout("batch", TIMEOUT),
+                            runtime.par(ParId.of("cpu")),
+                            values -> Objects.requireNonNull(values).size());
             assertThat(result.terminalValueOrThrow()).isEqualTo(2);
-            // A batch fanning out to a combine on another executor is ordinary forking, not a cycle.
-            TaskGraphReport report =
-                    Objects.requireNonNull(com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
-            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
+            assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
         } finally {
             io.shutdownNow();
             cpu.shutdownNow();
@@ -506,34 +485,34 @@ class ParMapAndCombineTest {
     }
 
     @Test
-    void combineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop() throws Exception {
-        // Regression: the deferred combine never parks a worker waiting on its own pool, so a
-        // same-pool combine must not read as an executor self-loop (ISSUE) on close.
+    void nestedCombineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop() throws Exception {
+        // The batch only feeds its combine and never waits for it, so a same-pool combine admitted
+        // from an execution on another pool must not read as a self-loop on the batch's pool.
+        ExecutorService outer = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>());
         ExecutorService pool = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(16));
         runtime = ParRuntime.builder()
+                .register(ParId.of("outer"), outer)
                 .register(ParId.of("worker"), pool)
-                .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
                 .build();
         try {
-            TaskGraphObservationScope scope = runtime.openTaskGraphObservation();
-            BatchCombinedResult<Integer, Integer> result;
-            try {
-                result = runtime.par(ParId.of("worker"))
-                        .mapAndCombine(
-                                Arrays.asList(1, 2),
-                                value -> value,
-                                BatchOptions.timeout("batch", TIMEOUT),
-                                runtime.par(ParId.of("worker")),
-                                values -> Objects.requireNonNull(values).size());
-            } finally {
-                scope.close();
-            }
-            assertThat(result.terminalValueOrThrow()).isEqualTo(2);
-            TaskGraphReport report =
-                    Objects.requireNonNull(com.google.common.util.concurrent.Futures.getDone(scope.reportFuture()));
-            assertThat(report.status()).isEqualTo(TaskGraphReport.Status.NO_ISSUE);
-            assertThat(report.executorSelfLoop()).isFalse();
+            List<Integer> totals = runtime.par(ParId.of("outer"))
+                    .map(
+                            Arrays.asList(1),
+                            ignored -> runtime.par(ParId.of("worker"))
+                                    .mapAndCombine(
+                                            Arrays.asList(1, 2),
+                                            value -> value,
+                                            BatchOptions.inheritTimeout("batch"),
+                                            runtime.par(ParId.of("worker")),
+                                            values -> Objects.requireNonNull(values)
+                                                    .size())
+                                    .terminalValueOrThrow(),
+                            BatchOptions.timeout("outer", TIMEOUT))
+                    .valuesOrThrow();
+            assertThat(totals).containsExactly(2);
+            assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
         } finally {
+            outer.shutdownNow();
             pool.shutdownNow();
         }
     }
@@ -559,7 +538,7 @@ class ParMapAndCombineTest {
         try {
             Par par = runtime.par(ParId.of("worker"));
             BatchOptions options = BatchOptions.timeout("batch", TIMEOUT);
-            CombineBody<List<@Nullable Integer>, Integer> combine =
+            Combiner<List<@Nullable Integer>, Integer> combine =
                     values -> Objects.requireNonNull(values).size();
 
             assertThatThrownBy(() -> par.<Integer, Integer, Integer>mapAndCombine(
@@ -574,7 +553,7 @@ class ParMapAndCombineTest {
                             Arrays.asList(1), nullFunction(), options, par, combine))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> par.<Integer, Integer, Integer>mapAndCombine(
-                            Arrays.asList(1), v -> v, options, par, nullBody()))
+                            Arrays.asList(1), v -> v, options, par, nullCombiner()))
                     .isInstanceOf(NullPointerException.class);
         } finally {
             other.close();
@@ -584,10 +563,10 @@ class ParMapAndCombineTest {
     }
 
     @Test
-    void combineSubmittedAsDeadlineFiresNeverRunsItsBody() throws Exception {
+    void combineSubmittedAsDeadlineFiresNeverRunsItsExecution() throws Exception {
         // The tight terminal-submit race: the success gate has passed and the combine has been
         // handed to its executor — but not yet dequeued — when the deadline fires. The cascade
-        // must cancel the queued combine before its body can be entered. The manual clock makes
+        // must cancel the queued combine before its execution can be entered. The manual clock makes
         // the interleaving exact: advance() runs the timer synchronously on this thread, so the
         // cancellation has fully landed before the gate releases the task to its pool.
         ManualClock clock = new ManualClock();
@@ -628,9 +607,9 @@ class ParMapAndCombineTest {
             combineGate.awaitDrained();
             BatchCombinedResult<Integer, Integer> result = Objects.requireNonNull(outcome.get());
             assertThat(combineRuns)
-                    .as("a combine cancelled while queued must never enter its body")
+                    .as("a combine cancelled while queued must never enter its execution")
                     .hasValue(0);
-            assertThat(result.batchResult().report().stateCounts().get(TaskOutcome.SUCCESS))
+            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.SUCCESS))
                     .isEqualTo(2);
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {

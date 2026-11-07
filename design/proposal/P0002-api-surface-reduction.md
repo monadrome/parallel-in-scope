@@ -11,19 +11,16 @@
 
 ## 后续审计反证与实施前复核
 
-以下盘点保留 2026-10-02、`756c573` 的候选论证，成员数、类型名与定位不是当前版本事实。
+以下盘点保留 2026-10-02 版本的候选论证，成员数、类型名与定位不是当前版本事实。
 后续核心审计已给出反证：公开 CancellationToken 仍能支持应用自己的父子协作循环与预算；
 TaskCompletion 工厂支持纯数据消费者测试；`valuesResult` 与抛异常入口能力不同；
 图静态查询与 close 报告的时点不同；容量工厂必须权衡显式选择与便利性。
 这些反证没有自动否决全部候选，但撤除了“零调用即可删除”的依据。当前图 API 已随
-`5c1887a` 改变，N2 的旧名单必须重新核对；取消接入与 P0001 的形状也必须协调。
+0.4 的执行器等待图改变，N2 的旧名单必须重新核对；取消接入与 P0001 的形状也必须协调。
 每项仍需独立选择，不将本提案入库解释成缩减已批准。
 
-source-only-2026-10-04 的浅包装候选也保留供独立评估：
-当前 `ParRuntime.builder().deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())`
-可设想为 `ParRuntime.builder().deadlockDetection(true)`。单 boolean 包装确实较浅，但缩短
-装配并未证明消除具体用户错误；配置形状一致性、未来兼容空间与下游迁移成本需要同时权衡，
-不能只因类短就删除。没有随本机制实施该候选。
+source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策略开关随运行时级执行器等待图删除
+（见 [task-graph.md](../task-graph.md)）。
 
 > 本文系对 2026-09-27 同名草案的全面刷新。09-27 版盘点的是组 API 重构前的公开面
 > （`TaskGroup`/`TaskGroupDefinition`/`TaskListener` 时代），其类型清单与使用证据已整体脱节；
@@ -37,7 +34,7 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
 
 - 公开面以 `src/test/java/.../PublicApiSurfaceTest.java` 钉住的清单为准：**36 个公开类型**
   （27 个顶层 + 9 个嵌套）。
-- 成员级盘点对新编译产物（基线 HEAD `756c573`）逐类 `javap -public`；使用证据用全文检索
+- 成员级盘点对新编译产物（基线为 2026-10-02 的 HEAD）逐类 `javap -public`；使用证据用全文检索
   统计三类消费方：`src/test/java`（测试）、`demo/src`（demo 模块）、用户文档（`docs/en`、
   `docs/zh`、`README*.md`）。`docs/**/migration-*.md` 单独标注"仅迁移文档"；`design/`、
   `adr/`、`CHANGELOG.md` 记为设计依据，不算用户使用。
@@ -56,10 +53,11 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
 |---|---|
 | `TaskListener` SPI 及 `ParRuntime.Builder.taskListener`/`parTaskListener`、`ParRuntime.taskListeners()`/`taskListenersFor(ParId)` 整条注册与读取面 | [decision-log.md](../decision-log.md) 对应条目（已落地） |
 | `DeadlockDetectionListener` SPI + `DeadlockDetectionEvent` | [decision-log.md](../decision-log.md) 对应条目（已落地） |
-| `TaskGroupDefinition`（+`Builder`/`Member`）、`TaskGroup`（+`Bindings`/`CombineBody`/`CombineContext`）、`TaskFuture` 接口、`Par.submit` | 组一次性链式 API（[group-one-shot-api-refactor-codex.md](../group-one-shot-api-refactor-codex.md)）+ 同步出口契约（[synchronous-scope-exit.md](../synchronous-scope-exit.md)） |
-| `BatchOptions.runOnCallerThread` / `TaskOptions.runOnCallerThread` | `df89b43 feat!: drop the runOnCallerThread submission option` |
+| `TaskGroupDefinition`（+`Builder`/`Member`）、`TaskGroup`（+`Bindings`/`Combiner`/`CombineContext`）、`TaskFuture` 接口、`Par.submit` | 组一次性链式 API（[group-one-shot-api-refactor-codex.md](../group-one-shot-api-refactor-codex.md)）+ 同步出口契约（[synchronous-scope-exit.md](../synchronous-scope-exit.md)） |
+| `BatchOptions.runOnCallerThread` / `TaskOptions.runOnCallerThread` | 提交 `feat!: drop the runOnCallerThread submission option` |
 | `ParRuntime.executorTags()`/`executorTags(ParId)`/`executorTags(ExecutorService)`/`parsWithExecutorTag`、`ParRuntime.Builder.register(ParId, ExecutorService, String...)` 重载 | 可用性缺口收口提交 |
 | `TaskGroupResult.memberCount()`（09-27 版 C2） | 已随上述重构移除 |
+| `Checkpoints.checkRunnable`/`checkSupplier`、`checkpoint(String, boolean)`、`sleep(long)` | 检查点取消确认按 token 归因（[中断契约](../interruption-contract.md) §3.1，`proposal:P0034`）：前两者把用户异常类型映射为取消而结果仍是 `USER_FAILURE`；后两者分别由 `checkpoint()`、`checkSleep(long, TimeUnit)` 覆盖 |
 
 ## 三、当前公开面总览
 
@@ -78,23 +76,19 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
 | 组链（同步出口） | `GroupStart` | 5 | ✗ | ✓ |
 | | `GroupStep` | 7 | ✗ | ✓ |
 | | `CombinedGroupStep` | 1 | ✗ | ✓ |
-| | `CombineBody`（SPI 接口） | 1 | ✗ | ✓ |
+| | `Combiner`（SPI 接口） | 1 | ✗ | ✓ |
 | 结果与归因 | `TaskGroupResult` | 25 | ✗ | ✓ |
 | | `GroupValues` | 11 | ✗ | ✓ |
 | | `Tuple2` | 6 | ✗ | ✓ |
 | | `ImmediateResult` | 6 | ✓（`asFuture` 高频） | ✓ |
 | | `TaskBatchResult` | 7 | ✓ | ✓ |
-| | `TaskBatchResult.BatchReport` | 3 | ✓ | ✓ |
 | | `TaskCompletion` | 16 | 访问器✓ | ✓ |
 | | `TaskOutcome` | 8 常量 | ✓ | ✓ |
 | 协作取消 | `Checkpoints` | 32（全静态） | ✓ | ✓ |
 | | `LeanCancellationException` | 2 | ✓ | ✓ |
 | | `CancellationToken` | 10 | 仅注释 | 仅措辞 |
 | | `CancellationToken.State` | 6 常量 | ✗ | 仅设计散文 |
-| 观测与策略 | `TaskGraphObservationScope` | 7 | ✓ | ✓ |
-| | `TaskGraphReport` | 9 | ✓ | ✓ |
-| | `TaskGraphReport.Status` | 3 常量 | ✓ | ✓ |
-| | `ParRuntimeDeadlockPolicy`（+`Builder`） | 2+3 | ✗ | ✓ |
+| 观测与策略 | `ExecutorWaitReport`（+`Component`，0.4 取代任务图 scope 与报告） | 1+3 | ✓ | ✓ |
 | | `ParRuntimePurgePolicy`（+`Builder`） | 4+5 | ✗ | ✓ |
 | 队列 | `SmartBlockingQueue` | 5 | ✗ | ✓ |
 | | `queue.VariableLinkedBlockingQueue` | 3 构造 + 20 | ✗ | 仅迁移文档 |
@@ -123,7 +117,7 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
 1. **没有任何公开 API 返回或接受 `CancellationToken`。** `src/main` 中除自身外的引用全部
    是包私有：`Task`（:39,:60,:69,:78,:130）、`TaskBatch`（:51,:257）、`TaskGroup`（:137）、
    `TaskObservation`（:97,:208）、`MultiTaskContext`（包私有类）、`TokenOutcomes`（包私有类）、
-   `Checkpoints.java:525` 局部变量。用户**拿不到**库实际使用的任何一个 token 实例。
+   `Checkpoints.java` 局部变量。用户**拿不到**库实际使用的任何一个 token 实例。
 2. **v0.3 已经关闭了外部使用的前提**：token `final`、`bind(...)` 包私有、所有挂接点
    （`timeoutCancel`/`failFastCancel`/`addStateListener`）包私有。
 3. **`State` 的正确消费方式也是包私有的**（`shouldInterruptCurrentThread()`）；外部拿到
@@ -132,7 +126,7 @@ source-only-2026-10-04 的浅包装候选也保留供独立评估：
    `group(name, timeout)`）与 `ParRuntime.close()` 承担；归因走 `TaskOutcome` 八值
    （`TaskGroupResult.outcome()` / `ImmediateResult.outcome()`）。`Checkpoints` 读的是内核
    安装的 token，与用户构造的 token 无任何关系。
-5. **demo 的引用全部在注释里**（`CancellationDemo.java:27` 等 5 处），无代码依赖；
+5. **demo 的引用全部在注释里**（`CancellationDemo.java` 等 5 处），无代码依赖；
    测试引用全在同包（包私有化后照常编译）。
 
 **改前用户能写出的"最好"代码：**
@@ -165,76 +159,28 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 - `CancellationToken`、`CancellationToken.State` 去掉 `public`；构造器、`create()` 与方法随之
   包私有化（同包测试不受影响）。
 - `PublicApiSurfaceTest` 期望清单减 2 条。
-- `Checkpoints.java:23` 类级 javadoc 的 `{@link CancellationToken}` 改为 `{@code}` 或文字
+- `Checkpoints.java` 类级 javadoc 的 `{@link CancellationToken}` 改为 `{@code}` 或文字
   （公开 API 的 javadoc 不得链接包私有类型）。
 - 文档措辞同步：
   - `docs/*/reference/nullability-annotations.md`：en:32 / zh:29,32 用 `CancellationToken`
-    当 `@Nullable` 公开示例——收口后不再是公开 API，需换示例（`BatchReport.firstException()`
-    可保留）；
+    当 `@Nullable` 公开示例——收口后不再是公开 API，需换示例（现以 `TaskGroupResult.failedTaskName()`
+    为例）；
   - `docs/zh/reference/cooperative-cancellation.md`:8,:168-174 的概念性提及改述为"框架内部
     的取消令牌"（机制描述保留，类型名移除）；
   - `docs/*/migration-v0.3.md` 增加收口行；
   - `docs/zh/design/philosophy.md`、`idea-graveyard.md`、`case-studies/` 属设计散文与历史
     记录，保留不动；`migration-v0.2.md` 是历史对照表，不动。
 
-### P2：删除 `SmartBlockingQueue.create(int)`——证据基础反转后重写（原 C1）
+### P2 与 N1：已落地（2026-10-27）
 
-09-27 版的事实前提是"全仓零引用（含 src/main 内部）"。**该前提已不成立**：当前有 6 个测试
-文件使用，且 `SmartBlockingQueueTest.java:21-23` 把 `create(0)/create(-1) → SynchronousQueue`
-的静默换型行为**钉成了显式契约**；`TaskGroupCombine{NestedGuard,InlineGuard,GuardCancellation}Test`、
-`DirectExecutorSafetyTest`、`DefaultEnqueuePolicyTest` 用 `create(50)/create(100)` 建池。
-`src/main` 内部仍然零调用（库内只认 `instanceof SmartBlockingQueue`），demo 与文档零引用。
+`SmartBlockingQueue.create(int)` 与 `TaskCompletion.succeeded/failed` 已在 0.4 删除，迁移写入
+`docs/{en,zh}/migration-v0.4.md`，理由与被否决方向见 decision-log 的
+「Removed `TaskCompletion` and `SmartBlockingQueue` factories」条目。`TaskBatchResult.BatchReport` 也随批次读取统一删除。
 
-因此本提案的性质从"删死代码"变为"删一个被测试钉住的有害便利"，论证不变、成本上升：
+### N2（已了结）：`TaskGraphObservationScope` 静态查询
 
-- **改前用户能写出的最好代码：**
-  ```java
-  BlockingQueue<Runnable> queue = SmartBlockingQueue.create(64);
-  ```
-- **改后的同一段代码：**
-  ```java
-  BlockingQueue<Runnable> queue = new SmartBlockingQueue<>(64);
-  ```
-- **被消除的失败模式：** 两条等价构造路径迫使读者比较"该用哪个"。工厂的两处形状都比构造器
-  弱且更危险：返回类型擦成 `BlockingQueue`（拿不到 `setCapacity`）；`capacity <= 0` 时**静默
-  换成 `SynchronousQueue`**——容量为零、语义完全不同的队列，没有任何提示；构造器对非正容量
-  是显式抛 `IllegalArgumentException` 的。现有测试把静默换型钉成契约恰恰说明该行为会被依赖，
-  越晚删成本越高。
-- **迁移路径：** 机械替换为 `new SmartBlockingQueue<>(n)`（5 个测试文件直接受益：返回具体
-  类型，少一次强转）；`create(0)` 的调用方需显式选择 `SynchronousQueue`，这正是删掉它的理由。
-  `SmartBlockingQueueTest:21-23` 三条 create 断言随之删除。
-
-### N1：`TaskCompletion.succeeded`/`failed` 两个公开工厂包私有化
-
-原存在理由是"用户为 `TaskListener` 写单测时需要构造事件"（09-27 版 §五登记）。
-**`TaskListener` 已删除**（§二），理由蒸发。现状：src/main 零调用、demo 零、文档零提及；
-唯一消费者是 `TaskCompletionTest` 自己（同包，包私有化后不受影响）。用户现在从
-`TaskGroupResult.members()` / `TaskBatchResult.completions()` 获取真实快照，无需自行构造。
-
-- **改前：**
-  ```java
-  TaskCompletion<String> fake = TaskCompletion.succeeded("t", "unit-1", 0, 0, 5, 6, "v");
-  ```
-- **改后：** 不存在——对自己的消费逻辑做单测时，从真实运行获取快照，或对自己的代码留
-  seam，而不是伪造库的记账记录。
-- **被消除的失败模式：** 公开七/八参数工厂把内部记账字段（`unitId`、`taskIndex`、三个时间戳）
-  暴露为公众责任，且允许构造内核永远不会产生的字段组合；读快照的人无法区分"库产生的记录"
-  与"用户伪造的记录"。
-- **迁移路径：** 无文档/demo 使用；外部若有用例，改为从真实运行获取快照。
-
-### N2（弱候选，可选）：`TaskGraphObservationScope` 三个无文档静态查询
-
-`hasSelfLoop()`/`hasExecutorCycle()`/`hasExecutorSelfLoop()` 文档零提及、demo 零，仅
-`TaskGraphBatchIdentityTest`/`TaskGraphPolarityTest` 在用；同一信息由 `reportFuture()` 发布的
-`TaskGraphReport` 四个 flag 承载（close 时的一致快照）。`hasTaskCycle()` 有 user-guide
-（en:328/zh:287）与 interactive-demo 的真实使用，**保留**。
-
-- **改前：** `if (TaskGraphObservationScope.hasExecutorCycle()) { … }`（隐式读当前安装的作用域）
-- **改后：** `scope.reportFuture()` → `report.executorCycle()`（显式快照，含 status 三态）
-- **被消除的失败模式：** 隐式全局查询与显式报告双轨并存；三个零文档方法的语义只能靠
-  IDE 补全猜测。
-- **保留对称性的代价声明：** 删三留一造成不对称（`hasTaskCycle` 独存），若评审认为对称性
-  价值更高，整组保留也是可接受的终局。本项不阻塞 P1/P2/N1。
+整个请求级 scope、`TaskGraphReport` 与 `ParRuntimeDeadlockPolicy` 已被运行时级执行器等待图取代
+（见 [task-graph.md](../task-graph.md)），本项不再有剩余候选。
 
 ### N3（弱候选，可选）：`TaskGroupResult.valuesResult()`
 
@@ -254,16 +200,15 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 
 | 项 | 保留理由 | 证据 |
 |---|---|---|
-| `Tuple2.of` | 用户为公开 SPI `CombineBody` 写单测时必须能构造 `Tuple2` 入参；SPI 可测试性的一半 | `Tuple2Test`、combine lambda 文档（user-guide en:132） |
-| `ImmediateResult.succeeded`/`failed` | user-guide en:193-197 已记载语义；内核 `TaskGroup.java:251,261` 在用 | user-guide |
+| `Tuple2.of` | 用户为公开 SPI `Combiner` 写单测时必须能构造 `Tuple2` 入参；SPI 可测试性的一半 | `Tuple2Test`、combine lambda 文档（user-guide en:132） |
+| `ImmediateResult.succeeded`/`failed` | user-guide（en）已记载语义；内核 `TaskGroup.java` 在用 | user-guide |
 | `ImmediateResult.asFuture()` | demo 最高频引用形式（约 42 处方法引用），Guava 组合的逃生口 | demo + user-guide en:477 |
-| `Checkpoints.checkRunnable`/`checkSupplier` | 与无参族语义不同（不恢复中断标志、抛带 cause 的 `CancellationException`），泛型翻译逃生口；**但零文档**——行动项是补 reference 文档，不是删除 | `CheckpointsTest`/`CheckpointsOutcomeTest` |
-| `Checkpoints` 阻塞适配器族、`rawCheckpoint`、`checkpoint(String, boolean)`、`sleep(long)` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
-| `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`bodyCompletionConfirmed()`/`unfinishedBodies()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
+| `Checkpoints` 阻塞适配器族、`rawCheckpoint` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
+| `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`executionExitConfirmed()`/`unexitedExecutions()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
-| `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`deadlockPolicy()`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
-| `TaskBatchResult.report()`/`reportString()` | demo 高频（`reportString` 约 17 处），batch 报告是演示与排障主路径 | demo |
-| `TaskType.MIXED` | 已拍板保留为意图声明；明确不重开 | [decision-log.md](../decision-log.md) 对应条目 |
+| `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
+| `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |
+| `TaskType.MIXED` | 已删除：0.4 改为 `COMPUTE`/`BLOCKING`/`UNKNOWN` 诊断声明 | [ADR 0008](../../adr/0008-tasktype-as-workload-fit-diagnostic.md) |
 | `queue` 两个类保持 public | 产物边界已关闭 | [adr/0006](../../adr/0006-queues-ship-with-core.md) |
 | `ParId.value()` | 值类型唯一显式取值口 | — |
 | `LeanCancellationException` | 穿越用户 lambda 的可观察异常类型，双异常策略的一半 | 哲学文档 §四 |
@@ -275,8 +220,8 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 | 提案 | 类型变化 | 元素变化 |
 |---|---|---|
 | P1 `CancellationToken` 收口 | 36 → 34（−1 顶层 −1 嵌套） | −19（10 方法 + 3 构造 + `create` + `State` 6 常量） |
-| N1 `TaskCompletion` 工厂 | 不变 | −2 |
-| P2 `SmartBlockingQueue.create` | 不变 | −1 |
+| ~~N1 `TaskCompletion` 工厂~~（已落地） | 不变 | −2 |
+| ~~P2 `SmartBlockingQueue.create`~~（已落地） | 不变 | −1 |
 | N2 图三静态（可选） | 不变 | −3 |
 | N3 `valuesResult`（可选） | 不变 | −1 |
 | **合计（全做）** | **34 类型（−6%）** | **约 −26 元素（−8%）** |

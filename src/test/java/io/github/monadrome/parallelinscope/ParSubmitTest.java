@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,9 +62,9 @@ class ParSubmitTest {
     }
 
     /**
-     * Replaces a test of the {@code runOnCallerThread} option, which asked the library to run the body
+     * Replaces a test of the {@code runOnCallerThread} option, which asked the library to run the execution
      * on the submitting thread when the executor rejected it. There is no such option: a rejection is
-     * a submission failure, and the body does not run. An executor that wants to run tasks on the
+     * a submission failure, and the execution does not run. An executor that wants to run tasks on the
      * submitting thread says so by being that kind of executor.
      */
     @Test
@@ -101,18 +102,18 @@ class ParSubmitTest {
      * type or rejection handling is declared, so this is what an unconfigured task does.
      */
     @Test
-    void submitFailsWithoutRunningItsBodyWhenRejectedByDefault() throws Exception {
+    void submitFailsWithoutRunningItsExecutionWhenRejectedByDefault() throws Exception {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), rejected).build();
-        AtomicReference<Boolean> bodyRan = new AtomicReference<>(false);
+        AtomicReference<Boolean> executionRan = new AtomicReference<>(false);
         try {
             TaskFuture<String> task = global.par(ParId.of("worker"))
                     .submit(
                             "rejected",
                             () -> {
-                                bodyRan.set(true);
+                                executionRan.set(true);
                                 return "ran";
                             },
                             TaskOptions.timeout(Duration.ofSeconds(30)));
@@ -121,7 +122,7 @@ class ParSubmitTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
-            assertThat(bodyRan.get()).isFalse();
+            assertThat(executionRan.get()).isFalse();
         } finally {
             global.close();
         }
@@ -158,7 +159,7 @@ class ParSubmitTest {
                                     Checkpoints.checkpoint();
                                 }
                             },
-                            TaskOptions.timeout(Duration.ofMillis(50)).taskType(TaskType.IO_BOUND));
+                            TaskOptions.timeout(Duration.ofMillis(50)).taskType(TaskType.BLOCKING));
 
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
@@ -217,6 +218,7 @@ class ParSubmitTest {
                 .register(ParId.of("plain"), plain)
                 .register(ParId.of("plain-two"), plain)
                 .register(ParId.of("smart"), smart)
+                .announcements(MoreExecutors.directExecutor())
                 .build();
         Logger parLogger = Logger.getLogger(Par.class.getName());
         List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
@@ -235,7 +237,6 @@ class ParSubmitTest {
         parLogger.addHandler(capture);
         try {
             Par par = global.par(ParId.of("plain"));
-            // The option is off for this call, so there is nothing to report yet.
             par.submit(
                             "silent",
                             () -> "a",

@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -104,6 +105,7 @@ final class TaskGroupReport {
      * @throws RuntimeException the recorded failure, when a member or the combine failed
      * @throws Error the recorded failure, when a member or the combine threw an error
      */
+    @CanIgnoreReturnValue
     TaskGroupReport orThrow() {
         if (outcome == TaskOutcome.SUCCESS) {
             return this;
@@ -120,8 +122,8 @@ final class TaskGroupReport {
     }
 
     /**
-     * Counts member outcomes — including the terminal combine when declared — symmetric with
-     * {@link TaskBatchResult.BatchReport#stateCounts()}.
+     * Counts member outcomes — including the terminal combine when declared — like {@link
+     * TaskBatchResult#outcomeCounts()}.
      *
      * @return the immutable outcome count map, empty for an empty group
      */

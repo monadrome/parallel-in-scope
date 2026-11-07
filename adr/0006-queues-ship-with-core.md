@@ -4,6 +4,7 @@
 - Date: 2026-09-14
 - Decision scope: `queue` 包的产物边界与评审责任归属
 - Supersedes: None
+- Partially superseded by: [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)（`TaskType` 退出排队/拒绝语义）
 
 ## Context
 
@@ -13,7 +14,7 @@
 
 包内引用关系是刻意稀疏的：`DrainingBlockingQueue` 在 `src/main` 中零引用；`VariableLinkedBlockingQueue`
 的唯一内部消费者是 root 包的 `SmartBlockingQueue`（委托实现）。`SmartBlockingQueue` 依赖
-`TaskType`、提交作用域与任务上下文等 core 类型，因此必须留在 core；库自身从不构造它——
+提交作用域与任务上下文等 core 类型（入队拒绝只读 `rejectEnqueue`，见 [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)），因此必须留在 core；库自身从不构造它——
 它由用户自行实例化并安装到自己的 `ThreadPoolExecutor` 上。
 
 项目定位（`AGENTS.md`）已把 `queue` 声明为 "independent general-purpose queue
@@ -29,8 +30,8 @@ implementations"，即与 core 无代码耦合是有意的，不是欠账。库�
 
 1. 不引入多模块构建：`pom.xml` 保持单产物，不为队列引入 parent/module 结构或独立
    artifactId。
-2. `SmartBlockingQueue` 留在 root 包；`rejectEnqueue` 与 `TaskType` 的排队/拒绝语义留在
-   core，不随队列包迁移。
+2. `SmartBlockingQueue` 留在 root 包；`rejectEnqueue` 的排队/拒绝语义留在 core，不随队列包迁移
+   （`TaskType` 不再参与排队/拒绝，见 [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)）。
 3. `queue` 的公开契约与 [draining close contract](../design/draining-queue-contract.md)
    一并作为本库的公开产品维护，队列缺陷由本仓库承担归因与修复。
 4. core 代码不得新增对 `queue` 包类型的依赖；`SmartBlockingQueue` →

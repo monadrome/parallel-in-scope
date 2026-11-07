@@ -12,7 +12,7 @@ on:
         description: Existing release tag to publish
         required: true
         type: string
-        default: v0.3.0
+        default: v0.4.0
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -34,10 +34,29 @@ jobs:
       - name: Validate release tag
         run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: refs/tags/${{ env.RELEASE_TAG }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: mkdocs/requirements.txt
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r mkdocs/requirements.txt
+
+      - name: Run documentation and design gates
+        run: |
+          python3 scripts/check-english-docs.py
+          python3 scripts/check-local-links.py
+          python3 scripts/check-design-routes.py
+          python3 scripts/check-doc-refs.py
+          python3 scripts/check-demo-articles.py
+          mkdocs build --strict --config-file mkdocs/mkdocs.yml
 
       - name: Set up Maven 3.9.11
         env:
@@ -52,7 +71,7 @@ jobs:
       # Build JDK: release builds run the same enforcer as CI, which requires JDK 25; the
       # published artifact still targets release 8 bytecode.
       - name: Set up build JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         with:
@@ -74,8 +93,44 @@ jobs:
       - name: Verify library and demo
         run: |
           LIBRARY_VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          mvn -B -ntp spotless:check
           mvn -B -ntp clean install
+          mvn -B -ntp -f demo/pom.xml spotless:check
           mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version="$LIBRARY_VERSION" package
+
+      - name: Set up Java 8 runtime
+        uses: actions/setup-java@v6
+        with:
+          java-version: 8
+          distribution: temurin
+          cache: maven
+
+      - name: Verify Java 8 consumers
+        env:
+          LIBRARY_VERSION: 0.4.0
+        run: |
+          MAVEN_BASEDIR="$GITHUB_WORKSPACE/verification/maven-central-consumer" \
+            mvn -B -ntp -f verification/maven-central-consumer \
+            -Dparallel-in-scope.version="$LIBRARY_VERSION" clean test
+          MAVEN_BASEDIR="$GITHUB_WORKSPACE/demo" \
+            mvn -B -ntp -f demo \
+            -Dparallel-in-scope.version="$LIBRARY_VERSION" test
+
+      # Maven deploy needs the build JDK again: the repository .mvn/jvm.config contains
+      # JDK 25 module flags that Java 8 correctly rejects.
+      - name: Restore build JDK 25 for publish
+        uses: actions/setup-java@v6
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
 
       # `maven.repository.credentialScope=id` restores credential matching by server id. The
       # runner image's Maven scopes credentials by repository origin, and the `central` server

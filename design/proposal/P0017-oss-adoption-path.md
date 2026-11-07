@@ -12,7 +12,7 @@
 ## 当前基线与未决目标
 
 README 直接推荐 0.3 快照、同时标出 0.2 稳定版；本地 Quick Start 已关闭 runtime 和借用池。
-CONTRIBUTING 已要求 JDK 25 构建、PR 投当前 dev 线；API diff 已由 `81d8724` 实施。
+CONTRIBUTING 已要求 JDK 25 构建、PR 投当前 dev 线；API diff 已实施。
 这些不能照旧审计再列为缺失。源码、snapshot、稳定版与在线站点是否一致仍要用当前公开
 入口复核，不能复用 2026-10-09 的 jar、404、PR 数量或 CI 结论。
 
@@ -26,7 +26,7 @@ CONTRIBUTING 已要求 JDK 25 构建、PR 投当前 dev 线；API diff 已由 `8
 - 人类贡献路径：保留已有 issue-first 及 dev base，明确作者负责复现/测试/迁移，维护者
   负责独立审查/PIT；外部作者不需要安装维护者的 cmux/AI 工具或自动 push。
 - 发布站点与 demo 的实际入口：先核对当前部署和 URL，再修导航/徽章；英文 demo 的
-  中文内容说明与检查已在 `7337775` 处理，不把它当未解决问题重复清扫。
+  中文内容说明与检查已处理，不把它当未解决问题重复清扫。
 - About/homepage/topics、私密漏洞报告与支持版本、行为准则：按单维护者真实渠道和承诺
   完善，不臆造响应 SLA，也不把配置文件缺失写成已发现安全漏洞。外部元数据变更另行授权。
 - 公开 issue/PR/历史分支的方向维护：按当前状态链接到落实或取代结论，不按旧积压数量
@@ -70,7 +70,7 @@ JDK 用户能判断适用性，人类贡献者能按 CONTRIBUTING 完成小修�
 
 ## 来源
 
-Claude `67244035` 与 Codex `01a120ae` 的 2026-10-09 同题 OSS 审计和交叉比较。
+Claude 与 Codex 的 2026-10-09 同题 OSS 审计和交叉比较。
 保留“公开构件优先于本地绿”的纠正，撤回陈旧本地 main 与同名本地 snapshot 的证据。
 文档内部语义/CHANGELOG/BACKLOG 清理仍归 [P0022](P0022-documentation-maintenance.md)，
 不再维护第二份细节清单。

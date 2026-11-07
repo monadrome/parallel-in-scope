@@ -201,7 +201,7 @@ public class G3_CheckpointsCooperativeCancelTest {
                         iterations++;
                         // 每 10000 次迭代检查一次——几乎零开销
                         if (iterations % 10000 == 0) {
-                            Checkpoints.checkpoint("cpu-checkpoint", true); // 如果已取消，立即抛出 LeanCancellationException
+                            Checkpoints.checkpoint(); // 如果已取消，立即抛出 LeanCancellationException
                         }
                     }
                     return iterations;

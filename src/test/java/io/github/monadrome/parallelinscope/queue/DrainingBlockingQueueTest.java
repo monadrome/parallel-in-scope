@@ -33,7 +33,6 @@ class DrainingBlockingQueueTest {
         Thread.interrupted();
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void shutdownPolicyFactoriesAndBuilderReturnConfiguredInstances() {
@@ -468,7 +467,6 @@ class DrainingBlockingQueueTest {
         assertNull(queue.poll());
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void constructorValidationCoversCapacityAndPolicyBoundaries() {
@@ -863,7 +861,6 @@ class DrainingBlockingQueueTest {
         assertTrue(queue.drained());
     }
 
-    // NullAway: deliberate null arguments — probes the null-rejection contract
     @SuppressWarnings("NullAway")
     @Test
     void drainToRejectsInvalidTargetsAndZeroCounts() {

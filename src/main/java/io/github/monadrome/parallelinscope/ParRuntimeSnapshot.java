@@ -1,5 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
+
 /**
  * A diagnostic sample of a {@link ParRuntime}'s shutdown/drain state, produced by {@link
  * ParRuntime#snapshot()}.
@@ -11,18 +13,26 @@ package io.github.monadrome.parallelinscope;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  * @since 0.3.0
  */
+@Immutable
 public final class ParRuntimeSnapshot {
 
     private final boolean closed;
     private final int activeAdmissions;
     private final int undrainedBatches;
-    private final int unexitedBodySignals;
+    private final int activeObservations;
+    private final int unexitedExecutionSignals;
 
-    ParRuntimeSnapshot(boolean closed, int activeAdmissions, int undrainedBatches, int unexitedBodySignals) {
+    ParRuntimeSnapshot(
+            boolean closed,
+            int activeAdmissions,
+            int undrainedBatches,
+            int activeObservations,
+            int unexitedExecutionSignals) {
         this.closed = closed;
         this.activeAdmissions = activeAdmissions;
         this.undrainedBatches = undrainedBatches;
-        this.unexitedBodySignals = unexitedBodySignals;
+        this.activeObservations = activeObservations;
+        this.unexitedExecutionSignals = unexitedExecutionSignals;
     }
 
     /** Whether shutdown has begun; new submissions are rejected once true. */
@@ -40,16 +50,22 @@ public final class ParRuntimeSnapshot {
         return undrainedBatches;
     }
 
+    /** Open thread-pool starvation observations retaining the runtime's diagnostic services. */
+    public int activeObservations() {
+        return activeObservations;
+    }
+
     /**
-     * Admitted runs whose aggregate body-exit signal has not completed yet. The unit is a run, not
-     * a body: each admitted batch, group, or single task contributes exactly one signal, so a batch
-     * with a hundred outstanding bodies reads as 1 until every one of them has exited (or has been
-     * determined never to enter). A cancelled task completes its future immediately but may still be
-     * running user code, so this can exceed zero while {@link #undrainedBatches()} is already zero —
-     * the distinction {@link ParRuntime#awaitQuiescence(java.time.Duration)} waits on.
+     * Admitted runs with at least one direct task execution whose exit has not been confirmed. The unit
+     * is a run, not an execution: each admitted batch, group, or single task contributes one count until
+     * every direct execution has exited or has been prevented from starting. A batch with a hundred
+     * outstanding executions therefore contributes 1. A cancelled task completes its future immediately
+     * but may still be running user code, so this can exceed zero while {@link #undrainedBatches()}
+     * is already zero — the distinction {@link ParRuntime#awaitQuiescence(java.time.Duration)}
+     * waits on.
      */
-    public int unexitedBodySignals() {
-        return unexitedBodySignals;
+    public int unexitedExecutionSignals() {
+        return unexitedExecutionSignals;
     }
 
     @Override
@@ -57,7 +73,8 @@ public final class ParRuntimeSnapshot {
         return "ParRuntimeSnapshot{closed=" + closed
                 + ", activeAdmissions=" + activeAdmissions
                 + ", undrainedBatches=" + undrainedBatches
-                + ", unexitedBodySignals=" + unexitedBodySignals
+                + ", activeObservations=" + activeObservations
+                + ", unexitedExecutionSignals=" + unexitedExecutionSignals
                 + '}';
     }
 }
