@@ -174,10 +174,9 @@ public final class TaskGroupResult<V, R> {
      * atomically prevented from starting, when {@code runAll} returned. A cancelled member's result
      * can be terminal while its execution is still unwinding, so check this before releasing a resource
      * the executions share. Executions of nested calls made inside them are not covered. An adopted member
-     * occupies one exit slot connected as already run: confirmation also means every adopted source
-     * settled and, with a declared closer, each discarded value's closer finished running — a
-     * closer failure is logged and does not change confirmation, so a confirmed value is not
-     * guaranteed to have been released.
+     * occupies one exit slot connected as already run: confirmation also means every adopted source settled.
+     * It does not wait for asynchronous resource cleanup owned by the source's own pipeline, including a
+     * ClosingFuture pipeline whose finishToFuture result has already settled.
      */
     public boolean executionExitConfirmed() {
         return unexitedExecutions.isEmpty();
