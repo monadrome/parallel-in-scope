@@ -132,29 +132,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /** How many tasks the convergence barrier waits for: members plus an optional combine. */
     private final int totalTasks;
 
-    /**
-     * Who owns the values of the group's adopted members: decided once, by the combiner's entry
-     * or by convergence, so a value is never both handed out and closed.
-     */
-    private final AtomicReference<ValueOwner> valueOwner;
-
-    /**
-     * Set once convergence has handed every discarded adopted value to its release. The runtime
-     * retains it with the member futures, so a {@code close()} cannot shut the releases pool down
-     * between the last member settling and that hand-off; retained only by groups that adopt.
-     */
-    private final SettableFuture<@Nullable Void> ownershipSettled = SettableFuture.create();
-
-    /** The owner decision of {@link #valueOwner}; see {@code design/task-group-adopted-futures.md}. */
-    enum ValueOwner {
-        /** No owner yet: the combine has not entered and the group has not converged. */
-        UNDECIDED,
-        /** The combiner entered, or the group succeeded without a combine. */
-        HANDED_OUT,
-        /** The group converged with no owner; adopted members close what they produce. */
-        DISCARDED
-    }
-
     private TaskGroup(
             String groupName,
             long startTimeNanos,
@@ -163,10 +140,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
             Map<String, MemberState> memberStates,
             @Nullable MemberState terminal,
             ExecutionExitTracker executionExit,
-            @Nullable Duration closeGrace,
-            AtomicReference<ValueOwner> valueOwner) {
+            @Nullable Duration closeGrace) {
         this.groupName = groupName;
-        this.valueOwner = valueOwner;
         this.startTimeNanos = startTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.groupToken = groupToken;
@@ -607,7 +582,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
         PreparationContext preparation = new PreparationContext(
                 payloads, structuralParent, groupToken, groupDeadline, deadlineNow, start, executionExit);
         Map<String, MemberState> states = new LinkedHashMap<>();
-        AtomicReference<ValueOwner> valueOwner = new AtomicReference<>(ValueOwner.UNDECIDED);
         MemberState terminal = null;
         int memberIndex = 0;
         TaskGroup<Object, Object> group;
@@ -617,8 +591,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             }
             TaskGroupDefinition.Slot combineSlot = definition.combineSlot();
             if (combineSlot != null) {
-                boolean takesAdoptedValues = definition.members().stream().anyMatch(slot -> slot.adopted);
-                terminal = preparation.prepareTerminalCombine(combineSlot, states, valueOwner, takesAdoptedValues);
+                terminal = preparation.prepareTerminalCombine(combineSlot, states);
             }
             group = new TaskGroup<>(
                     definition.name(),
@@ -628,8 +601,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
                     states,
                     terminal,
                     executionExit,
-                    definition.closeGrace(),
-                    valueOwner);
+                    definition.closeGrace());
             if (structuralParent != null) {
                 env.executorWaits()
                         .record(structuralParent.node(), group.membersAndTerminal.size(), group::awaitedUnitAt);
@@ -641,9 +613,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
         List<ListenableFuture<?>> retained = new ArrayList<>(group.members.values());
         if (terminal != null) {
             retained.add(terminal.future);
-        }
-        if (definition.members().stream().anyMatch(slot -> slot.adopted)) {
-            retained.add(group.ownershipSettled);
         }
         env.retainUntilComplete(retained);
         env.trackExecutions(executionExit);
@@ -716,10 +685,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
         /** Prepares the deferred terminal combine over the already-prepared member registry. */
         private MemberState prepareTerminalCombine(
-                TaskGroupDefinition.Slot combineSlot,
-                Map<String, MemberState> states,
-                AtomicReference<ValueOwner> valueOwner,
-                boolean takesAdoptedValues) {
+                TaskGroupDefinition.Slot combineSlot, Map<String, MemberState> states) {
             // The combine is prepared exactly like a member — token, context, TTL snapshot,
             // structural parent — so its context capture happens on the submitting thread at
             // submit time; only the executor submission is deferred to the join. The member
@@ -741,12 +707,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             par.diagnoseAdmission(unit);
             TaskExecutionContext taskContext = taskContext(unit);
             Combiner<Object, Object> combiner = castCombiner(payloads.takeCombiner());
-            Callable<Object> taskCode = () -> {
-                if (takesAdoptedValues) {
-                    claimValuesForCombine(valueOwner, combineSlot.name);
-                }
-                return assembleTerminal(combiner, states, combineSlot.valueView);
-            };
+            Callable<Object> taskCode = () -> assembleTerminal(combiner, states, combineSlot.valueView);
             ExecutionPhaseHintFuture<Object> future = TaskSubmissions.prepare(taskContext, taskCode);
             if (par.executorRuntime().threadPoolBacked()) {
                 future.forbidInlineExecution();
@@ -775,18 +736,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
     private static @Nullable Object assembleTerminal(
             Combiner<Object, Object> combiner, Map<String, MemberState> states, boolean valueView) throws Exception {
         return combiner.apply(valueView ? memberValues(states) : foldMemberValues(states));
-    }
-
-    /**
-     * Hands the adopted values to the combiner that is about to run. Convergence can discard
-     * them first only after the combine future is already terminal, in which case the execution's
-     * result is ignored anyway; the execution then stops instead of reading values that are being closed.
-     */
-    private static void claimValuesForCombine(AtomicReference<ValueOwner> owner, String combineName) {
-        if (!owner.compareAndSet(ValueOwner.UNDECIDED, ValueOwner.HANDED_OUT)) {
-            throw new LeanCancellationException(
-                    "combine '" + combineName + "' started after its group discarded the adopted values");
-        }
     }
 
     private static GroupValues<Object> memberValues(Map<String, MemberState> states) {
@@ -899,8 +848,8 @@ final class TaskGroup<V, R> implements AutoCloseable {
     /**
      * Releases everything {@link #prepare} acquired after startup failed and before any submission,
      * then returns; the caller rethrows {@code failure}. No execution runs. On return the group token
-     * is terminal and every prepared future is cancelled, so retention, execution-exit tracking, and
-     * adopted ownership drain and the runtime can quiesce. A failure during this cleanup is added to
+     * is terminal and every prepared future is cancelled, so retention and execution-exit tracking
+     * drain and the runtime can quiesce. A failure during this cleanup is added to
      * {@code failure} as suppressed instead of replacing it.
      *
      * @param failure the startup failure the caller will rethrow
@@ -911,7 +860,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
          * acquired. Cancelling the group token first terminates it, which severs its parent link and
          * makes convergence attribute the cancelled members to the group. Cancelling every prepared
          * future then skips each execution, releasing its exit slot, and drives the member listeners
-         * registered in start through convergence, which settles adopted ownership. Each step runs
+         * registered in start through convergence. Each step runs
          * even when an earlier one throws, so one failing listener cannot leave later members
          * pending.
          */
@@ -1101,10 +1050,6 @@ final class TaskGroup<V, R> implements AutoCloseable {
 
         TaskOutcome decided = deriveOutcome();
         TaskGroupReport result = snapshot(decided, failedTaskName.get());
-        boolean discard = decideValueOwner(decided);
-        if (!discard) {
-            settleAdopted(false);
-        }
         try {
             publishValues(decided);
         } catch (Throwable failure) {
@@ -1126,43 +1071,7 @@ final class TaskGroup<V, R> implements AutoCloseable {
             }
             logValuesFailure(failure);
         }
-        try {
-            completion.set(result);
-            /*
-             * Discarded values are handed to their closers only after the completion is published.
-             * The run's retention keeps the releases pool alive until ownershipSettled below, so
-             * the hand-off normally dispatches; a pool that cannot start a thread runs the release
-             * inline on this thread, and runAll's liveness rests on the deadline, never on a closer
-             * returning. The bounded cleanup wait covers the closers through the execution slots.
-             */
-            if (discard) {
-                settleAdopted(true);
-            }
-        } finally {
-            ExecutionExitTracker.complete(ownershipSettled);
-        }
-    }
-
-    /**
-     * Decides who owns the adopted values from the converged outcome and reports whether nobody
-     * does. A successful group hands them out (the combine already took them, or the caller
-     * receives them); any other outcome discards them unless the combiner had already entered.
-     */
-    private boolean decideValueOwner(TaskOutcome decided) {
-        if (decided == TaskOutcome.SUCCESS) {
-            valueOwner.compareAndSet(ValueOwner.UNDECIDED, ValueOwner.HANDED_OUT);
-            return false;
-        }
-        return valueOwner.compareAndSet(ValueOwner.UNDECIDED, ValueOwner.DISCARDED);
-    }
-
-    private void settleAdopted(boolean discard) {
-        for (MemberState member : orderedMembers) {
-            AdoptedSource adopted = member.adopted;
-            if (adopted != null) {
-                adopted.decide(discard);
-            }
-        }
+        completion.set(result);
     }
 
     /**

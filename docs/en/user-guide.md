@@ -312,19 +312,15 @@ group through `adopt(key, future)`. The member's result is the future's result, 
 group's deadline, fail-fast, `cancelOn`, typed reads, and frozen result with the `par` members.
 
 ```java
-TaskKey<Response> profileKey = TaskKey.named("profile");
-TaskKey<Response> ordersKey = TaskKey.named("orders");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+TaskKey<Orders> ordersKey = TaskKey.named("orders");
 TaskKey<Page> pageKey = TaskKey.named("page");
 
-TaskGroupResult<Tuple2<Response, Response>, Page> result = global
+TaskGroupResult<Tuple2<Profile, Orders>, Page> result = global
         .group("page", Duration.ofSeconds(2))
-        .adopt(profileKey, client.get("/profile"), Response::close)
-        .adopt(ordersKey, client.get("/orders"), Response::close)
-        .combine(pageKey, cpuPar, both -> {
-            try (Response profile = both.first(); Response orders = both.second()) {
-                return render(profile, orders);
-            }
-        })
+        .adopt(profileKey, client.getProfile())
+        .adopt(ordersKey, client.getOrders())
+        .combine(pageKey, cpuPar, both -> render(both.first(), both.second()))
         .runAll();
 ```
 
@@ -335,19 +331,24 @@ TaskGroupResult<Tuple2<Response, Response>, Page> result = global
   Do not cancel it yourself: that is a direct member cancellation, which cancels the group. Adopt each
   future once per group.
 - A successful future reads `SUCCESS`; a failed one reads `USER_FAILURE` with its own cause.
-- Every non-null value has exactly one owner: the combine once its execution starts, otherwise you, when the
-  group succeeds. With a `ResourceCloser`, every other value is closed exactly once — the values of a
-  group that failed, timed out, or was cancelled, and a value that arrives after the group cancelled
-  its future. The closer runs on a runtime-owned thread after the outcome is decided, not on the
-  thread calling `runAll()`, unless the runtime has already shut down (see `ResourceCloser`); hand
-  long releases to your own executor. A closer failure is logged and
-  changes nothing. The frozen result still shows a discarded member's value for diagnosis; it belongs
-  to the closer, so do not use it after `runAll()` returns.
-- `executionExitConfirmed()` also confirms that every adopted future settled and every discarded
-  value's closer finished running; a closer failure is logged and does not change that
-  confirmation, so a confirmed value is not guaranteed to have been released. A future that ignores
-  cancellation is listed in `unexitedExecutions()` until it
-  settles; its late value is still closed.
+- The group never closes a source's value, including a successful sibling's value in a failed group or a value
+  produced after cancellation. Resource lifetime belongs to the source's own pipeline or the recipient that reads
+  the value. `executionExitConfirmed()` confirms that every adopted future settled, not that an external mechanism's
+  asynchronous cleanup finished. A future that ignores cancellation is listed in `unexitedExecutions()` until it settles.
+- For intermediate resources that should be closed on success, failure, or cancellation, register them with a
+  `ClosingFuture` pipeline and adopt `finishToFuture()`:
+
+  ```java
+  ListenableFuture<Profile> profile = ClosingFuture.from(client.get("/profile"))
+          .transform((closer, response) -> {
+              closer.eventuallyClose(response, closingExecutor);
+              return response.readProfile();
+          }, executor)
+          .finishToFuture();
+  ```
+
+  Cancelling the adopted future cancels the pipeline and starts closing its registered resources. Do not give the
+  same resource a second closing owner. `ClosingFuture.from(future)` alone does not close an ordinary future's value.
 - `adopt(key, producerPar, future)` names the registered executor that completes the future. When a
   task execution runs the group, that wait enters the [executor wait report](#observe-nested-work) like a `par`
   member's: adopting, on pool `io`, a future that pool `io` completes is a self-loop. Name a producer

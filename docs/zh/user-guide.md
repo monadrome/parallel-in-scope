@@ -273,36 +273,38 @@ key 对象与按位置访问都不方便时，`GroupValues.valueOf(name)` 按成
 `par` 成员共用组 deadline、fail-fast、`cancelOn`、类型化读取与冻结结果。
 
 ```java
-TaskKey<Response> profileKey = TaskKey.named("profile");
-TaskKey<Response> ordersKey = TaskKey.named("orders");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+TaskKey<Orders> ordersKey = TaskKey.named("orders");
 TaskKey<Page> pageKey = TaskKey.named("page");
 
-TaskGroupResult<Tuple2<Response, Response>, Page> result = global
+TaskGroupResult<Tuple2<Profile, Orders>, Page> result = global
         .group("page", Duration.ofSeconds(2))
-        .adopt(profileKey, client.get("/profile"), Response::close)
-        .adopt(ordersKey, client.get("/orders"), Response::close)
-        .combine(pageKey, cpuPar, both -> {
-            try (Response profile = both.first(); Response orders = both.second()) {
-                return render(profile, orders);
-            }
-        })
+        .adopt(profileKey, client.getProfile())
+        .adopt(ordersKey, client.getOrders())
+        .combine(pageKey, cpuPar, both -> render(both.first(), both.second()))
         .runAll();
 ```
 
 - 从 `runAll()` 起组拥有每个被收养的 future。取消组内未完成成员的任何原因——失败、deadline、`cancelOn`、
   外层作用域——都以 `cancel(true)` 取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
-  线程不符的拒绝不触及它们）。不要自己取消它：
-  那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
+  线程不符的拒绝不触及它们）。不要自己取消它：那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
 - future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
-- 每个非 null 值恰好有一个所有者：combine 的执行开始后归 combine，否则组成功时归调用方。声明了
-  `ResourceCloser` 时，其余每个值恰好关闭一次——组失败、超时或被取消时的值，以及组取消 future 之后才到达的值。
-  closer 在结果决定之后于运行时自有线程上运行，不在调用 `runAll()` 的线程上——运行时已关闭服务时除外（见
-  `ResourceCloser`）；耗时长的释放交给自己的执行器。
-  closer 失败只记日志，不改变任何结果。冻结结果仍显示被丢弃成员的值以便诊断；该值归 closer 释放，
-  `runAll()` 返回后不要再使用它。
-- `executionExitConfirmed()` 同时确认所有被收养的 future 已落定、每个丢弃值的 closer 已运行完毕；
-  closer 失败只记日志、不改变该确认结果，确认不保证值已被释放。忽略取消的 future 在落定前
-  出现在 `unexitedExecutions()` 中，它迟到的值仍会被关闭。
+- 组从不关闭 source 的值，包括组失败时已成功的兄弟值和取消之后才产生的迟到值。资源生命周期由 source 自己的
+  管道或读取该值的接收方管理。`executionExitConfirmed()` 只确认所有被收养的 future 已落定，不确认外部机制的
+  异步清理已经完成。忽略取消的 future 在落定前出现在 `unexitedExecutions()` 中。
+- 需要在成功、失败或取消时自动关闭的中间资源，应登记到 `ClosingFuture` 管道，再收养 `finishToFuture()`：
+
+  ```java
+  ListenableFuture<Profile> profile = ClosingFuture.from(client.get("/profile"))
+          .transform((closer, response) -> {
+              closer.eventuallyClose(response, closingExecutor);
+              return response.readProfile();
+          }, executor)
+          .finishToFuture();
+  ```
+
+  取消被收养的 future 会取消管道并触发其登记资源的关闭。不要再把同一资源交给第二个关闭所有者。
+  仅用 `ClosingFuture.from(future)` 不会关闭普通 future 的返回值。
 - `adopt(key, producerPar, future)` 声明完成该 future 的注册执行器。组由某个任务代码运行时，这次等待像 `par`
   成员一样进入[执行器等待报告](#nested-observation)：在 `io` 池上收养由 `io` 池完成的 future 是自环。只在该
   执行器确实完成这个 future 时声明生产者；不声明则不记录等待。「观测直接提交的工作」照常对生产者池采样，

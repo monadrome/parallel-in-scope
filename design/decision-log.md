@@ -315,12 +315,24 @@ contracts).
 `ListenableFuture` with `adopt`; see [task-group-adopted-futures.md](task-group-adopted-futures.md).
 P0032 had rejected accepting an already created future; that was reversed because work starting
 before admission is the requirement itself (clients, caches, and `ListeningExecutorService` hand out
-only futures), `runAll()` cancels and closes unconnected sources when it throws before admission,
+only futures), `runAll()` cancels unconnected sources when it throws before admission,
 and callers isolate a shared future with `Futures.nonCancellationPropagating`. Not kept: the
 supplier shape, which only deferred creation past bind at the price of a second member declaration
 with its own TTL and executor semantics. Not started: a batch variant that limits in-flight async
 calls by the parallelism window; it first needs a thread policy for refilling on third-party
 completion threads.
+
+### Resource closers removed from `adopt`; P0031 withdrawn (2026-11-06, maintainer decision)
+
+Earlier 0.4 snapshots let `adopt` attach a `ResourceCloser` to an arbitrary future value. That API and its
+closing protocol are removed: `adopt` still owns cancellation and convergence of the source, but never owns or closes
+its value. `proposal:P0031`, which would have extended the same protocol to `par` and batch results, is withdrawn with it.
+
+The removal avoids a second resource-ownership protocol beside `ClosingFuture`, including competing ownership and
+possible double close of the same value. Intermediate resources belong in a `ClosingFuture` pipeline registered through
+its `DeferredCloser`, or with the recipient that reads the value. This is a scope boundary, not a claim of equivalence:
+`ClosingFuture.from` does not close an ordinary future's unregistered value, and `finishToFuture()` settlement does not
+wait for asynchronous close. Reopen only with a concrete use case that cannot be expressed under that boundary.
 
 ## Observation and diagnostics
 
