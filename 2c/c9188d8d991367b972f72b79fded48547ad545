@@ -1,0 +1,35 @@
+design/analysis/flagship-review-2026-10-29/06-verified-facts.md
+  ai_agent 1-55
+design/analysis/flagship-review-2026-10-29/05-github-about-copy.md
+  ai_agent 1-94
+design/analysis/llm-model-selection-blog-kimi-2026-10-27.md
+  ai_agent 1-92
+design/analysis/llm-usage-selection-guide-2026-10-27.md
+  ai_agent 1-312
+design/analysis/flagship-review-2026-10-29/04-first-use-p0-p1-plan.md
+  ai_agent 1-803
+design/proposal/P0037-future-path-staged-outcome-api.md
+  ai_agent 1-164
+design/analysis/llm-model-selection-blog-2026-10-27.md
+  ai_agent 1-86
+design/AGENTS.md
+  ai_agent 168
+design/analysis/flagship-review-2026-10-29/02-engineering-review.md
+  ai_agent 1-278
+design/analysis/flagship-review-2026-10-29/01-portfolio-review.md
+  ai_agent 1-332
+design/analysis/flagship-review-2026-10-29/03-adversarial-review.md
+  ai_agent 1-284
+design/analysis/flagship-review-2026-10-29/README.md
+  ai_agent 1-91
+design/analysis/interruption-cancellation-review-2026-11-04.md
+  ai_agent 1-118
+design/analysis/code-quality-metrics-2026-11-06.md
+  ai_agent 1-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2cc9188d8d991367b972f72b79fded48547ad545",
+  "prompts": {}
+}
