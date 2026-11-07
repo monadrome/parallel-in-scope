@@ -1,0 +1,19 @@
+tools/llm-review-bench/README.md
+  s_8029e92a443aa7::t_688d90db64842f 84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f9244124b956f54620d95334d27fec336d175252",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
