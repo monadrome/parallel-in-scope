@@ -1,0 +1,19 @@
+ledger/2026-11-06-p0036-gray-complexity-eval.json
+  s_ce73de3a0acc3d::t_47194e3f76d7a2 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "850b916367464ade6774f96e39ed9c1e300ddaee",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
