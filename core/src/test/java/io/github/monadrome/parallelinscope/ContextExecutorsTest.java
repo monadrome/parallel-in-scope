@@ -85,6 +85,11 @@ class ContextExecutorsTest {
     }
 
     @Test
+    void hasAStableDiagnosticNameWithoutExposingTheCapturedContext() {
+        assertThat(ContextExecutors.directExecutor()).hasToString("ContextExecutors.directExecutor()");
+    }
+
+    @Test
     void restoresTheBindingWhenACommandReplacesTheTtlValue() {
         Map<String, String> original = new HashMap<>();
         original.put("trace", "request");
