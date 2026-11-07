@@ -94,6 +94,15 @@ public final class ContextExecutors {
         }
     }
 
+    /**
+     * Runs a command with a captured TTL context and restores the context that was active on entry.
+     *
+     * <p>The command runs synchronously on the calling thread. If the command throws, its failure
+     * is propagated after the entry context has been restored.
+     *
+     * @param captured the non-null context to replay
+     * @param command the non-null command to run
+     */
     private static void runWithCaptured(Object captured, Runnable command) {
         Object previous = Transmitter.replay(captured);
         try {
