@@ -29,6 +29,7 @@ REPO_CHECKS = (
     "scripts/check-local-links.py",
     "scripts/check-design-routes.py",
     "scripts/check-doc-refs.py",
+    "scripts/check-java-conventions.py",
 )
 TERMINAL_GATES = frozenset({"diff-policy", "secret-scan"})
 
@@ -99,10 +100,13 @@ def race_claims(workdir: Path, logs: Path, timeout_min: int) -> Gate:
     return Gate("race-claims", "pass")
 
 
-def repo_checks(clone: Path, logs: Path) -> Gate:
+def repo_checks(clone: Path, logs: Path, base_sha: str = "") -> Gate:
     failures = []
     for script in REPO_CHECKS:
-        if (clone / script).exists() and run_logged([sys.executable, script], logs / (Path(script).stem + ".log"), cwd=clone) != 0:
+        command = [sys.executable, script]
+        if script == "scripts/check-java-conventions.py" and base_sha:
+            command += ["--base", base_sha]
+        if (clone / script).exists() and run_logged(command, logs / (Path(script).stem + ".log"), cwd=clone) != 0:
             failures.append(script)
     if (clone / "scripts").is_dir():
         args = [sys.executable, "-m", "unittest", "discover", "-s", "scripts", "-t", "scripts"]
@@ -217,7 +221,7 @@ def run_all(
         gates += verification
         if all(g.status == "pass" for g in verification):
             gates.append(race_claims(verify_workdir, logs, timeout_min))
-    gates.append(repo_checks(clone, logs))
+    gates.append(repo_checks(clone, logs, base_sha))
     if issue_type == "bug":
         gates.append(reverse_verify(clone, base_sha, entries, scratch / "reverse", logs, java_home, timeout_min))
     held = policy.local_only_paths(entries)

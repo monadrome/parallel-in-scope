@@ -91,10 +91,12 @@ class RepoGateTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("# check\n")
         with mock.patch.object(gates, "run_logged", return_value=0) as run_logged:
-            gate = gates.repo_checks(self.repo, Path(self.tmp.name) / "logs")
+            gate = gates.repo_checks(self.repo, Path(self.tmp.name) / "logs", "base-sha")
         self.assertEqual(gate.status, "pass")
         checked = {call.args[0][-1] for call in run_logged.call_args_list}
         self.assertIn("scripts/check-doc-refs.py", checked)
+        java_call = next(call.args[0] for call in run_logged.call_args_list if call.args[0][1] == "scripts/check-java-conventions.py")
+        self.assertEqual(java_call[-2:], ["--base", "base-sha"])
 
     def test_renames_report_both_paths(self):
         git(self.repo, "mv", "docs/a.md", "docs/b.md")
