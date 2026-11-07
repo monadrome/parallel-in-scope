@@ -79,6 +79,8 @@ Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外
 | `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SubmissionAwareBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
 | `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SubmissionAwareBlockingQueue` 入队拒绝 |
 
+队列公开类型的命名直接描述其契约（proposal:P0038）：`SubmissionAwareBlockingQueue` 读取提交作用域中的 `rejectEnqueue`，仅在该选项为 true 时拒绝入队；`ResizableBlockingQueue` 提供有界 FIFO 与调用方主动调整容量的 `setCapacity(int)`。两者 MUST 保持既有入队、动态容量和并发语义，MUST NOT 让 `TaskType` 改变入队准入；`DrainingBlockingQueue` 的排干关闭契约不受此命名收口影响。
+
 > 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
 > `RejectedExecutionHandler`）；本节其余字段划分不受影响。
 
