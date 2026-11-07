@@ -1,0 +1,29 @@
+docs/zh/quickstart.md
+  ai_agent 1,5,11
+docs/en/user-guide.md
+  ai_agent 3
+demo/docs/zh-CN/README.md
+  ai_agent 5
+demo/docs/en/README.md
+  ai_agent 7
+demo/README.md
+  ai_agent 5,56
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  ai_agent 3,9,22,26
+docs/en/index.md
+  ai_agent 3,15
+demo/README.en.md
+  ai_agent 7
+docs/en/quickstart.md
+  ai_agent 1,5,11
+docs/zh/index.md
+  ai_agent 3
+docs/zh/user-guide.md
+  ai_agent 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7a7f343c2880d69f7bde04f2cf464e585ed4eb9b",
+  "prompts": {}
+}
