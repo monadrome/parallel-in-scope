@@ -1,0 +1,21 @@
+.claude/skills/complexity-review-eval/SKILL.md
+  s_ce73de3a0acc3d::t_62aeda9ec9f415 1-108
+.claude/skills/complexity-review-eval/evals/evals.json
+  s_ce73de3a0acc3d::t_a4e8d36fa9ba8b 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2936d05c97abd41c7ba1ce54578b734d38bc5adc",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
