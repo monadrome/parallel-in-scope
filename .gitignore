@@ -26,10 +26,8 @@ todo/
 # Local LLM review benchmark evidence (raw logs and derived records stay local)
 .review-benchmark/
 
-# Claude (track project skills; keep local settings and worktrees ignored)
+# Claude (keep local settings and worktrees ignored)
 .claude/*
-!.claude/skills/
-!.claude/skills/**
 
 # Local senate tooling state and its design draft
 .senate/
@@ -43,8 +41,10 @@ todo/
 # Playwright MCP scratch output
 .playwright-mcp/
 
-# Local skill installs and Firecrawl fetch cache (per-machine, never committed)
-.agents/
+# Local skill installs and Firecrawl fetch cache (project skills are shared and tracked)
+.agents/*
+!.agents/skills/
+!.agents/skills/**
 .firecrawl/
 skills-lock.json
 

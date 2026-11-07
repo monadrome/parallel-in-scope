@@ -35,7 +35,7 @@ this CLI when `dist/` is missing, runs `review --working` or `review --commit`, 
 and imports explicit clusters/verdicts only after the reviewing agent verifies them against the code. It
 does not invoke the legacy Python `multi_review.py` flow and does not duplicate the evaluation rules.
 
-- Skill: [`.claude/skills/multi-review/SKILL.md`](../../.claude/skills/multi-review/SKILL.md)
+- Skill: [`.agents/skills/multi-review/SKILL.md`](../../.agents/skills/multi-review/SKILL.md)
 - Live contract: [`design/llm-review-benchmark.md`](../../design/llm-review-benchmark.md)
 
 ## What it measures

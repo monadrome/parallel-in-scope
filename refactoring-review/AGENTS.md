@@ -2,7 +2,7 @@
 
 Rule router for refactoring-review: the behavior-preserving restructuring pass that runs on every
 code change after its behavior commit and before code review (`/multi-review`). The orchestration
-steps live in `.claude/skills/refactoring-review/SKILL.md`; this directory owns the rules, and
+steps live in `.agents/skills/refactoring-review/SKILL.md`; this directory owns the rules, and
 `scripts/refactoring-review.py` owns the deterministic parts (gate, plan, detect, merge, verify).
 
 ## Position In The Workflow
