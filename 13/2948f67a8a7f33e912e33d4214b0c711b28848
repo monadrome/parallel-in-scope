@@ -1,0 +1,64 @@
+scripts/dependency-audit-exceptions.json
+  s_44e518d835c1aa::t_b573ea19e84354 19-24
+demo/README.md
+  s_44e518d835c1aa::t_b573ea19e84354 5,56
+docs/en/index.md
+  s_44e518d835c1aa::t_b573ea19e84354 3,18-20
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_44e518d835c1aa::t_b573ea19e84354 9,15,131
+scripts/verify-maven-central.sh
+  s_44e518d835c1aa::t_b573ea19e84354 4,9
+CHANGELOG.md
+  s_44e518d835c1aa::t_b573ea19e84354 5-10
+demo/docs/zh-CN/README.md
+  s_44e518d835c1aa::t_b573ea19e84354 5
+integrations/pom.xml
+  s_44e518d835c1aa::t_b573ea19e84354 9,24
+.github/workflows/release.yml
+  s_44e518d835c1aa::t_d10d20a8d9a7f7 15,110
+docs/zh/user-guide.md
+  s_44e518d835c1aa::t_b573ea19e84354 3,668,852
+docs/zh/index.md
+  s_44e518d835c1aa::t_b573ea19e84354 3,17-20
+.github/workflows/dependency-review.yml
+  s_44e518d835c1aa::t_be864d64239bb5 19-22
+README.md
+  s_44e518d835c1aa::t_1c6e1e2ba913a7 156
+  s_44e518d835c1aa::t_e3a5c1a992c9e2 36
+  s_44e518d835c1aa::t_b573ea19e84354 11,133,154-155,157-158,161
+demo/README.en.md
+  s_44e518d835c1aa::t_b573ea19e84354 7
+docs/en/quickstart.md
+  s_44e518d835c1aa::t_b573ea19e84354 1,11
+demo/pom.xml
+  s_44e518d835c1aa::t_b573ea19e84354 9,21
+README.zh-CN.md
+  s_44e518d835c1aa::t_e3a5c1a992c9e2 34
+  s_44e518d835c1aa::t_b573ea19e84354 11,113,134-136,138-139
+docs/en/user-guide.md
+  s_44e518d835c1aa::t_b573ea19e84354 3,774,967
+pom.xml
+  s_44e518d835c1aa::t_b573ea19e84354 9,22
+verification/maven-central-consumer/pom.xml
+  s_44e518d835c1aa::t_b573ea19e84354 21
+docs/zh/quickstart.md
+  s_44e518d835c1aa::t_b573ea19e84354 1,11
+demo/docs/en/README.md
+  s_44e518d835c1aa::t_b573ea19e84354 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "132948f67a8a7f33e912e33d4214b0c711b28848",
+  "prompts": {},
+  "sessions": {
+    "s_44e518d835c1aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b5f4-3092-7953-9a4c-c21b448c3d3c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
