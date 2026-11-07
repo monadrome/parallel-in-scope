@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-07
+
 ### Breaking changes
 
 - Change the earlier 0.4 development `ImmediateResult.fold` from three handlers to four:

@@ -48,7 +48,7 @@ The issue forms live in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/):
 
 Blank issues are also enabled for anything that does not fit a form. The
 new-issue page links the [user guide](docs/en/user-guide.md), the
-[migration notes](docs/en/migration-v0.3.md), and
+[migration notes](docs/en/migration-v0.4.md), and
 [design/first-principles.md](design/first-principles.md) — the criteria a
 proposal is judged against. Ideas already weighed and declined are recorded in
 the [idea graveyard](docs/zh/design/idea-graveyard.md)
@@ -127,9 +127,9 @@ documented rationale. If your change renames or alters a public API or a
 documented contract, update both migration guides of the current release line
 in the same pull request: `docs/en/migration-v<major>.<minor>.md` and
 `docs/zh/migration-v<major>.<minor>.md`, where `<major>.<minor>` comes from the
-`pom.xml` version (for example, the `0.3.0` release uses
-[docs/en/migration-v0.3.md](docs/en/migration-v0.3.md) and
-[docs/zh/migration-v0.3.md](docs/zh/migration-v0.3.md)). State the rationale
+`pom.xml` version (for example, the `0.4.0` release uses
+[docs/en/migration-v0.4.md](docs/en/migration-v0.4.md) and
+[docs/zh/migration-v0.4.md](docs/zh/migration-v0.4.md)). State the rationale
 in the PR description.
 
 CI enforces the signature half of this rule. On every pull request the `build`

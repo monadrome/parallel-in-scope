@@ -1,14 +1,14 @@
-<!-- docs-version: 0.4.0-SNAPSHOT -->
+<!-- docs-version: 0.4.0 -->
 
 # 5 分钟快速上手
 
-在新的 Maven 项目中添加开发线依赖：
+在新的 Maven 项目中添加正式版依赖：
 
 ```xml
 <dependency>
   <groupId>io.github.monadrome</groupId>
   <artifactId>parallel-in-scope</artifactId>
-  <version>0.4.0-SNAPSHOT</version>
+  <version>0.4.0</version>
 </dependency>
 ```
 
