@@ -1,0 +1,19 @@
+ledger/2026-11-07-release-v041.json
+  s_44e518d835c1aa::t_4429c90b4e21f5 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "bfaa51fbc3b84ace44bad7a1be32344df4df3b1a",
+  "prompts": {},
+  "sessions": {
+    "s_44e518d835c1aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b5f4-3092-7953-9a4c-c21b448c3d3c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
