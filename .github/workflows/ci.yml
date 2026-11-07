@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, dev/v0.4.0 ]
+    branches: [ main, dev/v0.5.0 ]
   pull_request:
 
 concurrency:
@@ -132,7 +132,7 @@ jobs:
             --base "$BASE"
 
       - name: Upload build test reports
-        if: failure()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: build-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
@@ -199,7 +199,7 @@ jobs:
           test
 
       - name: Upload runtime test reports
-        if: failure()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: runtime-test-reports-${{ matrix.java-version }}-${{ github.run_id }}-${{ github.run_attempt }}

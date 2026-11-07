@@ -61,7 +61,7 @@ largest scope it could grow into.
 | Public API, documented contract, or new mechanism | Read `design/first-principles.md` and the owning contract; write or update the `design/proposal/` entry; stop for the maintainer's direction | Implement before the direction is settled |
 | Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State the invariants and interleavings first; add targeted tests; run `python3 scripts/check-race-claims.py` for registered ordering claims; run the full suite and adversarial review | Treat compilation, one green test, or a timeout-free run as proof |
 | Documentation or site change only | Check the diff, referenced paths, and cited commands; run `python3 scripts/check-doc-refs.py` | Run Java tests or `spotless` |
-| Dependency or build change | Patch/minor upgrade: run the `dependency-audit` skill, `mvn test`, and the `java8-runtime` job locally; ask before adding a dependency or taking a major upgrade | Skip the audit or the Java 8 check |
+| Dependency or build change | Patch/minor upgrade: run the `dependency-audit` skill, `mvn test`, and the `runtime-consumer` matrix locally; ask before adding a dependency or taking a major upgrade | Skip the audit or the runtime compatibility check |
 | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action per Current Development Line, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |
 
 If the request crosses into a gated route mid-task, stop and reclassify instead
@@ -456,7 +456,7 @@ Authorized without asking:
   where its behavior or conclusions now live.
 - Patch and minor upgrades of dependencies and plugins in the three POMs the
   dependency audit reads, once the `dependency-audit` skill has checked their
-  release notes and minimum Java version, and `mvn test` plus the `java8-runtime`
+  release notes and minimum Java version, and `mvn test` plus the `runtime-consumer`
   job of `.github/workflows/ci.yml`, run locally, pass.
 
 Ask before:
