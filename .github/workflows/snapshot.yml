@@ -1,6 +1,6 @@
 name: Snapshot
 
-# Publish `0.4.0-SNAPSHOT` when the development line has moved past Central's
+# Publish `0.5.0-SNAPSHOT` when the development line has moved past Central's
 # last publication in UTC days, preserving the previous development line's policy.
 #
 # Three triggers share that one gate. `push` publishes a moved line immediately; the daily
@@ -9,26 +9,26 @@ name: Snapshot
 # A run that finds nothing newer than Central publishes nothing. The UTC-day rate limit binds
 # every trigger alike: a tip committed on an already-published UTC day never satisfies the
 # gate on a later day either, so a same-day second push waits for a later-dated commit (whose
-# publish contains it) or for the `v0.4.0-SNAPSHOT` tag.
+# publish contains it) or for the `v0.5.0-SNAPSHOT` tag.
 #
 # GitHub fires `schedule` (and offers `workflow_dispatch` in the Actions UI) only from the
 # default branch's copy of this file; a `schedule` in a copy that exists only on a development
 # branch never fires. This branch's copy is the definition, and the default branch's copy is a
 # sync of it: syncing that copy is a maintainer action outside the development line, and until
 # it happens the schedule stays dormant. The job pins its checkout to this branch below, so
-# wherever a run starts from, it publishes this development line. Pushing the `v0.4.0-SNAPSHOT`
+# wherever a run starts from, it publishes this development line. Pushing the `v0.5.0-SNAPSHOT`
 # tag (handled by `release.yml`, already on the default branch) remains the way to publish by
 # hand that bypasses the date gate.
 on:
   push:
-    branches: [dev/v0.4.0]
+    branches: [dev/v0.5.0]
   # 02:17 UTC daily. Off the top of the hour because GitHub delays scheduled workflows the
   # most around popular cron minutes; the gate makes the exact minute uncritical.
   schedule:
     - cron: '17 2 * * *'
   # Manual runs still gate on the same UTC-day rule, so pressing the button twice in a day
   # publishes once -- for a same-day republication that skips the gate, push the
-  # `v0.4.0-SNAPSHOT` tag by hand.
+  # `v0.5.0-SNAPSHOT` tag by hand.
   workflow_dispatch:
 
 permissions:
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: dev/v0.4.0
+          ref: dev/v0.5.0
 
       # The release path's build JDK, for the same reason: the enforcer requires JDK 25 and
       # the artifact still targets Java 8 bytecode.

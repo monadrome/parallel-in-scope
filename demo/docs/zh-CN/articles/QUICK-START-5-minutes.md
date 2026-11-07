@@ -6,13 +6,13 @@
 
 ## 1. 添加依赖
 
-正式版使用 `0.4.1`，可直接从 Maven Central 获取：
+开发线使用 `0.5.0-SNAPSHOT`，需要先声明快照仓库；也可以先在仓库根目录运行 `mvn install` 使用本地构件：
 
 ```xml
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.4.1</version>
+    <version>0.5.0-SNAPSHOT</version>
 </dependency>
 ```
 

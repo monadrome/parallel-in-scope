@@ -1,6 +1,6 @@
 # User Guide
 
-> This guide follows `0.4.1`. This is the `0.4.1` release; applications migrating from `0.3.x` should read the [v0.4 migration guide](migration-v0.4.md). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
+> This guide follows `0.5.0-SNAPSHOT`. The latest stable release is `0.4.1`; applications migrating from `0.3.x` should read the [v0.4 migration guide](migration-v0.4.md). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
