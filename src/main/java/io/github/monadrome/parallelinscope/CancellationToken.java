@@ -30,44 +30,44 @@ import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Cooperative cancellation token carrying a deadline for parallel work.
+ * Internal cooperative cancellation token carrying a deadline for one task unit.
  *
- * <p>A token may be linked to a parent so that cancellation propagates to child task groups, and a
- * child never outlives its parent: the effective deadline is the minimum of the requested deadline
- * and the parent's. Before task submission, the internal bind operation connects the token to
- * prepared futures and enforces that
- * deadline together with fail-fast cancellation.
+ * <p>The token is the execution kernel's cancellation and attribution state. It is deliberately
+ * package-private: no public member accepts or returns one, and the public attribution vocabulary
+ * is {@link TaskOutcome}. A token may be linked to a parent so that cancellation propagates to
+ * child task groups, and a child never outlives its parent: the effective deadline is the minimum
+ * of the requested deadline and the parent's. Before task submission, {@link #bind} connects the
+ * token to prepared futures and enforces that deadline together with fail-fast cancellation.
  *
  * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
-public final class CancellationToken {
+final class CancellationToken {
 
     private static final Logger LOGGER = Logger.getLogger(CancellationToken.class.getName());
 
     private final SettableFuture<Object> futureToken = SettableFuture.create();
-    private final AtomicReference<Decision> decision = new AtomicReference<>(Decision.running());
+    private final AtomicReference<State> state = new AtomicReference<>(RUNNING);
     private final @Nullable CancellationToken parent;
     private final long deadlineNanos;
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
     private final @Nullable ParentLink parentLink;
+    private volatile @Nullable RequestCancellationLink requestCancellationLink;
 
-    /**
+    /*
      * The monotonic clock of this token's deadline domain. A child always inherits its parent's
      * clock, so one token tree shares one clock domain; only a root token takes an explicit clock,
-     * and public construction always lands on the system clock. Internal tests substitute a manual
-     * clock for a root token to make deadline detection deterministic; deadlineNanos is always read
-     * against this clock, never mixed with another domain.
+     * and the clock-less constructors always land on the system clock. Internal tests substitute a
+     * manual clock for a root token to make deadline detection deterministic; deadlineNanos is
+     * always read against this clock, never mixed with another domain.
      */
     private final Ticker ticker;
 
-    /**
+    /*
      * The deadline scheduler paired with this token's clock domain, inherited by every child like
-     * the clock itself. Only a root token receives it (from the owning {@code ParRuntime}'s test
-     * seam); it is {@code null} for tokens created through the public constructors, whose {@link
-     * #bind} callers then supply the scheduler explicitly. The pairing is what lets a nested unit
-     * fire its deadline on the ancestor's controlled time instead of scheduling a virtual delay on
-     * a real scheduler.
+     * the clock itself. Only a root token receives it (from the owning ParRuntime's test seam); it
+     * is null for tokens created through the scheduler-less constructors, whose bind callers then
+     * supply the scheduler explicitly. The pairing is what lets a nested unit fire its deadline on
+     * the ancestor's controlled time instead of scheduling a virtual delay on a real scheduler.
      */
     private final @Nullable ScheduledExecutorService timeoutScheduler;
 
@@ -76,13 +76,12 @@ public final class CancellationToken {
      *
      * <p>This constructor is the single parent-propagation mechanism: when the parent's work is
      * cancelled, timed out, or fail-fast-cancelled, this token transitions to {@code
-     * PROPAGATED_CANCELLED} and cancels its linked future with the parent's interrupt intent — an
-     * explicit {@code cancel(false)} propagates without interrupting, while deadline and fail-fast
-     * transitions always interrupt. No additional wiring in {@link #bind} or the caller is needed.
+     * PROPAGATED_CANCELLED} and cancels its linked future, interrupting running work like every
+     * other cancellation. No additional wiring in {@link #bind} or the caller is needed.
      *
      * @param parent the parent token, or {@code null} for a root token
      */
-    public CancellationToken(@Nullable CancellationToken parent) {
+    CancellationToken(@Nullable CancellationToken parent) {
         this(parent, Long.MAX_VALUE);
     }
 
@@ -95,7 +94,7 @@ public final class CancellationToken {
      * @param parent the parent token, or {@code null} for a root token
      * @param deadlineNanos the requested deadline in {@link System#nanoTime()} units
      */
-    public CancellationToken(@Nullable CancellationToken parent, long deadlineNanos) {
+    CancellationToken(@Nullable CancellationToken parent, long deadlineNanos) {
         this(parent, deadlineNanos, Ticker.systemTicker());
     }
 
@@ -140,7 +139,7 @@ public final class CancellationToken {
     }
 
     /** Creates an unlinked root token with no deadline. */
-    public CancellationToken() {
+    CancellationToken() {
         this(null);
     }
 
@@ -149,7 +148,7 @@ public final class CancellationToken {
      *
      * @return a new cancellation token
      */
-    public static CancellationToken create() {
+    static CancellationToken create() {
         return new CancellationToken();
     }
 
@@ -157,7 +156,7 @@ public final class CancellationToken {
      * Returns the effective deadline in {@link System#nanoTime()} units; {@link Long#MAX_VALUE}
      * means no deadline.
      */
-    public long deadlineNanos() {
+    long deadlineNanos() {
         return deadlineNanos;
     }
 
@@ -171,7 +170,7 @@ public final class CancellationToken {
      *
      * @return the remaining duration, saturated at zero and at the no-deadline sentinel
      */
-    public Duration remaining() {
+    Duration remaining() {
         return Duration.ofNanos(Deadlines.remaining(deadlineNanos, ticker.read()));
     }
 
@@ -195,12 +194,11 @@ public final class CancellationToken {
      * Connects this token to submitted work and arms its deadline.
      *
      * <p>After binding, the token classifies itself: {@code SUCCESS} when every future succeeds,
-     * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST}
-     * when any future fails. Every cancelling transition cancels the futures and the submission
-     * canceller; cancelling an already-successful future is a no-op, so a late cancel never
-     * destroys a recorded result. An already-expired deadline commits {@code TIMEOUT}
-     * synchronously and cancels the futures before this method returns, so no submitted task can
-     * still enter user code on an expired deadline.
+     * {@code TIMEOUT} when its deadline expires first, and {@code FAIL_FAST} when any future fails.
+     * Every cancelling transition cancels the futures and the submission canceller; cancelling an
+     * already-successful future is a no-op, so a late cancel never destroys a recorded result. An
+     * already-expired deadline commits {@code TIMEOUT} synchronously and cancels the futures before
+     * this method returns, so no submitted task can still enter user code on an expired deadline.
      *
      * @param <T> the task result type
      * @param futures the submitted task futures
@@ -218,7 +216,7 @@ public final class CancellationToken {
         // The token tree's own domain scheduler wins: a nested unit inherits the ancestor's clock,
         // and only the scheduler paired with that clock fires under its time. The parameter is the
         // fallback for tokens created without a runtime seam — and for a retired domain scheduler:
-        // the ancestor runtime may already be closed while one of its cancelled bodies is still
+        // the ancestor runtime may already be closed while one of its cancelled executions is still
         // running and nests new work into another runtime. The delay stays meaningful there: an
         // ancestor on the real clock retires with real-domain deadlines, and a retired manual clock
         // can no longer advance, so falling back fires the deadline no later than the domain would.
@@ -239,8 +237,8 @@ public final class CancellationToken {
             futureToken.setException(new TimeoutException());
             return allFutures;
         }
-        // The aggregate callback below is the only fail-fast source; the scheduled timer task is
-        // the only deadline source.
+        // This bind installs the aggregate fail-fast callback and deadline timer. Checkpoints
+        // also detect elapsed deadlines on the token's clock when timer delivery is late.
         ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
         // A token that is already terminal has no deadline left to enforce: no transition can ever
         // succeed again, and the cancellation it implies reaches the futures through the
@@ -258,7 +256,6 @@ public final class CancellationToken {
                 cancelBoundWork(allFutures);
             };
             long deadlineDelay = Deadlines.remaining(deadlineNanos, ticker.read());
-            @Nullable
             ScheduledFuture<?> timeoutHandle = scheduleDeadline(deadlineTimer, timer, timeoutAction, deadlineDelay);
             if (timeoutHandle != null) {
                 // A token that settles by any path completes futureToken; cancelling the scheduled
@@ -295,7 +292,7 @@ public final class CancellationToken {
     /**
      * Schedules the deadline action on the domain scheduler, falling back to the caller's scheduler
      * when the domain scheduler rejects because its owning runtime was already closed (a cancelled
-     * ancestor body can still be running and nesting new work).
+     * ancestor execution can still be running and nesting new work).
      *
      * <p>When both schedulers reject, the outcome depends on the token: a token that concurrently
      * went terminal no longer needs the timer — the cancellation it implies reaches the bound
@@ -331,53 +328,58 @@ public final class CancellationToken {
     }
 
     /**
-     * Cancels bound work with the intent recorded by the winning token transition. A deadline or
-     * fail-fast transition keeps the default interrupting policy; an explicit cancel(false), whether
-     * direct or propagated, must reach the same futures without interrupting a running body.
+     * Cancels bound work, interrupting running executions. Every cancellation source interrupts: a
+     * deadline, fail-fast, an explicit or request cancellation, and ancestor propagation alike.
      */
     private void cancelBoundWork(ListenableFuture<?> allFutures) {
-        allFutures.cancel(verifyNotNull(decision.get()).interrupt);
+        allFutures.cancel(true);
     }
 
-    /** Immutable terminal decision; state and interrupt intent publish together. */
-    private static final class Decision {
-        private final State state;
-        private final boolean interrupt;
+    RequestCancellationLink cancelOn(ListenableFuture<?> signal) {
+        Objects.requireNonNull(signal, "signal cannot be null");
+        RequestCancellationLink link = new RequestCancellationLink(this::cancel);
+        requestCancellationLink = link;
+        if (state() != RUNNING) {
+            link.sever();
+        }
+        try {
+            signal.addListener(link::sourceCompleted, directExecutor());
+        } catch (RuntimeException | Error failure) {
+            link.sever();
+            throw failure;
+        }
+        return link;
+    }
 
-        private Decision(State state, boolean interrupt) {
-            this.state = state;
-            this.interrupt = interrupt;
+    static final class RequestCancellationLink {
+        private final AtomicReference<@Nullable Runnable> cancellationAction;
+
+        private RequestCancellationLink(Runnable cancellationAction) {
+            this.cancellationAction = new AtomicReference<>(cancellationAction);
         }
 
-        static Decision running() {
-            return new Decision(RUNNING, true);
+        private void sourceCompleted() {
+            Runnable action = cancellationAction.get();
+            if (action != null) {
+                action.run();
+            }
+        }
+
+        void sever() {
+            cancellationAction.set(null);
         }
     }
 
     /**
      * Cancels this token and its linked work, interrupting running threads.
      *
-     * <p>This is the common case; it is equivalent to {@link #cancel(boolean) cancel(true)}. Use
-     * {@link #cancel(boolean)} with {@code false} only when running tasks must be allowed to
-     * complete without interruption.
+     * <p>There is no non-interrupting variant: like a deadline or fail-fast, an explicit
+     * cancellation interrupts running executions, and the cancellation propagates down the token tree
+     * with interruption.
      */
-    public void cancel() {
-        cancel(true);
-    }
-
-    /**
-     * Cancels this token and its linked work.
-     *
-     * <p>The interrupt policy is part of the cancellation and propagates down the token tree:
-     * {@code cancel(false)} on a token cancels its linked work and every descendant's linked work
-     * without interrupting running threads, while deadline expiry and fail-fast cancellation always
-     * interrupt.
-     *
-     * @param useInterrupt whether to interrupt running threads
-     */
-    public void cancel(boolean useInterrupt) {
-        if (transitionTo(CANCELLED, useInterrupt)) {
-            futureToken.cancel(useInterrupt);
+    void cancel() {
+        if (transitionTo(CANCELLED)) {
+            futureToken.cancel(true);
         }
     }
 
@@ -415,9 +417,9 @@ public final class CancellationToken {
      *
      * @return the current state
      */
-    public State state() {
+    State state() {
         // state only ever transitions between non-null enum constants
-        return verifyNotNull(decision.get()).state;
+        return verifyNotNull(state.get());
     }
 
     /**
@@ -432,7 +434,7 @@ public final class CancellationToken {
      *
      * @return the originating terminal state, or the current state when nothing propagated
      */
-    public State originState() {
+    State originState() {
         CancellationToken token = this;
         State s = token.state();
         while (s == PROPAGATED_CANCELLED && token.parent != null) {
@@ -447,9 +449,9 @@ public final class CancellationToken {
      * before the associated cancellation actions run.
      *
      * <p>Intended for {@link TaskGroup}: a group listens on a member token so a member timeout
-     * escalates to the group before cascade cancellation runs. It is not a general-purpose hook.
-     * A listener registered after the token left {@code RUNNING} is never invoked. Listener
-     * failures are logged and swallowed; they must not break cancellation.
+     * escalates to the group before cascade cancellation runs. It is not a general-purpose hook. A
+     * listener registered after the token left {@code RUNNING} is never invoked. Listener failures
+     * are logged and swallowed; they must not break cancellation.
      */
     void addStateListener(Consumer<State> listener) {
         stateListeners.add(Objects.requireNonNull(listener, "listener cannot be null"));
@@ -457,18 +459,17 @@ public final class CancellationToken {
 
     /** Commits a terminal transition from {@code RUNNING}, notifying state listeners when it wins. */
     private boolean transitionTo(State terminal) {
-        return transitionTo(terminal, true);
-    }
-
-    /** Publishes a terminal state and its interrupt intent as one immutable decision. */
-    private boolean transitionTo(State terminal, boolean interrupt) {
-        Decision current = verifyNotNull(decision.get());
-        if (current.state != RUNNING || !decision.compareAndSet(current, new Decision(terminal, interrupt))) {
+        if (!state.compareAndSet(RUNNING, terminal)) {
             return false;
         }
         ParentLink link = parentLink;
         if (link != null) {
             link.sever();
+        }
+        RequestCancellationLink cancellation = requestCancellationLink;
+        if (cancellation != null) {
+            cancellation.sever();
+            requestCancellationLink = null;
         }
         notifyStateListeners(terminal);
         return true;
@@ -515,12 +516,8 @@ public final class CancellationToken {
             if (linked == null || !parent.state().shouldInterruptCurrentThread()) {
                 return;
             }
-            // Carry the parent's interrupt intent through the link: an explicit cancel(false)
-            // keeps its no-interrupt policy for the whole subtree, while the framework's own
-            // transitions (TIMEOUT, FAIL_FAST) keep the default true.
-            boolean interrupt = verifyNotNull(parent.decision.get()).interrupt;
-            if (linked.transitionTo(PROPAGATED_CANCELLED, interrupt)) {
-                linked.futureToken.cancel(interrupt);
+            if (linked.transitionTo(PROPAGATED_CANCELLED)) {
+                linked.futureToken.cancel(true);
             }
         }
 
@@ -531,7 +528,7 @@ public final class CancellationToken {
     }
 
     /** Lifecycle state of a {@link CancellationToken}. */
-    public enum State {
+    enum State {
 
         /** The task is running. */
         RUNNING,

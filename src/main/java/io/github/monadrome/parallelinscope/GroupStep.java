@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
-import com.google.common.reflect.TypeToken;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.concurrent.Callable;
 
 /**
@@ -8,155 +9,112 @@ import java.util.concurrent.Callable;
  * more members, an optional terminal combine, or the submission may follow.
  *
  * <p>The type parameter {@code V} is the group's assembled value type so far: the first member's
- * type for {@link GroupStart#par(String, Par, TypeToken, Callable)}, then left-nested {@link Tuple2}
- * for each member added here. Every {@link #par} widens it, which is why the compiler carries the
- * whole shape and {@link GroupValues#typedValues()} needs no cast at the use site.
+ * type for {@link GroupStart#par(TaskKey, Par, Callable)}, then left-nested {@link Tuple2} for each
+ * member added here. Every {@link #par} extends this shape, which is returned by {@link
+ * GroupValues#typedValues()} without a cast at the use site.
  *
  * <p>Declaring a combine moves to {@link CombinedGroupStep}, which exposes only {@link
- * CombinedGroupStep#runAll()}: a combine is terminal, so a member or a second combine after it
- * does not compile. {@code closeGrace} belongs to {@link GroupStart} and is likewise not reachable
- * from here.
+ * CombinedGroupStep#runAll()}: a combine is terminal, so a member or a second combine after it does
+ * not compile. {@code closeGrace} belongs to {@link GroupStart} and is likewise not reachable from
+ * here.
  *
  * <p>The same one-shot, single-threaded, stage-checked contract as {@link GroupStart} applies.
  *
  * @param <V> the group's assembled member-value type so far
  * @since 0.3.0
  */
+@CheckReturnValue
 public interface GroupStep<V> {
 
     /**
-     * Declares another plain member, widening the group's value type to {@code Tuple2<V, T>}.
+     * Declares a member with the key's name and type; lookup uses this exact key object.
      *
-     * @param name the member name; the key for {@link GroupValues#valueOf} and diagnostics
-     * @param par the {@code Par} this member's body runs on
-     * @param type the member's declared result type
-     * @param body this run's task body, invoked at most once after submission
-     * @return the next stage
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the token is primitive or unresolved
-     * @throws IllegalStateException if this stage is stale
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<Tuple2<V, T>> par(String name, Par par, TypeToken<T> type, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
 
     /**
-     * Declares another plain member using a plain class instead of a {@link TypeToken}.
-     *
-     * <p>Shorthand for {@link #par(String, Par, TypeToken, Callable)} with {@code
-     * TypeToken.of(type)}.
+     * Declares a keyed member with explicit task options.
      *
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the type is primitive or {@code void}
-     * @throws IllegalStateException if this stage is stale
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<Tuple2<V, T>> par(String name, Par par, Class<T> type, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
 
     /**
-     * Declares another plain member with explicit options rather than {@link
-     * TaskOptions#inheritTimeout()}.
+     * Declares a member as an adopted future; see {@link GroupStart#adopt(TaskKey,
+     * ListenableFuture)} for ownership, cancellation, attribution, and the exceptions every {@code
+     * adopt} overload throws.
      *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the token is primitive or unresolved
-     * @throws IllegalStateException if this stage is stale
+     * @since 0.4.0
      */
-    <T> GroupStep<Tuple2<V, T>> par(
-            String name, Par par, TaskOptions options, TypeToken<T> type, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
 
     /**
-     * Declares another plain member with explicit options, using a plain class instead of a {@link
-     * TypeToken}.
+     * Declares a member as an adopted future completed on {@code producer}'s executor; see {@link
+     * GroupStart#adopt(TaskKey, Par, ListenableFuture)}.
      *
-     * <p>Shorthand for {@link #par(String, Par, TaskOptions, TypeToken, Callable)} with {@code
-     * TypeToken.of(type)}.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the type is primitive or {@code void}
-     * @throws IllegalStateException if this stage is stale
+     * @since 0.4.0
      */
-    <T> GroupStep<Tuple2<V, T>> par(
-            String name, Par par, TaskOptions options, Class<T> type, Callable<? extends T> body);
+    <T> GroupStep<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
 
     /**
-     * Declares the terminal combine, which moves the chain to its final stage.
+     * Declares a keyed terminal combine using the group's assembled member-value type.
      *
-     * <p>The combine depends on every plain member and is submitted to its own {@code Par} only
-     * after all of them succeed. It is the last task of the group: the group completes only when
-     * its future is terminal. Its value is reached through {@link TaskGroupResult#terminalResult()}; it is
-     * not a slot in {@link GroupValues}, and it cannot read itself.
-     *
-     * <p>A group accepts at most one combine. Because this method is reachable only from a stage
-     * that has not declared one, a second combine does not compile; a stale reference that tries
-     * anyway throws {@link IllegalStateException}.
-     *
-     * @param name the combine's name; diagnostics and the failed-task key of its snapshot
-     * @param par the {@code Par} the combine body runs on
-     * @param type the combine's declared result type
-     * @param body the combine body, invoked at most once after every member succeeds
-     * @return the final stage
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the token is primitive or unresolved
-     * @throws IllegalStateException if this stage is stale
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     */
+    <R> CombinedGroupStep<V, R> combine(TaskKey<R> key, Par par, Combiner<? super V, ? extends R> combiner);
+
+    /**
+     * Declares a keyed terminal combine with explicit task options.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      */
     <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, TypeToken<R> type, CombineBody<? super V, ? extends R> body);
+            TaskKey<R> key, Par par, TaskOptions options, Combiner<? super V, ? extends R> combiner);
 
     /**
-     * Declares the terminal combine using a plain class instead of a {@link TypeToken}.
-     *
-     * <p>Shorthand for {@link #combine(String, Par, TypeToken, CombineBody)} with {@code
-     * TypeToken.of(type)}.
+     * Declares a keyed terminal combine whose input is the successful member-value view. Use {@link
+     * GroupValues#valueOf(TaskKey)} to read members by their declaration keys. The combine has the
+     * same scheduling and failure semantics as {@link #combine}; its input contains only plain
+     * members, so it cannot read itself.
      *
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the type is primitive or {@code void}
-     * @throws IllegalStateException if this stage is stale
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <R> CombinedGroupStep<V, R> combine(String name, Par par, Class<R> type, CombineBody<? super V, ? extends R> body);
+    <R> CombinedGroupStep<V, R> combineValues(TaskKey<R> key, Par par, Combiner<GroupValues<V>, ? extends R> combiner);
 
     /**
-     * Declares the terminal combine with explicit options rather than {@link
-     * TaskOptions#inheritTimeout()}.
+     * Declares a value-view terminal combine with explicit task options.
      *
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the token is primitive or unresolved
-     * @throws IllegalStateException if this stage is stale
+     * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, TaskOptions options, TypeToken<R> type, CombineBody<? super V, ? extends R> body);
-
-    /**
-     * Declares the terminal combine with explicit options, using a plain class instead of a {@link
-     * TypeToken}.
-     *
-     * <p>Shorthand for {@link #combine(String, Par, TaskOptions, TypeToken, CombineBody)} with
-     * {@code TypeToken.of(type)}.
-     *
-     * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if the name is blank or duplicated, the {@code Par} is
-     *     foreign, or the type is primitive or {@code void}
-     * @throws IllegalStateException if this stage is stale
-     */
-    <R> CombinedGroupStep<V, R> combine(
-            String name, Par par, TaskOptions options, Class<R> type, CombineBody<? super V, ? extends R> body);
+    <R> CombinedGroupStep<V, R> combineValues(
+            TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues<V>, ? extends R> combiner);
 
     /**
      * Executes the declared group and returns frozen results after all task results settle and a
-     * bounded cleanup attempt. Waiting ignores interruption and restores the interrupt flag;
-     * caller interruption does not cancel the group. Deadline and ancestor cancellation remain
-     * active. Check TaskGroupResult.bodyCompletionConfirmed before releasing shared resources.
+     * bounded cleanup attempt. Waiting ignores interruption and restores the interrupt flag; caller
+     * interruption does not cancel the group. Deadline and ancestor cancellation remain active.
+     * Check TaskGroupResult.executionExitConfirmed before releasing shared resources.
      *
      * <p>Consumes the draft whether the submission succeeds or fails; a second {@code runAll()}
-     * throws. A failure after admission — a rejected handoff, a failing body, a timeout, a
+     * throws. A failure after admission — a rejected handoff, a failing execution, a timeout, a
      * cancellation — is returned as outcome data. Use TaskGroupResult.valuesOrThrow to raise it.
      *
      * @return the frozen group result
-     * @throws IllegalStateException if this stage is stale, the draft was already submitted, or the
-     *     draft is used from another thread
+     * @throws IllegalStateException if this stage is stale, the draft was already submitted, the
+     *     draft is used from another thread, or the owning ParRuntime has begun shutdown
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */

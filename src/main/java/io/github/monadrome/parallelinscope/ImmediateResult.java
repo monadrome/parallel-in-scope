@@ -3,12 +3,15 @@ package io.github.monadrome.parallelinscope;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,6 +44,9 @@ public final class ImmediateResult<T> {
      *
      * <p>The outcome is attribution metadata and does not convert the supplied throwable. Reads,
      * including through {@link #asFuture()}, preserve it as the ExecutionException cause.
+     *
+     * @throws NullPointerException if {@code outcome} or {@code failure} is null
+     * @throws IllegalArgumentException if {@code outcome} is {@code SUCCESS} or {@code RUNNING}
      */
     public static <T> ImmediateResult<T> failed(TaskOutcome outcome, Throwable failure) {
         checkNotNull(outcome, "outcome cannot be null");
@@ -61,7 +67,67 @@ public final class ImmediateResult<T> {
         return failure;
     }
 
-    /** Reads the value immediately, or wraps the stored failure without changing its identity. */
+    /**
+     * Whether the outcome is {@code SUCCESS}, matching {@link TaskCompletion#successful()}.
+     *
+     * @return {@code true} exactly when this result holds a value
+     * @since 0.4.0
+     */
+    public boolean successful() {
+        return outcome == TaskOutcome.SUCCESS;
+    }
+
+    /**
+     * Consumes this result by its four public terminal shapes. {@code SUCCESS} applies {@code
+     * onValue} to the possibly-null value; {@code USER_FAILURE} applies {@code onUserFailure};
+     * {@code SUBMISSION_FAILURE} applies {@code onSubmissionFailure}; and every cancellation
+     * outcome applies {@code onCancelled} to the outcome and stored throwable. The cancellation
+     * throwable is not guaranteed to be a {@link CancellationException}: a group's {@code
+     * valuesResult()} carries a recorded business failure even when the group's outcome is a
+     * cancellation, and {@link #failed} keeps the given throwable.
+     *
+     * @param <R> the result type
+     * @param onValue applied to the value on success
+     * @param onUserFailure applied to the stored failure thrown by user code
+     * @param onSubmissionFailure applied to the stored failure recorded before user code ran
+     * @param onCancelled applied to the outcome and stored throwable of any other outcome
+     * @return the value the applied function returns
+     * @throws NullPointerException if any function is null
+     * @since 0.4.0
+     */
+    public <R> R fold(
+            Function<? super @Nullable T, ? extends R> onValue,
+            Function<? super Throwable, ? extends R> onUserFailure,
+            Function<? super Throwable, ? extends R> onSubmissionFailure,
+            BiFunction<? super TaskOutcome, ? super Throwable, ? extends R> onCancelled) {
+        checkNotNull(onValue, "onValue cannot be null");
+        checkNotNull(onUserFailure, "onUserFailure cannot be null");
+        checkNotNull(onSubmissionFailure, "onSubmissionFailure cannot be null");
+        checkNotNull(onCancelled, "onCancelled cannot be null");
+        switch (outcome) {
+            case SUCCESS:
+                return onValue.apply(value);
+            case USER_FAILURE:
+                return onUserFailure.apply(Verify.verifyNotNull(failure));
+            case SUBMISSION_FAILURE:
+                return onSubmissionFailure.apply(Verify.verifyNotNull(failure));
+            case MEMBER_CANCELLED:
+            case GROUP_CANCELLED:
+            case FAIL_FAST:
+            case TIMEOUT:
+                return onCancelled.apply(outcome, Verify.verifyNotNull(failure));
+            case RUNNING:
+            default:
+                throw new AssertionError("immediate result has no terminal outcome: " + outcome);
+        }
+    }
+
+    /**
+     * Reads the value immediately, or wraps the stored failure without changing its identity.
+     *
+     * @return the successful value, possibly null
+     * @throws ExecutionException with the stored failure as its cause for every non-success outcome
+     */
     public @Nullable T valueOrThrow() throws ExecutionException {
         if (failure != null) {
             throw new ExecutionException(failure);
@@ -119,7 +185,7 @@ public final class ImmediateResult<T> {
                 return succeeded(value);
             }
         } catch (ExecutionException failure) {
-            Throwable cause = com.google.common.base.Verify.verifyNotNull(failure.getCause());
+            Throwable cause = Verify.verifyNotNull(failure.getCause());
             return fromFailure(task, outcome, cause);
         } catch (CancellationException failure) {
             // Guava creates this exception when reading a cancelled future. Freeze it once, with

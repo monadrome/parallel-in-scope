@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Per-task body lifecycle slot registered with a {@link BodyCompletionTracker} before submission.
+ * Per-task execution lifecycle slot registered with a {@link ExecutionExitTracker} before submission.
  *
  * <p>State machine:
  *
@@ -16,38 +16,38 @@ import org.jspecify.annotations.Nullable;
  * </pre>
  *
  * <p>{@code RUNNING} means the task claimed execution eligibility; it does not require the user
- * {@code Callable} to have been entered yet. The slot covers the gap between eligibility and body
- * exit. Cancellation, rejection, and window abandonment race the task entry through the same
- * atomic state, so every transition to {@code EXITED} or {@code SKIPPED} releases the shared slot
- * exactly once. A task marked {@code SKIPPED} must never enter the user body, even when an
- * executor invokes it later.
+ * {@code Callable} to have been entered yet. The slot covers the gap between eligibility and execution
+ * exit. Cancellation, rejection, and window abandonment race the task entry through the same atomic
+ * state, so every transition to {@code EXITED} or {@code SKIPPED} releases the shared slot exactly
+ * once. A task marked {@code SKIPPED} must never enter the user task code, even when an executor invokes
+ * it later.
  */
-final class TaskBodyState {
+final class TaskExecutionState {
 
-    /** Body lifecycle states; terminal states are EXITED and SKIPPED. */
+    /** Execution lifecycle states; terminal states are EXITED and SKIPPED. */
     enum State {
         /** Registered before submission; neither claimed nor skipped yet. */
         PENDING,
         /** Execution eligibility claimed by the future's run(). */
         RUNNING,
-        /** The task body finally completed (or eligibility was released without entering it). */
+        /** The task execution finally completed (or eligibility was released without entering it). */
         EXITED,
         /** Cancellation, rejection, or abandonment won before execution eligibility. */
         SKIPPED
     }
 
     private final AtomicReference<State> state = new AtomicReference<>(State.PENDING);
-    private final BodyCompletionTracker tracker;
+    private final ExecutionExitTracker tracker;
     private final String name;
 
-    /**
-     * Terminal signal of this slot: set exactly once, by the winning transition to {@code EXITED}
-     * or {@code SKIPPED}, before the shared tracker is released. Observation futures key on it so
-     * a waiter that observes body completion through the tracker already finds this slot terminal.
+    /*
+     * Terminal signal of this slot: set exactly once, by the winning transition to EXITED or
+     * SKIPPED, before the shared tracker is released. Observation futures key on it so a waiter
+     * that observes execution exit through the tracker already finds this slot terminal.
      */
     private final SettableFuture<@Nullable Void> terminal = SettableFuture.create();
 
-    TaskBodyState(BodyCompletionTracker tracker, String name) {
+    TaskExecutionState(ExecutionExitTracker tracker, String name) {
         this.tracker = tracker;
         this.name = name;
     }
@@ -57,7 +57,7 @@ final class TaskBodyState {
         return name;
     }
 
-    /** Whether the body has neither exited nor been determined to never enter. */
+    /** Whether the execution has neither exited nor been determined to never enter. */
     boolean isOutstanding() {
         State current = state.get();
         return current == State.PENDING || current == State.RUNNING;
@@ -65,30 +65,30 @@ final class TaskBodyState {
 
     /**
      * Claims execution eligibility. Returns {@code false} when cancellation or abandonment already
-     * marked the task skipped; the caller must not enter the user body in that case.
+     * marked the task skipped; the caller must not enter the user task code in that case.
      */
     boolean claimRunning() {
         return state.compareAndSet(State.PENDING, State.RUNNING);
     }
 
     /**
-     * Publishes body exit, releasing the slot once. Idempotent: the normal path publishes after the
-     * user body's finally and the outer future finally retries as a fallback, so a missed inner
+     * Publishes execution exit, releasing the slot once. Idempotent: the normal path publishes after the
+     * user task code's finally and the outer future finally retries as a fallback, so a missed inner
      * publish (for example a context-install failure) cannot leak the slot. The terminal signal is
      * set before the tracker release, so observation futures keyed on it are published before any
-     * body-completion waiter can return.
+     * execution exit waiter can return.
      */
     void exited() {
         if (state.compareAndSet(State.RUNNING, State.EXITED)) {
-            BodyCompletionTracker.complete(terminal);
+            ExecutionExitTracker.complete(terminal);
             tracker.release();
         }
     }
 
-    /** Marks the task as never entering its body, releasing the slot once. */
+    /** Marks the task as never entering its execution, releasing the slot once. */
     void skipped() {
         if (state.compareAndSet(State.PENDING, State.SKIPPED)) {
-            BodyCompletionTracker.complete(terminal);
+            ExecutionExitTracker.complete(terminal);
             tracker.release();
         }
     }
