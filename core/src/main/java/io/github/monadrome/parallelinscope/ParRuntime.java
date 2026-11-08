@@ -441,13 +441,13 @@ public final class ParRuntime implements AutoCloseable {
      *     has no enclosing scoped task
      * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown
      */
-    TaskGroup<?, ?> submitPreparedGroup(TaskGroupDefinition definition, TaskGroup.RunBindings payloads) {
+    TaskGroup<?> submitPreparedGroup(TaskGroupDefinition definition, TaskGroup.RunBindings payloads) {
         // The whole startup — preparation, binds, and submission — is one admission against
         // close(): the runtime's services stay alive for every bind, so a close racing startup
         // cannot retire the deadline scheduler between the group bind and a tighter member bind.
         // Batches already hold their admission through submission; groups now match them.
         return whileOpen(() -> {
-            TaskGroup<?, ?> group = TaskGroup.prepare(this, definition, payloads);
+            TaskGroup<?> group = TaskGroup.prepare(this, definition, payloads);
             group.start(this, definition);
             group.submitPrepared();
             return group;

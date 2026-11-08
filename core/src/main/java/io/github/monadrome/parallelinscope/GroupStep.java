@@ -5,118 +5,146 @@ import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.concurrent.Callable;
 
 /**
- * Middle stage of a one-shot task-group declaration: at least one plain member is declared, and
- * more members, an optional terminal combine, or the submission may follow.
+ * Middle stage of a one-shot task-group declaration.
  *
- * <p>The type parameter {@code V} is the group's assembled value type so far: the first member's
- * type for {@link GroupStart#par(TaskKey, Par, Callable)}, then left-nested {@link Tuple2} for each
- * member added here. Every {@link #par} extends this shape, which is returned by {@link
- * GroupValues#typedValues()} without a cast at the use site.
+ * <p>Member values are read through the declaration keys in {@link GroupValues}. The stage does
+ * not carry an aggregate member-value type, so adding or reordering members does not change the public
+ * type of the chain. The same one-shot, single-threaded, stage-checked contract as {@link
+ * GroupStart} applies.
  *
- * <p>Declaring a combine moves to {@link CombinedGroupStep}, which exposes only {@link
- * CombinedGroupStep#runAll()}: a combine is terminal, so a member or a second combine after it does
- * not compile. {@code closeGrace} belongs to {@link GroupStart} and is likewise not reachable from
- * here.
- *
- * <p>The same one-shot, single-threaded, stage-checked contract as {@link GroupStart} applies.
- *
- * @param <V> the group's assembled member-value type so far
- * @since 0.3.0
+ * @since 0.5.0
  */
 @CheckReturnValue
-public interface GroupStep<V> {
+public interface GroupStep {
 
     /**
-     * Declares a member with the key's name and type; lookup uses this exact key object.
+     * Declares another member using the key's name and type; the exact key object addresses its
+     * value in the frozen result.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <T> member result type
+     * @param key declaration key
+     * @param par executor binding
+     * @param taskCode member execution
+     * @return the next declaration stage
      */
-    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
+    <T> GroupStep par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
 
     /**
-     * Declares a keyed member with explicit task options.
+     * Declares another member with explicit task options. The options are captured at declaration
+     * time and applied when {@link #runAll()} admits the group.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <T> member result type
+     * @param key declaration key
+     * @param par executor binding
+     * @param options member options
+     * @param taskCode member execution
+     * @return the next declaration stage
      */
-    <T> GroupStep<Tuple2<V, T>> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
+    <T> GroupStep par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
 
     /**
-     * Declares a member as an adopted future; see {@link GroupStart#adopt(TaskKey,
-     * ListenableFuture)} for ownership, cancellation, attribution, and the exceptions every {@code
-     * adopt} overload throws.
+     * Declares another member as an adopted future. The group owns and cancels the source from
+     * {@code runAll()} onward; it does not submit work for this member.
      *
-     * @since 0.4.0
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <T> member result type
+     * @param key declaration key
+     * @param source future whose result becomes the member value
+     * @return the next declaration stage
      */
-    <T> GroupStep<Tuple2<V, T>> adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
+    <T> GroupStep adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
 
     /**
-     * Declares a member as an adopted future completed on {@code producer}'s executor; see {@link
-     * GroupStart#adopt(TaskKey, Par, ListenableFuture)}.
+     * Declares another member as an adopted future with producer attribution for executor-wait
+     * diagnostics.
      *
-     * @since 0.4.0
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
+     *     the producer belongs to another runtime
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <T> member result type
+     * @param key declaration key
+     * @param producer executor attribution for the adopted source
+     * @param source future whose result becomes the member value
+     * @return the next declaration stage
      */
-    <T> GroupStep<Tuple2<V, T>> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
+    <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
 
     /**
-     * Declares a keyed terminal combine using the group's assembled member-value type.
+     * Declares the terminal combine over the non-null keyed member-value snapshot. The snapshot is
+     * available only after every ordinary member succeeds; successful member values may be null.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <R> terminal result type
+     * @param key terminal declaration key
+     * @param par executor binding
+     * @param combiner terminal computation over member values
+     * @return the terminal declaration stage
      */
-    <R> CombinedGroupStep<V, R> combine(TaskKey<R> key, Par par, Combiner<? super V, ? extends R> combiner);
+    <R> CombinedGroupStep<R> combine(TaskKey<R> key, Par par, Combiner<GroupValues, ? extends R> combiner);
 
     /**
-     * Declares a keyed terminal combine with explicit task options.
+     * Declares the keyed terminal combine with explicit task options. The terminal uses the same
+     * deadline, cancellation, context, and executor-binding rules as a member.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <R> terminal result type
+     * @param key terminal declaration key
+     * @param par executor binding
+     * @param options terminal options
+     * @param combiner terminal computation over member values
+     * @return the terminal declaration stage
      */
-    <R> CombinedGroupStep<V, R> combine(
-            TaskKey<R> key, Par par, TaskOptions options, Combiner<? super V, ? extends R> combiner);
+    <R> CombinedGroupStep<R> combine(
+            TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues, ? extends R> combiner);
 
     /**
-     * Declares a keyed terminal combine whose input is the successful member-value view. Use {@link
-     * GroupValues#valueOf(TaskKey)} to read members by their declaration keys. The combine has the
-     * same scheduling and failure semantics as {@link #combine}; its input contains only plain
-     * members, so it cannot read itself.
+     * Alias for {@link #combine(TaskKey, Par, Combiner)} that names the keyed input explicitly.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <R> terminal result type
+     * @param key terminal declaration key
+     * @param par executor binding
+     * @param combiner terminal computation over member values
+     * @return the terminal declaration stage
      */
-    <R> CombinedGroupStep<V, R> combineValues(TaskKey<R> key, Par par, Combiner<GroupValues<V>, ? extends R> combiner);
+    <R> CombinedGroupStep<R> combineValues(TaskKey<R> key, Par par, Combiner<GroupValues, ? extends R> combiner);
 
     /**
-     * Declares a value-view terminal combine with explicit task options.
+     * Alias for {@link #combine(TaskKey, Par, TaskOptions, Combiner)} with explicit options.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <R> terminal result type
+     * @param key terminal declaration key
+     * @param par executor binding
+     * @param options terminal options
+     * @param combiner terminal computation over member values
+     * @return the terminal declaration stage
      */
-    <R> CombinedGroupStep<V, R> combineValues(
-            TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues<V>, ? extends R> combiner);
+    <R> CombinedGroupStep<R> combineValues(
+            TaskKey<R> key, Par par, TaskOptions options, Combiner<GroupValues, ? extends R> combiner);
 
     /**
-     * Executes the declared group and returns frozen results after all task results settle and a
-     * bounded cleanup attempt. Waiting ignores interruption and restores the interrupt flag; caller
-     * interruption does not cancel the group. Deadline and ancestor cancellation remain active.
-     * Check TaskGroupResult.executionExitConfirmed before releasing shared resources.
+     * Executes the group and returns frozen results after convergence and bounded cleanup. Waiting is
+     * uninterruptible and restores the caller's interrupt flag; failures are returned as outcome data.
      *
-     * <p>Consumes the draft whether the submission succeeds or fails; a second {@code runAll()}
-     * throws. A failure after admission — a rejected handoff, a failing execution, a timeout, a
-     * cancellation — is returned as outcome data. Use TaskGroupResult.valuesOrThrow to raise it.
-     *
-     * @return the frozen group result
-     * @throws IllegalStateException if this stage is stale, the draft was already submitted, the
-     *     draft is used from another thread, or the owning ParRuntime has begun shutdown
-     * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
-     *     no enclosing scoped task
+     * @throws IllegalStateException if this stage is stale, used from another thread, or the runtime is closed
      */
-    TaskGroupResult<V, Void> runAll();
+    TaskGroupResult<Void> runAll();
 }

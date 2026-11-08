@@ -51,7 +51,7 @@ class TaskIdentityTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
 
@@ -73,7 +73,7 @@ class TaskIdentityTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);

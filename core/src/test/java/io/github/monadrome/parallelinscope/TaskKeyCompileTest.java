@@ -21,12 +21,11 @@ class TaskKeyCompileTest {
 
     @Test
     void java8AcceptsGenericKeyExecutionsAndTypedReads() throws Exception {
-        assertThat(compiles(
-                        "TaskGroupResult<java.util.List<String>, Integer> r = runtime.group(\"g\", java.time.Duration.ofSeconds(1))"
-                                + ".par(names, par, () -> java.util.Arrays.asList(\"a\"))"
-                                + ".combineValues(count, par, v -> v.valueOf(names).size()).runAll();"
-                                + "java.util.List<String> n = r.valuesOrThrow().valueOf(names);"
-                                + "ImmediateResult<Integer> i = r.resultOf(count);"))
+        assertThat(compiles("TaskGroupResult<Integer> r = runtime.group(\"g\", java.time.Duration.ofSeconds(1))"
+                        + ".par(names, par, () -> java.util.Arrays.asList(\"a\"))"
+                        + ".combineValues(count, par, v -> v.valueOf(names).size()).runAll();"
+                        + "java.util.List<String> n = r.valuesOrThrow().valueOf(names);"
+                        + "ImmediateResult<Integer> i = r.resultOf(count);"))
                 .isTrue();
     }
 
@@ -53,9 +52,9 @@ class TaskKeyCompileTest {
     void java8AcceptsKeysInsideGenericMethodsWithoutReifyingTheType() throws Exception {
         assertThat(compiles("TaskKey<T> itemKey = TaskKey.named(\"item\");"
                         + "TaskKey<java.util.List<T>> listKey = TaskKey.named(\"list\");"
-                        + "TaskGroupResult<T, java.util.List<T>> r = runtime.group(\"g\", java.time.Duration.ofSeconds(1))"
+                        + "TaskGroupResult<java.util.List<T>> r = runtime.group(\"g\", java.time.Duration.ofSeconds(1))"
                         + ".par(itemKey, par, () -> item)"
-                        + ".combine(listKey, par, v -> java.util.Collections.singletonList(v)).runAll();"
+                        + ".combineValues(listKey, par, v -> java.util.Collections.singletonList(v.valueOf(itemKey))).runAll();"
                         + "T v = r.valuesOrThrow().valueOf(itemKey);"
                         + "java.util.List<T> l = r.resultOf(listKey).valueOrThrow();"))
                 .isTrue();
@@ -67,7 +66,7 @@ class TaskKeyCompileTest {
         assertThat(compiles(
                         start + ".par(names, par, TaskOptions.inheritTimeout(), () -> java.util.Arrays.asList(1));"))
                 .isFalse();
-        assertThat(compiles(start + ".combine(names, par, TaskOptions.inheritTimeout(), v -> 1);"))
+        assertThat(compiles(start + ".combineValues(names, par, TaskOptions.inheritTimeout(), v -> 1);"))
                 .isFalse();
         assertThat(compiles("String wrong = values.valueOf(\"count\");")).isFalse();
         assertThat(compiles("ImmediateResult<String> wrong = result.resultAt(0);"))
@@ -77,7 +76,7 @@ class TaskKeyCompileTest {
     private boolean compiles(String statements) throws Exception {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         String source = "import io.github.monadrome.parallelinscope.*;"
-                + "class KeyConsumer { <T> void use(ParRuntime runtime, Par par, GroupValues<?> values, TaskGroupResult<?, ?> result, T item) throws Exception {"
+                + "class KeyConsumer { <T> void use(ParRuntime runtime, Par par, GroupValues values, TaskGroupResult<?> result, T item) throws Exception {"
                 + "TaskKey<Integer> count = TaskKey.named(\"count\");"
                 + "TaskKey<java.util.List<String>> names = TaskKey.named(\"names\");"
                 + statements + "}}";

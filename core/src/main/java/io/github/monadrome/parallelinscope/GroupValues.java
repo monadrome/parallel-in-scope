@@ -25,10 +25,9 @@ import org.jspecify.annotations.Nullable;
  * <p>Types are enforced by the compiler; no runtime type information is stored or checked. Raw
  * types and unchecked casts can defeat this guarantee and are the caller's responsibility.
  *
- * @param <V> the group's assembled member-value type
  * @since 0.3.0
  */
-public final class GroupValues<V> {
+public final class GroupValues {
     private final ImmutableList<String> names;
 
     private final ImmutableList<TaskKey<?>> keys;
@@ -38,41 +37,21 @@ public final class GroupValues<V> {
      */
     private final List<@Nullable Object> values;
 
-    private final @Nullable V typedValues;
-
-    private GroupValues(
-            ImmutableList<String> names,
-            ImmutableList<TaskKey<?>> keys,
-            List<@Nullable Object> values,
-            @Nullable V typedValues) {
+    private GroupValues(ImmutableList<String> names, ImmutableList<TaskKey<?>> keys, List<@Nullable Object> values) {
         this.names = names;
 
         this.keys = keys;
         this.values = Collections.unmodifiableList(new ArrayList<>(values));
-        this.typedValues = typedValues;
     }
 
-    static <V> GroupValues<V> of(
-            ImmutableList<String> names,
-            ImmutableList<TaskKey<?>> keys,
-            List<@Nullable Object> values,
-            @Nullable V typedValues) {
-        return new GroupValues<>(names, keys, values, typedValues);
+    /** Builds a snapshot from declaration-ordered member keys and settled values. */
+    static GroupValues of(ImmutableList<String> names, ImmutableList<TaskKey<?>> keys, List<@Nullable Object> values) {
+        return new GroupValues(names, keys, values);
     }
 
     /** The number of plain members; the terminal combine never occupies a slot. */
     public int size() {
         return names.size();
-    }
-
-    /**
-     * The member values as the group's static type: the single member's value for a one-member
-     * group, left-nested {@link Tuple2} for larger groups, and null for a group with no members.
-     *
-     * <p>Components may be null. This is the same value a terminal {@link Combiner} receives.
-     */
-    public @Nullable V typedValues() {
-        return typedValues;
     }
 
     /**

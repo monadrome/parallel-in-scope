@@ -47,7 +47,7 @@ public interface GroupStart {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<T> par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
+    <T> GroupStep par(TaskKey<T> key, Par par, Callable<? extends T> taskCode);
 
     /** Declares the first keyed member with explicit task options.
      *
@@ -55,7 +55,7 @@ public interface GroupStart {
      * @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
-    <T> GroupStep<T> par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
+    <T> GroupStep par(TaskKey<T> key, Par par, TaskOptions options, Callable<? extends T> taskCode);
 
     /**
      * Declares the first member as an adopted future: work already in flight whose result becomes
@@ -91,7 +91,7 @@ public interface GroupStart {
      * @throws IllegalStateException if this stage is stale or used from another thread
      * @since 0.4.0
      */
-    <T> GroupStep<T> adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
+    <T> GroupStep adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
 
     /**
      * Declares the first member as an adopted future completed by work on {@code producer}'s
@@ -106,7 +106,7 @@ public interface GroupStart {
      * @throws IllegalStateException if this stage is stale or used from another thread
      * @since 0.4.0
      */
-    <T> GroupStep<T> adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
+    <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
 
     /**
      * Sets the bounded cleanup wait that runAll performs after results settle. The wait ignores
@@ -154,5 +154,5 @@ public interface GroupStart {
      * @throws IllegalArgumentException if the group inherits its deadline and the calling thread has
      *     no enclosing scoped task
      */
-    TaskGroupResult<Void, Void> runAll();
+    TaskGroupResult<Void> runAll();
 }

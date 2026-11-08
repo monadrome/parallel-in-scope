@@ -63,7 +63,7 @@ class TaskGroupTest {
                 .build();
         try {
             AtomicInteger executions = new AtomicInteger();
-            TaskGroup<Tuple2<String, Integer>, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(KEY_TEXT_STRING, global.par(ParId.of("first")), () -> "value-" + executions.incrementAndGet())
                     .par(KEY_NUMBER_INTEGER, global.par(ParId.of("second")), () -> 40 + executions.incrementAndGet())
                     .submitAll();
@@ -99,7 +99,7 @@ class TaskGroupTest {
         ParRuntime other =
                 ParRuntime.builder().register(ParId.of("p"), executor).build();
         String name = "foreign";
-        try (TaskGroup<String, Void> foreign = other.groupDraft("other", TIMEOUT)
+        try (TaskGroup<Void> foreign = other.groupDraft("other", TIMEOUT)
                 .par(TaskKey.<String>named(name), other.par(ParId.of("p")), () -> "value")
                 .submitAll()) {
             assertThat(foreign.members().keySet()).containsExactly(name);
@@ -116,7 +116,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         MultiTaskContext context = Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext();
@@ -151,7 +151,7 @@ class TaskGroupTest {
         try {
             AtomicInteger calls = new AtomicInteger();
             ttl.set("configure");
-            GroupDraft.Step<String> declaration = global.groupDraft("ttl", TIMEOUT)
+            GroupDraft.Step declaration = global.groupDraft("ttl", TIMEOUT)
                     .par(KEY_MEMBER_STRING, global.par(ParId.of("worker")), () -> {
                         calls.incrementAndGet();
                         return ttl.get();
@@ -159,7 +159,7 @@ class TaskGroupTest {
 
             assertThat(calls).hasValue(0);
             ttl.set("submit");
-            TaskGroup<String, Void> group = declaration.submitAll();
+            TaskGroup<Void> group = declaration.submitAll();
 
             assertThat(group.futureOf(KEY_MEMBER_STRING).get(2, TimeUnit.SECONDS))
                     .isEqualTo("submit");
@@ -244,7 +244,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("reject"), rejecting).build();
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("lone-rejection", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("lone-rejection", TIMEOUT)
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
@@ -276,7 +276,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         Thread submitter = Thread.currentThread();
         try {
-            TaskGroup<Thread, Void> group = global.groupDraft("inline-member", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("inline-member", TIMEOUT)
                     .par(
                             KEY_INLINE_THREAD,
                             global.par(ParId.of("direct")),
@@ -343,7 +343,7 @@ class TaskGroupTest {
                 .register(ParId.of("healthy"), healthy)
                 .build();
         try {
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("handoff-error", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("handoff-error", TIMEOUT)
                     .par(KEY_FAILED_INTEGER, global.par(ParId.of("broken")), () -> 1)
                     .par(KEY_FINE_INTEGER, global.par(ParId.of("healthy")), () -> 2)
                     .submitAll();
@@ -389,7 +389,7 @@ class TaskGroupTest {
         Handler handler = boomOnHandoffError(brokenHandler, captured);
         kernelLogger.addHandler(handler);
         try {
-            TaskGroupResult<Integer, Void> result = global.group("handoff-logging", TIMEOUT)
+            TaskGroupResult<Void> result = global.group("handoff-logging", TIMEOUT)
                     .par(KEY_FAILED_INTEGER, global.par(ParId.of("broken")), () -> 1)
                     .runAll();
 
@@ -515,7 +515,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("member-cancel", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("member-cancel", TIMEOUT)
                     .par(KEY_CANCELLED_INTEGER, global.par(ParId.of("worker")), () -> {
                         release.await();
                         return 1;
@@ -629,7 +629,7 @@ class TaskGroupTest {
         try {
             // The member inherits the group deadline, so its token is never bound; propagation to
             // the nested batch rides the token constructor listener chain alone.
-            TaskGroup<Integer, Void> group = global.groupDraft("nested-propagation", Duration.ofMillis(50))
+            TaskGroup<Void> group = global.groupDraft("nested-propagation", Duration.ofMillis(50))
                     .par(KEY_MEMBER_INTEGER, global.par(ParId.of("outer")), () -> {
                         memberToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext()
@@ -694,7 +694,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(2);
         try {
-            TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("cancel", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("cancel", TIMEOUT)
                     .par(TaskKey.<String>named("one"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         Thread.sleep(10_000);
@@ -730,7 +730,7 @@ class TaskGroupTest {
         try {
             Thread submitThread = Thread.currentThread();
             AtomicReference<Thread> firstThread = new AtomicReference<>();
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("inline", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("inline", TIMEOUT)
                     .par(KEY_FIRST_INTEGER, global.par(ParId.of("direct")), () -> {
                         firstThread.set(Thread.currentThread());
                         return 1;
@@ -794,7 +794,7 @@ class TaskGroupTest {
         try {
             // Group completion observation is the caller's own Guava callback registration; the
             // framework installs no listener and no current context.
-            TaskGroup<Integer, Void> group = global.groupDraft("callback", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("callback", TIMEOUT)
                     .par(KEY_ONE_INTEGER, global.par(ParId.of("direct")), () -> 1)
                     .submitAll();
             Futures.addCallback(
@@ -832,7 +832,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), otherExecutor).build();
         try {
             GroupDraft.Start start = global.groupDraft("declaration", TIMEOUT);
-            GroupDraft.Step<Integer> step = start.par(KEY_ONE_INTEGER, global.par(ParId.of("worker")), () -> 1);
+            GroupDraft.Step step = start.par(KEY_ONE_INTEGER, global.par(ParId.of("worker")), () -> 1);
             assertThatThrownBy(() -> step.par(KEY_ONE_INTEGER, global.par(ParId.of("worker")), () -> 2))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> step.par(TaskKey.<Integer>named(" "), global.par(ParId.of("worker")), () -> 2))
@@ -845,7 +845,7 @@ class TaskGroupTest {
             assertThatThrownBy(() -> step.par(TaskKey.<Integer>named("two"), foreign.par(ParId.of("worker")), () -> 2))
                     .isInstanceOf(IllegalArgumentException.class);
 
-            TaskGroup<Integer, Void> first = step.submitAll();
+            TaskGroup<Void> first = step.submitAll();
             // One-shot: the consumed chain cannot be extended or submitted again, and a saved
             // earlier stage is not a second draft.
             assertThatThrownBy(() -> step.par(TaskKey.<Integer>named("late"), global.par(ParId.of("worker")), () -> 3))
@@ -858,7 +858,7 @@ class TaskGroupTest {
 
             // Every run declares its own members: the same shape submitted twice yields two
             // distinct groups with distinct futures.
-            TaskGroup<Integer, Void> second = global.groupDraft("declaration", TIMEOUT)
+            TaskGroup<Void> second = global.groupDraft("declaration", TIMEOUT)
                     .par(KEY_ONE_INTEGER, global.par(ParId.of("worker")), () -> 2)
                     .submitAll();
             assertThat(first.groupId()).isNotEqualTo(second.groupId());
@@ -883,10 +883,10 @@ class TaskGroupTest {
                 .register(ParId.of("p"), Executors.newSingleThreadExecutor())
                 .build();
         try {
-            TaskGroup<String, Void> first = global.groupDraft("first", TIMEOUT)
+            TaskGroup<Void> first = global.groupDraft("first", TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("p")), () -> "first-user")
                     .submitAll();
-            TaskGroup<String, Void> second = global.groupDraft("second", TIMEOUT)
+            TaskGroup<Void> second = global.groupDraft("second", TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("p")), () -> "second-user")
                     .submitAll();
 
@@ -909,7 +909,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("typed", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("typed", TIMEOUT)
                     .par(KEY_MEMBER_INTEGER, global.par(ParId.of("direct")), () -> 1)
                     .submitAll();
 
@@ -933,7 +933,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroup<Void, Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
+            TaskGroup<Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
             assertThat(group.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
 
             global.close();
@@ -951,7 +951,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try {
-            TaskGroup<Long, Void> group = global.groupDraft("inherit-member", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("inherit-member", TIMEOUT)
                     .par(
                             KEY_MEMBER_LONG,
                             global.par(ParId.of("direct")),
@@ -1014,7 +1014,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("direct"), direct).build();
         try {
-            TaskGroup<Long, Void> group = global.groupDraft("tight-member", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("tight-member", TIMEOUT)
                     .par(
                             KEY_MEMBER_LONG,
                             global.par(ParId.of("direct")),
@@ -1041,7 +1041,7 @@ class TaskGroupTest {
                 .register(ParId.of("inner"), inner)
                 .build();
         try {
-            TaskGroup<long[], Void> group = global.groupDraft("nested-batch", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("nested-batch", TIMEOUT)
                     .par(KEY_MEMBER_LONG__, global.par(ParId.of("outer")), () -> {
                         long memberDeadline = Objects.requireNonNull(TaskExecutionContext.current())
                                 .multiTaskContext()
@@ -1136,7 +1136,7 @@ class TaskGroupTest {
                             ignored -> {
                                 MultiTaskContext expectedParent = Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext();
-                                TaskGroup<MultiTaskContext, Void> group = global.groupDraft("nested", TIMEOUT)
+                                TaskGroup<Void> group = global.groupDraft("nested", TIMEOUT)
                                         .par(
                                                 KEY_CHILD_MULTITASKCONTEXT,
                                                 global.par(ParId.of("inner")),
@@ -1170,7 +1170,7 @@ class TaskGroupTest {
                 .register(ParId.of("outer"), outer)
                 .register(ParId.of("inner"), inner)
                 .build();
-        AtomicReference<TaskGroup<Integer, Void>> nestedGroup = new AtomicReference<>();
+        AtomicReference<TaskGroup<Void>> nestedGroup = new AtomicReference<>();
         try {
             TaskBatch<Object> result = global.par(ParId.of("outer"))
                     .submitBatch(
@@ -1216,7 +1216,7 @@ class TaskGroupTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroup<Void, Void> group = global.groupDraft("named", TIMEOUT).submitAll();
+            TaskGroup<Void> group = global.groupDraft("named", TIMEOUT).submitAll();
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.groupName()).isEqualTo("named");
@@ -1236,12 +1236,12 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(1);
         try {
-            TaskGroup<Void, Void> completed = global.groupDraft("done", TIMEOUT).submitAll();
+            TaskGroup<Void> completed = global.groupDraft("done", TIMEOUT).submitAll();
             completed.completionFuture().get(2, TimeUnit.SECONDS);
             completed.close(); // must not disturb the recorded result
             assertThat(completed.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
 
-            TaskGroup<Integer, Void> unfinished = global.groupDraft("close-cancel", TIMEOUT)
+            TaskGroup<Void> unfinished = global.groupDraft("close-cancel", TIMEOUT)
                     .par(TaskKey.<Integer>named("slow"), global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         Thread.sleep(10_000);
@@ -1270,7 +1270,7 @@ class TaskGroupTest {
                 .build();
         try {
             AtomicReference<CancellationToken> outerToken = new AtomicReference<>();
-            AtomicReference<TaskGroup<Integer, Void>> publishedGroup = new AtomicReference<>();
+            AtomicReference<TaskGroup<Void>> publishedGroup = new AtomicReference<>();
             AtomicReference<String> observedReason = new AtomicReference<>();
             CountDownLatch groupBuilt = new CountDownLatch(1);
             TaskBatch<String> outerBatch = global.par(ParId.of("outer"))
@@ -1280,7 +1280,7 @@ class TaskGroupTest {
                                 outerToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .cancellationToken());
-                                TaskGroup<Integer, Void> group = global.groupDraft("outer-cancel", TIMEOUT)
+                                TaskGroup<Void> group = global.groupDraft("outer-cancel", TIMEOUT)
                                         .par(TaskKey.<Integer>named("slow"), global.par(ParId.of("inner")), () -> {
                                             Thread.sleep(10_000);
                                             return 1;
@@ -1314,7 +1314,7 @@ class TaskGroupTest {
                             BatchOptions.timeout("outer", TIMEOUT));
             assertThat(groupBuilt.await(2, TimeUnit.SECONDS)).isTrue();
             Objects.requireNonNull(outerToken.get()).cancel();
-            TaskGroup<Integer, Void> group = Objects.requireNonNull(publishedGroup.get());
+            TaskGroup<Void> group = Objects.requireNonNull(publishedGroup.get());
 
             TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
@@ -1340,7 +1340,7 @@ class TaskGroupTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<Integer, Void> group = global.groupDraft("admitted", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("admitted", TIMEOUT)
                     .par(TaskKey.<Integer>named("slow"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
                         release.await(10, TimeUnit.SECONDS);

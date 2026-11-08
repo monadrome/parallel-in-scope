@@ -31,7 +31,7 @@ class TaskGroupFailedTaskResultTest {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
-            TaskGroupResult<Integer, Void> result = runtime.group("ok", Duration.ofSeconds(30))
+            TaskGroupResult<Void> result = runtime.group("ok", Duration.ofSeconds(30))
                     .par(TaskKey.<Integer>named("only"), runtime.par(ParId.of("worker")), () -> 1)
                     .runAll();
             assertThat(result.failedTaskName()).isNull();
@@ -47,8 +47,7 @@ class TaskGroupFailedTaskResultTest {
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             IllegalStateException boom = new IllegalStateException("boom");
-            TaskGroupResult<Tuple2<Integer, Integer>, Void> result = runtime.group(
-                            "member-fails", Duration.ofSeconds(30))
+            TaskGroupResult<Void> result = runtime.group("member-fails", Duration.ofSeconds(30))
                     .par(TaskKey.<Integer>named("ok"), runtime.par(ParId.of("worker")), () -> 1)
                     .par(TaskKey.<Integer>named("bad"), runtime.par(ParId.of("worker")), () -> {
                         throw boom;
@@ -71,9 +70,9 @@ class TaskGroupFailedTaskResultTest {
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             IllegalStateException boom = new IllegalStateException("combine boom");
-            TaskGroupResult<Integer, Integer> result = runtime.group("combine-fails", Duration.ofSeconds(30))
+            TaskGroupResult<Integer> result = runtime.group("combine-fails", Duration.ofSeconds(30))
                     .par(TaskKey.<Integer>named("ok"), runtime.par(ParId.of("worker")), () -> 1)
-                    .combine(TaskKey.<Integer>named("join"), runtime.par(ParId.of("worker")), values -> {
+                    .combineValues(TaskKey.<Integer>named("join"), runtime.par(ParId.of("worker")), values -> {
                         throw boom;
                     })
                     .runAll();

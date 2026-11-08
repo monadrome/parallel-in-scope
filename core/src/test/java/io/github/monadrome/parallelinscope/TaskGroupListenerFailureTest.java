@@ -35,7 +35,7 @@ class TaskGroupListenerFailureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> {
                         started.countDown();
                         release.await(10, TimeUnit.SECONDS);
@@ -62,8 +62,7 @@ class TaskGroupListenerFailureTest {
             assertThat(group.futureOf(KEY_USER_STRING).get(5, TimeUnit.SECONDS)).isEqualTo("value");
             assertThat(group.completionFuture().get(5, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(group.valuesFuture().get(5, TimeUnit.SECONDS).typedValues())
-                    .isEqualTo("value");
+            assertThat(group.valuesFuture().get(5, TimeUnit.SECONDS).valueAt(0)).isEqualTo("value");
         } finally {
             release.countDown();
             global.close();

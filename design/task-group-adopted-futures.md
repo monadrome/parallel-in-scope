@@ -26,10 +26,10 @@ future」。收养成员没有执行，不提交到任何执行器，不捕获�
 List<Response> both = Futures.allAsList(profile, orders).get(2, TimeUnit.SECONDS);
 
 // 改后
-TaskGroupResult<Tuple2<Response, Response>, Page> result = runtime.group("page", Duration.ofSeconds(2))
+TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
         .adopt(PROFILE, client.get("/profile"))
         .adopt(ORDERS, client.get("/orders"))
-        .combine(PAGE, cpuPar, both -> render(both.first(), both.second()))
+        .combine(PAGE, cpuPar, values -> render(values.valueOf(PROFILE), values.valueOf(ORDERS)))
         .runAll();
 ```
 

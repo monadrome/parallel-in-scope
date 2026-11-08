@@ -101,16 +101,14 @@ final class TaskGroupDefinition {
         final @Nullable Par par;
         final TaskOptions options;
         final TaskKey<?> key;
-        final boolean valueView;
         final boolean adopted;
 
-        Slot(TaskKey<?> key, Par par, TaskOptions options, boolean valueView) {
-            this(key, par, options, valueView, false);
+        Slot(TaskKey<?> key, Par par, TaskOptions options) {
+            this(key, par, options, false);
         }
 
-        private Slot(TaskKey<?> key, @Nullable Par par, TaskOptions options, boolean valueView, boolean adopted) {
+        private Slot(TaskKey<?> key, @Nullable Par par, TaskOptions options, boolean adopted) {
             this.key = key;
-            this.valueView = valueView;
             this.name = key.name();
             this.par = par;
             this.options = options;
@@ -119,7 +117,11 @@ final class TaskGroupDefinition {
 
         /** The slot of an adopted member, attributed to {@code producer} when one is declared. */
         static Slot adopted(TaskKey<?> key, @Nullable Par producer) {
-            return new Slot(key, producer, TaskOptions.inheritTimeout(), false, true);
+            return new Slot(key, producer, TaskOptions.inheritTimeout(), true);
+        }
+
+        static Slot combine(TaskKey<?> key, Par par, TaskOptions options) {
+            return new Slot(key, par, options, false);
         }
 
         /** The executor entry of a slot the library runs; adopted members never reach this. */

@@ -151,25 +151,30 @@ fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`exec
 草稿仅创建线程可使用；旧阶段、重复执行、外国 Par 和重名均被拒绝。
 
 ```java
-TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+TaskKey<User> userKey = TaskKey.named("user");
+TaskKey<Account> accountKey = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .closeGrace(Duration.ofSeconds(1))
-        .par(TaskKey.<User>named("user"), databasePar, () -> loadUser(userId))
-        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(userId))
-        .combine(TaskKey.<Profile>named("profile"), httpPar, values -> buildProfile(values.first(), values.second()))
+        .par(userKey, databasePar, () -> loadUser(userId))
+        .par(accountKey, httpPar, () -> loadAccount(userId))
+        .combineValues(profileKey, httpPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
 
-无 combine 时，`runAll().valuesOrThrow().typedValues()` 返回单成员值或左嵌套 Tuple2；
-空组的 values.size 为零，typedValues 为 null。`groupInheriting(name)` 在执行时继承父
+无 combine 时，`runAll().valuesOrThrow()` 返回按 key 读取的不可变成员快照；空组的
+`values.size()` 为零。`groupInheriting(name)` 在执行时继承父
 deadline，任务外调用失败。成员/combine 的 TaskOptions 可缩短预算；一个成员超时取消
 整组。combine 仅在全部成员成功后执行，有自己的 scope 与 TTL；TPE 拒绝处理器不能让
 combine 在提交线程 inline，明确注册的 direct executor 保持支持。
 
 ```java
 TaskKey<User> userKey = TaskKey.named("user");
-TaskGroupResult<User, Void> one = global.group("user", Duration.ofSeconds(2))
+TaskGroupResult<Void> one = global.group("user", Duration.ofSeconds(2))
         .par(userKey, databasePar, () -> loadUser(userId))
         .runAll();
 ImmediateResult<User> user = one.resultOf(userKey);
@@ -187,7 +192,7 @@ TaskKey<User> userKey = TaskKey.named("user");
 TaskKey<Account> accountKey = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
 
-TaskGroupResult<Tuple2<User, Account>, Profile> result = global
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
         .par(accountKey, httpPar, () -> loadAccount(userId))
@@ -204,20 +209,18 @@ Profile profile = result.terminalValueOrThrow();
 `valueOf(key)` 只读成功成员值，允许 null；未知 key 抛 `IllegalArgumentException`。
 `resultOf(key)` 可读成员或终端的成功、失败、取消容器。key 不证明成员已经注册。
 
-`combineValues` 接收 `GroupValues<V>`，通过 key 读取成员，不能读取终端自己；
-它复用原有 terminal 的 deadline、TTL、取消、成功门控和拒绝规则。原有 `combine` 仍接收
-静态元组，也支持终端 key。两者均可在任务代码前传入 `TaskOptions`。声明和读取共享 `T`，
-错误的 lambda 体或赋值类型在正常泛型调用中不能编译；不做结果的运行期类型校验，
-raw type 和 unchecked cast 造成的类型违规由调用方负责。
+`combine` 和 `combineValues` 都接收 `GroupValues`，通过 key 读取成员，不能读取终端自己；它们复用
+terminal 的 deadline、TTL、取消、成功门控和拒绝规则。`combineValues` 是把按 key 读取意图写在调用点的
+显式拼法。声明和读取共享 `T`，错误的 lambda 体或赋值类型在正常泛型调用中不能编译；不做结果的运行期
+类型校验，raw type 和 unchecked cast 造成的类型违规由调用方负责。
 
 `terminalResult()` 为 null 仅表示未声明 combine；成功的 null combine 有容器。
 组的 `valuesOrThrow/terminalValueOrThrow/orThrow` 遵循所有聚合结果共用的规则：unchecked 原样抛、
 checked 包装为 CompletionException、纯取消抛 CancellationException。combine 失败也
 使聚合成员值失败，但单独的成功成员结果仍可读。
 
-combine 体内，唯一的成员成功返回 null 时 `values` 整体为 null；两个及以上成员时
-`values` 本身是非 null 的 `Tuple2`，但各分量可为 null。combine 返回 null 也是成功
-combine，因此执行可以直接写 `values -> null`。
+`combineValues` 体内，`values` 对非空组始终非 null，但具体成员读取可以为 null。combine 返回
+null 也是成功 combine，因此执行可以直接写 `values -> null`。
 
 ### 三个及以上成员
 
@@ -230,7 +233,7 @@ TaskKey<Account> accountKey = TaskKey.named("account");
 TaskKey<Order> orderKey = TaskKey.named("order");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
 
-TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
         .par(accountKey, httpPar, () -> loadAccount(userId))
@@ -243,28 +246,25 @@ TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
 Profile profile = result.terminalValueOrThrow();
 ```
 
-聚合成员类型仍随成员数左嵌套 `Tuple2`——上例结果的 `V` 是
-`Tuple2<Tuple2<User, Account>, Order>`——但用 `combineValues` 时这一形态只存在于声明内部。
-若要直接拿聚合后的 `V`，用 `combine(key, par, taskCode)`：三成员组的 tuple combine 里 `values`
-是 `Tuple2<Tuple2<A, B>, C>`，用 `first()`/`second()` 展开：
+公共结果类型不再随成员数递归扩展。`GroupValues` 保留声明顺序和原始 key 身份，增加或调整成员
+顺序不会改变声明链的类型：
 
 ```java
-TaskGroupResult<Tuple2<Tuple2<User, Account>, Order>, Profile> result = global
+TaskGroupResult<Profile> result = global
         .group("profile", Duration.ofSeconds(3))
         .par(userKey, databasePar, () -> loadUser(userId))
         .par(accountKey, httpPar, () -> loadAccount(userId))
         .par(orderKey, httpPar, () -> loadOrder(userId))
-        .combine(profileKey, httpPar, values -> new Profile(
-                values.first().first(),
-                values.first().second(),
-                values.second()))
+        .combineValues(profileKey, httpPar, values -> new Profile(
+                values.valueOf(userKey),
+                values.valueOf(accountKey),
+                values.valueOf(orderKey)))
         .runAll();
 Profile profile = result.terminalValueOrThrow();
 ```
 
-key 对象与按位置访问都不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位。成员变多时，
-应让 combine 尽早产出扁平对象，而不是把嵌套 `Tuple2` 传出 combine：嵌套只是声明形态的产物，
-下游不应为了读一个值而重建成员顺序。
+key 对象与按位置访问都不方便时，`GroupValues.valueOf(name)` 按成员名读取同一批槽位；它返回动态
+`Object`，需要编译期类型安全时应保留声明时的 key。
 
 ### 收养已在途的 future {#adopted-futures}
 
@@ -277,11 +277,12 @@ TaskKey<Profile> profileKey = TaskKey.named("profile");
 TaskKey<Orders> ordersKey = TaskKey.named("orders");
 TaskKey<Page> pageKey = TaskKey.named("page");
 
-TaskGroupResult<Tuple2<Profile, Orders>, Page> result = global
+TaskGroupResult<Page> result = global
         .group("page", Duration.ofSeconds(2))
         .adopt(profileKey, client.getProfile())
         .adopt(ordersKey, client.getOrders())
-        .combine(pageKey, cpuPar, both -> render(both.first(), both.second()))
+        .combineValues(pageKey, cpuPar, values -> render(
+                values.valueOf(profileKey), values.valueOf(ordersKey)))
         .runAll();
 ```
 
@@ -392,7 +393,7 @@ executionExitConfirmed 只确认直接 batch 元素、group 成员及 combine �
 任务局部资源写在执行内：
 
 ```java
-TaskGroupResult<String, Void> result = global.group("read", Duration.ofSeconds(2))
+TaskGroupResult<Void> result = global.group("read", Duration.ofSeconds(2))
         .closeGrace(Duration.ofSeconds(1))
         .par(TaskKey.<String>named("read"), databasePar, () -> {
             try (Reader reader = openReader()) {
@@ -490,7 +491,7 @@ TaskBatchResult<Price> prices = par.map(
 `cancelOn`：请求取消属于整个作用域，而不是一套独立的成员政策。
 
 ```java
-TaskGroupResult<Price, Void> prices = runtime.group("prices", Duration.ofSeconds(3))
+TaskGroupResult<Void> prices = runtime.group("prices", Duration.ofSeconds(3))
         .cancelOn(disconnect)
         .par(TaskKey.<Price>named("price"), par, () -> fetchPrice(sku))
         .runAll();

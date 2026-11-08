@@ -34,12 +34,12 @@ TaskKey<List<Order>> orders = TaskKey.named("orders");
 ## 3. 阶段与提交边界
 
 - `GroupStart` 支持 closeGrace、首个 par 或 adopt 和空组 runAll。
-- `GroupStep<V>` 支持后续 par、adopt、combine、combineValues 和 runAll。
-- `CombinedGroupStep<V,R>` 仅支持 runAll。
+- `GroupStep` 支持后续 par、adopt、combine、combineValues 和 runAll。
+- `CombinedGroupStep<R>` 仅支持 runAll。
 
-首个成员的 T 成为 V；后续成员将 V 扩为左嵌套 Tuple2。adopt 成员与 par 成员占同样的位置、名称与 key，
+成员值不再编码为随成员数递归扩展的 V；adopt 成员与 par 成员占同样的位置、名称与 key，
 其所有权、取消与值关闭规则见 [收养契约](task-group-adopted-futures.md)。
-combine 接收 V；combineValues 接收只含成功普通成员的 GroupValues<V>。
+combine 和 combineValues 都接收只含成功普通成员的 `GroupValues`。
 两者通过同一 prepared terminal 执行，MUST 共享成功门控、deadline、TTL、取消、
 拒绝和有界清理机制。terminal 不在普通成员的位置、名称结果或 GroupValues 中，
 但 TaskGroupResult.resultOf(key) MUST 支持 terminal 的 key。
@@ -86,9 +86,8 @@ deadline 从统一提交准备边界起算。执行在准备后移交执行管�
 
 combineValues 的 GroupValues 输入在普通成员全部成功后构建，先于终端结果；
 公开聚合值视图只在整组成功后可读。值、名称和 key 按声明顺序逐槽对齐；
-完成顺序不影响位置。快照浅层不可变，值列表允许 null。typedValues 是单成员值或左嵌套
-Tuple2；空组为 null。combineValues 始终收到视图，单成员成功 null 不会把视图本身变成 null。
-combine 则直接收到 V，单成员成功 null 时输入可为 null。
+完成顺序不影响位置。快照浅层不可变，值列表允许 null。combine 和 combineValues 始终收到
+非 null 视图；空组只有在未声明 terminal 时存在，因此成功 null 成员不会与空组混淆。
 
 terminalResult 为 null 仅表示未声明 combine；返回 Void/null 的 combine 仍有结果容器。
 成员失败导致 terminal 跳过，但成员及 terminal 的 key 结果必须可读。
@@ -107,7 +106,7 @@ executor rejection 和执行异常作为运行结果记录。结果查询不等�
 不再支持运行期 schema 类型自省；动态调用方自行处理 Object。
 key 必须保存原对象，按名称重建会被拒绝；泛型安全不涵盖 raw/unchecked 调用。
 不引入全局 key 注册、反射类型捕获、Tuple3…TupleN 或第二条执行路径。
-嵌套 Tuple2 仍可用于静态折叠；成员较多时 combineValues 提供 key 寻址。
+成员值统一通过 `GroupValues` 的 key 寻址；动态名称/位置读取只在确实需要时返回 `Object`。
 
 ## 8. 验证要求
 
