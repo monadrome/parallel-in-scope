@@ -17,3 +17,14 @@
 ```
 
 `oracle/` 只供评测器使用；提交给 LLM 的内容仅包括 `prompt/task.md` 和 `prompt/src/`。
+
+## 历史候选盘点
+
+`tools/inventory-fixes.py` 扫描所有分支的非 merge `fix` 提交，按生产代码、测试、工具和文档路径分类。它只把包含生产代码修改的提交标记为主候选；文档-only、测试-only 和 tooling-only 提交会保留在目录中，便于审计但不会自动进入 LLM 样本。
+
+```bash
+python3 historical-eval/tools/inventory-fixes.py \
+  -o historical-eval/catalog/fix-inventory.jsonl
+```
+
+当前基于评测分支所指向的历史，共盘点 430 个 `fix` 提交，其中 299 个含生产代码修改、20 个文档-only、11 个测试-only、63 个 tooling-only。连续修复仍需在生成样本前按根因聚类，不能把这个清单直接当作最终样本数量。
