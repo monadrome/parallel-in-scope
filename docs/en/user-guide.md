@@ -844,11 +844,11 @@ involved — the capture is automatic and only `inExecution` is needed inside ex
 ### Direct callbacks with context propagation
 
 Guava's `MoreExecutors.directExecutor()` runs a listener on whichever thread completes the future and does not
-retain the TTL context from the registration thread. The general-purpose `ContextExecutors.directExecutor()`
+retain the TTL context from the registration thread. The general-purpose `ContextExecutors.directContextExecutor()`
 captures the context at each `execute` call, so one executor can be reused by different call-site contexts:
 
 ```java
-Executor activeContextExecutor = ContextExecutors.directExecutor();
+Executor activeContextExecutor = ContextExecutors.directContextExecutor();
 activeContextExecutor.execute(callback);
 ```
 
@@ -870,7 +870,7 @@ future.addListener(listener, listenerExecutor);
 command, and restores the completion thread's entry bindings afterwards. Create one instance per request context;
 it can be reused by listeners belonging to that same context. Do not make it a global singleton that retains request state.
 
-The distinction is context ownership: `directExecutor()` belongs to each `execute` call, while
+The distinction is context ownership: `directContextExecutor()` belongs to each `execute` call, while
 `registrationContextExecutor()` belongs to the creation or registration action. Use the latter when registration-time
 context must survive until a later completion callback.
 

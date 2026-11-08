@@ -740,11 +740,11 @@ direct/CallerRuns 或嵌套调用时保留外层上下文。
 ### 让直接回调携带上下文
 
 Guava 的 `MoreExecutors.directExecutor()` 会在 future 完成线程上执行 listener，不会保存注册线程的 TTL。
-通用的 `ContextExecutors.directExecutor()` 在每次 `execute` 调用点捕获当前上下文，适合同一个 executor
+通用的 `ContextExecutors.directContextExecutor()` 在每次 `execute` 调用点捕获当前上下文，适合同一个 executor
 被不同调用方复用：
 
 ```java
-Executor activeContextExecutor = ContextExecutors.directExecutor();
+Executor activeContextExecutor = ContextExecutors.directContextExecutor();
 activeContextExecutor.execute(callback);
 ```
 
@@ -764,7 +764,7 @@ future.addListener(listener, listenerExecutor);
 执行结束后恢复完成线程原有的绑定。每个请求上下文应创建独立实例，同一请求的多个 listener 可以复用。
 不要把它做成持有请求状态的全局单例。
 
-两者的区别是上下文归属：`directExecutor()` 属于每次 `execute` 调用，
+两者的区别是上下文归属：`directContextExecutor()` 属于每次 `execute` 调用，
 `registrationContextExecutor()` 属于创建或注册动作。注册时上下文需要保留时，不能用前者替代后者。
 
 ### 与 OpenTelemetry 协作

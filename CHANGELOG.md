@@ -8,10 +8,10 @@
 
 ### Breaking changes
 
-- Change `ContextExecutors.directExecutor()` to capture TTL context at each `execute` call so the
+- Change `ContextExecutors.directContextExecutor()` to capture TTL context at each `execute` call so the
   default direct executor follows the calling context when reused. Replace the former creation-time
   behavior with `ContextExecutors.registrationContextExecutor()` when a Future listener or callback
-  must retain its registration context. `lazyDirectExecutor()` is removed; use `directExecutor()` for
+  must retain its registration context. `lazyDirectExecutor()` is removed; use `directContextExecutor()` for
   execution-time capture.
 - Rename `SmartBlockingQueue` to `SubmissionAwareBlockingQueue` and `VariableLinkedBlockingQueue` to `ResizableBlockingQueue`. The queue admission, dynamic-capacity, and `DrainingBlockingQueue` contracts are unchanged. `DrainingBlockingQueue` and `ResizableBlockingQueue` now ship from `io.github.monadrome:blocking-queues` in `io.github.monadrome.queues`; update the dependency and imports as described in the [v0.5 migration guide](docs/en/migration-v0.5.md).
 - Replace recursive TaskGroup `Tuple2` member values with keyed `GroupValues`; `TaskGroupResult<V,R>` becomes `TaskGroupResult<R>`, and `typedValues()` plus tuple-input combines are removed. See the [v0.5 migration guide](docs/en/migration-v0.5.md).
