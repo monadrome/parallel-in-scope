@@ -175,3 +175,13 @@ reasoning_effort: medium
 ```
 
 当前 3 条正式黄金样本的结果保存在 `catalog/model-runs/`：3 次编译均通过，隐藏测试 2 次通过、1 次失败。模型候选补丁与历史 oracle 分开保存。
+
+模型候选补丁可用 `tools/evaluate-group-patch.py` 在对应历史 group 的独立 sandbox 中验证：
+
+```bash
+python3 historical-eval/tools/evaluate-group-patch.py \
+  historical-eval/catalog/fix-groups-vote-ranking.jsonl \
+  <group-id> \
+  /path/to/candidate.patch \
+  -o /tmp/model-result.json
+```
