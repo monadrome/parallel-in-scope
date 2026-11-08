@@ -40,3 +40,15 @@ python3 historical-eval/tools/dedupe-fixes.py \
 ```
 
 当前 270 条“生产代码 + 回归测试”候选被归并为 103 个不同生产 diff。这个结果仍需人工检查根因和测试稳定性，之后才进入正式盲测集。
+
+## 多模型比较
+
+模型只需要把修复结果保存为 unified diff；比较器不会把隐藏测试日志返回给模型，只写入是否通过和耗时。多个模型可以在同一黄金样本上批量运行：
+
+```bash
+python3 historical-eval/tools/compare-patches.py \
+  --candidate historical-fix=historical-eval/samples/BUG-0001/oracle/fixed.patch \
+  --candidate model-a=/path/to/model-a.patch \
+  --candidate model-b=/path/to/model-b.patch \
+  -o /tmp/bug-0001-results.json
+```
