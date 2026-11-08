@@ -1,0 +1,19 @@
+design/core-security-route-explainer.html
+  s_13e7288b410768::t_8b68522c706cb5 1-399
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a88efa64261ad5ceeff34c6720cc97d20196b5f7",
+  "prompts": {},
+  "sessions": {
+    "s_13e7288b410768": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9c5-7f4a-79d3-8e87-f3ec8322946b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
