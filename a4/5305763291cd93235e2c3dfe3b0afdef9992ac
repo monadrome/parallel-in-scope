@@ -1,0 +1,9 @@
+ledger/2026-11-07-workflow-v050-integrated.json
+  ai_agent 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a45305763291cd93235e2c3dfe3b0afdef9992ac",
+  "prompts": {}
+}
