@@ -61,3 +61,14 @@ python3 historical-eval/tools/compare-patches.py \
 比较第二条样本时增加 `--sample BUG-0002`。两条样本都已确认 buggy baseline 失败、历史正确补丁通过。
 
 - `BUG-0003`：带有中断标志的调用线程读取已完成失败 Future 时，仍应得到原始失败原因。
+
+## LLM 输入导出与防泄漏检查
+
+正式给模型的内容从样本的 `prompt/` 导出，不直接暴露样本目录。导出包只包含中性任务和修复前源码，并在生成后拒绝 `oracle`、`hidden`、`fixed.patch` 等评测器文件：
+
+```bash
+python3 historical-eval/tools/export-prompt.py BUG-0001 -o /tmp/BUG-0001-prompt.zip
+unzip -l /tmp/BUG-0001-prompt.zip
+```
+
+`oracle/` 只能由验证器读取，不能挂载到 LLM 工作区。
