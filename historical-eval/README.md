@@ -97,3 +97,26 @@ python3 historical-eval/tools/prepare-sample.py \
 ```
 
 生成结果会标记为 `needs-curation`，不能直接作为黄金样本运行。
+
+## 103 条去重修复的逐条盘点
+
+`tools/review-fix-groups.py` 将 103 个去重组展开为一行一条的复核表：
+
+```bash
+python3 historical-eval/tools/review-fix-groups.py \
+  historical-eval/catalog/fix-groups.jsonl \
+  historical-eval/catalog/fix-inventory.jsonl \
+  -o historical-eval/catalog/fix-review.csv
+```
+
+当前表中每条记录都有代表提交、重复成员数、生产文件、测试文件、自动类别和复核状态：
+
+```text
+103 条总记录
+98 条初步候选
+5 条需要优先排查的 review/文档/验证噪声
+3 条已验证黄金样本
+100 条待人工复核
+```
+
+类别分布：`executor` 21、`cancellation` 19、`deadline` 14、`batch/task-group` 14、`graph/observation` 14、`queue` 11、`interruption` 5、`context/propagation` 5。
