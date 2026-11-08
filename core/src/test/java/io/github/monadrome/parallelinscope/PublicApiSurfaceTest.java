@@ -23,6 +23,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".Checkpoints",
             BASE_PACKAGE + ".CombinedGroupStep",
             BASE_PACKAGE + ".Combiner",
+            BASE_PACKAGE + ".ContextExecutors",
             BASE_PACKAGE + ".ExecutorWaitReport",
             BASE_PACKAGE + ".GroupStart",
             BASE_PACKAGE + ".GroupStep",
