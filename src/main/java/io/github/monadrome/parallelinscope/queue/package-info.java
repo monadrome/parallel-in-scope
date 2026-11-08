@@ -7,7 +7,7 @@
  * terminal signal and post-terminal mutation behavior are selected by {@link
  * io.github.monadrome.parallelinscope.queue.DrainingBlockingQueue.ShutdownPolicy}; the queue's API
  * documentation defines the method-level blocking, exception, traversal, and concurrency contracts.
- * {@link io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue} provides a
+ * {@link io.github.monadrome.parallelinscope.queue.ResizableBlockingQueue} provides a
  * dynamically adjustable capacity without depending on the parallel execution kernel.
  *
  * @since 0.3.0

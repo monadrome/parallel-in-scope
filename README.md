@@ -141,7 +141,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 - Deadline, fail-fast, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
-- Opt-in queue refusal (`rejectEnqueue` with `SmartBlockingQueue`) and workload-fit diagnostics (`TaskType` flags blocking work in compute pools; it never changes execution)
+- Opt-in queue refusal (`rejectEnqueue` with `SubmissionAwareBlockingQueue`) and workload-fit diagnostics (`TaskType` flags blocking work in compute pools; it never changes execution)
 - Frozen task observations: `completions()` / group `members()` and `terminal()`
 - Cycle detection across task and executor graphs
 

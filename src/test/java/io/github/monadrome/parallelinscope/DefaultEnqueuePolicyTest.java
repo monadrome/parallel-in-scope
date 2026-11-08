@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Locks the consequence of the default options, and of a task type, on the pool shape this library
- * recommends: a {@link SmartBlockingQueue} paired with a {@code CallerRunsPolicy}.
+ * recommends: a {@link SubmissionAwareBlockingQueue} paired with a {@code CallerRunsPolicy}.
  *
- * <p>{@code SmartBlockingQueue.offer} refuses only when the unit sets {@code rejectEnqueue}. A
+ * <p>{@code SubmissionAwareBlockingQueue.offer} refuses only when the unit sets {@code rejectEnqueue}. A
  * refused offer leaves the capacity unused, grows the pool to its maximum, and runs every further
  * task on whichever thread called {@code execute} — a parallel library running its work serially on
  * the caller. These tests pin that by observable effect rather than by option value: default options
@@ -28,7 +28,7 @@ class DefaultEnqueuePolicyTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                new SmartBlockingQueue<>(capacity),
+                new SubmissionAwareBlockingQueue<>(capacity),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }

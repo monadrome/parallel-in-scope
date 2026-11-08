@@ -1,6 +1,6 @@
 # User Guide
 
-> This guide follows `0.5.0-SNAPSHOT`. The latest stable release is `0.4.1`; applications migrating from `0.3.x` should read the [v0.4 migration guide](migration-v0.4.md). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
+> This guide follows `0.5.0-SNAPSHOT`. The latest stable release is `0.4.1`; applications migrating to `0.5.x` should read the [v0.5 migration guide](migration-v0.5.md); older applications migrating from `0.3.x` should read the [v0.4 migration guide](migration-v0.4.md). For older APIs, see the [v0.2 migration guide](migration-v0.2.md).
 
 `parallel-in-scope` executes a finite list as a cancellable batch. Application wiring owns long-lived resources, a `Par` owns one executor binding, and a `MultiTaskContext` owns one invocation's runtime state.
 
@@ -99,13 +99,13 @@ An executor handoff failure is recorded as `SUBMISSION_FAILURE` with a `Submissi
 retaining the original cause, including an Error. Validation and closed-runtime admission errors
 still throw from the entry.
 
-`rejectEnqueue` is the only option that changes queue admission, and only `SmartBlockingQueue`
+`rejectEnqueue` is the only option that changes queue admission, and only `SubmissionAwareBlockingQueue`
 reads it; on any other queue it is inert and the first such submission through a `Par` logs one
 warning from a runtime-owned thread. It defaults to `false`. Install the queue on the physical pool and opt in per batch:
 
 ```java
 ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
-        4, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(64));
+        4, 4, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
         .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
@@ -740,7 +740,7 @@ publication; retain the future before close to inspect the published report in a
   deadlocks hidden by other completing tasks are outside this signal.
 - Direct tasks and library tasks have no dependency edge here. The report cannot say who waits for
   whom, including across pools or runtimes.
-- Opening the scope does not add cancellation, deadline, TTL, `SmartBlockingQueue`, or
+- Opening the scope does not add cancellation, deadline, TTL, `SubmissionAwareBlockingQueue`, or
   `rejectEnqueue` semantics to direct tasks. Only TTL wrappers are unwrapped; register the physical
   pool for Guava or custom decorators, or they appear in `unsupportedExecutors()`.
 - Forgetting `close()` keeps framework services and sampling alive after `runtime.close()`, makes

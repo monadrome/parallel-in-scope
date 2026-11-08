@@ -477,7 +477,7 @@ public final class Par {
      */
     private void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
         /*
-         * Only SmartBlockingQueue.offer reads rejectEnqueue, so on any other queue the option is
+         * Only SubmissionAwareBlockingQueue.offer reads rejectEnqueue, so on any other queue the option is
          * inert: nothing tells the caller that the protection they opted into is not running. The
          * diagnostic belongs on the submission path rather than at registration because options are
          * per task and per batch: registration cannot know whether the option will ever be used. It
@@ -495,10 +495,10 @@ public final class Par {
         if (enqueueRefusalWarningIssued.compareAndSet(false, true)) {
             String message = "Par '" + id + "' requested rejectEnqueue, but its executor "
                     + executorRuntime.introspectableExecutor().getClass().getName()
-                    + " does not use a SmartBlockingQueue, so enqueue refusal is inert there:"
+                    + " does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there:"
                     + " what happens to an element that cannot start at once is left to the"
                     + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
-                    + " whose work queue is a SmartBlockingQueue to make the option effective.";
+                    + " whose work queue is a SubmissionAwareBlockingQueue to make the option effective.";
             runtime.announce(() -> LOGGER.warning(message));
         }
     }

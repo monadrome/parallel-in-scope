@@ -14,7 +14,7 @@
       excluded until that decision is made.
     -->
     <Match>
-        <Class name="io.github.monadrome.parallelinscope.SmartBlockingQueue"/>
+        <Class name="io.github.monadrome.parallelinscope.SubmissionAwareBlockingQueue"/>
         <Method name="offer"/>
         <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
     </Match>

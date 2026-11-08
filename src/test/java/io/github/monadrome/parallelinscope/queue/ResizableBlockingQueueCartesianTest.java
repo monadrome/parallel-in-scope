@@ -15,7 +15,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /** Exercises producer/consumer waiters by counterpart, interrupt, and timeout release modes. */
-public class VariableLinkedBlockingQueueCartesianTest {
+public class ResizableBlockingQueueCartesianTest {
 
     enum Waiter {
         PRODUCER,
@@ -47,7 +47,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
     @ParameterizedTest(name = "{0};release={1}")
     @MethodSource("waiterCases")
     public void blockedWaiterResolvesWithoutLostSignal(Waiter waiter, Release release) throws Exception {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(1);
         if (waiter == Waiter.PRODUCER) {
             queue.put(0);
         }
@@ -90,7 +90,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("producerReleaseCases")
     public void fullQueueMutationReleasesBlockedProducer(ProducerRelease release) throws Exception {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(1);
         queue.put(0);
         CountDownLatch invoked = new CountDownLatch(1);
         AtomicBoolean completed = new AtomicBoolean();
@@ -123,7 +123,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
 
     /** Runs one blocking or timed queue operation and captures its outcome. */
     private static void runWaiter(
-            VariableLinkedBlockingQueue<Integer> queue,
+            ResizableBlockingQueue<Integer> queue,
             Waiter waiter,
             Release release,
             CountDownLatch invoked,
@@ -149,7 +149,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
     }
 
     /** Applies one mutation that creates room in a previously full queue. */
-    private static void createCapacity(VariableLinkedBlockingQueue<Integer> queue, ProducerRelease release)
+    private static void createCapacity(ResizableBlockingQueue<Integer> queue, ProducerRelease release)
             throws InterruptedException {
         if (release == ProducerRelease.TAKE) {
             assertThat(queue.take()).isZero();
@@ -179,7 +179,7 @@ public class VariableLinkedBlockingQueueCartesianTest {
 
     /** Asserts the result and queue mutation allowed by the selected release mode. */
     private static void assertOutcome(
-            VariableLinkedBlockingQueue<Integer> queue,
+            ResizableBlockingQueue<Integer> queue,
             Waiter waiter,
             Release release,
             AtomicReference<Object> result,

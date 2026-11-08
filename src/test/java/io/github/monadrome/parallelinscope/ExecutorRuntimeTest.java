@@ -59,8 +59,9 @@ class ExecutorRuntimeTest {
     }
 
     @Test
-    void poolWithSmartBlockingQueueHonorsRejectEnqueue() {
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(8));
+    void poolWithSubmissionAwareBlockingQueueHonorsRejectEnqueue() {
+        ThreadPoolExecutor pool =
+                new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(8));
         try {
             ExecutorRuntime runtime = new ExecutorRuntime(pool);
 
@@ -129,7 +130,7 @@ class ExecutorRuntimeTest {
         // way through. Identity deliberately does not follow, so one physical pool registered both
         // bare and wrapped stays two entries in the executor graph.
         ThreadPoolExecutor physical =
-                new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SmartBlockingQueue<>(8));
+                new ThreadPoolExecutor(1, 4, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(8));
         ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);
         try {
             assertThat(TtlUnwrap.isWrapper(wrapped)).isTrue();

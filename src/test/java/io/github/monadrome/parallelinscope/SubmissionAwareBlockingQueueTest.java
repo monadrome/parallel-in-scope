@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-class SmartBlockingQueueTest {
+class SubmissionAwareBlockingQueueTest {
     @AfterEach
     void clearContext() {
         SubmissionScope.restore(null);
@@ -17,13 +17,15 @@ class SmartBlockingQueueTest {
 
     @Test
     void rejectsNonPositiveCapacity() {
-        assertThatThrownBy(() -> new SmartBlockingQueue<Integer>(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new SmartBlockingQueue<Integer>(-1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new SubmissionAwareBlockingQueue<Integer>(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new SubmissionAwareBlockingQueue<Integer>(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void delegatesCapacityAndOffersOutsideScope() {
-        SmartBlockingQueue<Integer> queue = new SmartBlockingQueue<>(1);
+        SubmissionAwareBlockingQueue<Integer> queue = new SubmissionAwareBlockingQueue<>(1);
         assertThat(queue.capacity()).isEqualTo(1);
         assertThat(queue.offer(1)).isTrue();
         assertThat(queue.offer(2)).isFalse();
@@ -35,7 +37,7 @@ class SmartBlockingQueueTest {
     @ParameterizedTest
     @EnumSource(TaskType.class)
     void onlyRejectEnqueueRefusesWhateverTheTaskType(TaskType taskType) {
-        SmartBlockingQueue<Integer> queue = new SmartBlockingQueue<>(2);
+        SubmissionAwareBlockingQueue<Integer> queue = new SubmissionAwareBlockingQueue<>(2);
         assertOfferRejects(queue, context(taskType, true), 1);
 
         MultiTaskContext previous = SubmissionScope.install(context(taskType, false));
@@ -47,7 +49,8 @@ class SmartBlockingQueueTest {
         }
     }
 
-    private static void assertOfferRejects(SmartBlockingQueue<Integer> queue, MultiTaskContext context, int element) {
+    private static void assertOfferRejects(
+            SubmissionAwareBlockingQueue<Integer> queue, MultiTaskContext context, int element) {
         MultiTaskContext previous = SubmissionScope.install(context);
         try {
             assertThat(queue.offer(element)).isFalse();

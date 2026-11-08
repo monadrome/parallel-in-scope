@@ -121,7 +121,7 @@ Profile value = profile.terminalValueOrThrow();
 - 超时、显式取消与父子级联取消传播
 - 有界并发的滑动窗口提交
 - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
-- 显式选择的入队拒绝（`rejectEnqueue` 配合 `SmartBlockingQueue`）与负载匹配诊断（`TaskType` 发现进了计算池的阻塞任务，从不改变执行）
+- 显式选择的入队拒绝（`rejectEnqueue` 配合 `SubmissionAwareBlockingQueue`）与负载匹配诊断（`TaskType` 发现进了计算池的阻塞任务，从不改变执行）
 - 终态任务观测：`completions()` / 组 `members()` 与 `terminal()`
 - 任务图与执行器图的环路检测
 

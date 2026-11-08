@@ -12,6 +12,7 @@ workflows. Use the reference pages for exact contracts and the migration guides 
 |---|---|
 | [5-minute quickstart](quickstart.md) | First successful batch in a new Maven project |
 | [Full user guide](user-guide.md) | Configuration, public APIs, runtime behavior, and advanced features |
+| [v0.5 migration guide](migration-v0.5.md) | Queue public type renames and migration steps |
 | [v0.4 migration guide](migration-v0.4.md) | Typed task keys, aggregate result reads, and runtime diagnostics on the release line |
 | [v0.3 migration guide](migration-v0.3.md) | The one-shot task-group chain and runtime contract changes from `0.2.x` |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |

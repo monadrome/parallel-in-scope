@@ -202,9 +202,9 @@ token 本身是包私有的内核类型：用户既拿不到也不需要它，�
 
 ---
 
-## 五、SmartBlockingQueue：CPU 密集型任务的"反队列"策略
+## 五、SubmissionAwareBlockingQueue：CPU 密集型任务的"反队列"策略
 
-> 2026-10-30 注记：本节记录 0.2/0.3 的设计。0.4 起 `TaskType` 不再影响入队（[ADR 0008](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/adr/0008-tasktype-as-workload-fit-diagnostic.md)）：`SmartBlockingQueue` 只在 `rejectEnqueue` 时拒绝入队，`TaskType` 改为发现"阻塞任务进了计算池"的诊断声明，取值为 `COMPUTE`/`BLOCKING`/`UNKNOWN`。下文的 `CPU_BOUND`/`IO_BOUND` 与 `offer()` 代码是当时的实现。
+> 2026-10-30 注记：本节记录 0.2/0.3 的设计。0.4 起 `TaskType` 不再影响入队（[ADR 0008](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/adr/0008-tasktype-as-workload-fit-diagnostic.md)）：`SubmissionAwareBlockingQueue` 只在 `rejectEnqueue` 时拒绝入队，`TaskType` 改为发现"阻塞任务进了计算池"的诊断声明，取值为 `COMPUTE`/`BLOCKING`/`UNKNOWN`。下文的 `CPU_BOUND`/`IO_BOUND` 与 `offer()` 代码是当时的实现。
 
 解决了取消和超时之后，还有两个横切关注点需要处理：任务怎么排队（CPU 任务和 IO 任务的策略不同），以及上下文怎么跨线程传播。先说排队。
 
@@ -212,7 +212,7 @@ token 本身是包私有的内核类型：用户既拿不到也不需要它，�
 
 CPU 任务排队只增加延迟，不增加吞吐。
 
-parallel-in-scope 的做法：CPU 密集型任务不进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
+parallel-in-scope 的做法：CPU 密集型任务不进入 `SubmissionAwareBlockingQueue`，后续行为由线程池的拒绝策略决定。
 
 ```java
 // CPU 密集型
@@ -226,7 +226,7 @@ BatchOptions ioOpts = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
     .taskType(TaskType.IO_BOUND);
 ```
 
-`SmartBlockingQueue` 继承 Guava 的 `ForwardingBlockingQueue`，覆写 `offer()` 方法。核心逻辑：
+`SubmissionAwareBlockingQueue` 继承 Guava 的 `ForwardingBlockingQueue`，覆写 `offer()` 方法。核心逻辑：
 
 ```java
 @Override
@@ -246,9 +246,9 @@ public boolean offer(E e) {
 
 `offer()` 返回 `false` 会触发 `ThreadPoolExecutor` 的 `RejectedExecutionHandler`（通常配置为 `CallerRunsPolicy`），让调用方线程同步执行该任务。
 
-`SmartBlockingQueue` 的策略是：CPU 任务不入队；其他任务是否入队还取决于 `rejectEnqueue`。返回 `false` 后的实际行为由线程池配置的拒绝策略决定，使用 `CallerRunsPolicy` 时才会在调用方线程执行。
+`SubmissionAwareBlockingQueue` 的策略是：CPU 任务不入队；其他任务是否入队还取决于 `rejectEnqueue`。返回 `false` 后的实际行为由线程池配置的拒绝策略决定，使用 `CallerRunsPolicy` 时才会在调用方线程执行。
 
-> **CPU 任务排队只增加延迟，不增加吞吐。** 不让计算密集型任务进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
+> **CPU 任务排队只增加延迟，不增加吞吐。** 不让计算密集型任务进入 `SubmissionAwareBlockingQueue`，后续行为由线程池的拒绝策略决定。
 
 > 并发控制不是"限制同时执行的任务数"，而是"让正确的任务在正确的时间执行"。
 
@@ -256,7 +256,7 @@ public boolean offer(E e) {
 
 ## 六、上下文边界：只表达实际执行与实际提交
 
-任务执行时，`TaskExecutionContext.current()` 是当前任务的唯一来源；取消、deadline 和嵌套批次关系都从它的 `multiTaskContext()` 读取。任务尚未开始时没有“当前任务”，线程池只需要知道正在提交哪个批次，内部 `SubmissionScope` 因而只在提交调用的短窗口中存在，用于让 `SmartBlockingQueue` 读取入队策略。
+任务执行时，`TaskExecutionContext.current()` 是当前任务的唯一来源；取消、deadline 和嵌套批次关系都从它的 `multiTaskContext()` 读取。任务尚未开始时没有“当前任务”，线程池只需要知道正在提交哪个批次，内部 `SubmissionScope` 因而只在提交调用的短窗口中存在，用于让 `SubmissionAwareBlockingQueue` 读取入队策略。
 
 这两个作用域都不通过任意用户线程池提交传播。结构化的子任务必须由 `Par.map()` 创建，避免任意 `Runnable` 被误认为取消树或任务图中的子节点。
 
@@ -371,7 +371,7 @@ par.map("io-pool", urls, url -> {
 2. **一个 scope，要么全成功，要么第一个失败时停止。** Fail-fast 是唯一语义。
 3. **提交是提交，绑定是绑定。** 不要在上菜之前开酒。
 4. **取消不只是中断线程，还要告诉它为什么。** 双异常策略。
-5. **CPU 任务排队只增加延迟，不增加吞吐。** 不让它进入 `SmartBlockingQueue`，后续行为由线程池拒绝策略决定。
+5. **CPU 任务排队只增加延迟，不增加吞吐。** 不让它进入 `SubmissionAwareBlockingQueue`，后续行为由线程池拒绝策略决定。
 
 这些不是最佳实践，是设计约束。一旦在某条上让步，整个设计就会像多米诺骨牌一样坍塌。
 

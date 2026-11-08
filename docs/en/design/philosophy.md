@@ -24,13 +24,13 @@ Normal cancellation is a control-flow event, so `LeanCancellationException` avoi
 
 ## Sliding-window scheduling
 
-Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. Only an explicit `rejectEnqueue` makes `SmartBlockingQueue` refuse a task; `TaskType` is a diagnostic declaration that never selects an executor or changes scheduling, so queue policy does not change the structured scope.
+Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. Only an explicit `rejectEnqueue` makes `SubmissionAwareBlockingQueue` refuse a task; `TaskType` is a diagnostic declaration that never selects an executor or changes scheduling, so queue policy does not change the structured scope.
 
 ## Explicit execution context and deadlock visibility
 
 `TaskExecutionContext` is installed only while a scoped task executes; its batch context defines
 the current task's cancellation and nesting ownership. A separate internal submission scope exists
-only while work is handed to an executor, so `SmartBlockingQueue` can apply batch enqueue policy
+only while work is handed to an executor, so `SubmissionAwareBlockingQueue` can apply batch enqueue policy
 before a task starts. Neither context is relayed through arbitrary user executor submissions.
 Every `ParRuntime` records which of its executors synchronously wait for which, always on, so the
 library can report pool wait cycles — including ones formed by separate requests — that a thread

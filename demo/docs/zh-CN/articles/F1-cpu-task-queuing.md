@@ -40,7 +40,7 @@ for (int i = 0; i < 20; i++) {
 这样做的效果：
 - 线程池队列只保留很少的任务，未开始的任务在提交窗口里等待
 - 如果某个声明为计算型的任务实际在阻塞，runtime 会记一条 `WARNING`，测量值见 `ParRuntime.workloadFitReport()`
-- 需要让 `SmartBlockingQueue` 拒绝入队时，显式写 `rejectEnqueue(true)`；被拒任务由 executor 自己的拒绝策略处理
+- 需要让 `SubmissionAwareBlockingQueue` 拒绝入队时，显式写 `rejectEnqueue(true)`；被拒任务由 executor 自己的拒绝策略处理
 
 ## 代码
 

@@ -20,15 +20,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
- * Signal-path additions over {@link VariableLinkedBlockingQueueTest}: blocked producers and
+ * Signal-path additions over {@link ResizableBlockingQueueTest}: blocked producers and
  * consumers must be released by the complementary operation (take/put/clear/setCapacity), and
  * array snapshots must follow {@link LinkedBlockingQueue} semantics.
  */
-class VariableLinkedBlockingQueueSignalTest {
+class ResizableBlockingQueueSignalTest {
 
     @Test
     void takeOnEmptyQueueIsReleasedByConcurrentPut() throws Exception {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(1);
         AtomicReference<Integer> taken = new AtomicReference<>();
         CountDownLatch finished = new CountDownLatch(1);
         Thread consumer = new Thread(() -> {
@@ -49,7 +49,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     @Test
     void timedOfferBlockedAtCapacityIsReleasedByTake() throws Exception {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(2);
         assertTrue(queue.offer(1));
         assertTrue(queue.offer(2));
 
@@ -78,7 +78,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     @Test
     void clearOnFullQueueReleasesBlockedProducer() throws Exception {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(1);
         assertTrue(queue.offer(9));
 
         AtomicBoolean stored = new AtomicBoolean(false);
@@ -110,7 +110,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     @Test
     void capacityGrowthReleasesBlockedProducer() throws Exception {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(1);
         assertTrue(queue.offer(1));
 
         AtomicBoolean stored = new AtomicBoolean(false);
@@ -138,9 +138,9 @@ class VariableLinkedBlockingQueueSignalTest {
     @SuppressWarnings("NullAway")
     @Test
     void capacityAndElementValidationStayGuarded() {
-        assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<Object>(0));
-        assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<Object>(-2));
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(1);
+        assertThrows(IllegalArgumentException.class, () -> new ResizableBlockingQueue<Object>(0));
+        assertThrows(IllegalArgumentException.class, () -> new ResizableBlockingQueue<Object>(-2));
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(1);
         assertThrows(IllegalArgumentException.class, () -> queue.setCapacity(0));
         assertThrows(IllegalArgumentException.class, () -> queue.setCapacity(-1));
         assertThrows(NullPointerException.class, () -> queue.offer(null));
@@ -152,7 +152,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     @Test
     void drainToTransfersUpToTheBoundInFifoOrder() {
-        VariableLinkedBlockingQueue<Integer> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<Integer> queue = new ResizableBlockingQueue<>(5);
         queue.addAll(Arrays.asList(1, 2, 3, 4));
         List<Integer> target = new ArrayList<>();
         assertEquals(2, queue.drainTo(target, 2));
@@ -165,7 +165,7 @@ class VariableLinkedBlockingQueueSignalTest {
 
     @Test
     void toArraySnapshotsAreIndependentWithTerminatorRules() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(4);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(4);
         queue.addAll(Arrays.asList("a", "b"));
 
         // Exact-size array: the contract requires the caller's array to be reused and returned.

@@ -23,7 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Exercises VariableLinkedBlockingQueue's capacity adjustment and two-lock signalling contracts.
+ * Exercises ResizableBlockingQueue's capacity adjustment and two-lock signalling contracts.
  *
  * <p>The blocking tests run a waiter thread against a mutating main thread and first confirm the
  * waiter is genuinely parked (thread state {@code WAITING}) before acting; a mutation that drops a
@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
  * deadline. Lock-leak probes follow the same shape: after a mutation that removes an {@code unlock}
  * the next cross-thread call on the same lock can never complete.
  */
-class VariableLinkedBlockingQueueTest {
+class ResizableBlockingQueueTest {
 
     private static final long TIMEOUT_SECONDS = 10;
 
@@ -44,13 +44,13 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void constructor_nonPositiveCapacity_rejected() {
-        assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<>(0));
-        assertThrows(IllegalArgumentException.class, () -> new VariableLinkedBlockingQueue<>(-1));
+        assertThrows(IllegalArgumentException.class, () -> new ResizableBlockingQueue<>(0));
+        assertThrows(IllegalArgumentException.class, () -> new ResizableBlockingQueue<>(-1));
     }
 
     @Test
     void constructor_withCollection_preservesOrderAndSize() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(Arrays.asList("a", "b", "c"));
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(Arrays.asList("a", "b", "c"));
         assertEquals(3, queue.size());
         assertEquals("a", queue.poll());
         assertEquals("b", queue.poll());
@@ -63,12 +63,12 @@ class VariableLinkedBlockingQueueTest {
         List<String> withNull = new ArrayList<>();
         withNull.add("a");
         withNull.add(null);
-        assertThrows(NullPointerException.class, () -> new VariableLinkedBlockingQueue<>(withNull));
+        assertThrows(NullPointerException.class, () -> new ResizableBlockingQueue<>(withNull));
     }
 
     @Test
     void setCapacity_nonPositive_rejected() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         assertThrows(IllegalArgumentException.class, () -> queue.setCapacity(0));
         assertThrows(IllegalArgumentException.class, () -> queue.setCapacity(-3));
         assertEquals(2, queue.capacity());
@@ -80,7 +80,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void setCapacity_shrink_belowSize_keepsExistingElements() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(3);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(3);
         queue.offer("a");
         queue.offer("b");
         queue.setCapacity(1);
@@ -98,7 +98,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void setCapacity_expand_acceptsFurtherOffers() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("a");
         assertFalse(queue.offer("b"));
         queue.setCapacity(2);
@@ -108,7 +108,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void containsNullIsFalseAndPollPreservesFifoForMultipleElements() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(3);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(3);
         queue.offer("first");
         queue.offer("second");
 
@@ -123,7 +123,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void put_blockedOnFullQueue_completesAfterTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("occupied");
 
         BlockedCall<String> putter = BlockedCall.start(pool, () -> {
@@ -143,7 +143,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void put_blockedOnFullQueue_completesAfterCapacityExpansion() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("occupied");
 
         BlockedCall<String> putter = BlockedCall.start(pool, () -> {
@@ -162,7 +162,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void take_blockedOnEmptyQueue_completesAfterOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
 
         BlockedCall<String> taker = BlockedCall.start(pool, () -> queue.take());
         taker.awaitParked();
@@ -175,7 +175,7 @@ class VariableLinkedBlockingQueueTest {
     /** A parked taker must also be woken by the timed offer variant (its signalNotEmpty path). */
     @Test
     void take_blockedOnEmptyQueue_completesAfterTimedOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
 
         BlockedCall<String> taker = BlockedCall.start(pool, () -> queue.take());
         taker.awaitParked();
@@ -187,7 +187,7 @@ class VariableLinkedBlockingQueueTest {
     /** A parked taker must also be woken by put() (its signalNotEmpty path). */
     @Test
     void take_blockedOnEmptyQueue_completesAfterPut() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
 
         BlockedCall<String> taker = BlockedCall.start(pool, () -> queue.take());
         taker.awaitParked();
@@ -203,7 +203,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void secondBlockedTaker_completesAfterTwoOffers() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
 
         BlockedCall<String> takerA = BlockedCall.start(pool, () -> queue.take());
         BlockedCall<String> takerB = BlockedCall.start(pool, () -> queue.take());
@@ -223,7 +223,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void twoBlockedPutters_bothCompleteAfterClear() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         queue.offer("b");
 
@@ -247,7 +247,7 @@ class VariableLinkedBlockingQueueTest {
     /** Same signal chain as above, with drainTo freeing two slots at once. */
     @Test
     void twoBlockedPutters_bothCompleteAfterDrain() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(3);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(3);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -273,7 +273,7 @@ class VariableLinkedBlockingQueueTest {
     /** A timed putter must be woken when a take frees a slot (signalNotFull). */
     @Test
     void timedOffer_blockedOnFullQueue_completesAfterTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("occupied");
 
         BlockedCall<Boolean> putter =
@@ -290,7 +290,7 @@ class VariableLinkedBlockingQueueTest {
     /** A putter parked on a full queue must be woken by poll() (its signalNotFull path). */
     @Test
     void put_blockedOnFullQueue_completesAfterPoll() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("occupied");
 
         BlockedCall<String> putter = BlockedCall.start(pool, () -> {
@@ -306,7 +306,7 @@ class VariableLinkedBlockingQueueTest {
     /** A putter parked on a full queue must be woken by the timed poll (its signalNotFull path). */
     @Test
     void put_blockedOnFullQueue_completesAfterTimedPoll() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("occupied");
 
         BlockedCall<String> putter = BlockedCall.start(pool, () -> {
@@ -325,7 +325,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void put_blockedOnFullQueue_completesAfterRemove() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("occupied");
 
         BlockedCall<String> putter = BlockedCall.start(pool, () -> {
@@ -344,34 +344,34 @@ class VariableLinkedBlockingQueueTest {
     @Test
     void leak_fromCollectionConstructor_blocksOtherOffer() throws Exception {
         // The probe must run against the same queue instance whose constructor ran.
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(Arrays.asList("a"));
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(Arrays.asList("a"));
         assertOtherThreadOfferCompletes(queue);
     }
 
     @Test
     void leak_fromTimedOffer_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a", TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertOtherThreadOfferCompletes(queue);
     }
 
     @Test
     void leak_fromPlainOffer_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         assertOtherThreadOfferCompletes(queue);
     }
 
     @Test
     void leak_fromPut_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.put("a");
         assertOtherThreadOfferCompletes(queue);
     }
 
     @Test
     void leak_fromPeek_blocksOtherTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.peek();
         assertOtherThreadTakeCompletes(queue);
@@ -379,7 +379,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromPoll_blocksOtherTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertOtherThreadTakeCompletes(queue);
@@ -387,7 +387,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromPlainPoll_blocksOtherTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.poll();
         assertOtherThreadTakeCompletes(queue);
@@ -395,7 +395,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromTake_blocksOtherTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.take();
         assertOtherThreadTakeCompletes(queue);
@@ -403,7 +403,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromDrainTo_blocksOtherTake() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.drainTo(new ArrayList<>());
         assertOtherThreadTakeCompletes(queue);
@@ -411,7 +411,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromRemove_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.remove("a");
         assertOtherThreadOfferCompletes(queue);
@@ -419,7 +419,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromContains_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         var unused = queue.contains("a");
         assertOtherThreadOfferCompletes(queue);
@@ -427,7 +427,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromToArray_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         var unused = queue.toArray();
         assertOtherThreadOfferCompletes(queue);
@@ -435,7 +435,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromTypedToArray_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.toArray(new String[1]);
         assertOtherThreadOfferCompletes(queue);
@@ -443,7 +443,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromIteratorConstructor_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         Iterator<String> it = queue.iterator();
         var unused = it.hasNext();
@@ -452,7 +452,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromIteratorNext_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         Iterator<String> it = queue.iterator();
         it.next();
@@ -461,7 +461,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void leak_fromIteratorRemove_blocksOtherOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         Iterator<String> it = queue.iterator();
         it.next();
@@ -471,7 +471,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void offer_nonBlocking_full_returnsFalse() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         assertTrue(queue.offer("a"));
         assertFalse(queue.offer("b"));
     }
@@ -479,7 +479,7 @@ class VariableLinkedBlockingQueueTest {
     @SuppressWarnings("NullAway")
     @Test
     void offer_null_rejected() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         assertThrows(NullPointerException.class, () -> queue.offer(null));
         assertThrows(NullPointerException.class, () -> queue.put(null));
         assertThrows(NullPointerException.class, () -> queue.offer(null, 1, TimeUnit.SECONDS));
@@ -487,39 +487,39 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void timedOffer_onFullQueue_expiresWithFalse() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("a");
         assertFalse(queue.offer("b", 50, TimeUnit.MILLISECONDS));
     }
 
     @Test
     void timedOffer_zeroTimeout_returnsFalseImmediately() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         queue.offer("a");
         assertFalse(queue.offer("b", 0, TimeUnit.MILLISECONDS));
     }
 
     @Test
     void timedPoll_zeroTimeout_returnsNullImmediately() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         assertNull(queue.poll(0, TimeUnit.MILLISECONDS));
     }
 
     @Test
     void poll_empty_returnsNull() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         assertNull(queue.poll());
     }
 
     @Test
     void timedPoll_emptyQueue_expiresWithNull() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
         assertNull(queue.poll(50, TimeUnit.MILLISECONDS));
     }
 
     @Test
     void poll_afterOffer_returnsFifoOrder() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         assertEquals("a", queue.poll());
@@ -529,7 +529,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void timedPoll_blockedOnEmptyQueue_returnsAfterOffer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(1);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(1);
 
         BlockedCall<String> poller = BlockedCall.start(pool, () -> queue.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS));
         poller.awaitParked();
@@ -540,7 +540,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void peek_and_remainingCapacity_roundTrip() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         assertNull(queue.peek());
         assertEquals(2, queue.remainingCapacity());
         queue.offer("a");
@@ -553,7 +553,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void remove_object_present_removesFirstMatch() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         queue.offer("a");
@@ -563,7 +563,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void remove_object_absentOrNull_returnsFalse() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         assertFalse(queue.remove("b"));
         assertFalse(queue.remove(null));
@@ -571,7 +571,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void remove_lastElement_keepsTailConsistent() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -583,7 +583,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void contains_object_roundTrip() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         assertFalse(queue.contains("a"));
         queue.offer("a");
         assertTrue(queue.contains("a"));
@@ -592,7 +592,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void toArray_plain_and_typed_roundTrip() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         assertArrayEquals(new Object[] {"a", "b"}, queue.toArray());
@@ -602,7 +602,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void clear_emptiesQueueAndRestoresCapacity() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         queue.offer("b");
         queue.clear();
@@ -616,7 +616,7 @@ class VariableLinkedBlockingQueueTest {
     @SuppressWarnings("NullAway")
     @Test
     void drainTo_selfOrNull_rejected() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         assertThrows(IllegalArgumentException.class, () -> queue.drainTo(queue));
         assertThrows(NullPointerException.class, () -> queue.drainTo(null));
@@ -624,7 +624,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void drainTo_maxElements_zeroOrNegative_returnsZero() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         List<String> out = new ArrayList<>();
         assertEquals(0, queue.drainTo(out, 0));
@@ -634,7 +634,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void drainTo_movesElementsAndRestoresCapacity() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(3);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(3);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -651,7 +651,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void drainTo_targetThrowsOnFirstElement_leavesQueueUnchanged() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         List<String> refusing = refusingAt(0);
@@ -671,7 +671,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void drainTo_targetThrowsOnSecondElement_keepsRefusedElements() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -692,7 +692,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void shrinkBelowSize_clear_wakesBlockedProducer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         queue.offer("b");
         queue.setCapacity(1);
@@ -711,7 +711,7 @@ class VariableLinkedBlockingQueueTest {
     /** Same lost-wakeup shape as above, with drainTo freeing the queue instead of clear(). */
     @Test
     void shrinkBelowSize_drainTo_wakesBlockedProducer() throws Exception {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         queue.offer("b");
         queue.setCapacity(1);
@@ -744,7 +744,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void iterator_traversal_inFifoOrder() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -753,7 +753,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void iterator_remove_removesFromQueue() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -766,7 +766,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void iterator_removeWithoutNext_throws() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         Iterator<String> it = queue.iterator();
         assertThrows(IllegalStateException.class, it::remove);
@@ -774,7 +774,7 @@ class VariableLinkedBlockingQueueTest {
 
     @Test
     void iterator_nextPastEnd_throws() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(2);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(2);
         queue.offer("a");
         Iterator<String> it = queue.iterator();
         assertEquals("a", it.next());
@@ -789,7 +789,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void iterator_returnsSnapshotOfRemovedElementThenContinues() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         queue.offer("c");
@@ -808,7 +808,7 @@ class VariableLinkedBlockingQueueTest {
      */
     @Test
     void iterator_survivesExternalClear() {
-        VariableLinkedBlockingQueue<String> queue = new VariableLinkedBlockingQueue<>(5);
+        ResizableBlockingQueue<String> queue = new ResizableBlockingQueue<>(5);
         queue.offer("a");
         queue.offer("b");
         Iterator<String> it = queue.iterator();
@@ -819,7 +819,7 @@ class VariableLinkedBlockingQueueTest {
     }
 
     /** Asserts that a cross-thread offer completes, i.e. the putLock is not leaked. */
-    private void assertOtherThreadOfferCompletes(VariableLinkedBlockingQueue<String> queue) throws Exception {
+    private void assertOtherThreadOfferCompletes(ResizableBlockingQueue<String> queue) throws Exception {
         BlockedCall<Boolean> caller = BlockedCall.start(pool, () -> queue.offer("probe"));
         assertTrue(
                 caller.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS),
@@ -831,7 +831,7 @@ class VariableLinkedBlockingQueueTest {
      * empties the queue (a leaked takeLock makes even this drain block); the probe taker then parks
      * and is woken by an offer from the main thread.
      */
-    private void assertOtherThreadTakeCompletes(VariableLinkedBlockingQueue<String> queue) throws Exception {
+    private void assertOtherThreadTakeCompletes(ResizableBlockingQueue<String> queue) throws Exception {
         queue.drainTo(new ArrayList<>());
         BlockedCall<String> caller = BlockedCall.start(pool, () -> queue.take());
         caller.awaitParked();
@@ -842,7 +842,7 @@ class VariableLinkedBlockingQueueTest {
                 "cross-thread take must complete unless the takeLock was leaked");
     }
 
-    private static List<String> toList(VariableLinkedBlockingQueue<String> queue) {
+    private static List<String> toList(ResizableBlockingQueue<String> queue) {
         List<String> result = new ArrayList<>();
         queue.forEach(result::add);
         return result;
