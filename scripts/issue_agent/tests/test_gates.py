@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import types
@@ -84,11 +85,57 @@ class RepoGateTest(unittest.TestCase):
         self.assertEqual(statuses["pit"], "skip")
         self.assertEqual(statuses["reverse-verify"], "skip")
 
+    def test_repo_checks_include_documentation_reference_validation(self):
+        for name in gates.REPO_CHECKS:
+            path = self.repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# check\n")
+        with mock.patch.object(gates, "run_logged", return_value=0) as run_logged:
+            gate = gates.repo_checks(self.repo, Path(self.tmp.name) / "logs", "base-sha")
+        self.assertEqual(gate.status, "pass")
+        checked = {call.args[0][-1] for call in run_logged.call_args_list}
+        self.assertIn("scripts/check-doc-refs.py", checked)
+        java_call = next(call.args[0] for call in run_logged.call_args_list if call.args[0][1] == "scripts/check-java-conventions.py")
+        self.assertEqual(java_call[-2:], ["--base", "base-sha"])
+
     def test_renames_report_both_paths(self):
         git(self.repo, "mv", "docs/a.md", "docs/b.md")
         git(self.repo, "commit", "-qm", "rename")
         paths = {p for _, p in gates.changes(self.repo, self.base)}
         self.assertEqual(paths, {"docs/a.md", "docs/b.md"})
+
+    def test_race_claims_skip_when_harness_is_absent(self):
+        gate = gates.race_claims(self.repo, Path(self.tmp.name) / "logs", 1)
+        self.assertEqual((gate.status, gate.detail), ("skip", "the repository has no registered race-claim harness"))
+
+    def test_race_claims_runs_the_harness_and_reports_failure(self):
+        script = self.repo / "scripts/check-race-claims.py"
+        script.parent.mkdir()
+        script.write_text("#!/usr/bin/env python3\n")
+        logs = Path(self.tmp.name) / "logs"
+        with mock.patch.object(gates, "run_logged", return_value=1) as run_logged:
+            gate = gates.race_claims(self.repo, logs, 1)
+        self.assertEqual(gate.status, "fail")
+        self.assertEqual(run_logged.call_args.args[0][:2], [sys.executable, str(script)])
+
+    def test_race_claims_timeout_is_a_failure(self):
+        script = self.repo / "scripts/check-race-claims.py"
+        script.parent.mkdir()
+        script.write_text("# harness\n")
+        with mock.patch.object(gates, "run_logged", side_effect=subprocess.TimeoutExpired("race", 60)):
+            gate = gates.race_claims(self.repo, Path(self.tmp.name) / "logs", 1)
+        self.assertEqual(gate.status, "fail")
+        self.assertIn("exceeded", gate.detail)
+
+    def test_failed_verification_does_not_start_race_claims(self):
+        self.commit("src/main/java/a/B.java", "class B {}\n")
+        scratch = Path(self.tmp.name) / "scratch"
+        failed = [gates.Gate("spotless", "pass"), gates.Gate("verify", "fail", "compile failed")]
+        with mock.patch.object(gates, "fresh_verify", return_value=failed), \
+             mock.patch.object(gates, "race_claims") as race:
+            result = gates.run_all(self.repo, self.base, "bug", scratch, scratch / "logs", "", 1, check_pit=False)[0]
+        self.assertIn(("verify", "fail"), [(gate.name, gate.status) for gate in result])
+        race.assert_not_called()
 
 
 class ReverseVerifyTest(unittest.TestCase):

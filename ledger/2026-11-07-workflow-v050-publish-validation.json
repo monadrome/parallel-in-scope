@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-07-workflow-v050-publish-validation",
+  "date": "2026-11-07",
+  "topic": "workflow-v050-publish-validation",
+  "routes": [
+    "release"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "ci: validate published versions and snapshot evidence"
+    ],
+    "files": 2,
+    "insertions": 19,
+    "deletions": 2
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Release now validates the current Maven version on Java 8 consumers; snapshot verifies Java 8 bytecode and registered race claims. YAML parse and script checks pass."
+}

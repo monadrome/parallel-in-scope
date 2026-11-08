@@ -70,6 +70,16 @@ class TreeTest(unittest.TestCase):
             code = conventions.main([str(arg) for arg in argv])
         return code, out.getvalue(), err.getvalue()
 
+    def test_default_base_uses_the_newest_development_line(self):
+        def fake_git(*args):
+            if args[:2] == ("for-each-ref", "--format=%(refname:strip=2)"):
+                return b"origin/dev/v0.4.0\norigin/dev/v0.5.0\norigin/dev/v1.0.0\n"
+            self.assertEqual(args, ("merge-base", "origin/dev/v1.0.0", "HEAD"))
+            return b"base-sha\n"
+
+        with mock.patch.object(conventions, "git", side_effect=fake_git):
+            self.assertEqual(conventions.default_base(), "base-sha")
+
 
 class RuleTest(unittest.TestCase):
     def test_the_clean_fixture_has_no_violations(self):

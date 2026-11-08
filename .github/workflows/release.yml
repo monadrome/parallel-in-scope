@@ -29,6 +29,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Validate release tag
@@ -93,6 +94,7 @@ jobs:
       - name: Verify library and demo
         run: |
           LIBRARY_VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          echo "LIBRARY_VERSION=$LIBRARY_VERSION" >> "$GITHUB_ENV"
           mvn -B -ntp spotless:check
           mvn -B -ntp clean install
           mvn -B -ntp -f demo/pom.xml spotless:check
@@ -106,9 +108,8 @@ jobs:
           cache: maven
 
       - name: Verify Java 8 consumers
-        env:
-          LIBRARY_VERSION: 0.4.1
         run: |
+          test -n "$LIBRARY_VERSION"
           MAVEN_BASEDIR="$GITHUB_WORKSPACE/verification/maven-central-consumer" \
             mvn -B -ntp -f verification/maven-central-consumer \
             -Dparallel-in-scope.version="$LIBRARY_VERSION" clean test

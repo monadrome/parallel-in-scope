@@ -137,7 +137,23 @@ jobs:
         run: |
           LIBRARY_VERSION="$(mvn -B -ntp help:evaluate -Dexpression=project.version -q -DforceStdout)"
           mvn -B -ntp clean install
+          python3 scripts/check-java-bytecode.py target/classes --release 8
           mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version="$LIBRARY_VERSION" package
+          python3 scripts/check-java-bytecode.py demo/target/classes --release 8
+
+      - name: Verify registered race claims
+        if: steps.gate.outputs.publish == 'yes'
+        timeout-minutes: 30
+        run: python3 scripts/check-race-claims.py
+
+      - name: Upload race-claim evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-race-claims-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/race-claims/
+          if-no-files-found: warn
+          retention-days: 7
 
       # `maven.repository.credentialScope=id` restores credential matching by server id. The
       # runner image's Maven scopes credentials by repository origin, and the `central` server
