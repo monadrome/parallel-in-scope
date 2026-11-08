@@ -1,0 +1,20 @@
+ledger/2026-11-08-group-values-canonical.json
+  s_ce4d39d2513261::t_c95130052019a2 151,161,171,181,191,201,211,221,231
+  s_ce4d39d2513261::t_1ea504d2dab5b0 1-150,152-160,162-170,172-180,182-190,192-200,202-210,212-220,222-230,232-256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "348a9fe9bee8457e259f9f730e0ad9fc36d1e084",
+  "prompts": {},
+  "sessions": {
+    "s_ce4d39d2513261": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9bf-a944-70a1-83e6-f3a2b124c789",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
