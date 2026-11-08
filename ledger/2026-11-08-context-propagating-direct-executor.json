@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-08-context-propagating-direct-executor",
+  "date": "2026-11-08",
+  "topic": "context-propagating-direct-executor",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add context-propagating direct executor",
+      "fix: restore race claim verification for core module",
+      "fix: point API check at core classes"
+    ],
+    "files": 9,
+    "insertions": 206,
+    "deletions": 7
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "context-propagating-direct-executor-65726fc1-20261108-105036-db6cec",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 209591,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 36659,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "claude",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 338007,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 77308,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 634579,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 13668,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 36659,
+          "systemsWithUsage": 1,
+          "systemsTotal": 5,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-feat-context-propagating-direct-executor-2026-11-08",
+        "head": "65726fc1af9b0ddd73eeb3cbe2d0037e36dde764",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "targeted test path setup": 1,
+      "full mvn test public API whitelist": 1,
+      "CI race-claim path": 1,
+      "CI API-base class path": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "core/target/pit-reports/mutations.xml",
+      "statuses": {
+        "KILLED": 3
+      },
+      "total": 3,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Independent review partial: Codex/Kimi completed with zero findings; Claude/OCR/Kiro failed on local reviewer/model environment after one retry. CI passed after restoring known race-claim and API-base path fixes."
+}
