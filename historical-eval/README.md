@@ -59,3 +59,5 @@ python3 historical-eval/tools/compare-patches.py \
 - `BUG-0002`：动态队列容量收缩后的边界约束。
 
 比较第二条样本时增加 `--sample BUG-0002`。两条样本都已确认 buggy baseline 失败、历史正确补丁通过。
+
+- `BUG-0003`：带有中断标志的调用线程读取已完成失败 Future 时，仍应得到原始失败原因。

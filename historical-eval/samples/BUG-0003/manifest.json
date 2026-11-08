@@ -1,0 +1,12 @@
+{
+  "id": "BUG-0003",
+  "title": "done future inspection must ignore caller interruption",
+  "category": ["interruption-contract", "future-inspection"],
+  "buggy_commit": "af609e4b78223824a4c6dd5261074fb71c8936a5",
+  "fixed_commit": "c0b0158bf4fcccaf4bf844495981a54ae3735618",
+  "production_files": ["src/main/java/io/github/monadrome/parallelinscope/FutureInspector.java"],
+  "hidden_tests": ["FutureInspectorGoldenTest"],
+  "test_class": "FutureInspectorGoldenTest",
+  "quality": "A",
+  "oracle_policy": "fixed patch and tests are evaluator-only"
+}
