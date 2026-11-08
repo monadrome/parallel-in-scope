@@ -163,3 +163,15 @@ fixed-fail:     3
 ```
 
 只有 `verified` 适合进入后续 LLM 修复能力评测；`baseline-pass` 表示历史回归测试没有捕获父版本缺陷，`fixed-fail` 表示历史代表提交在其父版本上无法稳定构建或通过测试，二者需要人工复核。
+
+## Codex + gpt-5.6-terra 模型结果
+
+模型评测使用独立临时 prompt 工作区，参数固定为：
+
+```text
+agent: codex
+model: gpt-5.6-terra
+reasoning_effort: medium
+```
+
+当前 3 条正式黄金样本的结果保存在 `catalog/model-runs/`：3 次编译均通过，隐藏测试 2 次通过、1 次失败。模型候选补丁与历史 oracle 分开保存。

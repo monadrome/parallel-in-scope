@@ -1,0 +1,12 @@
+{
+  "sample": "BUG-0001",
+  "agent": "codex",
+  "model": "gpt-5.6-terra",
+  "reasoning_effort": "medium",
+  "session_id": "01a1bc3b-102d-7f62-90d4-e6d71b1cfa17",
+  "sandbox": "isolated temporary prompt workspace",
+  "compile": "pass",
+  "hidden_verification": "fail",
+  "returncode": 1,
+  "failure_class": "candidate missed saturatedNanos API and overflow conversion contract"
+}

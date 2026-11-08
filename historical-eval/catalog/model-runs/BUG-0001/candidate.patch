@@ -1,0 +1,29 @@
+--- a/src/main/java/io/github/monadrome/parallelinscope/Deadlines.java
++++ b/src/main/java/io/github/monadrome/parallelinscope/Deadlines.java
+@@ -40,18 +40,22 @@
+
+     /**
+      * Returns the deadline {@code durationNanos} after {@code nowNanos}, saturated to
+-     * {@link Long#MAX_VALUE} when the sum overflows. The duration is expected to be non-negative,
+-     * which is what every caller validates; a negative one is applied as-is so that an
+-     * already-elapsed deadline stays in the past.
++     * {@link Long#MAX_VALUE} when a positive duration overflows or {@link Long#MIN_VALUE} when a
++     * negative duration underflows. The duration is expected to be non-negative, which is what
++     * every caller validates; a negative one is applied as-is so that an already-elapsed deadline
++     * stays in the past.
+      *
+      * @param nowNanos a {@link System#nanoTime()} reading
+      * @param durationNanos the timeout to apply, normally non-negative
+-     * @return the absolute deadline, saturated to {@link Long#MAX_VALUE}
++     * @return the absolute deadline, saturated to the representable range
+      */
+     static long after(long nowNanos, long durationNanos) {
+         if (durationNanos >= 0 && nowNanos > Long.MAX_VALUE - durationNanos) {
+             return Long.MAX_VALUE;
+         }
++        if (durationNanos < 0 && nowNanos < Long.MIN_VALUE - durationNanos) {
++            return Long.MIN_VALUE;
++        }
+         return nowNanos + durationNanos;
+     }
+ }

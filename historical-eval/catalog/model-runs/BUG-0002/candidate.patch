@@ -1,0 +1,76 @@
+--- a/src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java
++++ b/src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java
+@@ -107,10 +107,16 @@
+      */
+     public void setCapacity(int capacity) {
+         if (capacity <= 0) throw new IllegalArgumentException();
+-        final int oldCapacity = this.capacity;
+-        this.capacity = capacity;
+-        if (capacity > oldCapacity) {
+-            signalNotFull();
++        final ReentrantLock lock = this.putLock;
++        lock.lock();
++        try {
++            final int oldCapacity = this.capacity;
++            this.capacity = capacity;
++            if (capacity > oldCapacity) {
++                notFull.signal();
++            }
++        } finally {
++            lock.unlock();
+         }
+     }
+
+@@ -186,7 +192,7 @@
+         final AtomicInteger cnt = this.count;
+         lock.lockInterruptibly();
+         try {
+-            while (cnt.get() == capacity) {
++            while (cnt.get() >= capacity) {
+                 notFull.await();
+             }
+             enqueue(node);
+@@ -207,7 +213,7 @@
+         final AtomicInteger cnt = this.count;
+         lock.lockInterruptibly();
+         try {
+-            while (cnt.get() == capacity) {
++            while (cnt.get() >= capacity) {
+                 if (nanos <= 0L) return false;
+                 nanos = notFull.awaitNanos(nanos);
+             }
+@@ -225,13 +231,13 @@
+     public boolean offer(E e) {
+         if (e == null) throw new NullPointerException();
+         final AtomicInteger cnt = this.count;
+-        if (cnt.get() == capacity) return false;
++        if (cnt.get() >= capacity) return false;
+         int c;
+         Node<E> node = new Node<>(e);
+         final ReentrantLock lock = this.putLock;
+         lock.lock();
+         try {
+-            if (cnt.get() == capacity) return false;
++            if (cnt.get() >= capacity) return false;
+             enqueue(node);
+             c = cnt.getAndIncrement();
+             if (c + 1 < capacity) notFull.signal();
+@@ -401,7 +407,7 @@
+                 p.item = null;
+             }
+             head = last;
+-            if (count.getAndSet(0) == capacity) notFull.signal();
++            if (count.getAndSet(0) >= capacity) notFull.signal();
+         } finally {
+             fullyUnlock();
+         }
+@@ -432,7 +438,8 @@
+                 return n;
+             } finally {
+                 if (i > 0) {
+-                    signalNotFull = (count.getAndAdd(-i) == capacity);
++                    int previous = count.getAndAdd(-i);
++                    signalNotFull = previous >= capacity && previous - i < capacity;
+                 }
+             }
+         } finally {
