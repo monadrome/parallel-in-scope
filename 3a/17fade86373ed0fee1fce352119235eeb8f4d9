@@ -1,0 +1,20 @@
+scripts/tests/test_check_race_claims.py
+  s_ce4d39d2513261::t_de4d7c9edebb9f 185-186,188-191
+  s_ce4d39d2513261::t_d4431e12d1b6c0 187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3a17fade86373ed0fee1fce352119235eeb8f4d9",
+  "prompts": {},
+  "sessions": {
+    "s_ce4d39d2513261": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9bf-a944-70a1-83e6-f3a2b124c789",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
