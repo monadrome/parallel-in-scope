@@ -14,8 +14,8 @@
     "*/target/*"
   ],
   "pathClasses": [
-    {"class": "test", "globs": ["src/test/java/*", "demo/src/test/*", "integrations/src/test/*", "scripts/tests/*", "tools/*/test/*"]},
-    {"class": "main", "globs": ["src/main/java/*", "demo/src/main/*", "integrations/src/main/*"]},
+    {"class": "test", "globs": ["src/test/java/*", "core/src/test/java/*", "blocking-queues/src/test/java/*", "demo/src/test/*", "integrations/src/test/*", "scripts/tests/*", "tools/*/test/*"]},
+    {"class": "main", "globs": ["src/main/java/*", "core/src/main/java/*", "blocking-queues/src/main/java/*", "demo/src/main/*", "integrations/src/main/*"]},
     {"class": "script", "globs": ["scripts/*", "tools/*/src/*"]}
   ],
   "lenses": [
@@ -34,7 +34,7 @@
       "classes": ["main", "test"],
       "extensions": [".java"],
       "changedLinePattern": "\\bsynchronized\\b|\\bvolatile\\b|Atomic[A-Z]\\w*|compareAndSet|getAndSet|LockSupport|\\.wait\\(|\\.notify(All)?\\(|interrupt|Monitor\\b|Lock\\b|Condition\\b|Future\\b|Executor\\w*|ThreadLocal",
-      "pathGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"],
+      "pathGlobs": ["blocking-queues/src/main/java/io/github/monadrome/queues/*"],
       "shardable": true
     },
     {
@@ -82,8 +82,8 @@
   },
   "routes": [
     {"classes": ["main", "script", "test"], "read": ["AGENTS.md#key-conventions", "AGENTS.md#design-decisions"]},
-    {"pathGlobs": ["src/main/java/io/github/monadrome/parallelinscope/*"], "excludeGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"], "read": ["design/AGENTS.md"]},
-    {"pathGlobs": ["src/*/java/io/github/monadrome/parallelinscope/queue/*"], "read": ["src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md", "adr/0006-queues-ship-with-core.md"]},
+    {"pathGlobs": ["core/src/main/java/io/github/monadrome/parallelinscope/*"], "excludeGlobs": ["blocking-queues/src/main/java/io/github/monadrome/queues/*"], "read": ["design/AGENTS.md"]},
+    {"pathGlobs": ["blocking-queues/src/*/java/io/github/monadrome/queues/*"], "read": ["blocking-queues/AGENTS.md", "adr/0013-standalone-blocking-queues-artifact.md"]},
     {"pathGlobs": ["demo/*"], "read": ["demo/AGENTS.md"]},
     {"pathGlobs": ["integrations/*"], "read": ["integrations/AGENTS.md"]},
     {"pathGlobs": ["scripts/issue-agent.py", "scripts/issue_agent/*"], "read": ["design/issue-automation.md"]},
@@ -97,7 +97,7 @@
     "enabled": true,
     "stage": "gray-evaluation",
     "purpose": "attention-routing evidence; not a quality score or CI gate",
-    "excludeGlobs": ["src/main/java/io/github/monadrome/parallelinscope/queue/*"],
+    "excludeGlobs": ["blocking-queues/src/main/java/io/github/monadrome/queues/*"],
     "thresholds": {
       "cyclomatic": 10,
       "codeLines": 80,

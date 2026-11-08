@@ -123,7 +123,8 @@
 
 相关决策：
 
-- [ADR 0006](../adr/0006-queues-ship-with-core.md)：queue 产物边界与评审责任的权威结论；其中 `TaskType` 的排队/拒绝语义已由 ADR 0008 取代。
+- [ADR 0013](../adr/0013-standalone-blocking-queues-artifact.md)：通用阻塞队列独立 artifact 与包边界；`SubmissionAwareBlockingQueue` 仍属于 core。
+- [ADR 0006](../adr/0006-queues-ship-with-core.md)：历史上的同产物决策，已由 ADR 0013 取代；其中 `TaskType` 的排队/拒绝语义已由 ADR 0008 取代。
 - [ADR 0003](../adr/0003-event-coalesced-purge-maintenance.md)：`Superseded`，现行规则见 [execution future simplification](execution-future-simplification.md)；仅供追溯自动 purge 旧方案。
 - [ADR 0004](../adr/0004-lifecycle-blocking-queue-recovery.md)：`Superseded`，现行规则见 [draining queue contract](draining-queue-contract.md)；仅供追溯 abrupt-close 旧方案。
 

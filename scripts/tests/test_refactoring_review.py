@@ -21,8 +21,8 @@ from unittest import mock
 SCRIPTS = Path(__file__).resolve().parents[1]
 ROOT = SCRIPTS.parent
 RULES = ROOT / "refactoring-review"
-MAIN = "src/main/java/io/github/monadrome/parallelinscope"
-TEST = "src/test/java/io/github/monadrome/parallelinscope"
+MAIN = "core/src/main/java/io/github/monadrome/parallelinscope"
+TEST = "core/src/test/java/io/github/monadrome/parallelinscope"
 
 
 def load_script():
@@ -187,13 +187,13 @@ class PlanModeTest(RepoTestCase):
 
 class RoutesAndRulesTest(RepoTestCase):
     def test_routes_follow_paths_and_changed_lines(self):
-        self.write(f"{MAIN}/queue/Q.java", java("Q", 5))
+        self.write("blocking-queues/src/main/java/io/github/monadrome/queues/Q.java", java("Q", 5))
         self.write(f"{MAIN}/W.java", java("W", 5, "Thread.currentThread().interrupt(); int v{index};"))
         self.commit("routes")
         _, _, plan = self.plan()
         routes = plan["agents"][0]["routes"]
-        self.assertIn("src/main/java/io/github/monadrome/parallelinscope/queue/AGENTS.md", routes)
-        self.assertIn("adr/0006-queues-ship-with-core.md", routes)
+        self.assertIn("blocking-queues/AGENTS.md", routes)
+        self.assertIn("adr/0013-standalone-blocking-queues-artifact.md", routes)
         self.assertIn("design/interruption-contract.md", routes)
         self.assertIn("design/AGENTS.md", routes)
         self.assertNotIn("adr/0012-contract-and-implementation-comment-layers.md", routes)

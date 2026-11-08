@@ -267,7 +267,7 @@ class BaselineTest(TreeTest):
 
     def test_the_queue_package_is_out_of_scope(self):
         base = self.tree("base", {})
-        head = self.tree("head", {"io/github/monadrome/parallelinscope/queue/Q.java": self.LEGACY})
+        head = self.tree("head", {"io/github/monadrome/queues/Q.java": self.LEGACY})
         self.assertEqual(self.run_check("--base-root", base, "--head-root", head)[0], 0)
 
     def test_a_missing_base_or_head_root_exits_2(self):

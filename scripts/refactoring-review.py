@@ -447,9 +447,9 @@ def complexity_inputs(repo: Path, base: str, head: str, config: dict) -> tuple[d
     paths = [
         path
         for path in paths
-        if path.startswith("src/main/java/io/github/monadrome/parallelinscope/")
+        if path.startswith("core/src/main/java/io/github/monadrome/parallelinscope/")
         and path.endswith(".java")
-        and "/queue/" not in path
+        and "/queues/" not in path
     ]
     base_files: dict[str, str] = {}
     head_files: dict[str, str] = {}

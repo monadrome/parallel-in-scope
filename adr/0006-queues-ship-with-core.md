@@ -1,6 +1,7 @@
 # ADR 0006: queue 包与 core 同产物发布
 
-- Status: Accepted
+- Status: Superseded
+- Superseded by: [ADR 0013](0013-standalone-blocking-queues-artifact.md)
 - Date: 2026-09-14
 - Decision scope: `queue` 包的产物边界与评审责任归属
 - Supersedes: None
@@ -24,7 +25,7 @@ implementations"，即与 core 无代码耦合是有意的，不是欠账。库�
 
 ## Decision
 
-`queue` 包与 core 同产物发布，不拆分、不私有化；既有定位不变。
+该决策已由 ADR 0013 取代。历史上 queue 与 core 同产物发布；现行产物边界见 ADR 0013。
 
 可执行规则：
 

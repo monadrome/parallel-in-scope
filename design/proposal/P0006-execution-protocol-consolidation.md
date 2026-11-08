@@ -10,9 +10,9 @@
 
 ## 目标与论证
 
-依据：[Par](../../src/main/java/io/github/monadrome/parallelinscope/Par.java) 的 combined-batch 路径、
-[TaskGroup](../../src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java) 的终端提交与 finish、
-[TaskBatch](../../src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java) 的 finish/finishCombined。
+依据：[Par](../../core/src/main/java/io/github/monadrome/parallelinscope/Par.java) 的 combined-batch 路径、
+[TaskGroup](../../core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java) 的终端提交与 finish、
+[TaskBatch](../../core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java) 的 finish/finishCombined。
 
 共享准备和上下文包装已经在 `TaskSubmissions`。下一步可集中两处真实重复：全成功后的唯一
 终端激活，以及一次 cleanup 起点、共用预算、执行/观测等待。Batch 的输入顺序和滑窗、

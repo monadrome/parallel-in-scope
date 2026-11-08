@@ -6,7 +6,7 @@
 | 删除的名字 | 替换为 |
 |---|---|
 | `io.github.monadrome.parallelinscope.SmartBlockingQueue` | `io.github.monadrome.parallelinscope.SubmissionAwareBlockingQueue` |
-| `io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue` | `io.github.monadrome.parallelinscope.queue.ResizableBlockingQueue` |
+| `io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue` | `io.github.monadrome.queues.ResizableBlockingQueue` |
 
 改前：
 
@@ -30,4 +30,14 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 诊断，不改变入队准入；只有 `rejectEnqueue(true)` 会请求
 `SubmissionAwareBlockingQueue` 拒绝入队。
 
-`DrainingBlockingQueue` 不变。消费方需使用 `0.5.0` 重新编译，并更新 import 和类型引用。
+`DrainingBlockingQueue` 和 `ResizableBlockingQueue` 现在由 `io.github.monadrome:blocking-queues` 发布，包名为 `io.github.monadrome.queues`。使用独立队列时请新增以下依赖：
+
+```xml
+<dependency>
+    <groupId>io.github.monadrome</groupId>
+    <artifactId>blocking-queues</artifactId>
+    <version>0.5.0</version>
+</dependency>
+```
+
+同时更新 import；`SubmissionAwareBlockingQueue` 仍在 `parallel-in-scope` 中。
