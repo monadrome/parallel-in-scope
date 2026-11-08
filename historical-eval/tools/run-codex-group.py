@@ -28,7 +28,7 @@ def main():
     group = groups[row["group"]]
     commit = str(row["representative"])
     parent = git("rev-parse", f"{commit}^").strip()
-    source_files = group["production_files"]
+    source_files = [path for path in group["production_files"] if Path(path).suffix in {".java", ".kt", ".py", ".ts", ".js", ".go", ".rs"} and not path.endswith("package-info.java")]
     temp = Path(tempfile.mkdtemp(prefix=f"codex-group-{args.rank:03d}-"))
     originals: dict[str, str] = {}
     for path in source_files:
