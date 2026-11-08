@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def commits() -> list[tuple[str, str, str]]:
     output = git("log", "--all", "--no-merges", "--format=%H%x09%P%x09%s")
     for line in output.splitlines():
         commit, parents, subject = line.split("\t", 2)
-        if "fix" not in subject.lower():
+        if not re.search(r"(?:^|[\s(:!])fix(?:$|[\s:!)]|\()", subject, re.IGNORECASE):
             continue
         parent = parents.split()[0] if parents else ""
         if parent:
