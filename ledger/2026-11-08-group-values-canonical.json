@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-08-group-values-canonical",
+  "date": "2026-11-08",
+  "topic": "group-values-canonical",
+  "routes": [
+    "concurrency",
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor!: use keyed GroupValues for task groups",
+      "refactor: align task group validation and completion docs",
+      "docs: complete v0.5 TaskGroup migration notes"
+    ],
+    "files": 77,
+    "insertions": 852,
+    "deletions": 947
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "group-values-canonical-17d3e49d-20261108-085920-3690d7",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 304557,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 104111,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "claude",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 578119,
+            "findings": {
+              "total": 5,
+              "adjudicated": 5,
+              "confirmed": 5,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 268931,
+            "findings": {
+              "total": 4,
+              "adjudicated": 4,
+              "confirmed": 4,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 532,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 13366,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 5,
+          "adjudicated": 5,
+          "confirmed": 5,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 104111,
+          "systemsWithUsage": 1,
+          "systemsTotal": 5,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-group-values-canonical-2026-11-08",
+        "head": "a8dd7d109159fe186ab687b74163c732695c1db9",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "C05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "DEFECT"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "V01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": true,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R8",
+            "rules": [
+              "T03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R9",
+            "rules": [
+              "T01"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn-core-test": 1,
+      "targeted-test-selection": 1,
+      "npm-review-build": 1,
+      "pit-plugin": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Full core suite, Lincheck, Java 8 consumer, docs gates, refactoring review, and independent review completed; PIT blocked because org.pitest:pitest-maven is unavailable in the local plugin repositories, and OCR/Kiro reviewers failed after one retry."
+}
