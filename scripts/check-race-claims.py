@@ -117,7 +117,19 @@ def run(command: list[str], cwd: Path, timeout: int = DEFAULT_TIMEOUT):
 
 
 def run_tests(cwd: Path, tests: str, timeout: int):
-    command = ["mvn", "-B", "-ntp", f"-Dtest={tests}", "test"]
+    # The library lives in the core module. Keep the dependency module in the
+    # reactor, but allow it to skip a test selection that only names core tests.
+    command = [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "-am",
+        "-Dsurefire.failIfNoSpecifiedTests=false",
+        f"-Dtest={tests}",
+        "test",
+    ]
     try:
         return command, run(command, cwd, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
