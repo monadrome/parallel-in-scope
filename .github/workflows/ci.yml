@@ -127,7 +127,7 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/api-base" "$BASE"
           (cd "$RUNNER_TEMP/api-base" && mvn -B -ntp -Dmaven.test.skip=true compile)
           python3 scripts/check-api-surface.py \
-            --base-classes "$RUNNER_TEMP/api-base/target/classes" \
+            --base-classes "$RUNNER_TEMP/api-base/core/target/classes" \
             --head-classes core/target/classes \
             --base "$BASE"
 
