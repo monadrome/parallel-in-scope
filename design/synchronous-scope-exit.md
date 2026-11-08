@@ -45,27 +45,28 @@ List<Price> loadPrices(List<String> skus) throws ExecutionException {
 组改前：
 
 ```java
-TaskKey<User> user = TaskKey.named("user");
-TaskKey<Account> account = TaskKey.named("account");
-TaskKey<Profile> profile = TaskKey.named("profile");
-return runtime
+try (TaskGroup<Tuple2<User, Account>, Profile> group = runtime
         .group("profile", Duration.ofSeconds(3))
-        .par(user, dbPar, () -> loadUser(id))
-        .par(account, httpPar, () -> loadAccount(id))
-        .combine(profile, httpPar,
-                values -> buildProfile(values.valueOf(user), values.valueOf(account)))
-        .runAll()
-        .terminalValueOrThrow();
+        .par("user", dbPar, User.class, () -> loadUser(id))
+        .par("account", httpPar, Account.class, () -> loadAccount(id))
+        .combine("profile", httpPar, Profile.class,
+                values -> buildProfile(values.first(), values.second()))
+        .submitAll()) {
+    return group.terminalFuture().get().get();
+}
 ```
 
 组改后：
 
 ```java
+TaskKey<User> user = TaskKey.named("user");
+TaskKey<Account> account = TaskKey.named("account");
+TaskKey<Profile> profile = TaskKey.named("profile");
 return runtime.group("profile", Duration.ofSeconds(3))
-        .par(TaskKey.<User>named("user"), dbPar, () -> loadUser(id))
-        .par(TaskKey.<Account>named("account"), httpPar, () -> loadAccount(id))
-        .combine(TaskKey.<Profile>named("profile"), httpPar,
-                values -> buildProfile(values.first(), values.second()))
+        .par(user, dbPar, () -> loadUser(id))
+        .par(account, httpPar, () -> loadAccount(id))
+        .combine(profile, httpPar,
+                values -> buildProfile(values.valueOf(user), values.valueOf(account)))
         .runAll()
         .terminalValueOrThrow();
 ```

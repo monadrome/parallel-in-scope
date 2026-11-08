@@ -144,6 +144,7 @@ public interface GroupStep {
      * Executes the group and returns frozen results after convergence and bounded cleanup. Waiting is
      * uninterruptible and restores the caller's interrupt flag; failures are returned as outcome data.
      *
+     * @throws IllegalArgumentException if the group inherits a deadline and submission has no enclosing scoped task
      * @throws IllegalStateException if this stage is stale, used from another thread, or the runtime is closed
      */
     TaskGroupResult<Void> runAll();

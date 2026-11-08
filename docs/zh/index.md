@@ -11,7 +11,7 @@
 |---|---|
 | [5 分钟快速上手](quickstart.md) | 在新 Maven 项目中完成首次批量调用 |
 | [完整使用指南](user-guide.md) | 配置、公共 API、执行语义和进阶能力 |
-| [v0.5 迁移指南](migration-v0.5.md) | 队列公开类型改名与迁移步骤 |
+| [v0.5 迁移指南](migration-v0.5.md) | 队列改名与 TaskGroup 按 key 的成员值 API |
 | [v0.4 迁移指南](migration-v0.4.md) | 从 `0.3.x` 迁移：类型化 `TaskKey`、聚合结果读取与运行时诊断 |
 | [v0.3 迁移指南](migration-v0.3.md) | 从 `0.2.x` 迁移：任务组一次性链式 API 与运行期契约变化 |
 | [v0.2 迁移指南](migration-v0.2.md) | 从 `0.1.x` 迁移到 `0.2` API |

@@ -64,13 +64,13 @@ combine 在链尾声明：`GroupStep.combine(key, par, [options,] taskCode)` 返
 TaskKey<User> user = TaskKey.named("user");
 TaskKey<List<Order>> orders = TaskKey.named("orders");
 TaskKey<Inventory> inventory = TaskKey.named("inventory");
-TaskKey<AccountPage> page = TaskKey.named("assemble-page");
+TaskKey<AccountPage> pageKey = TaskKey.named("assemble-page");
 TaskGroupResult<AccountPage> result =
         runtime.group("account-page", Duration.ofSeconds(3))
                 .par(user, databasePar, () -> users.load(request.userId()))
                 .par(orders, httpPar, () -> orderClient.load())
                 .par(inventory, inventoryPar, () -> inventoryClient.load())
-                .combine(page, cpuPar, values -> new AccountPage(
+                .combine(pageKey, cpuPar, values -> new AccountPage(
                                 values.valueOf(user), values.valueOf(orders), values.valueOf(inventory)))
                 .runAll();
 AccountPage page = result.terminalValueOrThrow();
