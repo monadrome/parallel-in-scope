@@ -1,0 +1,21 @@
+scripts/issue_agent/gates.py
+  s_47575c114e38cc::t_ad2a4923dfc1fa 27-32
+scripts/issue_agent/tests/test_gates.py
+  s_47575c114e38cc::t_ca52f2368dd98d 88-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "414c43f2c35f3ba531cb31feac36b44f1b6031c4",
+  "prompts": {},
+  "sessions": {
+    "s_47575c114e38cc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b6a6-4fb3-7731-80c4-6d3b4972e76c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
