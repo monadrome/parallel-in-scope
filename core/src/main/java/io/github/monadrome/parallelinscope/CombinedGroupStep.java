@@ -18,6 +18,8 @@ public interface CombinedGroupStep<R> {
     /**
      * Executes the group synchronously and returns its frozen terminal result.
      *
+     * @throws IllegalArgumentException if the group inherits a deadline and submission has no
+     *     enclosing scoped task
      * @throws IllegalStateException if this stage is stale, used from another thread, or the runtime is closed
      */
     TaskGroupResult<R> runAll();

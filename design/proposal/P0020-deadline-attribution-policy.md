@@ -14,7 +14,7 @@ P0015 的已提交成员/terminal TIMEOUT 上升遗漏已并入
 [组取消契约](../task-group-cancellation.md)。本提案只承接其未决 RUNNING-clock 后备。
 
 ```java
-TaskGroupResult<Integer, Void> result = runtime.group("load", timeout)
+TaskGroupResult<Void> result = runtime.group("load", timeout)
         .par(TaskKey.<Integer>named("member"), par, () -> { throw ownCancellation; })
         .runAll();
 TaskOutcome outcome = result.resultOf("member").outcome();

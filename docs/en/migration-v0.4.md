@@ -1,38 +1,5 @@
 # Migrating to v0.4
 
-## Migrating the group value API to v0.5
-
-The v0.5 development line removes the recursive `Tuple2` member shape. `GroupStep` and
-`CombinedGroupStep` no longer carry an aggregate member type, and `TaskGroupResult<R>` carries only
-the terminal result type. `combine` and `combineValues` both receive a non-null `GroupValues` snapshot.
-
-Before:
-
-```java
-TaskGroupResult<Tuple2<User, Account>, Profile> result = runtime
-        .group("profile", timeout)
-        .par(userKey, ioPar, this::loadUser)
-        .par(accountKey, httpPar, this::loadAccount)
-        .combine(profileKey, cpuPar, values -> buildProfile(values.first(), values.second()))
-        .runAll();
-```
-
-After:
-
-```java
-TaskGroupResult<Profile> result = runtime
-        .group("profile", timeout)
-        .par(userKey, ioPar, this::loadUser)
-        .par(accountKey, httpPar, this::loadAccount)
-        .combineValues(profileKey, cpuPar, values -> buildProfile(
-                values.valueOf(userKey), values.valueOf(accountKey)))
-        .runAll();
-```
-
-`GroupValues.typedValues()` and the public `Tuple2` type are removed. Use `valueOf(TaskKey<T>)`
-for compile-time type safety, or `valueAt(int)`/`valueOf(String)` for dynamic access. This is a
-breaking 0.x API change; recompile consumers against the v0.5 line.
-
 Group declarations and typed reads now share a `TaskKey<T>`. The key carries a diagnostic name
 and uses object identity; it stores no runtime type token. This replaces the 0.3 `Class`/`TypeToken`
 protocol and prevents declaration and lookup types from drifting in ordinary generic code.
@@ -55,8 +22,7 @@ ImmediateResult<User> result = runtime.group("user", timeout)
 ```
 
 - Replace string-plus-type `par` and `combine` declarations with a saved key. Explicit `TaskOptions`
-  still go immediately before the execution. `combine` and `combineValues` receive a keyed
-  `GroupValues` snapshot; read members through the exact declaration keys.
+  still go immediately before the execution. Tuple-based `combine` still receives the assembled `V`.
 - Generic results need no reified token: `TaskKey<List<Order>> orders = TaskKey.named("orders")`.
   Code already using the earlier 0.4 key draft replaces `TaskKey.of(name, type)` with `named(name)`
   and removes `type()` reads.
