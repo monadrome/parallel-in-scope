@@ -1,0 +1,22 @@
+historical-eval/tools/prepare-sample.py
+  s_490d18c85ab19e::t_c5b21103316a06 1-30,32,36-60
+  s_490d18c85ab19e::t_15097f31e1b59b 31,33-35
+historical-eval/README.md
+  s_490d18c85ab19e::t_c5b21103316a06 86-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "fb7c32fc5c27c0dd22eeb90dabb9b38623eae35f",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
