@@ -35,6 +35,7 @@ public final class ContextExecutors {
      * Creates a direct executor bound to the current thread's TTL context.
      *
      * @return an executor that always runs commands inline and restores the caller's context
+     * @since 0.5.0
      */
     public static Executor directExecutor() {
         return new CapturedDirectExecutor(Transmitter.capture());

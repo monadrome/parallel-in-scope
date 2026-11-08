@@ -90,6 +90,32 @@ class ContextExecutorsTest {
     }
 
     @Test
+    void oneCapturedExecutorCanBeUsedConcurrentlyWithoutCrossingCallerBindings() throws Exception {
+        ExecutorService callers = Executors.newFixedThreadPool(2);
+        try {
+            TTL.set("registration");
+            Executor direct = ContextExecutors.directExecutor();
+            Future<?> first = callers.submit(() -> runWithCallerValue(direct, "caller-one"));
+            Future<?> second = callers.submit(() -> runWithCallerValue(direct, "caller-two"));
+            first.get();
+            second.get();
+        } finally {
+            TTL.remove();
+            callers.shutdownNow();
+        }
+    }
+
+    private static void runWithCallerValue(Executor direct, String callerValue) {
+        TTL.set(callerValue);
+        try {
+            direct.execute(() -> assertThat(TTL.get()).isEqualTo("registration"));
+            assertThat(TTL.get()).isEqualTo(callerValue);
+        } finally {
+            TTL.remove();
+        }
+    }
+
+    @Test
     void restoresTheBindingWhenACommandReplacesTheTtlValue() {
         Map<String, String> original = new HashMap<>();
         original.put("trace", "request");
