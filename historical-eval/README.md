@@ -28,3 +28,15 @@ python3 historical-eval/tools/inventory-fixes.py \
 ```
 
 当前基于评测分支所指向的历史，共盘点 419 个 `fix` 提交，其中 299 个含生产代码修改、17 个文档-only、4 个测试-only、62 个 tooling-only。评测目录自身的提交会被自动排除。连续修复仍需在生成样本前按根因聚类，不能把这个清单直接当作最终样本数量。
+
+## 连续修复去重
+
+`tools/dedupe-fixes.py` 按生产代码 diff 的 SHA-256 对候选提交去重。同一修复在多个分支或镜像提交中的重复记录会合并，只保留一个代表提交供后续样本生成；不同父版本或不同代码 diff 不会因为标题相同而误合并。
+
+```bash
+python3 historical-eval/tools/dedupe-fixes.py \
+  historical-eval/catalog/fix-inventory.jsonl \
+  -o historical-eval/catalog/fix-groups.jsonl
+```
+
+当前 270 条“生产代码 + 回归测试”候选被归并为 103 个不同生产 diff。这个结果仍需人工检查根因和测试稳定性，之后才进入正式盲测集。
