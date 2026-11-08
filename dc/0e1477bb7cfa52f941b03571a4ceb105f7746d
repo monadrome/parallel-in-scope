@@ -1,0 +1,28 @@
+scripts/run-pit-core.sh
+  s_ce4d39d2513261::t_bff46cc600b9c3 77,137-139
+  s_ce4d39d2513261::t_66768b9fef4b86 140
+verification/pit.md
+  s_ce4d39d2513261::t_66768b9fef4b86 54
+verification/race-claims/claims.json
+  s_ce4d39d2513261::t_bff46cc600b9c3 8,33,77,92,101
+scripts/check-race-claims.py
+  s_ce4d39d2513261::t_bff46cc600b9c3 120-132
+.github/workflows/ci.yml
+  s_ce4d39d2513261::t_7aa82fde703088 178-179,230-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "dc0e1477bb7cfa52f941b03571a4ceb105f7746d",
+  "prompts": {},
+  "sessions": {
+    "s_ce4d39d2513261": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9bf-a944-70a1-83e6-f3a2b124c789",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
