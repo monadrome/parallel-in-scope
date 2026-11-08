@@ -1,0 +1,9 @@
+historical-eval/tools/run-codex-group.py
+  ai_agent 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ea7db28b88da0257dab57655e45d0f3067e4ea46",
+  "prompts": {}
+}
