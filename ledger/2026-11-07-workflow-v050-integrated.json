@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-07-workflow-v050-integrated",
+  "date": "2026-11-07",
+  "topic": "workflow-v050-integrated",
+  "routes": [
+    "defect",
+    "release"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "ci: validate published versions and snapshot evidence",
+      "chore: record delivery workflow publish validation",
+      "fix: follow newest development line in Java convention check",
+      "test: enforce race claims in issue agent gates",
+      "fix: skip race claims after failed verification",
+      "test: cover development line selection",
+      "test: include documentation reference gate",
+      "test: pin Java convention gate to change base",
+      "test: cover race claim timeout gate",
+      "fix: include race claim failure context"
+    ],
+    "files": 8,
+    "insertions": 165,
+    "deletions": 12
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Integrated workflow validation with ten-round agent gate hardening. YAML, 312 Python script tests, Maven test, and Java 8 bytecode verification pass."
+}
