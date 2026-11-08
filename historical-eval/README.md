@@ -120,3 +120,16 @@ python3 historical-eval/tools/review-fix-groups.py \
 ```
 
 类别分布：`executor` 21、`cancellation` 19、`deadline` 14、`batch/task-group` 14、`graph/observation` 14、`queue` 11、`interruption` 5、`context/propagation` 5。
+
+## 103 组逐条盘点
+
+`tools/report-groups.py` 会把 103 个唯一生产 diff 展开成 Markdown 和 JSONL 两份审阅清单，包含代表提交、主题分类、难度启发式、生产文件、重复落地次数和样本状态：
+
+```bash
+python3 historical-eval/tools/report-groups.py \
+  historical-eval/catalog/fix-groups.jsonl \
+  historical-eval/samples \
+  -o historical-eval/catalog/fix-groups-report.md
+```
+
+报告中的 `gold` 只有已经人工整理并通过隐藏测试的样本；`needs-curation` 需要继续确认根因、最小上下文、隐藏测试和复现稳定性。
