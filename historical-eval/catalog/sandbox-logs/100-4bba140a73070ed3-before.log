@@ -1,0 +1,55 @@
+module=. rc=1
+runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+Nov 08, 2026 9:31:24 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.SubmissionException: Task submission failed
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.reject(ExecutionPhaseHintFuture.java:118)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:105)
+	at io.github.monadrome.parallelinscope.TaskSubmissions.submitScoped(TaskSubmissions.java:67)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.submit(TaskGroup.java:593)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.access$100(TaskGroup.java:565)
+	at io.github.monadrome.parallelinscope.TaskGroup.submitTerminalOnce(TaskGroup.java:237)
+	at io.github.monadrome.parallelinscope.TaskGroup.memberCompleted(TaskGroup.java:298)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$start$0(TaskGroup.java:151)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:135)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: full
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest$8.execute(TaskGroupCombineTest.java:179)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:100)
+	... 14 more
+
+[ERROR] Tests run: 11, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.170 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGroupCombineTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGroupCombineTest.aMemberRegisteredAfterTheCombineCannotReuseItsName -- Time elapsed: 0.002 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting code to raise a throwable.
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest.aMemberRegisteredAfterTheCombineCannotReuseItsName(TaskGroupCombineTest.java:388)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   TaskGroupCombineTest.aMemberRegisteredAfterTheCombineCannotReuseItsName:388 
+Expecting code to raise a throwable.
+[ERROR] Tests run: 14, Failures: 1, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-4bba140a73070ed3-onwvqb5w/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

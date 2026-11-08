@@ -1,0 +1,45 @@
+module=. rc=0
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @6293abcc (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+Nov 08, 2026 9:31:29 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+java.io.IOException: assemble failed
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest.lambda$combineFailureIsAttributedToTheCombineNotAMember$1(TaskGroupCombineTest.java:124)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$buildWhileOpen$0(TaskGroup.java:537)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:116)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:135)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+Nov 08, 2026 9:31:29 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.SubmissionException: Task submission failed
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.reject(ExecutionPhaseHintFuture.java:118)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:105)
+	at io.github.monadrome.parallelinscope.TaskSubmissions.submitScoped(TaskSubmissions.java:67)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.submit(TaskGroup.java:593)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.access$100(TaskGroup.java:565)
+	at io.github.monadrome.parallelinscope.TaskGroup.submitTerminalOnce(TaskGroup.java:237)
+	at io.github.monadrome.parallelinscope.TaskGroup.memberCompleted(TaskGroup.java:298)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$start$0(TaskGroup.java:151)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:135)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: full
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest$8.execute(TaskGroupCombineTest.java:179)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:100)
+	... 14 more
+

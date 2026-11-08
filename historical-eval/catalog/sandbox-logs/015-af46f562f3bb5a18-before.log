@@ -1,0 +1,59 @@
+module=. rc=1
+l.concurrent.TimeoutException
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:206)
+	at io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueueTest.shrinkBelowSize_clear_wakesBlockedProducer(VariableLinkedBlockingQueueTest.java:713)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueueTest.drainTo_targetThrowsOnFirstElement_leavesQueueUnchanged -- Time elapsed: 0.001 s <<< ERROR!
+java.lang.NullPointerException: Cannot read field "item" because "first" is null
+	at io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue.dequeue(VariableLinkedBlockingQueue.java:155)
+	at io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueue.poll(VariableLinkedBlockingQueue.java:299)
+	at io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueueTest.drainTo_targetThrowsOnFirstElement_leavesQueueUnchanged(VariableLinkedBlockingQueueTest.java:668)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueueTest.shrinkBelowSize_drainTo_wakesBlockedProducer -- Time elapsed: 10.12 s <<< ERROR!
+java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:206)
+	at io.github.monadrome.parallelinscope.queue.VariableLinkedBlockingQueueTest.shrinkBelowSize_drainTo_wakesBlockedProducer(VariableLinkedBlockingQueueTest.java:734)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   CancellationTokenTest.expiredDeadlineCommitsTimeoutSynchronouslyDuringBind:102 
+expected: TIMEOUT
+ but was: RUNNING
+[ERROR]   ScopedTaskContractTest.userExceptionIsReportedAsUserFailure:96 
+expected: USER_FAILURE
+ but was: MEMBER_CANCELED
+[ERROR]   TaskGroupTest.expiredGroupDeadlineSkipsMemberSubmissionAndReportsTimeout:268 
+Expecting AtomicInteger(1) to have value:
+  0
+but did not.
+[ERROR]   TaskGroupTest.failureCompletingLastIsStillReportedAsUserFailure:207 
+expected: USER_FAILURE
+ but was: MEMBER_CANCELED
+[ERROR]   TaskGroupTest.loneSubmissionFailureIsReportedAsSubmissionFailure:235 
+expected: SUBMISSION_FAILURE
+ but was: MEMBER_CANCELED
+[ERROR]   VariableLinkedBlockingQueueTest.drainTo_targetThrowsOnSecondElement_keepsRefusedElements:688 expected: <b> but was: <c>
+[ERROR] Errors: 
+[ERROR]   VariableLinkedBlockingQueueTest.drainTo_targetThrowsOnFirstElement_leavesQueueUnchanged:668 » NullPointer Cannot read field "item" because "first" is null
+[ERROR]   VariableLinkedBlockingQueueTest.shrinkBelowSize_clear_wakesBlockedProducer:713 » Timeout
+[ERROR]   VariableLinkedBlockingQueueTest.shrinkBelowSize_drainTo_wakesBlockedProducer:734 » Timeout
+[ERROR] Tests run: 143, Failures: 6, Errors: 3, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-af46f562f3bb5a18-7cgz2lhf/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

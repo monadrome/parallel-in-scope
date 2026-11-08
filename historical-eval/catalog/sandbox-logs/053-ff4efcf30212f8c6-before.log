@@ -1,0 +1,44 @@
+module=. rc=1
+08 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par ' db ' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+[ERROR] Tests run: 13, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.043 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.ScopePrimitivesTest
+[ERROR] io.github.monadrome.parallelinscope.ScopePrimitivesTest.deadlineTimerRemovesCancelledTasksFromItsQueue -- Time elapsed: 0.002 s <<< ERROR!
+java.lang.ClassCastException: class java.util.concurrent.Executors$DelegatedScheduledExecutorService cannot be cast to class java.util.concurrent.ScheduledThreadPoolExecutor (java.util.concurrent.Executors$DelegatedScheduledExecutorService and java.util.concurrent.ScheduledThreadPoolExecutor are in module java.base of loader 'bootstrap')
+	at io.github.monadrome.parallelinscope.ScopePrimitivesTest.deadlineTimerRemovesCancelledTasksFromItsQueue(ScopePrimitivesTest.java:287)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   TaskBatchResultTest.valuesOrThrow_prefersRecordedFailureWhenFailFastCancelledSiblings:173 
+Expecting actual throwable to be an instance of:
+  java.util.concurrent.ExecutionException
+but was:
+  java.util.concurrent.CancellationException: Task was cancelled.
+	at com.google.common.util.concurrent.AbstractFuture$Cancellation.newCancellationException(AbstractFuture.java:197)
+	at com.google.common.util.concurrent.AbstractFuture.getDoneValue(AbstractFuture.java:296)
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:253)
+	...(85 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+[ERROR]   TaskBatchResultTest.valuesOrThrow_prefersRecordedSubmissionFailureOnCancelledElement:194 
+Expecting actual throwable to be an instance of:
+  java.util.concurrent.ExecutionException
+but was:
+  java.util.concurrent.CancellationException: Task was cancelled.
+	at com.google.common.util.concurrent.AbstractFuture$Cancellation.newCancellationException(AbstractFuture.java:197)
+	at com.google.common.util.concurrent.AbstractFuture.getDoneValue(AbstractFuture.java:296)
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:233)
+	...(85 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+[ERROR] Errors: 
+[ERROR]   ScopePrimitivesTest.deadlineTimerRemovesCancelledTasksFromItsQueue:287 ClassCast class java.util.concurrent.Executors$DelegatedScheduledExecutorService cannot be cast to class java.util.concurrent.ScheduledThreadPoolExecutor (java.util.concurrent.Executors$DelegatedScheduledExecutorService and java.util.concurrent.ScheduledThreadPoolExecutor are in module java.base of loader 'bootstrap')
+[ERROR] Tests run: 31, Failures: 2, Errors: 1, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ff4efcf30212f8c6-hh7qd_s9/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

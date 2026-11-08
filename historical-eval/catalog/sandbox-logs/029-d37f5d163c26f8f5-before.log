@@ -1,0 +1,55 @@
+module=. rc=1
+her.execute(DefaultLauncher.java:109)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:91)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$1(InterceptingLauncher.java:39)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:38)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+[ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.130 s <<< FAILURE! -- in io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest.cancelWhileRunningAlwaysSurfacesCancelRequestedRunning -- Time elapsed: 0.016 s <<< FAILURE!
+java.lang.AssertionError: 
+[attempt 57 must report the cancel-while-running phase; got [RUNNING, TERMINAL]; isCancelled=true; future=io.github.huatalk.parallelinscope.internal.ExecutionPhaseHintFuture@48f278eb[status=CANCELLED]] 
+Expecting CopyOnWriteArrayList:
+  [RUNNING, TERMINAL]
+to contain:
+  [CANCEL_REQUESTED_RUNNING]
+but could not find the following element(s):
+  [CANCEL_REQUESTED_RUNNING]
+
+	at io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest.cancelWhileRunningAlwaysSurfacesCancelRequestedRunning(ListenableCompletionServiceTest.java:253)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   ListenableCompletionServiceTest.cancelWhileRunningAlwaysSurfacesCancelRequestedRunning:253 [attempt 57 must report the cancel-while-running phase; got [RUNNING, TERMINAL]; isCancelled=true; future=io.github.huatalk.parallelinscope.internal.ExecutionPhaseHintFuture@48f278eb[status=CANCELLED]] 
+Expecting CopyOnWriteArrayList:
+  [RUNNING, TERMINAL]
+to contain:
+  [CANCEL_REQUESTED_RUNNING]
+but could not find the following element(s):
+  [CANCEL_REQUESTED_RUNNING]
+
+[ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d37f5d163c26f8f5-5aey__1b/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,33 @@
+module=. rc=0
+ava:709)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$typeChecked$0(TaskGroup.java:702)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:63)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:221)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+Nov 08, 2026 9:19:58 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'reject' is registered with io.github.monadrome.parallelinscope.TaskGroupTest$RejectingExecutor, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:19:58 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'normal' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:19:58 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'direct' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:19:58 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'reject' is registered with io.github.monadrome.parallelinscope.TaskGroupTest$RejectingExecutor, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:19:58 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'slow' failed after cancellation
+java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleepNanos0(Native Method)
+	at java.base/java.lang.Thread.sleepNanos(Thread.java:551)
+	at java.base/java.lang.Thread.sleep(Thread.java:582)
+	at io.github.monadrome.parallelinscope.TaskGroupTest.lambda$failureIsFailFastAndCancelsUnfinishedSibling$0(TaskGroupTest.java:182)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$typeChecked$0(TaskGroup.java:702)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:63)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:221)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+

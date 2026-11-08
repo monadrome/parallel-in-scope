@@ -1,0 +1,53 @@
+module=. rc=1
+pe.SlidingWindowSubmitterTest
+[ERROR] io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.initialWindowHandoffErrorFailsEveryElementAsSubmissionFailure -- Time elapsed: 0.021 s <<< FAILURE!
+java.lang.AssertionError: handoff broken
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest$3.execute(SlidingWindowSubmitterTest.java:377)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.submit(SlidingWindowSubmitter.java:176)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.fallbackSubmit(SlidingWindowSubmitter.java:162)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.submitAll(SlidingWindowSubmitter.java:98)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.initialWindowHandoffErrorFailsEveryElementAsSubmissionFailure(SlidingWindowSubmitterTest.java:386)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.slidingWindowHandoffErrorFailsThePlaceholderAsSubmissionFailure -- Time elapsed: 1.017 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual throwable to be an instance of:
+  java.util.concurrent.ExecutionException
+but was:
+  java.util.concurrent.TimeoutException: Waited 1 seconds (plus 5888042 nanoseconds delay) for SettableFuture@52815fa3[status=PENDING]
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:222)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:59)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:248)
+	...(84 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.slidingWindowHandoffErrorFailsThePlaceholderAsSubmissionFailure(SlidingWindowSubmitterTest.java:451)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   SlidingWindowSubmitterTest.initialWindowHandoffErrorFailsEveryElementAsSubmissionFailure:386 handoff broken
+[ERROR]   SlidingWindowSubmitterTest.slidingWindowHandoffErrorFailsThePlaceholderAsSubmissionFailure:451 
+Expecting actual throwable to be an instance of:
+  java.util.concurrent.ExecutionException
+but was:
+  java.util.concurrent.TimeoutException: Waited 1 seconds (plus 5888042 nanoseconds delay) for SettableFuture@52815fa3[status=PENDING]
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:222)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:59)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:248)
+	...(84 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+[ERROR] Tests run: 17, Failures: 2, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-516e367cdecfdd9f-j3xutu4o/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,36 @@
+module=. rc=1
+xecutor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:21:36 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'child' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:21:36 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'parent' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:21:36 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'child' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+[ERROR] Tests run: 2, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 10.10 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.ParentChildResultRetentionTest
+[ERROR] io.github.monadrome.parallelinscope.ParentChildResultRetentionTest.completedChildResultsAreCollectableWhileParentScopeRuns -- Time elapsed: 10.03 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+[parent listener chain must not retain 16 completed child payloads] 
+expected: 0
+ but was: 16
+	at io.github.monadrome.parallelinscope.ParentChildResultRetentionTest.awaitCollectable(ParentChildResultRetentionTest.java:189)
+	at io.github.monadrome.parallelinscope.ParentChildResultRetentionTest.completedChildResultsAreCollectableWhileParentScopeRuns(ParentChildResultRetentionTest.java:76)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   ParentChildResultRetentionTest.completedChildResultsAreCollectableWhileParentScopeRuns:76->awaitCollectable:189 [parent listener chain must not retain 16 completed child payloads] 
+expected: 0
+ but was: 16
+[ERROR] Tests run: 2, Failures: 1, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-809026382b84587c-np2e1sts/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

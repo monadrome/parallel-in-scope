@@ -1,0 +1,46 @@
+module=. rc=1
+s.java:921)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265)
+	at java.base/java.util.stream.ReferencePipeline.collect(ReferencePipeline.java:723)
+	at org.assertj.core.groups.FieldsOrPropertiesExtractor.extract(FieldsOrPropertiesExtractor.java:67)
+	at org.assertj.core.api.AbstractIterableAssert.internalExtracting(AbstractIterableAssert.java:1397)
+	at org.assertj.core.api.AbstractIterableAssert.extracting(AbstractIterableAssert.java:1477)
+	at io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutorBatchContextTest.cpuInlineFallbackPublishesCompletionForSlidingWindow(ConcurrentLimitExecutorBatchContextTest.java:186)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+Caused by: java.util.concurrent.TimeoutException: Waited 1 seconds (plus 10183167 nanoseconds delay) for SettableFuture@4681c175[status=PENDING]
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:222)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:59)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:248)
+	at com.google.common.util.concurrent.AbstractFuture$TrustedFuture.get(AbstractFuture.java:104)
+	at io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutorBatchContextTest.lambda$cpuInlineFallbackPublishesCompletionForSlidingWindow$3(ConcurrentLimitExecutorBatchContextTest.java:186)
+	at org.assertj.core.api.iterable.ThrowingExtractor.apply(ThrowingExtractor.java:39)
+	... 14 more
+
+[ERROR] io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutorBatchContextTest.failedCpuInlineFallbackStillAdvancesSlidingWindow -- Time elapsed: 1.010 s <<< ERROR!
+java.util.concurrent.TimeoutException: Waited 1 seconds (plus 6001834 nanoseconds delay) for SettableFuture@5a59ca5e[status=PENDING]
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:222)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:59)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:248)
+	at com.google.common.util.concurrent.AbstractFuture$TrustedFuture.get(AbstractFuture.java:104)
+	at io.github.huatalk.parallelinscope.internal.ConcurrentLimitExecutorBatchContextTest.failedCpuInlineFallbackStillAdvancesSlidingWindow(ConcurrentLimitExecutorBatchContextTest.java:212)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Errors: 
+[ERROR]   ConcurrentLimitExecutorBatchContextTest.cpuInlineFallbackPublishesCompletionForSlidingWindow:186 » Runtime java.util.concurrent.TimeoutException: Waited 1 seconds (plus 10183167 nanoseconds delay) for SettableFuture@4681c175[status=PENDING]
+[ERROR]   ConcurrentLimitExecutorBatchContextTest.failedCpuInlineFallbackStillAdvancesSlidingWindow:212 » Timeout Waited 1 seconds (plus 6001834 nanoseconds delay) for SettableFuture@5a59ca5e[status=PENDING]
+[ERROR] Tests run: 9, Failures: 0, Errors: 2, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-e32b7b5a6153ed31-s9ihz8uk/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

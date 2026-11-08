@@ -1,0 +1,40 @@
+module=. rc=1
+omebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @402e37bc (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+[ERROR] COMPILATION ERROR : 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[243,30] cannot find symbol
+  symbol:   method isClosed()
+  location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[268,58] cannot find symbol
+  symbol:   method whileOpen(()->{ setu[...]ll; })
+  location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[280,30] cannot find symbol
+  symbol:   method isClosed()
+  location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[285,30] cannot find symbol
+  symbol:   method isClosed()
+  location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[243,30] cannot find symbol
+[ERROR]   symbol:   method isClosed()
+[ERROR]   location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[268,58] cannot find symbol
+[ERROR]   symbol:   method whileOpen(()->{ setu[...]ll; })
+[ERROR]   location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[280,30] cannot find symbol
+[ERROR]   symbol:   method isClosed()
+[ERROR]   location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d4bd79825dfde6cc-21qjgz07/before/src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java:[285,30] cannot find symbol
+[ERROR]   symbol:   method isClosed()
+[ERROR]   location: variable global of type io.github.huatalk.parallelinscope.scope.GlobalPar
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

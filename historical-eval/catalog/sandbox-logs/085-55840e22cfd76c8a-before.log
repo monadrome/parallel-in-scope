@@ -1,0 +1,31 @@
+module=integrations rc=1
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @22635ba0 (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+[ERROR] COMPILATION ERROR : 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-55840e22cfd76c8a-n1rwoxuv/before/integrations/src/main/java/integrations/app/QuoteApplication.java:[67,29] method fold in class io.github.monadrome.parallelinscope.ImmediateResult<T> cannot be applied to given types;
+  required: java.util.function.Function<? super integrations.app.Quote,? extends R>,java.util.function.Function<? super java.lang.Throwable,? extends R>,java.util.function.Function<? super java.lang.Throwable,? extends R>,java.util.function.BiFunction<? super io.github.monadrome.parallelinscope.TaskOutcome,? super java.lang.Throwable,? extends R>
+  found:    String::valueOf,(failure)-[...]age(),(outcome,d[...]ame()
+  reason: cannot infer type-variable(s) R
+    (actual and formal argument lists differ in length)
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-55840e22cfd76c8a-n1rwoxuv/before/integrations/src/main/java/integrations/app/QuoteApplication.java:[67,34] incompatible types: cannot infer type-variable(s) R
+    (argument mismatch; incompatible parameter types in lambda expression)
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.16.0:compile (default-compile) on project parallel-in-scope-integrations: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-55840e22cfd76c8a-n1rwoxuv/before/integrations/src/main/java/integrations/app/QuoteApplication.java:[67,29] method fold in class io.github.monadrome.parallelinscope.ImmediateResult<T> cannot be applied to given types;
+[ERROR]   required: java.util.function.Function<? super integrations.app.Quote,? extends R>,java.util.function.Function<? super java.lang.Throwable,? extends R>,java.util.function.Function<? super java.lang.Throwable,? extends R>,java.util.function.BiFunction<? super io.github.monadrome.parallelinscope.TaskOutcome,? super java.lang.Throwable,? extends R>
+[ERROR]   found:    String::valueOf,(failure)-[...]age(),(outcome,d[...]ame()
+[ERROR]   reason: cannot infer type-variable(s) R
+[ERROR]     (actual and formal argument lists differ in length)
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-55840e22cfd76c8a-n1rwoxuv/before/integrations/src/main/java/integrations/app/QuoteApplication.java:[67,34] incompatible types: cannot infer type-variable(s) R
+[ERROR]     (argument mismatch; incompatible parameter types in lambda expression)
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

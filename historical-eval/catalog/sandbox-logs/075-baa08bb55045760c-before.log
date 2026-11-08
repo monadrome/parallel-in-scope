@@ -1,0 +1,37 @@
+module=. rc=1
+ct-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+[ERROR] COMPILATION ERROR : 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[249,33] cannot find symbol
+  symbol:   method attributedOnSettle(java.lang.String,io.github.monadrome.parallelinscope.CancellationToken,com.google.common.util.concurrent.SettableFuture<java.lang.String>)
+  location: class io.github.monadrome.parallelinscope.Task
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[250,49] cannot find symbol
+  symbol:   method settledAttribution()
+  location: variable view of type io.github.monadrome.parallelinscope.Task<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[267,21] cannot find symbol
+  symbol:   method attributedOnSettle(java.lang.String,io.github.monadrome.parallelinscope.CancellationToken,com.google.common.util.concurrent.SettableFuture<java.lang.String>)
+  location: class io.github.monadrome.parallelinscope.Task
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[279,76] cannot find symbol
+  symbol:   method settledAttribution()
+  location: class io.github.monadrome.parallelinscope.Task<java.lang.String>
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[249,33] cannot find symbol
+[ERROR]   symbol:   method attributedOnSettle(java.lang.String,io.github.monadrome.parallelinscope.CancellationToken,com.google.common.util.concurrent.SettableFuture<java.lang.String>)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Task
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[250,49] cannot find symbol
+[ERROR]   symbol:   method settledAttribution()
+[ERROR]   location: variable view of type io.github.monadrome.parallelinscope.Task<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[267,21] cannot find symbol
+[ERROR]   symbol:   method attributedOnSettle(java.lang.String,io.github.monadrome.parallelinscope.CancellationToken,com.google.common.util.concurrent.SettableFuture<java.lang.String>)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Task
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-baa08bb55045760c-boa9gzhl/before/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[279,76] cannot find symbol
+[ERROR]   symbol:   method settledAttribution()
+[ERROR]   location: class io.github.monadrome.parallelinscope.Task<java.lang.String>
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

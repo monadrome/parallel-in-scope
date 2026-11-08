@@ -1,0 +1,42 @@
+module=. rc=0
+r(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:25:35 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'batch' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.awaitCancellation(ParMapAndCombineTest.java:513)
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.lambda$deadlineCancelsTheCombineBeforeItRuns$0(ParMapAndCombineTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapAndCombineWhileOpen$1(Par.java:208)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:61)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:220)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.awaitCancellation(ParMapAndCombineTest.java:510)
+	... 8 more
+
+Nov 08, 2026 9:25:35 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'batch' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.awaitCancellation(ParMapAndCombineTest.java:513)
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.lambda$deadlineCancelsTheCombineBeforeItRuns$0(ParMapAndCombineTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapAndCombineWhileOpen$1(Par.java:208)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:61)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:220)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.awaitCancellation(ParMapAndCombineTest.java:510)
+	... 8 more
+
+Nov 08, 2026 9:25:35 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'cpu' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:25:35 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope logIssueQuietly
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=false, selfLoop=false, executorCycle=true, executorSelfLoop=true, taskEdges=[NA[root] -> outer[unit-140] [{p=1, type=IO_BOUND, src=null, exec=io, count=1, timeout=PT29.999981917S}], outer[unit-140] -> inner[unit-141] [{p=1, type=IO_BOUND, src=io, exec=io, count=1, timeout=PT29.999356S}]], executorEdges=[io -> io [{p=1, type=IO_BOUND, src=io, exec=io, count=1, timeout=PT29.999356S}]]

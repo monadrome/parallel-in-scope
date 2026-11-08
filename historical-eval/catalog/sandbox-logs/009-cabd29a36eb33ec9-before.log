@@ -1,0 +1,43 @@
+module=. rc=1
+y supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (/Applications/dev_conf/repo/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Nov 08, 2026 8:45:00 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'rejected' is registered with org.mockito.internal.creation.bytebuddy.codegen.ExecutorService$MockitoMock$DsTUZSup, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep them. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), has no bounded queue to purge, so neither feature applies to it.
+[ERROR] Tests run: 25, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 2.036 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.SynchronousExecutionTest
+[ERROR] io.github.monadrome.parallelinscope.SynchronousExecutionTest.aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted -- Time elapsed: 0.002 s <<< ERROR!
+java.lang.IllegalStateException: interrupted while inspecting future
+	at io.github.monadrome.parallelinscope.FutureInspector.exceptionNow(FutureInspector.java:38)
+	at io.github.monadrome.parallelinscope.Task.failure(Task.java:162)
+	at io.github.monadrome.parallelinscope.ImmediateResult.fromTask(ImmediateResult.java:97)
+	at io.github.monadrome.parallelinscope.TaskBatch.finish(TaskBatch.java:137)
+	at io.github.monadrome.parallelinscope.Par.map(Par.java:124)
+	at io.github.monadrome.parallelinscope.SynchronousExecutionTest.aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted(SynchronousExecutionTest.java:371)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+Caused by: java.lang.InterruptedException
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:229)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:54)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:263)
+	at io.github.monadrome.parallelinscope.FutureInspector.exceptionNow(FutureInspector.java:31)
+	... 8 more
+
+[ERROR] Errors: 
+[ERROR]   FutureInspectorTest.exceptionNowReadsADoneFailedFutureWhileTheCallingThreadIsInterrupted:55 » IllegalState interrupted while inspecting future
+[ERROR]   SynchronousExecutionTest.aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted:371 » IllegalState interrupted while inspecting future
+[ERROR]   TaskFutureTest.failureReadsTheBodyFailureEvenWhenTheCallingThreadIsInterrupted:755 » IllegalState interrupted while inspecting future
+[ERROR] Tests run: 62, Failures: 0, Errors: 3, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-cabd29a36eb33ec9-zw1xxjun/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

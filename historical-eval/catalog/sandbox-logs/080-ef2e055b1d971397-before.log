@@ -1,0 +1,32 @@
+module=. rc=1
+   found:    java.util.concurrent.atomic.AtomicBoolean,com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ef2e055b1d971397-42cs4ks2/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[224,17] cannot find symbol
+[ERROR]   symbol:   method purgeEnabled(boolean)
+[ERROR]   location: class io.github.huatalk.parallelinscope.scope.ParConfig.Builder
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ef2e055b1d971397-42cs4ks2/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[277,16] constructor HeuristicPurger in class io.github.huatalk.parallelinscope.cancel.HeuristicPurger cannot be applied to given types;
+[ERROR]   required: com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   found:    java.util.concurrent.atomic.AtomicBoolean,com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ef2e055b1d971397-42cs4ks2/before/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerExpiryTest.java:[45,34] constructor HeuristicPurger in class io.github.huatalk.parallelinscope.cancel.HeuristicPurger cannot be applied to given types;
+[ERROR]   required: com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   found:    java.util.concurrent.atomic.AtomicBoolean,com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble,now::get,long
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ef2e055b1d971397-42cs4ks2/before/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerExpiryTest.java:[71,34] constructor HeuristicPurger in class io.github.huatalk.parallelinscope.cancel.HeuristicPurger cannot be applied to given types;
+[ERROR]   required: com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   found:    java.util.concurrent.atomic.AtomicBoolean,com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble,clock::getAsLong,long
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ef2e055b1d971397-42cs4ks2/before/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerExpiryTest.java:[100,34] constructor HeuristicPurger in class io.github.huatalk.parallelinscope.cancel.HeuristicPurger cannot be applied to given types;
+[ERROR]   required: com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   found:    java.util.concurrent.atomic.AtomicBoolean,com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble,clock::getAsLong,long
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ef2e055b1d971397-42cs4ks2/before/src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerExpiryTest.java:[110,15] cannot find symbol
+[ERROR]   symbol:   method clearPendingCancellations()
+[ERROR]   location: variable purger of type io.github.huatalk.parallelinscope.cancel.HeuristicPurger
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

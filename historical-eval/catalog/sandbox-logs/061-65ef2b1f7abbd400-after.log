@@ -1,0 +1,14 @@
+module=. rc=0
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @13c10b87 (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+Nov 08, 2026 9:08:17 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'io' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:08:17 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope logIssueQuietly
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=true, executorSelfLoop=false, taskEdges=[a[a] -> b[b] [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], b[b] -> a[a] [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]], executorEdges=[e2 -> e1 [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], e1 -> e2 [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]]
+Nov 08, 2026 9:08:17 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope logIssueQuietly
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=true, executorSelfLoop=false, taskEdges=[a[a] -> b[b] [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], b[b] -> a[a] [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]], executorEdges=[e2 -> e1 [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], e1 -> e2 [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]]

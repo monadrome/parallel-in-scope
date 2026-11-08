@@ -1,0 +1,51 @@
+module=. rc=1
+efaultLauncher.java:91)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$1(InterceptingLauncher.java:39)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:38)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+Nov 08, 2026 9:17:14 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task '<untracked>' failed after cancellation
+java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireSharedInterruptibly(AbstractQueuedSynchronizer.java:1140)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:230)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFutureTest.lambda$phaseObserverReceivesExecutionHints$2(ExecutionPhaseHintFutureTest.java:335)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:410)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Tests run: 13, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.193 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.ExecutionPhaseHintFutureTest
+[ERROR] io.github.monadrome.parallelinscope.ExecutionPhaseHintFutureTest.cancellationDeliveryCannotReachTheNextTask -- Time elapsed: 0.008 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+[worker must not start another task while delivery is pending] 
+Expecting value to be false but was true
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFutureTest.cancellationDeliveryCannotReachTheNextTask(ExecutionPhaseHintFutureTest.java:87)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   ExecutionPhaseHintFutureTest.cancellationDeliveryCannotReachTheNextTask:87 [worker must not start another task while delivery is pending] 
+Expecting value to be false but was true
+[ERROR] Tests run: 13, Failures: 1, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-f8a99db5ac4ce689-2691j4ap/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,37 @@
+module=. rc=1
+class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[55,21] cannot find symbol
+  symbol:   class ListenableCompletionService
+  location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[76,9] cannot find symbol
+  symbol:   class ListenableCompletionService
+  location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[77,21] cannot find symbol
+  symbol:   class ListenableCompletionService
+  location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[25,9] cannot find symbol
+[ERROR]   symbol:   class ListenableCompletionService
+[ERROR]   location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[25,60] cannot find symbol
+[ERROR]   symbol:   class ListenableCompletionService
+[ERROR]   location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[54,9] cannot find symbol
+[ERROR]   symbol:   class ListenableCompletionService
+[ERROR]   location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[55,21] cannot find symbol
+[ERROR]   symbol:   class ListenableCompletionService
+[ERROR]   location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[76,9] cannot find symbol
+[ERROR]   symbol:   class ListenableCompletionService
+[ERROR]   location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d465fbcb6d2ee35b-kr8can4_/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[77,21] cannot find symbol
+[ERROR]   symbol:   class ListenableCompletionService
+[ERROR]   location: class io.github.huatalk.parallelinscope.internal.ListenableCompletionServiceTest
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

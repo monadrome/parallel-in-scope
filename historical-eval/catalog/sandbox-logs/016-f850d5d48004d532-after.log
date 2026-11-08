@@ -1,0 +1,36 @@
+module=. rc=0
+tors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 8:48:45 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'cpu' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 8:48:45 AM io.github.monadrome.parallelinscope.Par lambda$reportTaskTypeMismatch$0
+WARNING: Par 'cpu' is registered for TaskType.COMPUTE, but unit 'work' declares TaskType.BLOCKING. The declarations disagree; check that the unit is submitted through the intended Par. Logged once per Par and unit name.
+Nov 08, 2026 8:48:45 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Input Future failed with Error
+java.lang.AssertionError: clock failure standing in for a VM error
+	at io.github.monadrome.parallelinscope.WorkloadFitScreeningTest.lambda$anErrorFromTheTimingStillRestoresTheWorkersTaskContext$0(WorkloadFitScreeningTest.java:357)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:410)
+	at io.github.monadrome.parallelinscope.ScopedCallable.callTimed(ScopedCallable.java:93)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:60)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+Nov 08, 2026 8:48:45 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Input Future failed with Error
+java.lang.AssertionError: clock failure standing in for a VM error
+	at io.github.monadrome.parallelinscope.WorkloadFitScreeningTest.lambda$anErrorFromTheTimingStillRestoresTheWorkersTaskContext$0(WorkloadFitScreeningTest.java:357)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:410)
+	at io.github.monadrome.parallelinscope.ScopedCallable.callTimed(ScopedCallable.java:93)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:60)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+Nov 08, 2026 8:48:45 AM io.github.monadrome.parallelinscope.Par lambda$warnIfEnqueueRefusalInert$0
+WARNING: Par 'plain' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 8:48:46 AM io.github.monadrome.parallelinscope.Par lambda$warnIfEnqueueRefusalInert$0
+WARNING: Par 'plain' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.

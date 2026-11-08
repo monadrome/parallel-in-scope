@@ -1,0 +1,40 @@
+module=. rc=1
+one()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[28,31] cannot find symbol
+[ERROR]   symbol:   method rejectEnqueueEffective()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[43,31] cannot find symbol
+[ERROR]   symbol:   method starvationProne()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[56,31] cannot find symbol
+[ERROR]   symbol:   method starvationProne()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[69,31] cannot find symbol
+[ERROR]   symbol:   method starvationProne()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[70,31] cannot find symbol
+[ERROR]   symbol:   method rejectEnqueueEffective()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[84,31] cannot find symbol
+[ERROR]   symbol:   method starvationProne()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[99,37] cannot find symbol
+[ERROR]   symbol:   method starvationProne()
+[ERROR]   location: variable singleRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[100,37] cannot find symbol
+[ERROR]   symbol:   method rejectEnqueueEffective()
+[ERROR]   location: variable singleRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[103,40] cannot find symbol
+[ERROR]   symbol:   method starvationProne()
+[ERROR]   location: variable decoratedRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-0c3b5b5b76a5c660-wkx3jhej/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[104,40] cannot find symbol
+[ERROR]   symbol:   method rejectEnqueueEffective()
+[ERROR]   location: variable decoratedRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

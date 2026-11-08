@@ -1,0 +1,43 @@
+module=. rc=1
+t.forEach(ArrayList.java:1612)
+Caused by: io.github.huatalk.parallelinscope.queue.QueueShutdownException: ClosableBlockingQueue is shut down; drainTo is no longer accepted
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.shutdownException(ClosableBlockingQueue.java:292)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.requireOpenMutation(ClosableBlockingQueue.java:349)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.drainTo(ClosableBlockingQueue.java:703)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.drainTo(ClosableBlockingQueue.java:676)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueueTest.lambda$concurrentDrainToAfterCloseClaimsEachElementOnce$0(ClosableBlockingQueueTest.java:203)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] io.github.huatalk.parallelinscope.queue.ClosableBlockingQueueTest.poisonObjectReturnsFromClosedConsumers -- Time elapsed: 0.110 s <<< ERROR!
+io.github.huatalk.parallelinscope.queue.QueueShutdownException: ClosableBlockingQueue is shut down; drainTo is no longer accepted
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.shutdownException(ClosableBlockingQueue.java:292)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.requireOpenMutation(ClosableBlockingQueue.java:349)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.drainTo(ClosableBlockingQueue.java:703)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueue.drainTo(ClosableBlockingQueue.java:676)
+	at io.github.huatalk.parallelinscope.queue.ClosableBlockingQueueTest.poisonObjectReturnsFromClosedConsumers(ClosableBlockingQueueTest.java:300)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   ClosableBlockingQueueTest.failedClosedDrainTargetDoesNotRestoreRecoveryBatch:237 expected: <closed target rejected element> but was: <ClosableBlockingQueue is shut down; drainTo is no longer accepted>
+[ERROR] Errors: 
+[ERROR]   ClosableBlockingQueueTest.concurrentDrainToAfterCloseClaimsEachElementOnce:205 » Execution io.github.huatalk.parallelinscope.queue.QueueShutdownException: ClosableBlockingQueue is shut down; drainTo is no longer accepted
+[ERROR]   ClosableBlockingQueueTest.drainToRemainsAvailableAfterClose:176 » QueueShutdown ClosableBlockingQueue is shut down; drainTo is no longer accepted
+[ERROR]   ClosableBlockingQueueTest.poisonObjectReturnsFromClosedConsumers:300 » QueueShutdown ClosableBlockingQueue is shut down; drainTo is no longer accepted
+[ERROR]   ClosableBlockingQueueTest.stopBeforeStartPublishesFifoRemainingListAndRejectsWrites:145 » QueueShutdown ClosableBlockingQueue is shut down; drainTo is no longer accepted
+[ERROR] Tests run: 53, Failures: 1, Errors: 4, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-80f659bb3392b580-7vdl0zqe/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

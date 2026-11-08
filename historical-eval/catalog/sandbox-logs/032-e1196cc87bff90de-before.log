@@ -1,0 +1,39 @@
+module=. rc=1
+mentFreezesAsMemberCancelledWhileItsSiblingReadsFailFast$0(BatchSettleAttributionTest.java:237)
+	... 7 more
+
+Nov 08, 2026 8:55:33 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'direct' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 8:55:33 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'direct' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+[ERROR] Tests run: 13, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.217 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.BatchSettleAttributionTest
+[ERROR] io.github.monadrome.parallelinscope.BatchSettleAttributionTest.aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners -- Time elapsed: 0.003 s <<< ERROR!
+java.lang.StackOverflowError: snapshot
+	at io.github.monadrome.parallelinscope.BatchSettleAttributionTest.lambda$aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners$0(BatchSettleAttributionTest.java:319)
+	at io.github.monadrome.parallelinscope.TaskObservation.signal(TaskObservation.java:134)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at com.google.common.util.concurrent.SettableFuture.set(SettableFuture.java:48)
+	at io.github.monadrome.parallelinscope.BatchSettleAttributionTest.aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners(BatchSettleAttributionTest.java:332)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Errors: 
+[ERROR]   BatchSettleAttributionTest.aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners:332->lambda$aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners$0:319 StackOverflow snapshot
+[ERROR] Tests run: 13, Failures: 0, Errors: 1, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-e1196cc87bff90de-v60f4oa4/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

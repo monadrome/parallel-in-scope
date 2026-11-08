@@ -1,0 +1,96 @@
+module=. rc=1
+t.java:1612)
+
+[ERROR] Tests run: 7, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.008 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskOptionsTest
+[ERROR] io.github.monadrome.parallelinscope.TaskOptionsTest.defaultsAreIoBoundEnqueueingAndFailOnRejection -- Time elapsed: 0 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: IO_BOUND
+ but was: CPU_BOUND
+	at io.github.monadrome.parallelinscope.TaskOptionsTest.defaultsAreIoBoundEnqueueingAndFailOnRejection(TaskOptionsTest.java:50)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.TaskOptionsTest.withersReturnNewInstancesWithoutMutatingTheOriginal -- Time elapsed: 0.001 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting value to be false but was true
+	at io.github.monadrome.parallelinscope.TaskOptionsTest.withersReturnNewInstancesWithoutMutatingTheOriginal(TaskOptionsTest.java:63)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.012 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.DefaultEnqueuePolicyTest
+[ERROR] io.github.monadrome.parallelinscope.DefaultEnqueuePolicyTest.defaultOptionsEnqueueOntoASmartQueueInsteadOfRunningOnTheCaller -- Time elapsed: 0.007 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting
+  ["worker",
+    "worker",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main"]
+not to contain
+  ["main"]
+but found
+  ["main"]
+
+	at io.github.monadrome.parallelinscope.DefaultEnqueuePolicyTest.defaultOptionsEnqueueOntoASmartQueueInsteadOfRunningOnTheCaller(DefaultEnqueuePolicyTest.java:57)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   BatchOptionsTest.defaultsAreOneWorkerPerTaskIoBoundEnqueueingAndFailOnRejection:25 
+expected: IO_BOUND
+ but was: CPU_BOUND
+[ERROR]   BatchOptionsTest.withersRoundTripEveryFieldWithoutMutatingTheOriginal:40 
+expected: IO_BOUND
+ but was: CPU_BOUND
+[ERROR]   DefaultEnqueuePolicyTest.defaultOptionsEnqueueOntoASmartQueueInsteadOfRunningOnTheCaller:57 
+Expecting
+  ["worker",
+    "worker",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main",
+    "main"]
+not to contain
+  ["main"]
+but found
+  ["main"]
+
+[ERROR]   TaskGroupTest.omittedMemberOptionsDefaultToAnInheritedTimeoutAndTheStandardPolicy:957 
+expected: IO_BOUND
+ but was: CPU_BOUND
+[ERROR]   TaskOptionsTest.defaultsAreIoBoundEnqueueingAndFailOnRejection:50 
+expected: IO_BOUND
+ but was: CPU_BOUND
+[ERROR]   TaskOptionsTest.withersReturnNewInstancesWithoutMutatingTheOriginal:63 
+Expecting value to be false but was true
+[ERROR] Tests run: 65, Failures: 6, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-63628ec430a1bd3e-xlzn75ft/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

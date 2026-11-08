@@ -1,0 +1,44 @@
+module=. rc=1
+.java:508)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:217)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: full
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest$1.execute(TaskGroupCombineTest.java:254)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:143)
+	... 14 more
+
+Nov 08, 2026 9:14:56 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:14:56 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+[ERROR] Tests run: 16, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 10.30 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGroupCombineTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGroupCombineTest.combineHandoffThrowsAnErrorStillTerminatesItsFutureAndTheGroup -- Time elapsed: 10.02 s <<< ERROR!
+java.util.concurrent.TimeoutException: Waited 10 seconds (plus 6825417 nanoseconds delay) for SettableFuture@56febdc[status=PENDING]
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:222)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:59)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:248)
+	at com.google.common.util.concurrent.AbstractFuture$TrustedFuture.get(AbstractFuture.java:104)
+	at com.google.common.util.concurrent.ForwardingFuture.get(ForwardingFuture.java:83)
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest.combineHandoffThrowsAnErrorStillTerminatesItsFutureAndTheGroup(TaskGroupCombineTest.java:327)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Errors: 
+[ERROR]   TaskGroupCombineTest.combineHandoffThrowsAnErrorStillTerminatesItsFutureAndTheGroup:327 » Timeout Waited 10 seconds (plus 6825417 nanoseconds delay) for SettableFuture@56febdc[status=PENDING]
+[ERROR]   TaskGroupConvergenceTest.barrierCountsAMemberWhoseCancellationCascadeThrowsAnError:185 » Timeout Waited 10 seconds (plus 1926209 nanoseconds delay) for SettableFuture@8458f04[status=PENDING]
+[ERROR] Tests run: 19, Failures: 0, Errors: 2, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-e9d0398c83a4c3fd-ybpeirqz/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

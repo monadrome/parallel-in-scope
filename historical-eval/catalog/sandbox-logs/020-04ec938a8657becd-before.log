@@ -1,0 +1,52 @@
+module=. rc=1
+github.monadrome.parallelinscope.Task.failure(Task.java:162)
+	at io.github.monadrome.parallelinscope.ImmediateResult.fromTask(ImmediateResult.java:97)
+	at io.github.monadrome.parallelinscope.TaskBatch.finish(TaskBatch.java:137)
+	at io.github.monadrome.parallelinscope.Par.map(Par.java:123)
+	at io.github.monadrome.parallelinscope.SynchronousExecutionTest.aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted(SynchronousExecutionTest.java:370)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+Caused by: java.lang.InterruptedException
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:229)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:54)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:263)
+	at io.github.monadrome.parallelinscope.FutureInspector.exceptionNow(FutureInspector.java:31)
+	... 8 more
+
+[ERROR] io.github.monadrome.parallelinscope.SynchronousExecutionTest.aFailedGroupFreezesItsMembersWhileTheCallingThreadIsInterrupted -- Time elapsed: 0.004 s <<< ERROR!
+java.lang.IllegalStateException: interrupted while inspecting future
+	at io.github.monadrome.parallelinscope.FutureInspector.exceptionNow(FutureInspector.java:38)
+	at io.github.monadrome.parallelinscope.Task.failure(Task.java:162)
+	at io.github.monadrome.parallelinscope.ImmediateResult.fromTask(ImmediateResult.java:97)
+	at io.github.monadrome.parallelinscope.TaskGroup.freezeResult(TaskGroup.java:282)
+	at io.github.monadrome.parallelinscope.TaskGroup.finish(TaskGroup.java:241)
+	at io.github.monadrome.parallelinscope.GroupDraft$Step.runAll(GroupDraft.java:416)
+	at io.github.monadrome.parallelinscope.SynchronousExecutionTest.aFailedGroupFreezesItsMembersWhileTheCallingThreadIsInterrupted(SynchronousExecutionTest.java:397)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+Caused by: java.lang.InterruptedException
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:229)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:54)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:263)
+	at io.github.monadrome.parallelinscope.FutureInspector.exceptionNow(FutureInspector.java:31)
+	... 9 more
+
+[ERROR] Errors: 
+[ERROR]   FutureInspectorTest.exceptionNowReadsADoneFailedFutureWhileTheCallingThreadIsInterrupted:55 » IllegalState interrupted while inspecting future
+[ERROR]   SynchronousExecutionTest.aFailedBatchFreezesItsElementsWhileTheCallingThreadIsInterrupted:370 » IllegalState interrupted while inspecting future
+[ERROR]   SynchronousExecutionTest.aFailedGroupFreezesItsMembersWhileTheCallingThreadIsInterrupted:397 » IllegalState interrupted while inspecting future
+[ERROR]   TaskFutureTest.failureReadsTheBodyFailureEvenWhenTheCallingThreadIsInterrupted:755 » IllegalState interrupted while inspecting future
+[ERROR] Tests run: 63, Failures: 0, Errors: 4, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-04ec938a8657becd-_fwbxgkb/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

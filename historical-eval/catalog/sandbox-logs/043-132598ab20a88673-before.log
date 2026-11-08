@@ -1,0 +1,44 @@
+module=. rc=1
+anPropertyField in unnamed module @1df82230 (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+[ERROR] Tests run: 10, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 20.50 s <<< FAILURE! -- in io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest
+[ERROR] io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest.testSubmitAll_midBatchRejection_completesRemainingFutures -- Time elapsed: 10.10 s <<< ERROR!
+org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest was not fulfilled within 10 seconds.
+	at org.awaitility.core.ConditionAwaiter.await(ConditionAwaiter.java:167)
+	at org.awaitility.core.CallableCondition.await(CallableCondition.java:78)
+	at org.awaitility.core.CallableCondition.await(CallableCondition.java:26)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1160)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1129)
+	at io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest.testSubmitAll_midBatchRejection_completesRemainingFutures(ConcurrentLimitExecutorTest.java:380)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest.testSubmitAll_submitterInterrupted_completesRemainingFutures -- Time elapsed: 10.21 s <<< ERROR!
+org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest was not fulfilled within 10 seconds.
+	at org.awaitility.core.ConditionAwaiter.await(ConditionAwaiter.java:167)
+	at org.awaitility.core.CallableCondition.await(CallableCondition.java:78)
+	at org.awaitility.core.CallableCondition.await(CallableCondition.java:26)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1160)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1129)
+	at io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest.testSubmitAll_submitterInterrupted_completesRemainingFutures(ConcurrentLimitExecutorTest.java:329)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Errors: 
+[ERROR]   ConcurrentLimitExecutorTest.testSubmitAll_midBatchRejection_completesRemainingFutures:380 » ConditionTimeout Condition with Lambda expression in io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest was not fulfilled within 10 seconds.
+[ERROR]   ConcurrentLimitExecutorTest.testSubmitAll_submitterInterrupted_completesRemainingFutures:329 » ConditionTimeout Condition with Lambda expression in io.github.huatalk.parallelinscope.ConcurrentLimitExecutorTest was not fulfilled within 10 seconds.
+[ERROR] Tests run: 10, Failures: 0, Errors: 2, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-132598ab20a88673-t2727ng1/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

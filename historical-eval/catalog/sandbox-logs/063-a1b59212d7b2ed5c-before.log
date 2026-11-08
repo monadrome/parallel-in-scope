@@ -1,0 +1,45 @@
+module=. rc=1
+Streams(EngineExecutionOrchestrator.java:150)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:63)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:109)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:91)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$1(InterceptingLauncher.java:39)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:38)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+Nov 08, 2026 9:09:01 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope logIssueQuietly
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=false, executorSelfLoop=false, taskEdges=[task-a[a] -> task-b[b] [{p=1, type=IO_BOUND, src=parent-exec, exec=child-exec, count=1, timeout=PT0.01S}], task-b[b] -> task-a[a] [{p=1, type=IO_BOUND, src=parent-exec, exec=child-exec, count=1, timeout=PT0.01S}]], executorEdges=[]
+[ERROR] Tests run: 21, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 10.47 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGraphReportFutureTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGraphReportFutureTest.reentrantDiagnosticHandlerSeesThePublishedIssueReportAndDoesNotSelfWait -- Time elapsed: 10.01 s <<< ERROR!
+java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:206)
+	at io.github.monadrome.parallelinscope.TaskGraphReportFutureTest.reentrantDiagnosticHandlerSeesThePublishedIssueReportAndDoesNotSelfWait(TaskGraphReportFutureTest.java:327)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Errors: 
+[ERROR]   TaskGraphReportFutureTest.reentrantDiagnosticHandlerSeesThePublishedIssueReportAndDoesNotSelfWait:327 » Timeout
+[ERROR] Tests run: 21, Failures: 0, Errors: 1, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-a1b59212d7b2ed5c-ajdlvwd2/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,44 @@
+module=. rc=1
+rome/parallelinscope/DeadlinesTest.java:[25,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[26,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[27,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[40,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[49,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[57,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[62,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[63,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[64,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[66,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[68,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-b0d9c3de52190bfa-xdgatkyt/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[75,20] cannot find symbol
+[ERROR]   symbol:   variable Deadlines
+[ERROR]   location: class io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

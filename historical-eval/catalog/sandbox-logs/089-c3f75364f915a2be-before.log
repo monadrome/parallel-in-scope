@@ -1,0 +1,54 @@
+module=. rc=1
+: 
+[awaitQuiescence returned instead of parking on the saturated wait] 
+Expecting value to be false but was true
+	at io.github.monadrome.parallelinscope.ParRuntimeTest.awaitQuiescenceTreatsNegativeOverflowAsAnElapsedBudget(ParRuntimeTest.java:472)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.008 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.DeadlinesTest
+[ERROR] io.github.monadrome.parallelinscope.DeadlinesTest.saturatedNanosSaturatesNegativeOverflowToTheNegativeEnd -- Time elapsed: 0.001 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: -9223372036854775808L
+ but was: 9223372036854775807L
+	at io.github.monadrome.parallelinscope.DeadlinesTest.saturatedNanosSaturatesNegativeOverflowToTheNegativeEnd(DeadlinesTest.java:109)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Tests run: 13, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 2.270 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.CheckpointsTest
+[ERROR] io.github.monadrome.parallelinscope.CheckpointsTest.negativeOverflowDurationsReadAsAlreadyElapsedAcrossAllDurationAdapters -- Time elapsed: 2.059 s <<< ERROR!
+org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in io.github.monadrome.parallelinscope.CheckpointsTest was not fulfilled within 2 seconds.
+	at org.awaitility.core.ConditionAwaiter.await(ConditionAwaiter.java:167)
+	at org.awaitility.core.CallableCondition.await(CallableCondition.java:78)
+	at org.awaitility.core.CallableCondition.await(CallableCondition.java:26)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1160)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1129)
+	at io.github.monadrome.parallelinscope.CheckpointsTest.completesWithoutWaiting(CheckpointsTest.java:539)
+	at io.github.monadrome.parallelinscope.CheckpointsTest.negativeOverflowDurationsReadAsAlreadyElapsedAcrossAllDurationAdapters(CheckpointsTest.java:239)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   DeadlinesTest.saturatedNanosSaturatesNegativeOverflowToTheNegativeEnd:109 
+expected: -9223372036854775808L
+ but was: 9223372036854775807L
+[ERROR]   ParRuntimeTest.awaitQuiescenceTreatsNegativeOverflowAsAnElapsedBudget:472 [awaitQuiescence returned instead of parking on the saturated wait] 
+Expecting value to be false but was true
+[ERROR] Errors: 
+[ERROR]   CheckpointsTest.negativeOverflowDurationsReadAsAlreadyElapsedAcrossAllDurationAdapters:239->completesWithoutWaiting:539 » ConditionTimeout Condition with Lambda expression in io.github.monadrome.parallelinscope.CheckpointsTest was not fulfilled within 2 seconds.
+[ERROR] Tests run: 52, Failures: 2, Errors: 1, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-c3f75364f915a2be-hhyies6u/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

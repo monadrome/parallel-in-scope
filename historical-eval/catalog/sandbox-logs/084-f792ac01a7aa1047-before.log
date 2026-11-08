@@ -1,0 +1,61 @@
+module=. rc=1
+fError
+SEVERE: executor handoff threw an Error in batch 'batch' at element 1 during the sliding-window refill; the affected elements are failed as submission failures
+java.lang.AssertionError: handoff broken
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest$4.execute(SlidingWindowSubmitterTest.java:528)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.submit(SlidingWindowSubmitter.java:213)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.fallbackSubmit(SlidingWindowSubmitter.java:200)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.submitRemaining(SlidingWindowSubmitter.java:273)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.lambda$submitAll$0(SlidingWindowSubmitter.java:143)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:128)
+	at com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:74)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask.run(TrustedListenableFutureTask.java:80)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Tests run: 23, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 11.69 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest
+[ERROR] io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.preCancelledInitialWindowTasksAreNotHandedToThePool -- Time elapsed: 0.003 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting AtomicInteger(3) to have value:
+  0
+but did not.
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.preCancelledInitialWindowTasksAreNotHandedToThePool(SlidingWindowSubmitterTest.java:390)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.preCancelledWindowElementDoesNotDisturbLiveSiblings -- Time elapsed: 0.001 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting AtomicInteger(2) to have value:
+  1
+but did not.
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest.preCancelledWindowElementDoesNotDisturbLiveSiblings(SlidingWindowSubmitterTest.java:420)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   SlidingWindowSubmitterTest.preCancelledInitialWindowTasksAreNotHandedToThePool:390 
+Expecting AtomicInteger(3) to have value:
+  0
+but did not.
+[ERROR]   SlidingWindowSubmitterTest.preCancelledWindowElementDoesNotDisturbLiveSiblings:420 
+Expecting AtomicInteger(2) to have value:
+  1
+but did not.
+[ERROR] Tests run: 23, Failures: 2, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-f792ac01a7aa1047-ciea8obl/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

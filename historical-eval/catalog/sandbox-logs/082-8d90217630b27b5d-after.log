@@ -1,0 +1,48 @@
+module=. rc=0
+t org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+Nov 08, 2026 9:22:10 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+java.io.IOException: assemble failed
+	at io.github.monadrome.parallelinscope.scope.TaskGroupCombineTest.lambda$combineFailureIsAttributedToTheCombineNotAMember$1(TaskGroupCombineTest.java:130)
+	at io.github.monadrome.parallelinscope.scope.TaskGroup.lambda$buildWhileOpen$0(TaskGroup.java:548)
+	at io.github.monadrome.parallelinscope.internal.ScopedCallable.call(ScopedCallable.java:122)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.internal.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:137)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+Nov 08, 2026 9:22:10 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.internal.SubmissionException: Task submission failed
+	at io.github.monadrome.parallelinscope.internal.ExecutionPhaseHintFuture.reject(ExecutionPhaseHintFuture.java:120)
+	at io.github.monadrome.parallelinscope.internal.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:107)
+	at io.github.monadrome.parallelinscope.internal.TaskSubmissions.submitScoped(TaskSubmissions.java:71)
+	at io.github.monadrome.parallelinscope.scope.TaskGroup$MemberState.submit(TaskGroup.java:604)
+	at io.github.monadrome.parallelinscope.scope.TaskGroup$MemberState.access$100(TaskGroup.java:576)
+	at io.github.monadrome.parallelinscope.scope.TaskGroup.submitTerminalOnce(TaskGroup.java:246)
+	at io.github.monadrome.parallelinscope.scope.TaskGroup.memberCompleted(TaskGroup.java:307)
+	at io.github.monadrome.parallelinscope.scope.TaskGroup.lambda$start$0(TaskGroup.java:160)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at io.github.monadrome.parallelinscope.internal.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:137)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: full
+	at io.github.monadrome.parallelinscope.scope.TaskGroupCombineTest$8.execute(TaskGroupCombineTest.java:186)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.internal.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:102)
+	... 14 more
+

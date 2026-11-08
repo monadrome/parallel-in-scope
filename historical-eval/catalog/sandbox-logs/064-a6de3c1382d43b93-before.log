@@ -1,0 +1,52 @@
+module=. rc=1
+utor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:09:39 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope logIssueQuietly
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=true, executorSelfLoop=false, taskEdges=[a[a] -> b[b] [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], b[b] -> a[a] [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]], executorEdges=[e2 -> e1 [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], e1 -> e2 [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]]
+Nov 08, 2026 9:09:39 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope logIssueQuietly
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=true, executorSelfLoop=false, taskEdges=[a[a] -> b[b] [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], b[b] -> a[a] [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]], executorEdges=[e2 -> e1 [{p=1, type=IO_BOUND, src=e2, exec=e1, count=1, timeout=PT0.01S}], e1 -> e2 [{p=1, type=IO_BOUND, src=e1, exec=e2, count=1, timeout=PT0.01S}]]
+[ERROR] Tests run: 9, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.205 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGraphObservationScopeTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGraphObservationScopeTest.crossThreadCloseHealsToTheOpenOuterScope -- Time elapsed: 0.009 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual:
+  null
+and:
+  io.github.monadrome.parallelinscope.TaskGraphObservationScope@3012646b
+to refer to the same object
+	at io.github.monadrome.parallelinscope.TaskGraphObservationScopeTest.crossThreadCloseHealsToTheOpenOuterScope(TaskGraphObservationScopeTest.java:143)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.TaskGraphObservationScopeTest.innerScopeClosedOnAnotherThreadLeavesTheOuterScopeRecording -- Time elapsed: 0.005 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: ISSUE
+ but was: NO_ISSUE
+	at io.github.monadrome.parallelinscope.TaskGraphObservationScopeTest.innerScopeClosedOnAnotherThreadLeavesTheOuterScopeRecording(TaskGraphObservationScopeTest.java:127)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   TaskGraphObservationScopeTest.crossThreadCloseHealsToTheOpenOuterScope:143 
+Expecting actual:
+  null
+and:
+  io.github.monadrome.parallelinscope.TaskGraphObservationScope@3012646b
+to refer to the same object
+[ERROR]   TaskGraphObservationScopeTest.innerScopeClosedOnAnotherThreadLeavesTheOuterScopeRecording:127 
+expected: ISSUE
+ but was: NO_ISSUE
+[ERROR] Tests run: 9, Failures: 2, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-a6de3c1382d43b93-a5ag7igq/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

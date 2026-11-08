@@ -1,0 +1,39 @@
+module=. rc=1
+cal-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[30,31] cannot find symbol
+  symbol:   method enqueueRefusalEffective()
+  location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[68,31] cannot find symbol
+  symbol:   method enqueueRefusalEffective()
+  location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[114,37] cannot find symbol
+  symbol:   method enqueueRefusalEffective()
+  location: variable singleRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[117,40] cannot find symbol
+  symbol:   method enqueueRefusalEffective()
+  location: variable decoratedRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[141,31] cannot find symbol
+  symbol:   method enqueueRefusalEffective()
+  location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[30,31] cannot find symbol
+[ERROR]   symbol:   method enqueueRefusalEffective()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[68,31] cannot find symbol
+[ERROR]   symbol:   method enqueueRefusalEffective()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[114,37] cannot find symbol
+[ERROR]   symbol:   method enqueueRefusalEffective()
+[ERROR]   location: variable singleRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[117,40] cannot find symbol
+[ERROR]   symbol:   method enqueueRefusalEffective()
+[ERROR]   location: variable decoratedRuntime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-9b52bb81f66c218d-xf7kva20/before/src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java:[141,31] cannot find symbol
+[ERROR]   symbol:   method enqueueRefusalEffective()
+[ERROR]   location: variable runtime of type io.github.monadrome.parallelinscope.ExecutorRuntime
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

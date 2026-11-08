@@ -1,0 +1,55 @@
+module=. rc=1
+CancelsTheCombineBeforeItRuns$0(ParMapAndCombineTest.java:127)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapAndCombineWhileOpen$1(Par.java:205)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:61)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:221)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.awaitCancellation(ParMapAndCombineTest.java:481)
+	... 8 more
+
+Nov 08, 2026 8:53:44 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'cpu' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+[ERROR] Tests run: 14, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.399 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.ParMapAndCombineTest
+[ERROR] io.github.monadrome.parallelinscope.ParMapAndCombineTest.combineEdgeIsRecordedInTheObservationGraph -- Time elapsed: 0.031 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting value to be false but was true
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.combineEdgeIsRecordedInTheObservationGraph(ParMapAndCombineTest.java:430)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.ParMapAndCombineTest.combineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop -- Time elapsed: 0.003 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: NO_ISSUE
+ but was: ISSUE
+	at io.github.monadrome.parallelinscope.ParMapAndCombineTest.combineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop(ParMapAndCombineTest.java:471)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   ParMapAndCombineTest.combineEdgeIsRecordedInTheObservationGraph:430 
+Expecting value to be false but was true
+[ERROR]   ParMapAndCombineTest.combineOnTheBatchsOwnPoolRecordsNoExecutorSelfLoop:471 
+expected: NO_ISSUE
+ but was: ISSUE
+[ERROR] Tests run: 29, Failures: 2, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-4266f11e628c0da1-tznhj_cl/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

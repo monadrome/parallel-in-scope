@@ -1,0 +1,20 @@
+module=. rc=0
+hysical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'worker' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'outer' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'inner' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'outer' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'inner' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'plain' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:21:11 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'plain-two' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.

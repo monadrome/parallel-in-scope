@@ -1,0 +1,42 @@
+module=. rc=1
+ymbol
+  symbol:   method saturatedNanos(java.time.Duration)
+  location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[110,29] cannot find symbol
+  symbol:   method saturatedNanos(java.time.Duration)
+  location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[82,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[83,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[84,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[85,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[92,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[93,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[100,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[108,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-923914ef3d9560cb-fpmi11at/before/src/test/java/io/github/monadrome/parallelinscope/DeadlinesTest.java:[110,29] cannot find symbol
+[ERROR]   symbol:   method saturatedNanos(java.time.Duration)
+[ERROR]   location: class io.github.monadrome.parallelinscope.Deadlines
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

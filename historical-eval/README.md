@@ -151,3 +151,15 @@ python3 historical-eval/tools/run-group-sandbox.py \
 ```
 
 每次运行使用独立临时目录，日志单独保存，不会写回源码工作区。
+
+## 全量 sandbox 结果
+
+本次按三 agent 难度排序对 103 组逐一运行了独立 before/after sandbox：
+
+```text
+verified:      88
+baseline-pass: 12
+fixed-fail:     3
+```
+
+只有 `verified` 适合进入后续 LLM 修复能力评测；`baseline-pass` 表示历史回归测试没有捕获父版本缺陷，`fixed-fail` 表示历史代表提交在其父版本上无法稳定构建或通过测试，二者需要人工复核。

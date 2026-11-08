@@ -1,0 +1,35 @@
+module=. rc=1
+talk.parallelinscope.scope.ParConfig.Builder
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[40,47] cannot find symbol
+[ERROR]   symbol:   method cancellationObserver(io.github.huatalk.parallelinscope.HeuristicPurgerTest.CountingThreadPoolExecutor)
+[ERROR]   location: class io.github.huatalk.parallelinscope.cancel.HeuristicPurger
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[54,47] cannot find symbol
+[ERROR]   symbol:   method cancellationObserver(io.github.huatalk.parallelinscope.HeuristicPurgerTest.CountingThreadPoolExecutor)
+[ERROR]   location: class io.github.huatalk.parallelinscope.cancel.HeuristicPurger
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[68,47] cannot find symbol
+[ERROR]   symbol:   method cancellationObserver(io.github.huatalk.parallelinscope.HeuristicPurgerTest.CountingThreadPoolExecutor)
+[ERROR]   location: class io.github.huatalk.parallelinscope.cancel.HeuristicPurger
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[85,47] cannot find symbol
+[ERROR]   symbol:   method cancellationObserver(io.github.huatalk.parallelinscope.HeuristicPurgerTest.CountingThreadPoolExecutor)
+[ERROR]   location: class io.github.huatalk.parallelinscope.cancel.HeuristicPurger
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[102,17] cannot find symbol
+[ERROR]   symbol:   method purgeQueuePressureThreshold(double)
+[ERROR]   location: class io.github.huatalk.parallelinscope.scope.ParConfig.Builder
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/HeuristicPurgerTest.java:[148,16] constructor HeuristicPurger in class io.github.huatalk.parallelinscope.cancel.HeuristicPurger cannot be applied to given types;
+[ERROR]   required: no arguments
+[ERROR]   found:    com.google.common.util.concurrent.AtomicDouble,com.google.common.util.concurrent.AtomicDouble
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/SmartBlockingQueueTest.java:[58,25] cannot find symbol
+[ERROR]   symbol:   method getCapacity()
+[ERROR]   location: variable queue of type io.github.huatalk.parallelinscope.queue.SmartBlockingQueue<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/SmartBlockingQueueTest.java:[62,25] cannot find symbol
+[ERROR]   symbol:   method getCapacity()
+[ERROR]   location: variable queue of type io.github.huatalk.parallelinscope.queue.SmartBlockingQueue<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-39f24f64069a65ea-psulhzg7/before/src/test/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionServiceTest.java:[29,56] cannot infer type arguments for io.github.huatalk.parallelinscope.internal.ListenableCompletionService<>
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

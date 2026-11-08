@@ -1,0 +1,35 @@
+module=. rc=1
+ds io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<V>>)
+  location: variable submitter of type io.github.monadrome.parallelinscope.SlidingWindowSubmitter<V>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:[541,28] cannot find symbol
+  symbol:   method claimSubmissionFailure(java.lang.InterruptedException)
+  location: variable rejected of type io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:[543,17] cannot find symbol
+  symbol:   method settleSubmissionFailure()
+  location: variable rejected of type io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:[564,28] cannot find symbol
+  symbol:   method claimSubmissionFailure(java.lang.IllegalStateException)
+  location: variable prepared of type io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<java.lang.String>
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java:[38,52] cannot find symbol
+[ERROR]   symbol:   method viewsFor(java.util.List<capture#1 of ? extends io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<V>>)
+[ERROR]   location: variable submitter of type io.github.monadrome.parallelinscope.SlidingWindowSubmitter<V>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java:[43,52] cannot find symbol
+[ERROR]   symbol:   method viewsFor(java.util.List<capture#2 of ? extends io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<V>>)
+[ERROR]   location: variable submitter of type io.github.monadrome.parallelinscope.SlidingWindowSubmitter<V>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:[541,28] cannot find symbol
+[ERROR]   symbol:   method claimSubmissionFailure(java.lang.InterruptedException)
+[ERROR]   location: variable rejected of type io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:[543,17] cannot find symbol
+[ERROR]   symbol:   method settleSubmissionFailure()
+[ERROR]   location: variable rejected of type io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<java.lang.String>
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8a81f53dd80b57ce-fv4el09u/before/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java:[564,28] cannot find symbol
+[ERROR]   symbol:   method claimSubmissionFailure(java.lang.IllegalStateException)
+[ERROR]   location: variable prepared of type io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture<java.lang.String>
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

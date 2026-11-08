@@ -1,0 +1,41 @@
+module=. rc=0
+n(Thread.java:1516)
+Caused by: java.lang.AssertionError: executor refuses the handoff
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest$2.execute(TaskGroupCombineTest.java:295)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:143)
+	... 14 more
+
+Nov 08, 2026 9:15:01 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:15:01 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'rejecting' is registered with io.github.monadrome.parallelinscope.TaskGroupCombineTest$1, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:15:01 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.SubmissionException: Task submission failed
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.reject(ExecutionPhaseHintFuture.java:168)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:148)
+	at io.github.monadrome.parallelinscope.TaskSubmissions.submitScoped(TaskSubmissions.java:68)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.submit(TaskGroup.java:772)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.access$200(TaskGroup.java:735)
+	at io.github.monadrome.parallelinscope.TaskGroup.submitTerminalOnce(TaskGroup.java:514)
+	at io.github.monadrome.parallelinscope.TaskGroup.memberCompleted(TaskGroup.java:553)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$start$0(TaskGroup.java:429)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:223)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: full
+	at io.github.monadrome.parallelinscope.TaskGroupCombineTest$1.execute(TaskGroupCombineTest.java:254)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:143)
+	... 14 more
+
+Nov 08, 2026 9:15:01 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:15:01 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.

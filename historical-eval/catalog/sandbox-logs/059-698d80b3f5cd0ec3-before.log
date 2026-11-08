@@ -1,0 +1,42 @@
+module=. rc=1
+util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:07:00 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'owner' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:07:00 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'owner' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+[ERROR] Tests run: 4, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.161 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.aForeignRuntimeNestedBatchCannotDecideThisScopesDeadlockVerdict -- Time elapsed: 0.125 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+[this topology's verdict must not be decided by another topology's edges] 
+Expecting value to be false but was true
+	at io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.aForeignRuntimeNestedBatchCannotDecideThisScopesDeadlockVerdict(TaskGraphScopeOwnershipTest.java:126)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.aForeignRuntimeBatchRecordsNoEdgeInTheOpenScope -- Time elapsed: 0.010 s <<< FAILURE!
+java.lang.AssertionError: 
+[a batch admitted by another ParRuntime must not reach this scope's graph] 
+Expecting empty but was: [<root -> unit-3>]
+	at io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.aForeignRuntimeBatchRecordsNoEdgeInTheOpenScope(TaskGraphScopeOwnershipTest.java:83)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   TaskGraphScopeOwnershipTest.aForeignRuntimeBatchRecordsNoEdgeInTheOpenScope:83 [a batch admitted by another ParRuntime must not reach this scope's graph] 
+Expecting empty but was: [<root -> unit-3>]
+[ERROR]   TaskGraphScopeOwnershipTest.aForeignRuntimeNestedBatchCannotDecideThisScopesDeadlockVerdict:126 [this topology's verdict must not be decided by another topology's edges] 
+Expecting value to be false but was true
+[ERROR] Tests run: 4, Failures: 2, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-698d80b3f5cd0ec3-13tv0z12/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,56 @@
+module=. rc=1
+e(HeuristicPurgerConcurrencyTest.java:244)
+	at io.github.huatalk.parallelinscope.cancel.HeuristicPurger$PoolState.runMaintenance(HeuristicPurger.java:254)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Tests run: 5, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 12.73 s <<< FAILURE! -- in io.github.huatalk.parallelinscope.cancel.HeuristicPurgerConcurrencyTest
+[ERROR] io.github.huatalk.parallelinscope.cancel.HeuristicPurgerConcurrencyTest.repeatedPurgeFailureStopsAfterOneRetry -- Time elapsed: 11.19 s <<< ERROR!
+org.awaitility.core.ConditionTimeoutException: 
+Assertion condition defined as a Lambda expression in io.github.huatalk.parallelinscope.cancel.HeuristicPurgerConcurrencyTest 
+Expecting AtomicInteger(175) to have value:
+  2
+but did not within 10 seconds.
+	at org.awaitility.core.ConditionAwaiter.await(ConditionAwaiter.java:167)
+	at org.awaitility.core.AssertionCondition.await(AssertionCondition.java:119)
+	at org.awaitility.core.AssertionCondition.await(AssertionCondition.java:31)
+	at org.awaitility.core.ConditionFactory.until(ConditionFactory.java:1160)
+	at org.awaitility.core.ConditionFactory.untilAsserted(ConditionFactory.java:790)
+	at io.github.huatalk.parallelinscope.cancel.HeuristicPurgerConcurrencyTest.repeatedPurgeFailureStopsAfterOneRetry(HeuristicPurgerConcurrencyTest.java:148)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+Caused by: java.lang.AssertionError: 
+Expecting AtomicInteger(175) to have value:
+  2
+but did not.
+	at io.github.huatalk.parallelinscope.cancel.HeuristicPurgerConcurrencyTest.lambda$repeatedPurgeFailureStopsAfterOneRetry$1(HeuristicPurgerConcurrencyTest.java:148)
+	at org.awaitility.core.AssertionCondition.lambda$new$0(AssertionCondition.java:53)
+	at org.awaitility.core.ConditionAwaiter$ConditionPoller.call(ConditionAwaiter.java:248)
+	at org.awaitility.core.ConditionAwaiter$ConditionPoller.call(ConditionAwaiter.java:235)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Errors: 
+[ERROR]   HeuristicPurgerConcurrencyTest.repeatedPurgeFailureStopsAfterOneRetry:148 » ConditionTimeout Assertion condition defined as a Lambda expression in io.github.huatalk.parallelinscope.cancel.HeuristicPurgerConcurrencyTest 
+Expecting AtomicInteger(175) to have value:
+  2
+but did not within 10 seconds.
+[ERROR] Tests run: 5, Failures: 0, Errors: 1, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-d182677347a6307c-2_9ktd2g/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

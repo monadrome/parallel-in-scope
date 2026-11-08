@@ -1,0 +1,56 @@
+module=. rc=1
+ Error
+java.lang.AssertionError: [the batch belongs to the scope its caller opened] 
+Expected size: 1 but was: 0 in:
+[]
+	at io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.lambda$aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork$0(TaskGraphScopeOwnershipTest.java:199)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:63)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:247)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Tests run: 6, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.126 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork -- Time elapsed: 0.005 s <<< ERROR!
+java.util.concurrent.ExecutionException: 
+java.lang.AssertionError: [the batch belongs to the scope its caller opened] 
+Expected size: 1 but was: 0 in:
+[]
+	at com.google.common.util.concurrent.AbstractFuture$Failure.newExecutionException(AbstractFuture.java:168)
+	at com.google.common.util.concurrent.AbstractFuture.getDoneValue(AbstractFuture.java:298)
+	at com.google.common.util.concurrent.AbstractFutureState.blockingGet(AbstractFutureState.java:158)
+	at com.google.common.util.concurrent.Platform.get(Platform.java:59)
+	at com.google.common.util.concurrent.AbstractFuture.get(AbstractFuture.java:248)
+	at com.google.common.util.concurrent.ForwardingFuture.get(ForwardingFuture.java:83)
+	at io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork(TaskGraphScopeOwnershipTest.java:206)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+Caused by: java.lang.AssertionError: [the batch belongs to the scope its caller opened] 
+Expected size: 1 but was: 0 in:
+[]
+	at io.github.monadrome.parallelinscope.TaskGraphScopeOwnershipTest.lambda$aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork$0(TaskGraphScopeOwnershipTest.java:199)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:63)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:247)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+
+[ERROR] Errors: 
+[ERROR]   TaskGraphScopeOwnershipTest.aNestedScopeOpenedInsideABodyRecordsThatBodysOwnWork:206 » Execution java.lang.AssertionError: [the batch belongs to the scope its caller opened] 
+Expected size: 1 but was: 0 in:
+[]
+[ERROR] Tests run: 6, Failures: 0, Errors: 1, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: 
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-85d3a5f8f664d0f0-tmkdy2dr/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

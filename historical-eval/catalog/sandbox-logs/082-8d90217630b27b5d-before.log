@@ -1,0 +1,39 @@
+module=. rc=1
+0217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[109,30] cannot find symbol
+  symbol:   method failedTaskName()
+  location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[138,30] cannot find symbol
+  symbol:   method failedTaskName()
+  location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[212,30] cannot find symbol
+  symbol:   method failedTaskName()
+  location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupTest.java:[176,30] cannot find symbol
+  symbol:   method failedTaskName()
+  location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/ScopedTaskContractTest.java:[100,34] cannot find symbol
+[ERROR]   symbol:   method failedTaskName()
+[ERROR]   location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[71,30] cannot find symbol
+[ERROR]   symbol:   method failedTaskName()
+[ERROR]   location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[109,30] cannot find symbol
+[ERROR]   symbol:   method failedTaskName()
+[ERROR]   location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[138,30] cannot find symbol
+[ERROR]   symbol:   method failedTaskName()
+[ERROR]   location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupCombineTest.java:[212,30] cannot find symbol
+[ERROR]   symbol:   method failedTaskName()
+[ERROR]   location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-8d90217630b27b5d-0448iyip/before/src/test/java/io/github/monadrome/parallelinscope/scope/TaskGroupTest.java:[176,30] cannot find symbol
+[ERROR]   symbol:   method failedTaskName()
+[ERROR]   location: variable result of type io.github.monadrome.parallelinscope.scope.TaskGroupResult
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

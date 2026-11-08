@@ -1,0 +1,18 @@
+module=. rc=0
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @402e37bc (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+Nov 08, 2026 8:54:38 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope runDeadlockDetection
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=true, executorSelfLoop=false, taskEdges=[task-a[a] -> task-b[b] [{p=1, type=CPU_BOUND, src=pool-a, exec=pool-b, count=1, timeout=PT0S}], task-b[b] -> task-a[a] [{p=1, type=CPU_BOUND, src=pool-b, exec=pool-a, count=1, timeout=PT0S}]], executorEdges=[pool-a -> pool-b [{p=1, type=CPU_BOUND, src=pool-a, exec=pool-b, count=1, timeout=PT0S}], pool-b -> pool-a [{p=1, type=CPU_BOUND, src=pool-b, exec=pool-a, count=1, timeout=PT0S}]]
+Nov 08, 2026 8:54:38 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'direct' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 8:54:38 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'outer' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 8:54:38 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'inner' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 8:54:38 AM io.github.monadrome.parallelinscope.TaskGraphObservationScope runDeadlockDetection
+WARNING: [[title=TaskGraph,function=deadlockDetection]]taskCycle=true, selfLoop=false, executorCycle=false, executorSelfLoop=false, taskEdges=[task-a[a] -> task-b[b] [{p=1, type=IO_BOUND, src=parent-exec, exec=child-exec, count=1, timeout=PT1S}], task-b[b] -> task-a[a] [{p=1, type=IO_BOUND, src=parent-exec, exec=child-exec, count=1, timeout=PT1S}]], executorEdges=[]

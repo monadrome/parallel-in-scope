@@ -1,0 +1,38 @@
+module=. rc=1
+/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[184,93] cannot find symbol
+[ERROR]   symbol:   variable SAMPLING_FAILED
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport.Status
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[185,39] cannot find symbol
+[ERROR]   symbol:   method failureMessage()
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[198,93] cannot find symbol
+[ERROR]   symbol:   variable SAMPLING_FAILED
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport.Status
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[209,39] cannot find symbol
+[ERROR]   symbol:   method failureMessage()
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[234,93] cannot find symbol
+[ERROR]   symbol:   variable SAMPLING_FAILED
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport.Status
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[235,39] cannot find symbol
+[ERROR]   symbol:   method failureMessage()
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[361,33] cannot find symbol
+[ERROR]   symbol:   method samplingInterval()
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[362,34] cannot find symbol
+[ERROR]   symbol:   method samplingInterval()
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[385,26] cannot find symbol
+[ERROR]   symbol:   method failureMessage()
+[ERROR]   location: variable report of type io.github.monadrome.parallelinscope.ThreadPoolStarvationReport
+[ERROR] /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-2ca1eed60dfa8a20-bynonhc9/before/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java:[403,93] cannot find symbol
+[ERROR]   symbol:   variable SAMPLING_FAILED
+[ERROR]   location: class io.github.monadrome.parallelinscope.ThreadPoolStarvationReport.Status
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

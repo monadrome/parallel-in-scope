@@ -1,0 +1,29 @@
+module=. rc=0
+.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:38)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+Caused by: java.lang.InterruptedException: remaining task submission cancelled
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.lambda$submitAll$2(SlidingWindowSubmitter.java:149)
+	... 82 more
+
+Nov 08, 2026 9:06:46 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:06:46 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'worker' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:06:46 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:06:46 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'worker' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:06:46 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+Nov 08, 2026 9:06:46 AM io.github.monadrome.parallelinscope.Par warnIfRejectEnqueueInert
+WARNING: Par 'worker' requested rejectEnqueue, but its executor java.util.concurrent.Executors$AutoShutdownDelegatedExecutorService does not use a SmartBlockingQueue, so the option is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.

@@ -1,0 +1,50 @@
+module=. rc=1
+rm.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:126)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:66)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:334)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:304)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:251)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:409)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:190)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:547)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:535)
+"
+[ERROR]   WorkloadFitScreeningTest.anErrorFromTheClosingReadKeepsTheBodysOwnFailure:337 
+Expecting actual:
+  java.lang.AssertionError: clock failure standing in for a VM error
+	at io.github.monadrome.parallelinscope.WorkloadFitScreeningTest.lambda$anErrorFromTheClosingReadKeepsTheBodysOwnFailure$1(WorkloadFitScreeningTest.java:328)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:416)
+	at io.github.monadrome.parallelinscope.ScopedCallable.callTimed(ScopedCallable.java:93)
+	...(6 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+and:
+  java.lang.IllegalStateException: the body's own failure
+	at io.github.monadrome.parallelinscope.WorkloadFitScreeningTest.anErrorFromTheClosingReadKeepsTheBodysOwnFailure(WorkloadFitScreeningTest.java:321)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	...(79 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+to refer to the same object
+[ERROR]   WorkloadFitScreeningTest.anErrorFromTheClosingReadNeverChangesTheResultOrSkipsCleanup:307 
+expected: SUCCESS
+ but was: USER_FAILURE
+[ERROR]   WorkloadFitScreeningTest.anErrorFromTheOpeningReadStillRunsTheBody:344 clock failure standing in for a VM error
+[ERROR] Tests run: 40, Failures: 5, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.6.1:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-c2423c1b1700f05b-_9weod6h/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

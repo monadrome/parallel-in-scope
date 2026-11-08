@@ -1,0 +1,27 @@
+module=. rc=1
+ER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=TIMEOUT, group=MEMBER_CANCELLED, first=FAIL_FAST, second=TIMEOUT, group=MEMBER_CANCELLED, first=TIMEOUT, second=FAIL_FAST]
+[ERROR]   TaskGroupTest.inheritingMemberTimeoutEscalatesToTheGroupToken:866 
+expected: TIMEOUT
+ but was: RUNNING
+[ERROR]   TaskGroupTest.memberTimeoutExceptionIsUserFailureWhileSiblingRuns:273 
+expected: USER_FAILURE
+ but was: TIMEOUT
+[ERROR] Errors: 
+[ERROR]   CancellationTokenTest.testBind_userTimeoutExceptionWithLiveDeadlineIsFailFast:216 » ConditionTimeout Assertion condition defined as a Lambda expression in io.github.monadrome.parallelinscope.CancellationTokenTest 
+expected: FAIL_FAST
+ but was: TIMEOUT within 10 seconds.
+[ERROR]   CancellationTokenTest.testBind_userTimeoutExceptionWithoutDeadlineIsFailFast:232 » ConditionTimeout Assertion condition defined as a Lambda expression in io.github.monadrome.parallelinscope.CancellationTokenTest 
+expected: FAIL_FAST
+ but was: TIMEOUT within 10 seconds.
+[ERROR] Tests run: 102, Failures: 6, Errors: 2, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-6f91f009378cd14b-ib9_q6ae/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,49 @@
+module=. rc=1
+ was: MEMBER_CANCELLED
+[ERROR]   ParMapValidationTest.nullMapperIsRejectedForNonemptyEmptyAndNullInputs:32 
+Expecting code to raise a throwable.
+[ERROR]   ParMapValidationTest.nullMapperIsRejectedForNonemptyEmptyAndNullInputs:32 
+Expecting code to raise a throwable.
+[ERROR]   ParMapValidationTest.nullMapperIsRejectedForNonemptyEmptyAndNullInputs:32 
+Expecting code to raise a throwable.
+[ERROR]   TaskGraphReportFutureTest.detectionErrorRemainsPrimaryWhenPublicationListenerAlsoThrowsError:212 
+Expecting actual:
+  java.lang.AssertionError: publication error
+	at io.github.monadrome.parallelinscope.TaskGraphReportFutureTest.detectionErrorRemainsPrimaryWhenPublicationListenerAlsoThrowsError(TaskGraphReportFutureTest.java:204)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	...(74 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+and:
+  java.lang.AssertionError: detection error
+	at io.github.monadrome.parallelinscope.TaskGraphReportFutureTest.detectionErrorRemainsPrimaryWhenPublicationListenerAlsoThrowsError(TaskGraphReportFutureTest.java:203)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	...(74 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+to refer to the same object
+[ERROR]   TaskGraphReportFutureTest.listenerErrorDoesNotSkipIssueDiagnosticAfterPublication:190 
+Expecting AtomicInteger(0) to have value:
+  1
+but did not.
+[ERROR] Errors: 
+[ERROR]   FutureInspectorTest.interruptedFutureInspectionReturnsTheOriginalFailure:52 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:51 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:51 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:61 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:61 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:77 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:77 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:88 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedCallerReceivesFrozenBusinessFailure:88 » IllegalState interrupted while inspecting future
+[ERROR]   InterruptedResultFreezingTest.interruptedTaskQueriesPreserveSuccessFailureAndCancellation:128 » IllegalState interrupted while inspecting future
+[ERROR] Tests run: 72, Failures: 7, Errors: 10, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-ca18abd37ac16277-kt8pr55q/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

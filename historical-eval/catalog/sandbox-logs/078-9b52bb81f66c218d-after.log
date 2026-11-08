@@ -1,0 +1,12 @@
+module=. rc=0
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @13c10b87 (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+Nov 08, 2026 9:20:21 AM io.github.monadrome.parallelinscope.Par warnIfEnqueueRefusalInert
+WARNING: Par 'plain' requested TaskType.CPU_BOUND, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so enqueue refusal is inert there for both rejectEnqueue and TaskType.CPU_BOUND: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.
+Nov 08, 2026 9:20:21 AM io.github.monadrome.parallelinscope.Par warnIfEnqueueRefusalInert
+WARNING: Par 'plain' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SmartBlockingQueue, so enqueue refusal is inert there for both rejectEnqueue and TaskType.CPU_BOUND: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SmartBlockingQueue to make the option effective.

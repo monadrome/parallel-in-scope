@@ -1,0 +1,44 @@
+module=. rc=0
+drome.parallelinscope.TaskGroup$MemberState.access$200(TaskGroup.java:1078)
+	at io.github.monadrome.parallelinscope.TaskGroup.submitTerminalOnce(TaskGroup.java:771)
+	at io.github.monadrome.parallelinscope.TaskGroup.memberCompleted(TaskGroup.java:810)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$start$0(TaskGroup.java:698)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:338)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: task 'sum' was run on the submitting thread by its executor's RejectedExecutionHandler, but its contract permits only a worker of its target Par; the pool was saturated at submission
+	... 20 more
+
+Nov 08, 2026 8:58:12 AM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.SubmissionException: Task submission failed
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:334)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy.rejectedExecution(ThreadPoolExecutor.java:2004)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.reject(ThreadPoolExecutor.java:787)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.execute(ThreadPoolExecutor.java:1328)
+	at com.google.common.util.concurrent.MoreExecutors$ListeningDecorator.execute(MoreExecutors.java:536)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.submitPrepared(ExecutionPhaseHintFuture.java:208)
+	at io.github.monadrome.parallelinscope.TaskSubmissions.submitScoped(TaskSubmissions.java:66)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.submit(TaskGroup.java:1120)
+	at io.github.monadrome.parallelinscope.TaskGroup$MemberState.access$200(TaskGroup.java:1078)
+	at io.github.monadrome.parallelinscope.TaskGroup.submitTerminalOnce(TaskGroup.java:771)
+	at io.github.monadrome.parallelinscope.TaskGroup.memberCompleted(TaskGroup.java:810)
+	at io.github.monadrome.parallelinscope.TaskGroup.lambda$start$0(TaskGroup.java:698)
+	at com.google.common.util.concurrent.DirectExecutor.execute(DirectExecutor.java:30)
+	at com.google.common.util.concurrent.AbstractFuture.executeListener(AbstractFuture.java:1021)
+	at com.google.common.util.concurrent.AbstractFuture.complete(AbstractFuture.java:784)
+	at com.google.common.util.concurrent.AbstractFuture.set(AbstractFuture.java:508)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:338)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.util.concurrent.RejectedExecutionException: task 'sum' was run on the submitting thread by its executor's RejectedExecutionHandler, but its contract permits only a worker of its target Par; the pool was saturated at submission
+	... 20 more
+
+Nov 08, 2026 8:58:12 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'direct' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.

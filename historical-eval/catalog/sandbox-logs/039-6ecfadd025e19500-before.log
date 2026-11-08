@@ -1,0 +1,50 @@
+module=. rc=1
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+WARNING: Final field _cipher in class org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher has been mutated reflectively by class org.eclipse.sisu.bean.BeanPropertyField in unnamed module @f8c1ddd (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/org.eclipse.sisu.inject-0.9.0.M4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+Nov 08, 2026 8:58:25 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'direct' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: queue purge and blocking-risk detection are disabled for it. Register the physical ThreadPoolExecutor instead of a decorated wrapper to keep them.
+[ERROR] Tests run: 5, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.144 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.TaskGroupCombineInlineGuardTest
+[ERROR] io.github.monadrome.parallelinscope.TaskGroupCombineInlineGuardTest.combineFailsAsSubmissionFailureWhenItsPoolWouldRunItOnTheConvergenceThread -- Time elapsed: 0.013 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: SUBMISSION_FAILURE
+ but was: SUCCESS
+	at io.github.monadrome.parallelinscope.TaskGroupCombineInlineGuardTest.combineFailsAsSubmissionFailureWhenItsPoolWouldRunItOnTheConvergenceThread(TaskGroupCombineInlineGuardTest.java:100)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] io.github.monadrome.parallelinscope.TaskGroupCombineInlineGuardTest.aRefusedCombineStillReleasesItsBodyCompletionSlot -- Time elapsed: 0.003 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: SUBMISSION_FAILURE
+ but was: SUCCESS
+	at io.github.monadrome.parallelinscope.TaskGroupCombineInlineGuardTest.aRefusedCombineStillReleasesItsBodyCompletionSlot(TaskGroupCombineInlineGuardTest.java:151)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+
+[ERROR] Failures: 
+[ERROR]   TaskGroupCombineInlineGuardTest.aRefusedCombineStillReleasesItsBodyCompletionSlot:151 
+expected: SUBMISSION_FAILURE
+ but was: SUCCESS
+[ERROR]   TaskGroupCombineInlineGuardTest.combineFailsAsSubmissionFailureWhenItsPoolWouldRunItOnTheConvergenceThread:100 
+expected: SUBMISSION_FAILURE
+ but was: SUCCESS
+[ERROR] Tests run: 5, Failures: 2, Errors: 0, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.5:test (default-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/historical-6ecfadd025e19500-6q808f98/before/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

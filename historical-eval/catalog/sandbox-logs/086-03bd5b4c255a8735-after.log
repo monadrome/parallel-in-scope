@@ -1,0 +1,42 @@
+module=. rc=0
+core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+Nov 08, 2026 9:24:34 AM io.github.monadrome.parallelinscope.ParRuntime <init>
+WARNING: Par 'worker' is registered with com.google.common.util.concurrent.DirectExecutorService, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 08, 2026 9:24:36 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inline-verdict' failed after cancellation
+java.lang.IllegalStateException: java.lang.InterruptedException
+	at io.github.monadrome.parallelinscope.InlineSubmissionLivenessTest.lambda$aCallerFreedByTheDeadlineCanStillReadTheBatchVerdict$1(InlineSubmissionLivenessTest.java:125)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:224)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:63)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:221)
+	at com.google.common.util.concurrent.DirectExecutorService.execute(DirectExecutorService.java:50)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.submit(SlidingWindowSubmitter.java:197)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.fallbackSubmit(SlidingWindowSubmitter.java:178)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.access$100(SlidingWindowSubmitter.java:37)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter$RefillDriver.handoff(SlidingWindowSubmitter.java:323)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter$RefillDriver.drain(SlidingWindowSubmitter.java:286)
+	at io.github.monadrome.parallelinscope.SlidingWindowSubmitter.submitAll(SlidingWindowSubmitter.java:116)
+	at io.github.monadrome.parallelinscope.Par.executeGlobal(Par.java:287)
+	at io.github.monadrome.parallelinscope.Par.mapWhileOpen(Par.java:222)
+	at io.github.monadrome.parallelinscope.Par.lambda$submitBatch$0(Par.java:130)
+	at io.github.monadrome.parallelinscope.ParRuntime.whileOpen(ParRuntime.java:405)
+	at io.github.monadrome.parallelinscope.Par.submitBatch(Par.java:130)
+	at io.github.monadrome.parallelinscope.InlineSubmissionLivenessTest.lambda$aCallerFreedByTheDeadlineCanStillReadTheBatchVerdict$0(InlineSubmissionLivenessTest.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:1516)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireSharedInterruptibly(AbstractQueuedSynchronizer.java:1140)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:230)
+	at io.github.monadrome.parallelinscope.InlineSubmissionLivenessTest.lambda$aCallerFreedByTheDeadlineCanStillReadTheBatchVerdict$1(InlineSubmissionLivenessTest.java:122)
+	... 18 more
+
