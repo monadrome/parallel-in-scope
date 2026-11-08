@@ -11,7 +11,8 @@
 > 最新稳定版：`0.4.1`。本版本新增类型化任务 key、请求级取消、在途 future 收养和运行时诊断。
 > 从 `0.3.x` 升级请先阅读 [v0.4 迁移指南](docs/zh/migration-v0.4.md)。
 
-面向 Java 8+ 的结构化并发工具包，提供协作式取消、快速失败、上下文传播、滑动窗口调度和线程池死锁与饥饿诊断。
+`parallel-in-scope` 不另起炉灶：它建立在应用已有的线程池和异步任务之上，帮助你以更清晰、更安全的方式管理任务生命周期。
+它提供结构化任务组、协作式取消、快速失败、上下文传播、有界调度，以及线程池死锁与饥饿诊断。
 
 ## 环境要求
 
@@ -117,13 +118,17 @@ Profile value = profile.terminalValueOrThrow();
 
 ## 核心能力
 
-- 批次内快速失败取消
-- 超时、显式取消与父子级联取消传播
+- 面向同构输入的批量并发执行：`Par.map(...)`
+- 面向异构任务、依赖关系和最终聚合的结构化任务组
+- 批次或任务组内的快速失败取消
+- 显式取消、deadline、请求信号以及父子任务取消传播
 - 有界并发的滑动窗口提交
 - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
-- 显式选择的入队拒绝（`rejectEnqueue` 配合 `SubmissionAwareBlockingQueue`）与负载匹配诊断（`TaskType` 发现进了计算池的阻塞任务，从不改变执行）
-- 终态任务观测：`completions()` / 组 `members()` 与 `terminal()`
+- 冻结后的任务观测：`completions()`、组 `members()` 与 `terminal()` 结果
+- 线程池等待图、死锁、饥饿和负载匹配诊断
+- 可选的入队拒绝：`rejectEnqueue` 配合 `SubmissionAwareBlockingQueue`
 - 任务图与执行器图的环路检测
+- 队列扩展：`DrainingBlockingQueue` 与 `ResizableBlockingQueue`
 
 ## 文档
 
