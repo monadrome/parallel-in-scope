@@ -6,7 +6,8 @@ import com.alibaba.ttl.TransmittableThreadLocal.Transmitter;
 import java.util.concurrent.Executor;
 
 /**
- * Executors that preserve a selected TTL context while retaining direct execution.
+ * Executors that preserve a selected Alibaba TransmittableThreadLocal (TTL) context while retaining
+ * direct execution.
  *
  * <p>{@link #directContextExecutor()} captures the TTL context at each {@link Executor#execute(Runnable)} call.
  * Each command then runs synchronously on the calling thread, with that call's context installed for

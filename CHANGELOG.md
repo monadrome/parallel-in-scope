@@ -8,7 +8,8 @@
 
 ### Breaking changes
 
-- Change `ContextExecutors.directContextExecutor()` to capture TTL context at each `execute` call so the
+- Change `ContextExecutors.directContextExecutor()` to capture Alibaba TransmittableThreadLocal (TTL)
+  context at each `execute` call so the
   default direct executor follows the calling context when reused. Replace the former creation-time
   behavior with `ContextExecutors.registrationContextExecutor()` when a Future listener or callback
   must retain its registration context. `lazyDirectExecutor()` is removed; use `directContextExecutor()` for
