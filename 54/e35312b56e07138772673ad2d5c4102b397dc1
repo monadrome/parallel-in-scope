@@ -1,0 +1,19 @@
+ledger/2026-11-08-logging-backend-boundary.json
+  s_19d21991c0d311::t_ec05ddb285b194 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "54e35312b56e07138772673ad2d5c4102b397dc1",
+  "prompts": {},
+  "sessions": {
+    "s_19d21991c0d311": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bab0-8e22-7ce1-a135-bcc943c2681a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
