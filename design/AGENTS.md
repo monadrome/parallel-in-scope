@@ -111,6 +111,7 @@
 
 - [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)：`TaskType` 作为负载匹配诊断声明；运行时筛查窗口部分由 ADR 0010 取代。
 - [ADR 0010](../adr/0010-always-on-workload-fit-screening.md)：runtime 级常开、按条目判定的负载匹配筛查。
+- [ADR 0013](../adr/0013-logging-backend-boundary.md)：核心日志保持 JUL，应用负责通过配置或 bridge 接入其他日志后端；日志仍是 best effort，可靠诊断由报告 API 承担。
 
 ### 取消与队列
 
