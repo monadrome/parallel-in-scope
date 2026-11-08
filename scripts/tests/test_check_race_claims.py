@@ -182,6 +182,13 @@ class RegistryTest(unittest.TestCase):
             if claim["method"] == "code-proof":
                 self.assertTrue(claim.get("proof"), claim["id"])
 
+    def test_mutation_sources_exist(self):
+        data = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        root = REGISTRY.parents[2]
+        for claim in data["claims"]:
+            if claim["method"] == "mutation":
+                self.assertTrue((root / claim["file"]).is_file(), claim["id"])
+
     def test_code_proof_is_reasoning(self):
         entry = race.run_claim(
             {"id": "reasoning", "method": "code-proof", "proof": "a concrete interleaving"}, 1
