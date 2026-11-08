@@ -133,3 +133,21 @@ python3 historical-eval/tools/report-groups.py \
 ```
 
 报告中的 `gold` 只有已经人工整理并通过隐藏测试的样本；`needs-curation` 需要继续确认根因、最小上下文、隐藏测试和复现稳定性。
+
+## 每组历史 sandbox 验证
+
+`tools/run-group-sandbox.py` 对排序清单中的每个 group 独立创建临时目录：
+
+1. 从代表修复的父提交恢复 buggy 工程；
+2. 注入代表修复提交中的回归测试；
+3. 运行 buggy baseline；
+4. 从修复提交恢复 fixed 工程并运行同一批测试；
+5. 记录 `verified`、`baseline-pass`、`fixed-fail`、`no-test-files` 或 `sandbox-error`。
+
+```bash
+python3 historical-eval/tools/run-group-sandbox.py \
+  historical-eval/catalog/fix-groups-vote-ranking.jsonl \
+  -o historical-eval/catalog/sandbox-results.jsonl
+```
+
+每次运行使用独立临时目录，日志单独保存，不会写回源码工作区。
