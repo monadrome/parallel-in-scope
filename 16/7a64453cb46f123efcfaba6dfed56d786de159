@@ -1,0 +1,9 @@
+historical-eval/README.md
+  ai_agent 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "167a64453cb46f123efcfaba6dfed56d786de159",
+  "prompts": {}
+}
