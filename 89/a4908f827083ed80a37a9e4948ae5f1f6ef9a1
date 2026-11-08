@@ -1,0 +1,29 @@
+historical-eval/tools/aggregate-votes.py
+  s_490d18c85ab19e::t_39e9fb49661b7b 1-76
+historical-eval/catalog/fix-groups-vote-ranking.jsonl
+  s_490d18c85ab19e::t_39e9fb49661b7b 1-103
+historical-eval/catalog/votes/complexity.jsonl
+  s_490d18c85ab19e::t_96d7fcc4514e09 1-103
+historical-eval/catalog/votes/impact.jsonl
+  s_490d18c85ab19e::t_96d7fcc4514e09 1-103
+historical-eval/catalog/votes/testability.jsonl
+  s_490d18c85ab19e::t_96d7fcc4514e09 1-103
+historical-eval/catalog/fix-groups-vote-ranking.md
+  s_490d18c85ab19e::t_39e9fb49661b7b 1-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "89a4908f827083ed80a37a9e4948ae5f1f6ef9a1",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
