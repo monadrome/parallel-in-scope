@@ -1,0 +1,27 @@
+verification/java-conventions.md
+  s_e2c8cce2466ed4::t_127605f00d942f 13-14
+docs/en/user-guide.md
+  s_e2c8cce2466ed4::t_0015b4ea95222d 763-773
+AGENTS.md
+  s_e2c8cce2466ed4::t_127605f00d942f 173
+docs/zh/user-guide.md
+  s_e2c8cce2466ed4::t_0015b4ea95222d 657-667
+verification/pit.md
+  s_e2c8cce2466ed4::t_127605f00d942f 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d5a01531f63cd1c3ac3c78d5365b37ad77853363",
+  "prompts": {},
+  "sessions": {
+    "s_e2c8cce2466ed4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b925-0237-76a0-b6c1-3a2e7acb4886",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
