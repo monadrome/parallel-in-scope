@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -33,6 +34,17 @@ def main() -> None:
     forbidden = [name for name in names if "oracle" in name or "hidden" in name or "fixed.patch" in name]
     if forbidden:
         raise SystemExit(f"prompt export leaked evaluator files: {forbidden}")
+    leaked_tokens = []
+    with zipfile.ZipFile(args.output) as archive:
+        for name in names:
+            text = archive.read(name).decode("utf-8")
+            if re.search(r"\b[0-9a-f]{40}\b", text, re.IGNORECASE):
+                leaked_tokens.append(f"commit hash in {name}")
+            for token in ("oracle/", "hidden-tests", ".git/"):
+                if token in text:
+                    leaked_tokens.append(f"{token} in {name}")
+    if leaked_tokens:
+        raise SystemExit(f"prompt export leaked evaluator metadata: {leaked_tokens}")
     print(json.dumps({"sample": manifest["id"], "files": sorted(names), "output": str(args.output)}))
 
 
