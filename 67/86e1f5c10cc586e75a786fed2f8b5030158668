@@ -1,0 +1,30 @@
+historical-eval/samples/BUG-0003/prompt/task.md
+  s_490d18c85ab19e::t_64a739ab514fdd 1-8
+historical-eval/samples/BUG-0003/oracle/hidden-tests/io/github/monadrome/parallelinscope/FutureInspectorGoldenTest.java
+  s_490d18c85ab19e::t_64a739ab514fdd 1-27
+historical-eval/samples/BUG-0003/oracle/fixed.patch
+  ai_agent 7
+  s_490d18c85ab19e::t_64a739ab514fdd 1-6,8-40
+historical-eval/samples/BUG-0003/prompt/src/main/java/io/github/monadrome/parallelinscope/FutureInspector.java
+  s_490d18c85ab19e::t_64a739ab514fdd 1-41
+historical-eval/samples/BUG-0003/manifest.json
+  s_490d18c85ab19e::t_64a739ab514fdd 1-12
+historical-eval/README.md
+  s_490d18c85ab19e::t_79d8c486113b35 62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6786e1f5c10cc586e75a786fed2f8b5030158668",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
