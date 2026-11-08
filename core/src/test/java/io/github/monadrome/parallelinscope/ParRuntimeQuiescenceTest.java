@@ -39,7 +39,7 @@ class ParRuntimeQuiescenceTest {
         ThreadPoolExecutor executor = buffering();
         runtime = ParRuntime.builder().register(ParId.of("io"), executor).build();
         CountDownLatch release = new CountDownLatch(1);
-        AtomicReference<TaskGroupResult<Integer, Void>> result = new AtomicReference<>();
+        AtomicReference<TaskGroupResult<Void>> result = new AtomicReference<>();
 
         Thread runner = new Thread(() -> {
             result.set(runtime.group("drain-group", TIMEOUT)

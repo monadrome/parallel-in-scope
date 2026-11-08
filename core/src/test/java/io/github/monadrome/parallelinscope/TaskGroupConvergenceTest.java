@@ -61,8 +61,7 @@ class TaskGroupConvergenceTest {
             for (int round = 0; round < ROUNDS; round++) {
                 CountDownLatch ready = new CountDownLatch(MEMBERS);
                 CountDownLatch fire = new CountDownLatch(1);
-                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
-                                "first-failure-" + round, TIMEOUT)
+                TaskGroup<Void> group = global.groupDraft("first-failure-" + round, TIMEOUT)
                         .par(
                                 TaskKey.<Integer>named("m0"),
                                 global.par(ParId.of("worker")),
@@ -108,8 +107,7 @@ class TaskGroupConvergenceTest {
             for (int round = 0; round < ROUNDS; round++) {
                 CountDownLatch started = new CountDownLatch(MEMBERS);
                 CountDownLatch release = new CountDownLatch(1);
-                TaskGroup<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Integer>, Void> group = global.groupDraft(
-                                "visibility-" + round, TIMEOUT)
+                TaskGroup<Void> group = global.groupDraft("visibility-" + round, TIMEOUT)
                         .par(
                                 TaskKey.<Integer>named("m0"),
                                 global.par(ParId.of("worker")),
@@ -160,7 +158,7 @@ class TaskGroupConvergenceTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch hold = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<Integer, Integer>, Void> group = global.groupDraft("callback-error", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("callback-error", TIMEOUT)
                     .par(KEY_CANCELLED_INTEGER, global.par(ParId.of("worker")), () -> {
                         hold.await();
                         return 1;

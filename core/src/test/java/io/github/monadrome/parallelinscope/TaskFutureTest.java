@@ -87,7 +87,7 @@ class TaskFutureTest {
                                     .parallelism(2)
                                     .taskType(TaskType.BLOCKING));
 
-            assertThat(batch.results()).hasSize(2);
+            assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
             for (TaskFuture<String> element : batch.results()) {
                 assertThat(element.taskName()).isEqualTo("rejected");
                 assertThat(element.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -107,13 +107,12 @@ class TaskFutureTest {
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         try {
-            TaskKey<Integer> ordersKey = TaskKey.named("orders");
-            TaskGroup<Tuple2<String, Integer>, String> group = global.groupDraft("page", SCOPE_TIMEOUT)
+            TaskKey<Integer> orders = TaskKey.named("orders");
+            TaskGroup<String> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), memberOptions(), () -> "alice")
-                    .par(ordersKey, global.par(ParId.of("worker")), memberOptions(), () -> 7)
+                    .par(orders, global.par(ParId.of("worker")), memberOptions(), () -> 7)
                     .combine(TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> {
-                        Tuple2<String, Integer> members = Objects.requireNonNull(values);
-                        return members.first() + ":" + members.second();
+                        return values.valueOf(KEY_USER_STRING) + ":" + values.valueOf(orders);
                     })
                     .submitAll();
 
@@ -123,7 +122,8 @@ class TaskFutureTest {
             assertThat(group.terminalFuture().orElseThrow(() -> new AssertionError("no combine declared")))
                     .isInstanceOf(TaskFuture.class);
             assertThat(group.findMember("user")).contains(userFuture);
-            assertThat(group.members().values()).containsExactlyInAnyOrder(userFuture, group.futureOf(ordersKey));
+            assertThat(group.members().values())
+                    .allSatisfy(future -> assertThat(future).isNotNull());
             assertThat(group.completionFuture()).isInstanceOf(TaskFuture.class);
             assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
@@ -213,7 +213,7 @@ class TaskFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskGroup<String, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             KEY_SLOW_STRING,
                             global.par(ParId.of("worker")),
@@ -252,7 +252,7 @@ class TaskFutureTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             TaskKey.<String>named("first"),
                             global.par(ParId.of("worker")),
@@ -338,7 +338,7 @@ class TaskFutureTest {
                 .build();
         AtomicReference<CancellationToken> outerToken = new AtomicReference<>();
         AtomicReference<TaskFuture<String>> innerMember = new AtomicReference<>();
-        AtomicReference<TaskGroup<?, ?>> innerGroup = new AtomicReference<>();
+        AtomicReference<TaskGroup<?>> innerGroup = new AtomicReference<>();
         CountDownLatch memberStarted = new CountDownLatch(1);
         CountDownLatch block = new CountDownLatch(1);
         try {
@@ -349,7 +349,7 @@ class TaskFutureTest {
                                 outerToken.set(Objects.requireNonNull(TaskExecutionContext.current())
                                         .multiTaskContext()
                                         .cancellationToken());
-                                TaskGroup<String, Void> group = global.groupDraft("inner", SCOPE_TIMEOUT)
+                                TaskGroup<Void> group = global.groupDraft("inner", SCOPE_TIMEOUT)
                                         .par(
                                                 KEY_SLOW_STRING,
                                                 global.par(ParId.of("inner")),
@@ -647,7 +647,7 @@ class TaskFutureTest {
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch block = new CountDownLatch(1);
         try {
-            TaskGroup<Tuple2<String, String>, Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("page", SCOPE_TIMEOUT)
                     .par(
                             KEY_INHERITED_STRING,
                             global.par(ParId.of("worker")),

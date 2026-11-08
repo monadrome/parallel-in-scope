@@ -45,15 +45,17 @@ List<Price> loadPrices(List<String> skus) throws ExecutionException {
 组改前：
 
 ```java
-try (TaskGroup<Tuple2<User, Account>, Profile> group = runtime
+TaskKey<User> user = TaskKey.named("user");
+TaskKey<Account> account = TaskKey.named("account");
+TaskKey<Profile> profile = TaskKey.named("profile");
+return runtime
         .group("profile", Duration.ofSeconds(3))
-        .par("user", dbPar, User.class, () -> loadUser(id))
-        .par("account", httpPar, Account.class, () -> loadAccount(id))
-        .combine("profile", httpPar, Profile.class,
-                values -> buildProfile(values.first(), values.second()))
-        .submitAll()) {
-    return group.terminalFuture().get().get();
-}
+        .par(user, dbPar, () -> loadUser(id))
+        .par(account, httpPar, () -> loadAccount(id))
+        .combine(profile, httpPar,
+                values -> buildProfile(values.valueOf(user), values.valueOf(account)))
+        .runAll()
+        .terminalValueOrThrow();
 ```
 
 组改后：
@@ -98,11 +100,11 @@ par.map(ids, this::fetch,
 | API | 语义 |
 |---|---|
 | Par.map | 同步 TaskBatchResult<T> |
-| 各 group stage.runAll | 同步 TaskGroupResult<V,R>，保持一次性、创建线程、阶段 guard |
+| 各 group stage.runAll | 同步 TaskGroupResult<R>，保持一次性、创建线程、阶段 guard |
 | Batch.results | 输入顺序 List<ImmediateResult<T>> |
 | Group.results / resultOf / resultAt | 名称/位置未类型化终态容器 |
 | Group.resultOf(TaskKey) | 按原声明 key 的对象身份即时读取成员或终端容器，规则见组声明契约 §4.1 |
-| Group.valuesResult | ImmediateResult<GroupValues<V>>；combine 失败也使聚合失败 |
+| Group.valuesResult | ImmediateResult<GroupValues>；combine 失败也使聚合失败 |
 | Group.terminalResult | @Nullable ImmediateResult<R>，null 仅表示无 combine |
 | valuesOrThrow / terminalValueOrThrow / orThrow | 即时读取，不等待，不消费标志 |
 | executionExitConfirmed / unexitedExecutions | 返回时直接执行退出状态，浅不可变、不轮询 |
@@ -135,7 +137,8 @@ checked 时包成 `CompletionException`（消息含作用域名与任务定位�
 区分要读 `outcome()`。单任务容器 `ImmediateResult.valueOrThrow()` 不是聚合读取，保持受检：作用域级 join
 非受检、单任务 Either 受检，与 JDK 25 `StructuredTaskScope.join()` 和 `Future.get()` 的分工一致。
 结果函数不重跑执行。
-类型化读取使用原 TaskKey；不保留 TypeToken 或 raw class 校验。左嵌套 Tuple2、nullable 值与空组保持。
+类型化读取使用原 TaskKey；不保留 TypeToken 或 raw class 校验。GroupValues 保留声明顺序、nullable
+值与空组的可区分性。
 
 批次失败检查在一次扫描中记住首个取消项，遇到首个已记录执行失败时立即抛出，只有整遍扫描
 未发现执行失败才抛取消。成功值在失败闸门通过后另行收集。排除边检查边收集的单遍方案：

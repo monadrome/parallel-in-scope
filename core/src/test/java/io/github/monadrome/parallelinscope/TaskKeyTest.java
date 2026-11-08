@@ -56,12 +56,12 @@ class TaskKeyTest {
 
     @Test
     void memberValuesAndResultContainersUseTheirDeclarationKeys() throws Exception {
-        TaskGroupResult<Tuple2<String, List<Integer>>, Void> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
                 .par(orders, par, () -> Arrays.asList(2, 3))
                 .runAll();
 
-        GroupValues<Tuple2<String, List<Integer>>> values = result.valuesOrThrow();
+        GroupValues values = result.valuesOrThrow();
         String userValue = values.valueOf(user);
         List<Integer> orderValues = values.valueOf(orders);
         assertThat(userValue).isEqualTo("alice");
@@ -69,18 +69,17 @@ class TaskKeyTest {
         assertThat(result.resultOf(user)).isSameAs(result.resultOf("user"));
         assertThat(result.resultOf(orders).valueOrThrow()).containsExactly(2, 3);
         assertThat(values.valueOf("orders")).isEqualTo(orderValues);
-        assertThat(values.typedValues()).isEqualTo(Tuple2.of("alice", Arrays.asList(2, 3)));
     }
 
     @Test
     @SuppressWarnings("NullAway")
     void dynamicViewsKeepDeclarationPositionsNamesAndNullableValues() {
-        TaskGroupResult<Tuple2<String, Integer>, Integer> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Integer> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
                 .par(total, par, () -> null)
-                .combine(TaskKey.<Integer>named("terminal"), par, values -> 1)
+                .combineValues(TaskKey.<Integer>named("terminal"), par, values -> 1)
                 .runAll();
-        GroupValues<?> values = result.valuesOrThrow();
+        GroupValues values = result.valuesOrThrow();
 
         assertThat(values.size()).isEqualTo(2);
         assertThat(values.valueAt(0)).isEqualTo(values.valueOf("user")).isEqualTo("alice");
@@ -99,7 +98,7 @@ class TaskKeyTest {
 
     @Test
     void sameNameKeysCannotReadAnotherKeysSlotEvenWithADifferentType() {
-        TaskGroupResult<String, Void> result =
+        TaskGroupResult<Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, () -> "alice").runAll();
         TaskKey<String> sameType = TaskKey.named("user");
         TaskKey<Integer> wrongType = TaskKey.named("user");
@@ -113,7 +112,7 @@ class TaskKeyTest {
 
     @Test
     void anIndependentSameNameKeyCannotReadADeclaration() {
-        TaskGroupResult<String, Void> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("page", TIMEOUT)
                 .par(TaskKey.<String>named("user"), par, () -> "alice")
                 .runAll();
 
@@ -123,9 +122,9 @@ class TaskKeyTest {
 
     @Test
     void aKeyCanBeReusedAcrossRunsWithoutSharingResultsOrRunIds() throws Exception {
-        TaskGroupResult<String, Void> first =
+        TaskGroupResult<Void> first =
                 runtime.group("page", TIMEOUT).par(user, par, () -> "alice").runAll();
-        TaskGroupResult<String, Void> second =
+        TaskGroupResult<Void> second =
                 runtime.group("page", TIMEOUT).par(user, par, () -> "bob").runAll();
 
         assertThat(first.resultOf(user).valueOrThrow()).isEqualTo("alice");
@@ -137,7 +136,7 @@ class TaskKeyTest {
 
     @Test
     void aNullValueIsPresentAndAnUnknownKeyStillFails() throws Exception {
-        TaskGroupResult<String, Void> result =
+        TaskGroupResult<Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, () -> null).runAll();
 
         assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -149,13 +148,12 @@ class TaskKeyTest {
 
     @Test
     void aValueViewCombineReadsMembersByKeyAndExposesItsOwnKeyOnlyInTheResult() throws Exception {
-        TaskGroupResult<Tuple2<String, List<Integer>>, Integer> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Integer> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
                 .par(orders, par, () -> Arrays.asList(2, 3))
                 .combineValues(total, par, values -> {
                     checkNotNull(values);
                     assertThat(values.valueOf(user)).isEqualTo("alice");
-                    assertThat(values.typedValues()).isEqualTo(Tuple2.of("alice", Arrays.asList(2, 3)));
                     assertThatThrownBy(() -> values.valueOf(total)).isInstanceOf(IllegalArgumentException.class);
                     return checkNotNull(values.valueOf(orders)).stream()
                             .mapToInt(Integer::intValue)
@@ -173,9 +171,12 @@ class TaskKeyTest {
 
     @Test
     void theKeyedTupleCombineUsesTheExistingInputShape() {
-        TaskGroupResult<String, Integer> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Integer> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
-                .combine(total, par, value -> checkNotNull(value).length())
+                .combineValues(
+                        total,
+                        par,
+                        value -> checkNotNull(checkNotNull(value).valueOf(user)).length())
                 .runAll();
 
         assertThat(result.terminalValueOrThrow()).isEqualTo(5);
@@ -184,7 +185,7 @@ class TaskKeyTest {
     @Test
     void keysWorkForFirstAndLaterDeclarations() {
         TaskKey<Integer> count = TaskKey.named("count");
-        TaskGroupResult<Tuple2<String, Integer>, Integer> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Integer> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
                 .par(count, par, () -> 2)
                 .combineValues(
@@ -210,7 +211,7 @@ class TaskKeyTest {
         IllegalStateException failure = new IllegalStateException("broken");
         AtomicInteger submissions = new AtomicInteger();
         try (ParRuntime checked = runtimeWithCountedTerminal(submissions)) {
-            TaskGroupResult<String, Integer> result = checked.group("page", TIMEOUT)
+            TaskGroupResult<Integer> result = checked.group("page", TIMEOUT)
                     .par(user, checked.par(ParId.of("member")), () -> {
                         throw failure;
                     })
@@ -232,7 +233,7 @@ class TaskKeyTest {
     @Test
     void aFailedCombineDoesNotHideSuccessfulMemberResults() throws Exception {
         IllegalStateException failure = new IllegalStateException("broken");
-        TaskGroupResult<String, Integer> result = runtime.group("page", TIMEOUT)
+        TaskGroupResult<Integer> result = runtime.group("page", TIMEOUT)
                 .par(user, par, () -> "alice")
                 .combineValues(total, par, values -> {
                     throw failure;
@@ -247,11 +248,12 @@ class TaskKeyTest {
 
     @Test
     void duplicateNamesAndKeysAreRejectedWithoutConsumingTheCurrentStage() {
-        GroupStep<String> stage = runtime.group("page", TIMEOUT).par(user, par, () -> "alice");
+        GroupStep stage = runtime.group("page", TIMEOUT).par(user, par, () -> "alice");
         assertThatThrownBy(() -> stage.par(user, par, () -> "again")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> stage.par(TaskKey.named("user"), par, () -> 1))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> stage.combine(user, par, value -> value)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> stage.combineValues(user, par, value -> "unused"))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> stage.par(TaskKey.<String>named("user"), par, () -> "again"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(stage.par(total, par, () -> 2).runAll().outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -266,12 +268,12 @@ class TaskKeyTest {
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> start.par((TaskKey<String>) null, par, () -> "alice"))
                 .isInstanceOf(NullPointerException.class);
-        GroupStep<String> stage = start.par(user, par, () -> "alice");
+        GroupStep stage = start.par(user, par, () -> "alice");
         assertThatThrownBy(() -> start.par((TaskKey<String>) null, par, () -> "alice"))
                 .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> stage.combineValues(total, par, null, values -> 1))
                 .isInstanceOf(NullPointerException.class);
-        TaskGroupResult<String, Integer> result =
+        TaskGroupResult<Integer> result =
                 stage.combineValues(total, par, values -> 1).runAll();
         assertThatThrownBy(() -> result.resultOf((TaskKey<String>) null)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> result.valuesOrThrow().valueOf((TaskKey<String>) null))
@@ -286,7 +288,7 @@ class TaskKeyTest {
             GroupStart start = runtime.group("page", TIMEOUT);
             assertThatThrownBy(() -> start.par(user, other.par(ParId.of("other")), () -> "alice"))
                     .isInstanceOf(IllegalArgumentException.class);
-            GroupStep<String> stage = start.par(user, par, () -> "alice");
+            GroupStep stage = start.par(user, par, () -> "alice");
             assertThatThrownBy(() -> stage.combineValues(total, other.par(ParId.of("other")), values -> 1))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThat(stage.combineValues(total, par, values -> 1).runAll().terminalValueOrThrow())
@@ -314,7 +316,7 @@ class TaskKeyTest {
                 .outcome());
         assertShortTimeout(() -> runtime.group("tuple", TIMEOUT)
                 .par(total, par, () -> 1)
-                .combine(user, par, shortTimeout, value -> blocked.call())
+                .combineValues(user, par, shortTimeout, value -> blocked.call())
                 .runAll()
                 .resultOf(user)
                 .outcome());
@@ -330,7 +332,7 @@ class TaskKeyTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     void uncheckedExecutionsAreTheCallersResponsibility() throws Exception {
         Callable rawTaskCode = () -> 42;
-        TaskGroupResult<String, Void> result =
+        TaskGroupResult<Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, rawTaskCode).runAll();
         assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(result.resultOf("user").valueOrThrow()).isEqualTo(42);
@@ -341,7 +343,7 @@ class TaskKeyTest {
                 .isInstanceOf(ClassCastException.class);
 
         Combiner rawCombine = value -> 42;
-        TaskGroupResult<Integer, String> combined = runtime.group("page", TIMEOUT)
+        TaskGroupResult<String> combined = runtime.group("page", TIMEOUT)
                 .par(total, par, () -> 1)
                 .combineValues(user, par, rawCombine)
                 .runAll();
@@ -363,7 +365,7 @@ class TaskKeyTest {
         AtomicInteger calls = new AtomicInteger();
         try {
             ttl.set("declaration");
-            CombinedGroupStep<String, Integer> draft = runtime.group("page", TIMEOUT)
+            CombinedGroupStep<Integer> draft = runtime.group("page", TIMEOUT)
                     .par(user, par, () -> {
                         assertThat(ttl.get()).isEqualTo("submission");
                         ttl.set("member");
@@ -393,17 +395,16 @@ class TaskKeyTest {
         try (ParRuntime inline =
                 ParRuntime.builder().register(ParId.of("inline"), direct).build()) {
             Par inlinePar = inline.par(ParId.of("inline"));
-            TaskGroupResult<String, Integer> result = inline.group("null", TIMEOUT)
+            TaskGroupResult<Integer> result = inline.group("null", TIMEOUT)
                     .par(user, inlinePar, () -> null)
                     .combineValues(total, inlinePar, values -> {
                         assertThat(checkNotNull(values).valueOf(user)).isNull();
-                        assertThat(values.typedValues()).isNull();
                         return 0;
                     })
                     .runAll();
             assertThat(result.terminalValueOrThrow()).isZero();
             assertThat(result.executionExitConfirmed()).isTrue();
-            TaskGroupResult<Void, Void> empty = inline.group("empty", TIMEOUT).runAll();
+            TaskGroupResult<Void> empty = inline.group("empty", TIMEOUT).runAll();
             assertThatThrownBy(() -> empty.resultOf(user)).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> empty.valuesOrThrow().valueOf(user)).isInstanceOf(IllegalArgumentException.class);
         } finally {
@@ -418,13 +419,13 @@ class TaskKeyTest {
                         pool.submit(() -> start.par(user, par, () -> "alice")).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
-        GroupStep<String> stage = start.par(user, par, () -> "alice");
+        GroupStep stage = start.par(user, par, () -> "alice");
         assertThatThrownBy(
                         () -> pool.submit(() -> stage.par(total, par, () -> 1)).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() ->
-                        pool.submit(() -> stage.combine(total, par, value -> 1)).get())
+        assertThatThrownBy(() -> pool.submit(() -> stage.combineValues(total, par, value -> 1))
+                        .get())
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> pool.submit(() -> stage.combineValues(total, par, values -> 1))
@@ -440,7 +441,7 @@ class TaskKeyTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch never = new CountDownLatch(1);
         try (ParRuntime checked = runtimeWithCountedTerminal(submissions)) {
-            TaskGroup<String, Integer> group = checked.groupDraft("page", TIMEOUT)
+            TaskGroup<Integer> group = checked.groupDraft("page", TIMEOUT)
                     .closeGrace(Duration.ofSeconds(1))
                     .par(user, checked.par(ParId.of("member")), () -> {
                         entered.countDown();
@@ -451,7 +452,7 @@ class TaskKeyTest {
                     .submitAll();
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
             group.cancel();
-            TaskGroupResult<String, Integer> result = group.finish();
+            TaskGroupResult<Integer> result = group.finish();
             assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(result.executionExitConfirmed()).isTrue();
@@ -464,7 +465,7 @@ class TaskKeyTest {
         AtomicInteger calls = new AtomicInteger();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch never = new CountDownLatch(1);
-        TaskGroup<String, Integer> group = runtime.groupDraft("page", TIMEOUT)
+        TaskGroup<Integer> group = runtime.groupDraft("page", TIMEOUT)
                 .closeGrace(Duration.ofSeconds(1))
                 .par(user, par, () -> "alice")
                 .combineValues(total, par, values -> {
@@ -476,7 +477,7 @@ class TaskKeyTest {
                 .submitAll();
         assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
         group.cancel();
-        TaskGroupResult<String, Integer> result = group.finish();
+        TaskGroupResult<Integer> result = group.finish();
         assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
         assertThat(result.executionExitConfirmed()).isTrue();
@@ -492,7 +493,7 @@ class TaskKeyTest {
                 .register(ParId.of("member"), pool)
                 .register(ParId.of("terminal"), rejected)
                 .build()) {
-            TaskGroupResult<String, Integer> result = checked.group("page", TIMEOUT)
+            TaskGroupResult<Integer> result = checked.group("page", TIMEOUT)
                     .par(user, checked.par(ParId.of("member")), () -> "alice")
                     .combineValues(total, checked.par(ParId.of("terminal")), values -> {
                         calls.incrementAndGet();
@@ -512,7 +513,7 @@ class TaskKeyTest {
     void anUncooperativeValueViewTerminalDoesNotExtendCleanupOrClaimExecutionExit() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        TaskGroup<String, Integer> group = runtime.groupDraft("page", TIMEOUT)
+        TaskGroup<Integer> group = runtime.groupDraft("page", TIMEOUT)
                 .closeGrace(Duration.ofMillis(30))
                 .par(user, par, () -> "alice")
                 .combineValues(total, par, values -> {
@@ -521,11 +522,11 @@ class TaskKeyTest {
                     return 1;
                 })
                 .submitAll();
-        Future<TaskGroupResult<String, Integer>> finishing = pool.submit(group::finish);
+        Future<TaskGroupResult<Integer>> finishing = pool.submit(group::finish);
         try {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
             group.cancel();
-            TaskGroupResult<String, Integer> result = finishing.get(2, TimeUnit.SECONDS);
+            TaskGroupResult<Integer> result = finishing.get(2, TimeUnit.SECONDS);
             assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(result.executionExitConfirmed()).isFalse();
             assertThat(result.unexitedExecutions()).containsEntry("total", 1);

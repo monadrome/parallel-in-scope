@@ -107,7 +107,7 @@ class RequestCancellationTest {
         assertThat(start.cancelOn(source)).isSameAs(start);
         assertThat(source.listeners()).isEmpty();
 
-        GroupStep<Integer> step = start.par(MEMBER, par, () -> 1);
+        GroupStep step = start.par(MEMBER, par, () -> 1);
         assertThatThrownBy(() -> start.cancelOn(source)).isInstanceOf(IllegalStateException.class);
         assertThat(step.runAll().resultAt(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(source.listeners()).hasSize(1);

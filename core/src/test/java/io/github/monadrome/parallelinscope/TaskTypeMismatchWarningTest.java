@@ -159,17 +159,20 @@ class TaskTypeMismatchWarningTest {
 
     @Test
     void groupMembersCombinesAndSingleTasksAreComparedAtAdmission() throws Exception {
-        TaskGroupResult<Integer, Integer> result = runtime.group("group", TIMEOUT)
+        TaskKey<Integer> memberKey = TaskKey.named("member");
+        TaskGroupResult<Integer> result = runtime.group("group", TIMEOUT)
                 .par(
-                        TaskKey.<Integer>named("member"),
+                        memberKey,
                         runtime.par(ParId.of("cpu")),
                         TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING),
                         () -> 1)
-                .combine(
+                .combineValues(
                         TaskKey.<Integer>named("join"),
                         runtime.par(ParId.of("io")),
                         TaskOptions.timeout(TIMEOUT).taskType(TaskType.COMPUTE),
-                        value -> Objects.requireNonNull(value) + 1)
+                        value -> Objects.requireNonNull(
+                                        Objects.requireNonNull(value).valueOf(memberKey))
+                                + 1)
                 .runAll();
         TaskFuture<Integer> single = runtime.par(ParId.of("cpu"))
                 .submit("single", () -> 3, TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING));

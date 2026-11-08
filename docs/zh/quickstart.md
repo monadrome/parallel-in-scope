@@ -44,7 +44,7 @@ TaskKey<User> userKey = TaskKey.named("user");
 TaskKey<Account> accountKey = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
 
-TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+TaskGroupResult<Profile> profile = runtime
     .group("profile", Duration.ofSeconds(3))
     .par(userKey, io, () -> loadUser(userId))
     .par(accountKey, io, () -> loadAccount(userId))

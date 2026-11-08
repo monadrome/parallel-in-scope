@@ -327,7 +327,7 @@ class ParMapAndCombineTest {
                 .register(ParId.of("inner"), inner)
                 .build();
         try {
-            TaskGroupResult<Integer, Void> group = runtime.group("enclosing", Duration.ofSeconds(10))
+            TaskGroupResult<Void> group = runtime.group("enclosing", Duration.ofSeconds(10))
                     .par(TaskKey.<Integer>named("nested"), runtime.par(ParId.of("outer")), () -> {
                         BatchCombinedResult<Integer, Integer> combined = runtime.par(ParId.of("inner"))
                                 .mapAndCombine(

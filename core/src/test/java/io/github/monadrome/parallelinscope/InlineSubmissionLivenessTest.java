@@ -170,7 +170,7 @@ class InlineSubmissionLivenessTest {
         TaskOptions memberOptions = TaskOptions.inheritTimeout();
 
         try {
-            TaskGroup<?, Void> group = global.groupDraft("inline-group", DEADLINE)
+            TaskGroup<Void> group = global.groupDraft("inline-group", DEADLINE)
                     .par(TaskKey.<Integer>named("a"), global.par(ParId.of("worker")), memberOptions, () -> {
                         try {
                             secondStarted.await();

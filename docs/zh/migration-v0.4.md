@@ -1,5 +1,38 @@
 # 迁移到 v0.4
 
+## v0.5 组成员值 API 迁移
+
+v0.5 开发线删除递归 `Tuple2` 成员形状。`GroupStep`、`CombinedGroupStep` 不再携带随成员数变化的
+聚合成员类型，`TaskGroupResult<R>` 只携带终端结果类型。`combine` 和 `combineValues` 都接收非 null 的
+`GroupValues` 快照。
+
+改前：
+
+```java
+TaskGroupResult<Tuple2<User, Account>, Profile> result = runtime
+        .group("profile", timeout)
+        .par(userKey, ioPar, this::loadUser)
+        .par(accountKey, httpPar, this::loadAccount)
+        .combine(profileKey, cpuPar, values -> buildProfile(values.first(), values.second()))
+        .runAll();
+```
+
+改后：
+
+```java
+TaskGroupResult<Profile> result = runtime
+        .group("profile", timeout)
+        .par(userKey, ioPar, this::loadUser)
+        .par(accountKey, httpPar, this::loadAccount)
+        .combineValues(profileKey, cpuPar, values -> buildProfile(
+                values.valueOf(userKey), values.valueOf(accountKey)))
+        .runAll();
+```
+
+`GroupValues.typedValues()` 和公开的 `Tuple2` 类型已删除。需要编译期类型安全时使用
+`valueOf(TaskKey<T>)`；动态场景使用 `valueAt(int)` 或 `valueOf(String)`。这是 0.x 的破坏性 API 变更，
+消费方需要针对 v0.5 开发线重新编译。
+
 组声明和类型化读取统一使用 `TaskKey<T>`。key 只携带诊断名称，按对象身份判等，
 不保存运行期类型令牌。它替代 0.3 的 Class/TypeToken 协议，让正常泛型代码中的声明类型
 和查询类型不再漂移。
@@ -22,7 +55,7 @@ ImmediateResult<User> result = runtime.group("user", timeout)
 ```
 
 - 把字符串加类型的 par/combine 声明改为保存的 key。显式 TaskOptions 仍放在执行前；
-  元组 combine 仍接收聚合值 V。
+  `combine` 和 `combineValues` 都接收按 key 读取的 `GroupValues` 快照。
 - 泛型结果直接声明 `TaskKey<List<Order>> orders = TaskKey.named("orders")`。
   已使用早期 0.4 key 草案的代码将 `TaskKey.of(name, type)` 改成 `named(name)`，删除 `type()` 读取。
 - 带类型的名称/位置查询改为 `valueOf(key)` 或 `resultOf(key)`，必须复用声明时的原 key。

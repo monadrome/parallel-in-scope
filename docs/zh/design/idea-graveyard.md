@@ -201,14 +201,16 @@ par.map("io-pool", items, this::process, options);
 
 **为什么不做：**
 
-TaskGroup 已按名称、声明类型和左嵌套 Tuple2 支持独立异构 Callable；各成员有自己的最终观测。
+TaskGroup 已按名称、声明类型和 `GroupValues` key 快照支持独立异构 Callable；各成员有自己的最终观测。
 被拒绝的是无类型 invokeAll 重载族与任意依赖图，不是异构组本身。独立任务使用现有组，
 全成功后的单一末端汇合使用可选 combine：
 
 ```java
-TaskGroupResult<Tuple2<User, Order>, Void> result = runtime.group("load", Duration.ofSeconds(3))
-        .par(TaskKey.<User>named("user"), ioPar, () -> fetchUser(id))
-        .par(TaskKey.<Order>named("order"), ioPar, () -> fetchOrder(id))
+TaskKey<User> user = TaskKey.named("user");
+TaskKey<Order> order = TaskKey.named("order");
+TaskGroupResult<Void> result = runtime.group("load", Duration.ofSeconds(3))
+        .par(user, ioPar, () -> fetchUser(id))
+        .par(order, ioPar, () -> fetchOrder(id))
         .runAll();
 ```
 

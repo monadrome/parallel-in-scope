@@ -46,7 +46,7 @@ class GroupClassOptionsOverloadTest {
     void theFirstKeyedMemberAppliesItsOptions() {
         long start = System.nanoTime();
 
-        TaskGroupResult<String, Void> result = runtime.group("first", GROUP_TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("first", GROUP_TIMEOUT)
                 .par(TaskKey.<String>named("blocked"), par, TIGHT, () -> {
                     never.await();
                     return "unreachable";
@@ -62,7 +62,7 @@ class GroupClassOptionsOverloadTest {
     void aLaterKeyedMemberAppliesItsOptions() {
         long start = System.nanoTime();
 
-        TaskGroupResult<Tuple2<Integer, String>, Void> result = runtime.group("later", GROUP_TIMEOUT)
+        TaskGroupResult<Void> result = runtime.group("later", GROUP_TIMEOUT)
                 .par(TaskKey.<Integer>named("count"), par, () -> 1)
                 .par(TaskKey.<String>named("blocked"), par, TIGHT, () -> {
                     never.await();
@@ -79,9 +79,9 @@ class GroupClassOptionsOverloadTest {
     void theKeyedCombineAppliesItsOptions() {
         long start = System.nanoTime();
 
-        TaskGroupResult<Integer, String> result = runtime.group("combined", GROUP_TIMEOUT)
+        TaskGroupResult<String> result = runtime.group("combined", GROUP_TIMEOUT)
                 .par(TaskKey.<Integer>named("count"), par, () -> 1)
-                .combine(TaskKey.<String>named("join"), par, TIGHT, values -> {
+                .combineValues(TaskKey.<String>named("join"), par, TIGHT, values -> {
                     never.await();
                     return "unreachable";
                 })

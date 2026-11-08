@@ -126,7 +126,7 @@ class LateFailureLoggingTest {
     @Test
     void acknowledgementCarryingACloseFailureStaysAWarning() throws Exception {
         Exception closeFailure = new Exception("late close failure");
-        TaskGroupResult<Integer, Void> result = runtime.group("ack-close", Duration.ofMillis(100))
+        TaskGroupResult<Void> result = runtime.group("ack-close", Duration.ofMillis(100))
                 .closeGrace(Duration.ofSeconds(2))
                 .par(TaskKey.<Integer>named("resource"), par, () -> {
                     try (AutoCloseable resource = () -> {
@@ -150,7 +150,7 @@ class LateFailureLoggingTest {
 
     @Test
     void rawBlockingCallInterruptedByKernelCancellationIsNotAWarning() throws Exception {
-        TaskGroupResult<Integer, Void> result = runtime.group("raw-group", Duration.ofMillis(100))
+        TaskGroupResult<Void> result = runtime.group("raw-group", Duration.ofMillis(100))
                 .closeGrace(Duration.ofSeconds(2))
                 .par(TaskKey.<Integer>named("sleeper"), par, () -> {
                     Thread.sleep(TimeUnit.SECONDS.toMillis(30));
