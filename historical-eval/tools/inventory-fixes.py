@@ -45,8 +45,12 @@ def commits() -> list[tuple[str, str, str]]:
         if not re.search(r"(?:^|[\s(:!])fix(?:$|[\s:!)]|\()", subject, re.IGNORECASE):
             continue
         parent = parents.split()[0] if parents else ""
-        if parent:
-            rows.append((commit, parent, subject))
+        if not parent:
+            continue
+        paths = git("diff", "--name-only", parent, commit, "--").splitlines()
+        if paths and all(path.startswith("historical-eval/") for path in paths):
+            continue
+        rows.append((commit, parent, subject))
     return rows
 
 
