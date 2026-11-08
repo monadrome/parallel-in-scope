@@ -1,0 +1,13 @@
+{
+  "group": "f5e7dcf141d5edba",
+  "representative": "9e20ef07081cafca56fee68ef6ea3d6ef269477b",
+  "patch": "/Users/linqh/IdeaProjects/vformation/.worktrees/historical-benchmark/historical-eval/catalog/model-runs/all/002-f5e7dcf141d5edba/session.patch",
+  "test_files": [
+    "src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java",
+    "src/test/java/io/github/monadrome/parallelinscope/queue/DrainingBlockingQueueContractTest.java",
+    "src/test/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueSignalTest.java"
+  ],
+  "status": "model-fail",
+  "returncode": 1,
+  "seconds": 4.6
+}

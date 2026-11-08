@@ -1,0 +1,12 @@
+{
+  "rank": 1,
+  "group": "abaf2bf6e921d7eb",
+  "model": "gpt-5.6-terra",
+  "reasoning_effort": "medium",
+  "agent": "codex",
+  "historical_sandbox_status": "verified",
+  "model_session_returncode": 0,
+  "model_evaluation_status": "model-fail",
+  "patch": "historical-eval/catalog/model-runs/all/001-abaf2bf6e921d7eb/candidate.patch",
+  "evaluation": "historical-eval/catalog/model-runs/all/001-abaf2bf6e921d7eb/evaluation.json"
+}
