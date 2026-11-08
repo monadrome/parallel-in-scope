@@ -83,3 +83,17 @@ python3 historical-eval/tools/verify-all-gold.py \
 ```
 
 只要有一条黄金样本失败，命令就以非零状态退出。
+
+## 从历史修复准备样本骨架
+
+从候选 fix 生成样本骨架时，只提取父提交中的生产源码和指定生产 diff；任务描述与隐藏测试仍必须人工审查后才能进入正式集：
+
+```bash
+python3 historical-eval/tools/prepare-sample.py \
+  BUG-XXXX <fix-commit> \
+  --source src/main/java/.../Example.java \
+  --test-class ExampleGoldenTest \
+  -o historical-eval/samples/BUG-XXXX
+```
+
+生成结果会标记为 `needs-curation`，不能直接作为黄金样本运行。
