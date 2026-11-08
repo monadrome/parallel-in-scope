@@ -1,0 +1,23 @@
+demo/architecture-constraints.md
+  s_e6ced41c75086c::t_620aa660d14e6c 107
+docs/zh/design/philosophy.md
+  s_e6ced41c75086c::t_620aa660d14e6c 205,207,215,229,249,251
+design/task-group-api-and-options.md
+  s_e6ced41c75086c::t_620aa660d14e6c 82-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0ff6d2c07298f92c2d449ef329dbe4061c804d54",
+  "prompts": {},
+  "sessions": {
+    "s_e6ced41c75086c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b8f0-0a9f-76d2-a194-e2bf1f8bce96",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
