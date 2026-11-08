@@ -27,4 +27,4 @@ python3 historical-eval/tools/inventory-fixes.py \
   -o historical-eval/catalog/fix-inventory.jsonl
 ```
 
-当前基于评测分支所指向的历史，共盘点 430 个 `fix` 提交，其中 299 个含生产代码修改、20 个文档-only、11 个测试-only、63 个 tooling-only。连续修复仍需在生成样本前按根因聚类，不能把这个清单直接当作最终样本数量。
+当前基于评测分支所指向的历史，共盘点 419 个 `fix` 提交，其中 299 个含生产代码修改、17 个文档-only、4 个测试-only、62 个 tooling-only。评测目录自身的提交会被自动排除。连续修复仍需在生成样本前按根因聚类，不能把这个清单直接当作最终样本数量。
