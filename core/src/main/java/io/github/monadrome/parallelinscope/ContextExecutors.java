@@ -31,10 +31,13 @@ import java.util.concurrent.Executor;
  */
 public final class ContextExecutors {
 
+    private static final ContextPropagatingDirectExecutor DIRECT_CONTEXT_EXECUTOR =
+            new ContextPropagatingDirectExecutor();
+
     private ContextExecutors() {}
 
     /**
-     * Creates a reusable direct executor that captures the calling context for each command.
+     * Returns a reusable direct executor that captures the calling context for each command.
      *
      * <p>This is the default context-propagating direct executor. It does not retain the context of
      * the thread that created it. A configured TTL copier runs once per command, and the command's
@@ -44,7 +47,7 @@ public final class ContextExecutors {
      * @since 0.5.0
      */
     public static Executor directContextExecutor() {
-        return new DirectExecutor();
+        return DIRECT_CONTEXT_EXECUTOR;
     }
 
     /**
@@ -62,7 +65,11 @@ public final class ContextExecutors {
         return new CapturedDirectExecutor(Transmitter.capture());
     }
 
-    private static final class DirectExecutor implements Executor {
+    /**
+     * Stateless direct executor whose context snapshot belongs to each command, making one shared
+     * instance safe for unrelated callers.
+     */
+    private static final class ContextPropagatingDirectExecutor implements Executor {
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
