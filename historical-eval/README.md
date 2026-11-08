@@ -72,3 +72,14 @@ unzip -l /tmp/BUG-0001-prompt.zip
 ```
 
 `oracle/` 只能由验证器读取，不能挂载到 LLM 工作区。
+
+## 黄金样本总体验收
+
+增加样本后，用总体验收入口确认所有历史正确补丁仍能通过各自隐藏测试：
+
+```bash
+python3 historical-eval/tools/verify-all-gold.py \
+  -o /tmp/golden-results.json
+```
+
+只要有一条黄金样本失败，命令就以非零状态退出。
