@@ -238,6 +238,8 @@ future.addListener(listener, listenerExecutor);
 
 该 executor 在创建时捕获 TTL 快照，每次命令执行前 replay，结束后 restore 执行线程原值，并继续保持
 direct executor 的同步执行特性。每个请求上下文 MUST 创建独立实例；同一请求的 listener 可以复用实例。
+CRR 只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List` 或上下文对象在默认 copier 下可能仍由
+多个 listener 共享。需要值级隔离时 MUST 使用不可变/写时复制值，或配置能提供深拷贝的 TTL copier。
 在 `execute` 内调用 `TtlRunnable.get` 被排除，因为捕获时机已经落在完成线程；全局单例也被排除，因为会
 长期持有请求上下文。该 API 只覆盖应用 callback，不替换库内部的框架 direct callbacks，避免把应用上下文
 扩大到 future 记账和完成通知。

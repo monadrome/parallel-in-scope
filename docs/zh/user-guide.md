@@ -751,6 +751,10 @@ future.addListener(listener, listenerExecutor);
 原有的值。每个请求上下文应创建独立实例；同一请求的多个 listener 可以复用。仅把
 `MoreExecutors.directExecutor()` 再包一层 TTL 执行器不够，因为那会在 future 完成时才捕获，时机已经太晚。
 
+CRR 恢复的是 TTL 的绑定关系，不会自动深拷贝绑定值。如果 listener 修改了 `TTL.get()` 返回的
+`Map`、`List` 或可变请求上下文，默认 copier 可能让这个对象与捕获快照及后续 listener 共享。需要隔离时，
+优先使用不可变或写时复制的上下文值，或者为 TTL 配置合适的 copier 做深拷贝。
+
 ### 与 OpenTelemetry 协作
 
 在本次调用线程上捕获完整 OTel `Context`，然后在每个执行内将它设为当前上下文。
