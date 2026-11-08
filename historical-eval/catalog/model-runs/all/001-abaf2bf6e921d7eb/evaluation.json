@@ -1,0 +1,15 @@
+{
+  "group": "abaf2bf6e921d7eb",
+  "representative": "02f103b1a5d75c4e6fc4e2ab4082ebdb0b8ef2f6",
+  "patch": "/private/tmp/codex-rank1.patch",
+  "test_files": [
+    "src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+    "src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java",
+    "src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java",
+    "src/test/java/io/github/monadrome/parallelinscope/TaskGraphObservationScopeTest.java",
+    "src/test/java/io/github/monadrome/parallelinscope/VirtualDeadlineTest.java"
+  ],
+  "status": "model-fail",
+  "returncode": 1,
+  "seconds": 7.921
+}

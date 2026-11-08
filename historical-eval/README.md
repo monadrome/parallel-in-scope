@@ -185,3 +185,5 @@ python3 historical-eval/tools/evaluate-group-patch.py \
   /path/to/candidate.patch \
   -o /tmp/model-result.json
 ```
+
+`tools/run-codex-group.py` 可按投票排名启动独立 Codex 会话。第 1 组试跑已完成：模型编译/会话成功，但历史回归测试为 `model-fail`，结果保存在 `catalog/model-runs/all/001-abaf2bf6e921d7eb/`。

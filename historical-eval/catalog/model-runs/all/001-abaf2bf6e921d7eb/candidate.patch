@@ -1,0 +1,23 @@
+--- a/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
++++ b/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+@@ -347,10 +347,16 @@
+      * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown
+      */
+     TaskGroup<?, ?> submitPreparedGroup(TaskGroupDefinition definition, TaskGroup.RunBindings payloads) {
+-        TaskGroup<?, ?> group = whileOpen(() -> TaskGroup.prepare(this, definition, payloads));
+-        group.start(this);
+-        group.submitPrepared();
+-        return group;
++        // Keep the entire admission boundary intact through startup and submission.  If only
++        // preparation is guarded, close() can win immediately after whileOpen returns and shut
++        // down the framework services before this already-admitted group arms its token or hands
++        // work to its executors.
++        return whileOpen(() -> {
++            TaskGroup<?, ?> group = TaskGroup.prepare(this, definition, payloads);
++            group.start(this);
++            group.submitPrepared();
++            return group;
++        });
+     }
+
+     /**
