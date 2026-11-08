@@ -1,0 +1,23 @@
+historical-eval/catalog/fix-review.csv
+  s_490d18c85ab19e::t_6bc9c4094eefa8 1-104
+historical-eval/tools/review-fix-groups.py
+  s_490d18c85ab19e::t_6bc9c4094eefa8 1-91
+historical-eval/README.md
+  ai_agent 100-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f231c91ea7dc29fb2cde133f791a60b1e4ec6b70",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
