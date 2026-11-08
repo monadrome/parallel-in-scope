@@ -175,7 +175,8 @@ jobs:
         with:
           java-version: ${{ matrix.java-version }}
           distribution: temurin
-          cache: maven
+          # Do not restore the Maven cache after the build-JDK step: restoring
+          # it here would overwrite the freshly installed snapshot artifact.
 
       - name: Run the public API consumer on Java ${{ matrix.java-version }}
         working-directory: verification/maven-central-consumer
@@ -226,4 +227,6 @@ jobs:
           cache: maven
 
       - name: Validate library Javadocs
-        run: mvn -B -ntp -DskipTests javadoc:javadoc
+        # Install the reactor first so core's blocking-queues dependency is
+        # available on a clean runner without relying on a warm Maven cache.
+        run: mvn -B -ntp -Dmaven.test.skip=true install javadoc:javadoc

@@ -51,7 +51,7 @@ includes nested classes; comma-separated patterns allow multiple classes and
 tests. Include every relevant contract test, not just the new regression test.
 
 ```bash
-mvn -o -Ppitest test-compile org.pitest:pitest-maven:mutationCoverage \
+mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.TouchedClass*' \
   '-DtargetTests=io.github.monadrome.parallelinscope.TouchedTest*,io.github.monadrome.parallelinscope.OtherContractTest*' \
   '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'

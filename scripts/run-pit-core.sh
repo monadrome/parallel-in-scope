@@ -74,6 +74,7 @@ if [[ -z "$out_dir" ]]; then
 fi
 
 package="io.github.monadrome.parallelinscope"
+pitest_version="1.30.1"
 mutators="CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS"
 
 # Keep these patterns aligned with verification/pit-audit/2026-10-31/inventory.md.
@@ -133,7 +134,10 @@ run_batch() {
   local command
 
   classes="$(batch_classes "$name")"
-  command=(mvn -o -Ppitest test-compile org.pitest:pitest-maven:mutationCoverage
+  # Resolve the plugin by its explicit version. Offline Maven cannot infer a
+  # plugin prefix when the local repository has no maven-metadata.xml, even
+  # though the versioned plugin artifacts are installed.
+  command=(mvn -o -Ppitest -pl core test-compile "org.pitest:pitest-maven:${pitest_version}:mutationCoverage"
     "-DtargetClasses=$classes"
     "-DtargetTests=$package.*"
     "-Dmutators=$mutators")
