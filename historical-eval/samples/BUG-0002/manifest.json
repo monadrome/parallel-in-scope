@@ -1,0 +1,12 @@
+{
+  "id": "BUG-0002",
+  "title": "dynamic queue capacity must reject offers at or above capacity",
+  "category": ["queue-capacity", "boundary-state"],
+  "buggy_commit": "5d2eea6026fca4c77eeb761224cde1c7bcad27e8",
+  "fixed_commit": "661d2ebd2f23da42b51965b4bf16d9b6fb26b24d",
+  "production_files": ["src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java"],
+  "hidden_tests": ["VariableLinkedBlockingQueueGoldenTest"],
+  "test_class": "VariableLinkedBlockingQueueGoldenTest",
+  "quality": "A",
+  "oracle_policy": "fixed patch and tests are evaluator-only"
+}

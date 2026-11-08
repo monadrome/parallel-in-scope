@@ -12,6 +12,7 @@ from pathlib import Path
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--sample", default="BUG-0001")
     parser.add_argument(
         "--candidate",
         action="append",
@@ -30,7 +31,7 @@ def main() -> None:
             parser.error(f"invalid candidate {item!r}; expected NAME=PATCH")
         start = time.monotonic()
         completed = subprocess.run(
-            [str(verifier), patch],
+            [str(verifier), args.sample, patch],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
