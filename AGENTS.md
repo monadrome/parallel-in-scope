@@ -170,7 +170,7 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   or deleting a comment, preserve each distinct valid claim and correct claims
   that no longer match the code. Do not use comment count, density, or length
   as a deletion criterion or add mechanical gates for them. These rules apply
-  to library, tests, and demo; the standalone queue module's JDK-port parity comments
+  to library, tests, and demo; the standalone queue repository's JDK-port parity comments
   remain governed by the standalone `blocking-queues` repository's `AGENTS.md`.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.

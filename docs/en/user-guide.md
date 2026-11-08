@@ -760,6 +760,17 @@ For a physical `ThreadPoolExecutor`, the prepared future is also the queued Runn
 
 ## Lifecycle-aware queues
 
+`DrainingBlockingQueue` is provided by the standalone Maven Central artifact
+`io.github.monadrome:blocking-queues`. Add it when using the queue types directly:
+
+```xml
+<dependency>
+    <groupId>io.github.monadrome</groupId>
+    <artifactId>blocking-queues</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
 `DrainingBlockingQueue` is a bounded `BlockingQueue` implementation with a one-way draining close: `close()` permanently rejects new production (write operations throw `IllegalStateException` or return `false`), while consumers keep taking existing elements until the queue is empty and reaches its terminal state, after which they observe the configured poison object, `null`, or `NoSuchElementException`.
 
 ```java
