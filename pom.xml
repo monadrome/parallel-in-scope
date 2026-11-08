@@ -10,11 +10,10 @@
     <packaging>pom</packaging>
 
     <name>parallel-in-scope parent</name>
-    <description>Build aggregator for parallel-in-scope and its standalone blocking queues</description>
+    <description>Build aggregator for parallel-in-scope</description>
     <url>https://github.com/monadrome/parallel-in-scope</url>
 
     <modules>
-        <module>blocking-queues</module>
         <module>core</module>
     </modules>
 

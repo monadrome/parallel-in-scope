@@ -33,7 +33,7 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>blocking-queues</artifactId>
-    <version>0.5.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
