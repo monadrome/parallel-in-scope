@@ -1,0 +1,35 @@
+{
+  "total": 103,
+  "model": "gpt-5.6-terra",
+  "agent": "codex",
+  "reasoning_effort": "medium",
+  "status_counts": {
+    "model-fail": 80,
+    "model-pass": 8,
+    "not-eligible": 15
+  },
+  "historical_sandbox_counts": {
+    "baseline-pass": 12,
+    "fixed-fail": 3,
+    "verified": 88
+  },
+  "by_difficulty": {
+    "easy": {
+      "model-fail": 4,
+      "model-pass": 1,
+      "not-eligible": 3
+    },
+    "hard": {
+      "model-fail": 31,
+      "model-pass": 2,
+      "not-eligible": 6
+    },
+    "medium": {
+      "model-fail": 45,
+      "model-pass": 5,
+      "not-eligible": 6
+    }
+  },
+  "eligible": 88,
+  "model_pass_rate_on_eligible": 0.0909
+}

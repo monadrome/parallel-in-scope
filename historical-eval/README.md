@@ -1,10 +1,10 @@
 # Historical repair evaluation
 
-这个目录保存从历史修复提交构建的盲修复评测样本。LLM 输入只位于每个样本的 `prompt/`，验证器使用的修复补丁和隐藏测试位于 `oracle/`，正式评测时不应把 `oracle/` 挂载给 LLM。
+这个目录保存从历史修复提交构建的盲修复评测样本。LLM 输入只位于每个样本的 `prompt/`。验证器根据 manifest 中的历史提交，在自己的临时目录内重建正确补丁和回归测试；仓库不保存 `oracle/` 目录，避免答案进入后续模型可见文件。
 
 ## 第一个黄金样本
 
-`BUG-0001` 来自 `a5c2d823`：`Duration.toNanos()` 在极大或极小 duration 上会抛出 `ArithmeticException`，导致 deadline budget 转换失去既有的“无界/已过期”语义。样本的 buggy source 来自其父提交 `aeba97f3`，隐藏测试覆盖可表示值、正溢出和负溢出。
+`BUG-0001` 来自一个历史 deadline 修复：`Duration.toNanos()` 在极大或极小 duration 上会抛出 `ArithmeticException`，导致 deadline budget 转换失去既有的“无界/已过期”语义。样本的 buggy source 来自 manifest 中的父提交，回归测试只在评测临时目录中从 fixed commit 提取。
 
 验证器从历史 buggy commit 创建临时工作区，复制隐藏测试，然后可选地应用候选 unified diff。隐藏测试不会写入 LLM 工作区。
 
@@ -12,11 +12,11 @@
 # 基线：应失败（buggy source 不含修复 API）
 ./historical-eval/tools/verify-sample.sh
 
-# 使用历史正确补丁：应通过
-./historical-eval/tools/verify-sample.sh historical-eval/samples/BUG-0001/oracle/fixed.patch
+# 使用历史正确补丁（由 evaluator 临时重建）：应通过
+HISTORICAL_EVAL_USE_FIXED=1 ./historical-eval/tools/verify-sample.sh BUG-0001
 ```
 
-`oracle/` 只供评测器使用；提交给 LLM 的内容仅包括 `prompt/task.md` 和 `prompt/src/`。
+验证器只在自己的临时目录读取 fixed commit 和回归测试。提交给 LLM 的内容仅包括 `prompt/task.md` 和 `prompt/src/`；不能把 Git 元数据、catalog、历史测试或模型结果目录挂载到 LLM 工作区。
 
 ## 历史候选盘点
 
@@ -47,18 +47,18 @@ python3 historical-eval/tools/dedupe-fixes.py \
 
 ```bash
 python3 historical-eval/tools/compare-patches.py \
-  --candidate historical-fix=historical-eval/samples/BUG-0001/oracle/fixed.patch \
+  --candidate historical-fix=/path/to/historical-fix.patch \
   --candidate model-a=/path/to/model-a.patch \
   --candidate model-b=/path/to/model-b.patch \
   -o /tmp/bug-0001-results.json
 ```
 
-当前已有两条黄金样本：
+当前已有三条黄金样本：
 
 - `BUG-0001`：deadline duration 溢出；
 - `BUG-0002`：动态队列容量收缩后的边界约束。
 
-比较第二条样本时增加 `--sample BUG-0002`。两条样本都已确认 buggy baseline 失败、历史正确补丁通过。
+比较第二条样本时增加 `--sample BUG-0002`。三条样本都已确认 buggy baseline 失败、历史正确补丁通过。
 
 - `BUG-0003`：带有中断标志的调用线程读取已完成失败 Future 时，仍应得到原始失败原因。
 
@@ -71,7 +71,13 @@ python3 historical-eval/tools/export-prompt.py BUG-0001 -o /tmp/BUG-0001-prompt.
 unzip -l /tmp/BUG-0001-prompt.zip
 ```
 
-`oracle/` 只能由验证器读取，不能挂载到 LLM 工作区。
+正确补丁和隐藏测试只在验证器临时目录内存在，不能挂载到 LLM 工作区。
+
+黄金样本的隐藏测试放在仓库外的 `$HISTORICAL_EVAL_PRIVATE_DIR/samples/<sample>/hidden-tests/`，默认目录为 `$HOME/.cache/vformation/historical-eval-private`。模型运行产生的 patch、session 和日志也只保存在该目录；Git 中只保留状态汇总。运行黄金样本前设置：
+
+```bash
+export HISTORICAL_EVAL_PRIVATE_DIR="$HOME/.cache/vformation/historical-eval-private"
+```
 
 ## 黄金样本总体验收
 
@@ -96,7 +102,7 @@ python3 historical-eval/tools/prepare-sample.py \
   -o historical-eval/samples/BUG-XXXX
 ```
 
-生成结果会标记为 `needs-curation`，不能直接作为黄金样本运行。
+生成结果会标记为 `needs-curation`，不会生成 oracle 文件；验证器会在运行时根据 manifest 重建固定补丁和回归测试。
 
 ## 103 条去重修复的逐条盘点
 
@@ -152,6 +158,10 @@ python3 historical-eval/tools/run-group-sandbox.py \
 
 每次运行使用独立临时目录，日志单独保存，不会写回源码工作区。
 
+## 三 agent 难度投票与排序
+
+每个去重组由 `complexity`、`testability`、`impact` 三个独立 agent 分别投票，再按多数票和复杂度分数排序，顺序为 hard → medium → easy。结果保存在 `catalog/fix-groups-vote-ranking.md` 和 `.jsonl`：共 103 组，其中 hard 39、medium 56、easy 8；原始票据在 `catalog/votes/`。
+
 ## 全量 sandbox 结果
 
 本次按三 agent 难度排序对 103 组逐一运行了独立 before/after sandbox：
@@ -174,7 +184,9 @@ model: gpt-5.6-terra
 reasoning_effort: medium
 ```
 
-当前 3 条正式黄金样本的结果保存在 `catalog/model-runs/`：3 次编译均通过，隐藏测试 2 次通过、1 次失败。模型候选补丁与历史 oracle 分开保存。
+当前 3 条正式黄金样本的结果保存在 `catalog/model-runs/`：3 次编译均通过，隐藏测试 2 次通过、1 次失败。模型候选补丁与历史正确补丁分开处理，正确补丁不会写入样本目录。
+
+103 组按上述顺序完成了 `codex + gpt-5.6-terra`、`medium` 评测：88 组历史 sandbox 可判定，其中模型通过 8 组、失败 80 组；15 组因历史测试 `baseline-pass` 或 `fixed-fail` 标记为 `not-eligible`。完整排序和结果见 `catalog/model-runs/final-report.md`，机器可读结果见同名 `.json` 和 `.jsonl`。
 
 模型候选补丁可用 `tools/evaluate-group-patch.py` 在对应历史 group 的独立 sandbox 中验证：
 

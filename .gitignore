@@ -51,6 +51,15 @@ skills-lock.json
 # Local property-test state left behind by jqwik runs
 .jqwik-database
 
+# Historical repair evaluator secrets and raw model transcripts. Keep only
+# status summaries in Git; patches, hidden tests, and session logs stay outside
+# the model-visible checkout.
+historical-eval/catalog/model-runs/all/
+historical-eval/catalog/model-runs/*/candidate.patch
+historical-eval/catalog/model-runs/*/session.patch
+historical-eval/catalog/model-runs/*/session.json
+historical-eval/catalog/model-runs/*/session.session.log
+
 # Local planning state
 .planning/
 **/task_plan.md

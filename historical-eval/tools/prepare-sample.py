@@ -34,11 +34,6 @@ def main() -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(git("show", f"{parent}:{path}"))
 
-    patch = git("diff", "--binary", parent, args.fix_commit, "--", *args.source)
-    oracle = output / "oracle" / "fixed.patch"
-    oracle.parent.mkdir(parents=True, exist_ok=True)
-    oracle.write_bytes(patch)
-
     manifest = {
         "id": args.sample_id,
         "buggy_commit": parent,
@@ -46,7 +41,7 @@ def main() -> None:
         "production_files": args.source,
         "test_class": args.test_class,
         "status": "needs-curation",
-        "oracle_policy": "fixed patch and tests are evaluator-only",
+        "oracle_policy": "fixed patch and regression tests are derived inside the evaluator sandbox",
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output / "prompt" / "task.md").write_text(
