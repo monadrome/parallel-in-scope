@@ -57,5 +57,10 @@ public final class ContextExecutors {
                 Transmitter.restore(previous);
             }
         }
+
+        @Override
+        public String toString() {
+            return "ContextExecutors.directExecutor()";
+        }
     }
 }
