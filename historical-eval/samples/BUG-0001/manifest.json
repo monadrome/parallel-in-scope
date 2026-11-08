@@ -1,0 +1,11 @@
+{
+  "id": "BUG-0001",
+  "title": "saturating Duration-to-nanoseconds conversion",
+  "category": ["deadline-overflow", "boundary-arithmetic"],
+  "buggy_commit": "aeba97f3e5dfce7705beb6bb80e47334fe82a7bf",
+  "fixed_commit": "a5c2d823fad133907cefa30a357431623b609352",
+  "production_files": ["src/main/java/io/github/monadrome/parallelinscope/Deadlines.java"],
+  "hidden_tests": ["DeadlinesGoldenTest"],
+  "quality": "A",
+  "oracle_policy": "fixed patch and tests are evaluator-only"
+}
