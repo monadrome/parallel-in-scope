@@ -1,0 +1,32 @@
+historical-eval/README.md
+  s_490d18c85ab19e::t_692870f541f49d 1-19
+historical-eval/samples/BUG-0001/manifest.json
+  s_490d18c85ab19e::t_2b79da94ce7206 1-11
+historical-eval/samples/BUG-0001/prompt/src/main/java/io/github/monadrome/parallelinscope/Deadlines.java
+  s_490d18c85ab19e::t_2b79da94ce7206 1-57
+historical-eval/samples/BUG-0001/oracle/hidden-tests/io/github/monadrome/parallelinscope/DeadlinesGoldenTest.java
+  s_490d18c85ab19e::t_2b79da94ce7206 1-35
+historical-eval/samples/BUG-0001/oracle/fixed.patch
+  s_490d18c85ab19e::t_2b79da94ce7206 1-54
+historical-eval/samples/BUG-0001/prompt/task.md
+  s_490d18c85ab19e::t_2b79da94ce7206 1-8
+historical-eval/tools/verify-sample.sh
+  s_490d18c85ab19e::t_692870f541f49d 1-24,28-30
+  s_490d18c85ab19e::t_0fedbd64f9d76f 25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "17c5b7c3f67dfd2c93a021ff7f8abe5ddf48cbbd",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
