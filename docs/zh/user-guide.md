@@ -736,6 +736,20 @@ TaskBatchResult<Account> batch = MdcBridge.withFields(
 同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。保存并恢复两者的原值，才能在
 direct/CallerRuns 或嵌套调用时保留外层上下文。
 
+### 让直接回调携带注册时上下文
+
+Guava 的 `MoreExecutors.directExecutor()` 会在 future 完成线程上执行 listener，不会保存注册 listener
+线程的 TTL。需要保留注册时上下文时，在注册点创建本库提供的直接执行器：
+
+```java
+Executor listenerExecutor = ContextExecutors.directExecutor();
+future.addListener(listener, listenerExecutor);
+```
+
+`ContextExecutors.directExecutor()` 在创建时捕获当前 TTL，每次 inline 执行前回放，执行结束后恢复完成线程
+原有的值。每个请求上下文应创建独立实例；同一请求的多个 listener 可以复用。仅把
+`MoreExecutors.directExecutor()` 再包一层 TTL 执行器不够，因为那会在 future 完成时才捕获，时机已经太晚。
+
 ### 与 OpenTelemetry 协作
 
 在本次调用线程上捕获完整 OTel `Context`，然后在每个执行内将它设为当前上下文。
