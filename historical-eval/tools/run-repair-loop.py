@@ -97,6 +97,7 @@ def run_model(
     workspace: Path,
     prompt: str,
     timeout: int,
+    log_path: Path,
 ) -> tuple[int, str, bool, list[str]]:
     if provider == "codex":
         command = [
@@ -133,21 +134,29 @@ def run_model(
     else:
         raise ValueError(f"unsupported provider: {provider}")
 
-    process = subprocess.Popen(
-        command,
-        cwd=workspace,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        start_new_session=True,
-    )
-    try:
-        output, _ = process.communicate(timeout=timeout)
-        return process.returncode, output, False, command
-    except subprocess.TimeoutExpired as exc:
-        partial = exc.stdout if isinstance(exc.stdout, str) else ""
-        terminate_process_group(process)
-        return 124, partial, True, command
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    # Redirect directly to a file instead of PIPE. Codex/ZCode may spawn
+    # descendants that inherit stdout; waiting on a pipe can then outlive the
+    # requested timeout even after the direct child has stopped producing data.
+    with log_path.open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            command,
+            cwd=workspace,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            process.wait(timeout=timeout)
+            returncode = process.returncode
+            timed_out = False
+        except subprocess.TimeoutExpired:
+            terminate_process_group(process)
+            returncode = 124
+            timed_out = True
+    output = log_path.read_text(encoding="utf-8", errors="replace")
+    return returncode, output, timed_out, command
 
 
 def patch_for_workspace(workspace: Path, originals: dict[str, str]) -> tuple[str, list[str]]:
@@ -429,12 +438,11 @@ def main() -> int:
         prompt = prompt_for_attempt(number, feedback)
         prompt_hash = sha256_text(prompt)
         start = time.monotonic()
+        session_path = attempt_dir / "session.log"
         returncode, session_output, timed_out, command = run_model(
-            args.provider, args.model, args.effort, workspace, prompt, args.timeout
+            args.provider, args.model, args.effort, workspace, prompt, args.timeout, session_path
         )
         elapsed = time.monotonic() - start
-        session_path = attempt_dir / "session.log"
-        session_path.write_text(session_output, encoding="utf-8")
         patch_text, out_of_scope = patch_for_workspace(workspace, originals)
         patch_path = attempt_dir / "candidate.patch"
         patch_path.write_text(patch_text, encoding="utf-8")
