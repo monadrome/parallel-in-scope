@@ -1,0 +1,27 @@
+historical-eval/catalog/model-runs/sol-medium-report.jsonl
+  s_490d18c85ab19e::t_451dfca6fef5c9 1-103
+historical-eval/catalog/model-runs/sol-medium-report.json
+  s_490d18c85ab19e::t_451dfca6fef5c9 1-37
+historical-eval/catalog/model-runs/sol-medium-run-meta.json
+  s_490d18c85ab19e::t_451dfca6fef5c9 1-16
+historical-eval/README.md
+  s_490d18c85ab19e::t_317c3549740543 193-194
+historical-eval/catalog/model-runs/sol-medium-report.md
+  s_490d18c85ab19e::t_451dfca6fef5c9 1-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8eeef7c0ee19ba8787864f381a34f5859a341d50",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
