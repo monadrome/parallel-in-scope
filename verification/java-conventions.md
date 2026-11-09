@@ -10,9 +10,8 @@ not by a sweep.
 ## Scope
 
 - Library sources only: `*.java` under `src/main/java`.
-- The `queue` package (`blocking-queues/src/main/java/io/github/monadrome/queues/`) is
-  excluded. Its JDK-port parity is governed by
-  `blocking-queues/AGENTS.md`.
+- The standalone queue artifact is outside this repository's source scope. Its JDK-port parity is
+  governed by the `AGENTS.md` in the `blocking-queues` repository.
 - Tests and the demo are out of scope for this first gate.
 
 ## Rules
