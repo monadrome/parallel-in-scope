@@ -316,7 +316,7 @@ Documentation must stay readable and correct without the Git object database:
   the first implementation. Report unrelated failures or blockers; do not claim
   completion while required checks are blocked.
 - For every code change, run `/refactoring-review`
-  (`.claude/skills/refactoring-review/SKILL.md`) after the behavior commit and
+  (`.agents/skills/refactoring-review/SKILL.md`) after the behavior commit and
   before Adversarial Review or delivery. `scripts/refactoring-review.py plan`
   decides whether a diff counts (documentation-only and comment-only diffs do
   not) and how many read-only detectors cover which lenses; rules are routed
@@ -380,7 +380,7 @@ Use the commit diff as the review baseline so review and fixes can continue in
 later sessions:
 
 - Use a different model or harness than the implementer. Run it through
-  `/multi-review` (`.claude/skills/multi-review/SKILL.md`) on the commit range,
+  `/multi-review` (`.agents/skills/multi-review/SKILL.md`) on the commit range,
   which keeps reviewers read-only on a snapshot; when no reviewer CLI can run,
   use a fresh-context agent on another model in a clone without a remote. The
   reviewer must not edit files. Name attack surfaces: interleavings, contract

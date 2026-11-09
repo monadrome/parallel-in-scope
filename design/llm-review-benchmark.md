@@ -85,7 +85,7 @@ node tools/llm-review-bench/dist/cli.js rescore <run-id> --json
 node tools/llm-review-bench/dist/cli.js report <run-id> --json
 ```
 
-项目内入口是薄 skill [`.claude/skills/multi-review/SKILL.md`](../.claude/skills/multi-review/SKILL.md)：
+项目内入口是薄 skill [`.agents/skills/multi-review/SKILL.md`](../.agents/skills/multi-review/SKILL.md)：
 它只负责构建、选 case、读取原始 findings、按规则生成判定 JSON 和调用 CLI，不实现评测算法，也不再
 调用旧的 Python 流程。
 
