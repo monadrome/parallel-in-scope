@@ -1,0 +1,19 @@
+historical-eval/tools/run-repair-loop.py
+  s_490d18c85ab19e::t_eca6e01b061e28 100,137-159,441,443
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c393c3acca72a2ea61c2d92802f211eedca698c1",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
