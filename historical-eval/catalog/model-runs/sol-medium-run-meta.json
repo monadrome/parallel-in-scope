@@ -1,0 +1,16 @@
+{
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "agent": "codex",
+  "raw_runs": 103,
+  "unique_ranks": 103,
+  "primary_selection": "predefined non-overlapping chunk preference: ranks 1-13,14-26,27-39,40-52,53-65,66-78,79-91,92-103",
+  "primary_results": "sol-medium-report.jsonl",
+  "timeouts_are_separate_status": true,
+  "timeout_ranks": [
+    75,
+    78,
+    91
+  ],
+  "timeout_cause": "long-running model sessions exceeded the 900 second per-group limit"
+}

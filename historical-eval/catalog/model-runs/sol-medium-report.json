@@ -1,0 +1,37 @@
+{
+  "total": 103,
+  "model": "gpt-6.1-sol",
+  "agent": "codex",
+  "reasoning_effort": "medium",
+  "status_counts": {
+    "model-fail": 78,
+    "model-pass": 7,
+    "model-timeout": 3,
+    "not-eligible": 15
+  },
+  "historical_sandbox_counts": {
+    "baseline-pass": 12,
+    "fixed-fail": 3,
+    "verified": 88
+  },
+  "by_difficulty": {
+    "easy": {
+      "model-fail": 4,
+      "model-pass": 1,
+      "not-eligible": 3
+    },
+    "hard": {
+      "model-fail": 32,
+      "model-pass": 1,
+      "not-eligible": 6
+    },
+    "medium": {
+      "model-fail": 42,
+      "model-pass": 5,
+      "model-timeout": 3,
+      "not-eligible": 6
+    }
+  },
+  "eligible": 88,
+  "model_pass_rate_on_eligible": 0.0795
+}

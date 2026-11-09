@@ -190,6 +190,8 @@ reasoning_effort: medium
 
 同一批 103 组随后使用 `codex + gpt-5.6-luna`、`max` 独立评测。主结果为通过 9 组、失败 71 组、超时 6 组、patch 被拒绝 2 组，历史可判定集通过率为 10.23%；6 个 timeout 样本各重试一次后仍全部 timeout。结果见 `catalog/model-runs/luna-max-report.md`，重试和分片选择记录见 `luna-max-run-meta.json`。
 
+第三轮使用 `codex + gpt-6.1-sol`、`medium` 独立评测：通过 7 组、失败 78 组、超时 3 组，历史可判定集通过率为 7.95%。结果见 `catalog/model-runs/sol-medium-report.md`，运行元数据见 `sol-medium-run-meta.json`。
+
 模型候选补丁可用 `tools/evaluate-group-patch.py` 在对应历史 group 的独立 sandbox 中验证：
 
 ```bash
