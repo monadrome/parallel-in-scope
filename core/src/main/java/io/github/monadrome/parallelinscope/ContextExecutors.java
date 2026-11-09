@@ -31,9 +31,6 @@ import java.util.concurrent.Executor;
  */
 public final class ContextExecutors {
 
-    private static final ContextPropagatingDirectExecutor DIRECT_CONTEXT_EXECUTOR =
-            new ContextPropagatingDirectExecutor();
-
     private ContextExecutors() {}
 
     /**
@@ -47,7 +44,7 @@ public final class ContextExecutors {
      * @since 0.5.0
      */
     public static Executor directContextExecutor() {
-        return DIRECT_CONTEXT_EXECUTOR;
+        return ContextPropagatingDirectExecutor.INSTANCE;
     }
 
     /**
@@ -69,7 +66,9 @@ public final class ContextExecutors {
      * Stateless direct executor whose context snapshot belongs to each command, making one shared
      * instance safe for unrelated callers.
      */
-    private static final class ContextPropagatingDirectExecutor implements Executor {
+    private enum ContextPropagatingDirectExecutor implements Executor {
+        INSTANCE;
+
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
