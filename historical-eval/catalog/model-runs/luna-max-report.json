@@ -1,0 +1,41 @@
+{
+  "total": 103,
+  "model": "gpt-5.6-luna",
+  "agent": "codex",
+  "reasoning_effort": "max",
+  "status_counts": {
+    "model-fail": 71,
+    "model-pass": 9,
+    "model-timeout": 6,
+    "not-eligible": 15,
+    "patch-rejected": 2
+  },
+  "historical_sandbox_counts": {
+    "baseline-pass": 12,
+    "fixed-fail": 3,
+    "verified": 88
+  },
+  "by_difficulty": {
+    "easy": {
+      "model-fail": 3,
+      "model-pass": 2,
+      "not-eligible": 3
+    },
+    "hard": {
+      "model-fail": 29,
+      "model-pass": 1,
+      "model-timeout": 2,
+      "not-eligible": 6,
+      "patch-rejected": 1
+    },
+    "medium": {
+      "model-fail": 39,
+      "model-pass": 6,
+      "model-timeout": 4,
+      "not-eligible": 6,
+      "patch-rejected": 1
+    }
+  },
+  "eligible": 88,
+  "model_pass_rate_on_eligible": 0.1023
+}

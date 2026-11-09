@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Run one independent Codex gpt-5.6-terra repair session for a ranked group."""
+"""Run one independent Codex repair session for a ranked group."""
 from __future__ import annotations
 import argparse
 import difflib
 import json
 import subprocess
 import tempfile
-import zipfile
 from pathlib import Path
 
 
@@ -20,7 +19,9 @@ def main():
     parser.add_argument("rank", type=int)
     parser.add_argument("-o", "--output", type=Path, required=True)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--model", default="gpt-5.6-terra")
+    parser.add_argument("--reasoning-effort", default="medium")
     args = parser.parse_args()
     ranking = [json.loads(line) for line in args.ranking.read_text(encoding="utf-8").splitlines()]
     row = next(row for row in ranking if row["rank"] == args.rank)
@@ -47,7 +48,7 @@ def main():
     prompt = "Inspect task.md and the provided production source files only. Repair the latent behavioral defect directly in the workspace. Do not inspect git history, tests, oracle files, or commit metadata. Use only safe local compilation if useful."
     log_path = args.output.with_suffix(".session.log")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    command = ["codex", "exec", "--ephemeral", "--skip-git-repo-check", "-m", "gpt-5.6-terra", "-c", "model_reasoning_effort=medium", "-s", "workspace-write", "-C", str(temp), prompt]
+    command = ["codex", "exec", "--ephemeral", "--skip-git-repo-check", "-m", args.model, "-c", f"model_reasoning_effort={args.reasoning_effort}", "-s", "workspace-write", "-C", str(temp), prompt]
     try:
         completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=args.timeout, check=False)
         log_path.write_text(completed.stdout, encoding="utf-8")
@@ -62,7 +63,7 @@ def main():
         patch_parts.extend(difflib.unified_diff(original.splitlines(True), modified.splitlines(True), fromfile=f"a/{path}", tofile=f"b/{path}"))
     patch_path = args.output.with_suffix(".patch")
     patch_path.write_text("".join(patch_parts), encoding="utf-8")
-    result = {"rank": args.rank, "group": row["group"], "representative": commit, "model": "gpt-5.6-terra", "reasoning_effort": "medium", "agent": "codex", "model_returncode": model_returncode, "patch": str(patch_path), "session_log": str(log_path), "workspace": str(temp), "status": "patch-ready" if patch_parts else "no-change"}
+    result = {"rank": args.rank, "group": row["group"], "representative": commit, "model": args.model, "reasoning_effort": args.reasoning_effort, "agent": "codex", "model_returncode": model_returncode, "patch": str(patch_path), "session_log": str(log_path), "workspace": str(temp), "status": "patch-ready" if patch_parts else "no-change"}
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, sort_keys=True))
 

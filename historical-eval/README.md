@@ -188,6 +188,8 @@ reasoning_effort: medium
 
 103 组按上述顺序完成了 `codex + gpt-5.6-terra`、`medium` 评测：88 组历史 sandbox 可判定，其中模型通过 8 组、失败 80 组；15 组因历史测试 `baseline-pass` 或 `fixed-fail` 标记为 `not-eligible`。完整排序和结果见 `catalog/model-runs/final-report.md`，机器可读结果见同名 `.json` 和 `.jsonl`。
 
+同一批 103 组随后使用 `codex + gpt-5.6-luna`、`max` 独立评测。主结果为通过 9 组、失败 71 组、超时 6 组、patch 被拒绝 2 组，历史可判定集通过率为 10.23%；6 个 timeout 样本各重试一次后仍全部 timeout。结果见 `catalog/model-runs/luna-max-report.md`，重试和分片选择记录见 `luna-max-run-meta.json`。
+
 模型候选补丁可用 `tools/evaluate-group-patch.py` 在对应历史 group 的独立 sandbox 中验证：
 
 ```bash

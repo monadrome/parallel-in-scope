@@ -59,11 +59,13 @@ def main() -> None:
     by_difficulty = defaultdict(Counter)
     for item in joined:
         by_difficulty[item["difficulty"]][item["model_status"]] += 1
+    model_names = sorted({item["model"] for item in joined})
+    effort_names = sorted({item["reasoning_effort"] for item in joined})
     summary = {
         "total": len(joined),
-        "model": "gpt-5.6-terra",
+        "model": model_names[0] if len(model_names) == 1 else model_names,
         "agent": "codex",
-        "reasoning_effort": "medium",
+        "reasoning_effort": effort_names[0] if len(effort_names) == 1 else effort_names,
         "status_counts": dict(sorted(status_counts.items())),
         "historical_sandbox_counts": dict(sorted(historical_counts.items())),
         "by_difficulty": {key: dict(sorted(value.items())) for key, value in sorted(by_difficulty.items())},
@@ -84,8 +86,8 @@ def main() -> None:
         "# Ranked model evaluation",
         "",
         f"- Total groups: **{summary['total']}**",
-        "- Agent/model: `codex` + `gpt-5.6-terra`",
-        "- Reasoning effort: `medium`",
+        f"- Agent/model: `codex` + `{summary['model']}`",
+        f"- Reasoning effort: `{summary['reasoning_effort']}`",
         f"- Eligible historical oracles: **{summary['eligible']}**",
         f"- Model pass rate on eligible groups: **{summary['model_pass_rate_on_eligible']:.2%}**",
         "",

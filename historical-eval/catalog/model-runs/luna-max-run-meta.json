@@ -1,0 +1,28 @@
+{
+  "model": "gpt-5.6-luna",
+  "reasoning_effort": "max",
+  "agent": "codex",
+  "raw_runs": 121,
+  "unique_ranks": 103,
+  "duplicate_rank_count": 18,
+  "primary_selection": "predefined non-overlapping chunk preference: ranks 1-13,14-26,27-39,40-52,53-65,66-78,79-91,92-103",
+  "primary_results": "luna-max-report.jsonl",
+  "timeouts_are_separate_status": true,
+  "retry_ranks": [
+    1,
+    26,
+    70,
+    75,
+    78,
+    91
+  ],
+  "retry_results": {
+    "1": "model-timeout",
+    "26": "model-timeout",
+    "70": "model-timeout",
+    "75": "model-timeout",
+    "78": "model-timeout",
+    "91": "model-timeout"
+  },
+  "retry_conclusion": "all retries timed out; primary statuses unchanged"
+}
