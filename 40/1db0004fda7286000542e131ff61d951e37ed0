@@ -1,0 +1,19 @@
+ledger/2026-11-09-refactoring-bench.json
+  s_3139623fe9811e::t_2d13aebc9b3e0c 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "401db0004fda7286000542e131ff61d951e37ed0",
+  "prompts": {},
+  "sessions": {
+    "s_3139623fe9811e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c103-d092-7822-a2f2-73911443e0ff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
