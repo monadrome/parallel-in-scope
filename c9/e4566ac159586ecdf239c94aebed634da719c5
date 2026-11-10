@@ -1,0 +1,23 @@
+historical-eval/tools/run-repair-loop.py
+  s_fcaade8c4507a4::t_dbd7f9692bf521 118,135-139,328-332,473-480
+  s_fcaade8c4507a4::t_320c501b50d35d 364,387,526
+historical-eval/tools/run-codex-group.py
+  s_fcaade8c4507a4::t_dbd7f9692bf521 25-29,56-58
+  s_fcaade8c4507a4::t_1fa4f3b30e8f5c 73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c9e4566ac159586ecdf239c94aebed634da719c5",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
