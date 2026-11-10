@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-10-ci-flaky-waiter-order",
+  "date": "2026-11-10",
+  "topic": "ci-flaky-waiter-order",
+  "routes": [
+    "concurrency",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add lazy context direct executor",
+      "refactor: document context execution helper",
+      "chore: record delivery lazy-direct-executor",
+      "feat!: make direct context capture lazy by default",
+      "chore: record delivery direct-executor-default",
+      "refactor!: rename context direct executor",
+      "chore: record delivery direct-context-executor-rename",
+      "docs: expand TTL and CRR abbreviations",
+      "chore: record delivery expand-abbreviations",
+      "refactor: reuse context propagating direct executor",
+      "refactor: keep executor tests behavior focused",
+      "chore: record delivery direct-context-executor-singleton",
+      "fix: remove unfair waiter ordering assumption"
+    ],
+    "files": 15,
+    "insertions": 695,
+    "deletions": 77
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "lazy-direct-executor-a6f5fe34-20261110-130352-f2e614",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 155495,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Fixed unfair blocked-taker ordering assertion; 10 targeted repeats, spotless, race-claims, and GitHub CI passed. Local full mvn test reached 3323 core tests and 164 queue tests but existing Lincheck tests timed out. Focused queue PIT was blocked because blocking-queues has no pitest profile and the JUnit 5 PIT plugin is unavailable."
+}
