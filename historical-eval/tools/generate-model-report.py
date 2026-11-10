@@ -34,9 +34,13 @@ def registry_by_key(registry: Any) -> dict[str, dict[str, Any]]:
     for item in items:
         if not isinstance(item, dict):
             continue
-        for key in (item.get("id"), item.get("name"), item.get("model")):
+        for key in (item.get("id"), item.get("name"), item.get("model"), item.get("run_key")):
             if key:
-                result[str(key)] = item
+                # A model name can legitimately appear in multiple tracks
+                # (for example Terra oneshot and continuation). Keep the
+                # first registry entry for the ambiguous model key; callers
+                # can use the run_key/id to select a track explicitly.
+                result.setdefault(str(key), item)
     return result
 
 
@@ -50,9 +54,9 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
     model = str(first.get("model", run_dir.name.replace(".runs", "")))
     provider = str(first.get("provider", "unknown"))
     effort = str(first.get("effort", first.get("reasoning_effort", "unknown")))
-    config = registry.get(model, {})
+    config = registry.get(run_dir.name.replace(".runs", ""), {})
     if not config:
-        config = registry.get(run_dir.name.replace(".runs", ""), {})
+        config = registry.get(model, {})
     tier_value = first.get("service_tier")
     if tier_value is None:
         tier_value = config.get("service_tier")

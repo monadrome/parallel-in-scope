@@ -86,7 +86,7 @@
       }
     },
     {
-      "model_id": "codex-terra-continuation-medium",
+      "model_id": "codex-terra-medium",
       "provider": "codex",
       "model": "gpt-5.6-terra",
       "effort": "medium",
