@@ -115,12 +115,12 @@ def run_model(
     prompt: str,
     timeout: int,
     log_path: Path,
+    ephemeral: bool = False,
 ) -> tuple[int, str, bool, list[str]]:
     if provider == "codex":
         command = [
             "codex",
             "exec",
-            "--ephemeral",
             "--skip-git-repo-check",
             "-m",
             model,
@@ -132,6 +132,11 @@ def run_model(
             str(workspace),
             prompt,
         ]
+        if ephemeral:
+            # Persistent sessions are the default so the run remains
+            # inspectable after the process exits.  Keep an explicit opt-out
+            # for callers that need a disposable Codex session.
+            command.insert(2, "--ephemeral")
     elif provider == "zcode":
         command = [
             "zcode",
@@ -320,6 +325,11 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--eval-timeout", type=int, default=180)
     parser.add_argument("--keep-workspaces", action="store_true")
+    parser.add_argument(
+        "--ephemeral",
+        action="store_true",
+        help="opt out of persistent Codex sessions for this run",
+    )
     args = parser.parse_args()
 
     if args.strategy == "oneshot":
@@ -351,6 +361,7 @@ def main() -> int:
         "eval_timeout": args.eval_timeout,
         "source_paths": paths,
     }
+    session_persistence = "ephemeral" if args.ephemeral and args.provider == "codex" else "persistent"
     config_hash = sha256_text(json.dumps(config, ensure_ascii=False, sort_keys=True))
     run_id = f"rank-{args.rank:03d}-{config_hash[:12]}"
     attempts: list[dict[str, Any]] = []
@@ -373,6 +384,7 @@ def main() -> int:
             "model": args.model,
             "effort": args.effort,
             "strategy": args.strategy,
+            "session_persistence": session_persistence,
             "max_attempts": max_attempts,
             "public_status": last.get("public_status", "not-run"),
             "public_coarse_status": last.get("public_coarse_status", "NOT_RUN"),
@@ -458,7 +470,14 @@ def main() -> int:
         start = time.monotonic()
         session_path = attempt_dir / "session.log"
         returncode, session_output, timed_out, command = run_model(
-            args.provider, args.model, args.effort, workspace, prompt, args.timeout, session_path
+            args.provider,
+            args.model,
+            args.effort,
+            workspace,
+            prompt,
+            args.timeout,
+            session_path,
+            ephemeral=args.ephemeral,
         )
         elapsed = time.monotonic() - start
         patch_text, out_of_scope = patch_for_workspace(workspace, originals)
@@ -504,6 +523,7 @@ def main() -> int:
             "provider": args.provider,
             "model": args.model,
             "effort": args.effort,
+            "session_persistence": session_persistence,
             "prompt_hash": prompt_hash,
             "patch_hash": patch_hash,
             "patch": str(patch_path),

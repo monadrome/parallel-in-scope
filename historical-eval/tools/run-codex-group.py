@@ -22,6 +22,11 @@ def main():
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--model", default="gpt-5.6-terra")
     parser.add_argument("--reasoning-effort", default="medium")
+    parser.add_argument(
+        "--ephemeral",
+        action="store_true",
+        help="opt out of persistent Codex sessions for this run",
+    )
     args = parser.parse_args()
     ranking = [json.loads(line) for line in args.ranking.read_text(encoding="utf-8").splitlines()]
     row = next(row for row in ranking if row["rank"] == args.rank)
@@ -48,7 +53,9 @@ def main():
     prompt = "Inspect task.md and the provided production source files only. Repair the latent behavioral defect directly in the workspace. Do not inspect git history, tests, oracle files, or commit metadata. Use only safe local compilation if useful."
     log_path = args.output.with_suffix(".session.log")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    command = ["codex", "exec", "--ephemeral", "--skip-git-repo-check", "-m", args.model, "-c", f"model_reasoning_effort={args.reasoning_effort}", "-s", "workspace-write", "-C", str(temp), prompt]
+    command = ["codex", "exec", "--skip-git-repo-check", "-m", args.model, "-c", f"model_reasoning_effort={args.reasoning_effort}", "-s", "workspace-write", "-C", str(temp), prompt]
+    if args.ephemeral:
+        command.insert(2, "--ephemeral")
     try:
         completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=args.timeout, check=False)
         log_path.write_text(completed.stdout, encoding="utf-8")
@@ -63,7 +70,7 @@ def main():
         patch_parts.extend(difflib.unified_diff(original.splitlines(True), modified.splitlines(True), fromfile=f"a/{path}", tofile=f"b/{path}"))
     patch_path = args.output.with_suffix(".patch")
     patch_path.write_text("".join(patch_parts), encoding="utf-8")
-    result = {"rank": args.rank, "group": row["group"], "representative": commit, "model": args.model, "reasoning_effort": args.reasoning_effort, "agent": "codex", "model_returncode": model_returncode, "patch": str(patch_path), "session_log": str(log_path), "workspace": str(temp), "status": "patch-ready" if patch_parts else "no-change"}
+    result = {"rank": args.rank, "group": row["group"], "representative": commit, "model": args.model, "reasoning_effort": args.reasoning_effort, "agent": "codex", "session_persistence": "ephemeral" if args.ephemeral else "persistent", "model_returncode": model_returncode, "patch": str(patch_path), "session_log": str(log_path), "workspace": str(temp), "status": "patch-ready" if patch_parts else "no-change"}
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, sort_keys=True))
 
