@@ -27,10 +27,12 @@
       "chore: record delivery historical-benchmark-final-scorecard",
       "fix: label model timeout states",
       "chore: record delivery historical-benchmark-final-scorecard",
-      "fix: disambiguate scorecard model tracks"
+      "fix: disambiguate scorecard model tracks",
+      "chore: record delivery historical-benchmark-final-scorecard",
+      "fix: harden scorecard completeness metrics"
     ],
     "files": 18,
-    "insertions": 2053,
+    "insertions": 2204,
     "deletions": 5
   },
   "reviews": {
@@ -50,5 +52,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Finalized the scorecard after the user chose to stop remaining timeout retries; unresolved timeouts remain separate from capability scoring. The refactoring-review planner was required on the large historical diff but no detector run was completed. Report now distinguishes model-level unresolved timeout states and disambiguates oneshot versus continuation model registry tracks."
+  "notes": "Finalized the scorecard after stopping remaining timeout retries. The final generator now validates unique/complete ranks and JSON inputs, separates resolved coverage from unresolved verdicts, counts only definitive retry recovery, includes the full execution policy, escapes HTML fields, and disambiguates registry tracks. The refactoring-review planner was required on the large historical diff but no detector run was completed."
 }
