@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-10-direct-context-executor-singleton",
+  "date": "2026-11-10",
+  "topic": "direct-context-executor-singleton",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add lazy context direct executor",
+      "refactor: document context execution helper",
+      "chore: record delivery lazy-direct-executor",
+      "feat!: make direct context capture lazy by default",
+      "chore: record delivery direct-executor-default",
+      "refactor!: rename context direct executor",
+      "chore: record delivery direct-context-executor-rename",
+      "docs: expand TTL and CRR abbreviations",
+      "chore: record delivery expand-abbreviations",
+      "refactor: reuse context propagating direct executor",
+      "refactor: keep executor tests behavior focused"
+    ],
+    "files": 12,
+    "insertions": 611,
+    "deletions": 74
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-context-executor-singleton-2026-11-10",
+        "head": "312098774ad1320b8f88fc68f131c9447e318e74",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "T01"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "unknown"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "full mvn test": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Renamed the internal DirectExecutor to ContextPropagatingDirectExecutor and reused a stateless singleton for directContextExecutor(). Removed an implementation-coupled singleton identity test after refactoring review; observable propagation tests remain. Targeted tests passed. Full mvn test passed on retry after one transient cancellation failure in TaskBatchResultExecutionExitTest; final run: 3324 core tests, 164 queue tests, lincheck passed."
+}
