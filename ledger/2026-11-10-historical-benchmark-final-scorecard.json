@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-10-historical-benchmark-final-scorecard",
+  "date": "2026-11-10",
+  "topic": "historical-benchmark-final-scorecard",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: add resumable historical model evaluation",
+      "fix: enforce model evaluation timeouts",
+      "test: add continuation repair mode",
+      "test: add durable benchmark lifecycle",
+      "fix: include timeout retry metrics",
+      "fix: report rescue-adjusted behavior scores",
+      "fix: handle legacy timeout retry fields",
+      "test: persist model sessions by default",
+      "docs: describe persistent model sessions",
+      "test: extend timeout retry budget",
+      "fix: distinguish unresolved timeout scorecards",
+      "test: record timeout-aware model scorecard"
+    ],
+    "files": 17,
+    "insertions": 1985,
+    "deletions": 5
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 2
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Finalized the scorecard after the user chose to stop remaining timeout retries; unresolved timeouts remain separate from capability scoring. The refactoring-review planner was required on the large historical diff but no detector run was completed."
+}
