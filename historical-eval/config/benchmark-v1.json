@@ -1,0 +1,53 @@
+{
+  "schema": "historical-repair-benchmark/manifest/v1",
+  "benchmark_id": "historical-v1",
+  "catalog": {
+    "ranking": "historical-eval/catalog/fix-groups-vote-ranking.jsonl",
+    "groups": "historical-eval/catalog/fix-groups.jsonl",
+    "sandbox": "historical-eval/catalog/fix-groups-sandbox-report.jsonl"
+  },
+  "population": {
+    "unique_groups": 103,
+    "behavior_denominator": 90,
+    "historical_verified": 88,
+    "rescued_behavior_ranks": [19, 34],
+    "rescued_quality_only_ranks": [99],
+    "excluded_from_behavior_score": [10, 18, 30, 37, 47, 57, 66, 74, 76, 85, 96, 99, 103]
+  },
+  "execution_policy": {
+    "model_timeout_seconds": 900,
+    "evaluator_timeout_seconds": 180,
+    "timeout_retries": 1,
+    "retry_same_model_config": true,
+    "retry_fresh_workspace": true,
+    "unresolved_timeout_is_model_failure": false,
+    "timeout_with_valid_patch_is_normal_pass": false,
+    "max_workers_per_model": 4
+  },
+  "tracks": [
+    {
+      "id": "oneshot",
+      "primary": true,
+      "max_attempts": 1,
+      "description": "single blind repair attempt; primary ability score"
+    },
+    {
+      "id": "fresh-repair-2",
+      "primary": false,
+      "max_attempts": 2,
+      "description": "fresh session repair with coarse verifier feedback"
+    },
+    {
+      "id": "continuation-repair-2",
+      "primary": false,
+      "max_attempts": 2,
+      "description": "same persisted model session resumed with coarse feedback"
+    }
+  ],
+  "privacy_policy": {
+    "model_workspace_allows": ["production_source", "neutral_task", "build_metadata"],
+    "model_workspace_forbids": ["tests", "docs", "git_history", "catalog", "oracle", "hidden_tests", "fixed_patch", "other_model_results"],
+    "model_feedback": ["PASS", "PUBLIC_TEST_FAIL", "EXTERNAL_BEHAVIOR_FAIL", "TIMEOUT", "PATCH_REJECTED", "NO_CHANGE"],
+    "raw_artifacts_location": "private evaluator directory only"
+  }
+}

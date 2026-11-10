@@ -25,6 +25,23 @@ from typing import Any
 
 SOURCE_SUFFIXES = {".java", ".kt", ".py", ".ts", ".js", ".go", ".rs"}
 CONTROL_FILES = {"task.md", "feedback.json", "candidate.patch"}
+FORBIDDEN_PATH_PARTS = (".git", "src/test", "hidden", "oracle", "fixed.patch", "catalog", "docs", "design")
+
+
+def validate_model_workspace(workspace: Path, originals: dict[str, str]) -> dict[str, Any]:
+    """Check the model-visible workspace before invoking a provider."""
+    allowed = set(originals) | CONTROL_FILES
+    violations: list[str] = []
+    for path in workspace.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(workspace).as_posix()
+        if relative not in allowed:
+            violations.append(relative)
+            continue
+        if any(part in relative.lower() for part in FORBIDDEN_PATH_PARTS):
+            violations.append(relative)
+    return {"status": "pass" if not violations else "fail", "violations": sorted(set(violations))}
 
 
 def git(repo: Path, *args: str) -> str:
@@ -435,6 +452,7 @@ def main() -> int:
         (workspace / "task.md").write_text(task_text(), encoding="utf-8")
         if feedback:
             (workspace / "feedback.json").write_text(json.dumps({"status": feedback}, indent=2) + "\n", encoding="utf-8")
+        leak_check = validate_model_workspace(workspace, originals)
         prompt = prompt_for_attempt(number, feedback)
         prompt_hash = sha256_text(prompt)
         start = time.monotonic()
@@ -448,7 +466,10 @@ def main() -> int:
         patch_path.write_text(patch_text, encoding="utf-8")
         patch_hash = sha256_file(patch_path)
         evaluation: dict[str, Any] = {"status": "not-run", "coarse_status": "NOT_RUN"}
-        if out_of_scope:
+        if leak_check["status"] != "pass":
+            attempt_status = "workspace-leak"
+            feedback = "WORKSPACE_LEAK"
+        elif out_of_scope:
             attempt_status = "out-of-scope"
             feedback = "OUT_OF_SCOPE"
         elif timed_out:
@@ -491,6 +512,7 @@ def main() -> int:
             "apply_status": apply_status,
             "apply_detail": apply_detail,
             "out_of_scope_files": out_of_scope,
+            "leak_check": leak_check,
             "evaluation": evaluation,
             "command": command,
         }

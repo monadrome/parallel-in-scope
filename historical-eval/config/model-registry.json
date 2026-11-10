@@ -1,0 +1,60 @@
+{
+  "schema": "historical-repair-benchmark/model-registry/v1",
+  "service_tier_default": "fast",
+  "models": [
+    {
+      "id": "codex-terra-medium",
+      "provider": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "service_tier": "fast",
+      "track": "oneshot",
+      "enabled": true
+    },
+    {
+      "id": "codex-luna-max",
+      "provider": "codex",
+      "model": "gpt-5.6-luna",
+      "effort": "max",
+      "service_tier": "fast",
+      "track": "oneshot",
+      "enabled": true
+    },
+    {
+      "id": "codex-sol-medium",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "service_tier": "fast",
+      "track": "oneshot",
+      "enabled": true
+    },
+    {
+      "id": "codex-terra61-medium",
+      "provider": "codex",
+      "model": "gpt-6.1-terra",
+      "effort": "medium",
+      "service_tier": "fast",
+      "track": "oneshot",
+      "enabled": true
+    },
+    {
+      "id": "zcode-glm53-max",
+      "provider": "zcode",
+      "model": "account:bigmodel-individual-coding-plan/GLM-5.3",
+      "effort": "max",
+      "service_tier": null,
+      "track": "oneshot",
+      "enabled": true
+    },
+    {
+      "id": "codex-terra-continuation-medium",
+      "provider": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "service_tier": "fast",
+      "track": "continuation-repair-2",
+      "enabled": true
+    }
+  ]
+}

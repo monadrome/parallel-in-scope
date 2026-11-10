@@ -1,0 +1,13 @@
+{
+  "schema": "historical-private-evaluator/v1",
+  "private_root_env": "HISTORICAL_EVAL_PRIVATE_DIR",
+  "required_phases": ["parent_baseline", "historical_fixed", "candidate_public", "candidate_hidden"],
+  "model_feedback": ["PASS", "PUBLIC_TEST_FAIL", "EXTERNAL_BEHAVIOR_FAIL", "TIMEOUT", "PATCH_REJECTED"],
+  "forbidden_feedback_fields": ["test_source", "test_name", "assertion", "stack_trace", "fixed_patch", "oracle_path"],
+  "rescue_ranks": [19, 34],
+  "retention": {
+    "raw_tests": "private-only",
+    "raw_logs": "private-only",
+    "repository_summary": "status-codes-and-counts-only"
+  }
+}

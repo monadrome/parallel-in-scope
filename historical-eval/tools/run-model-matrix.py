@@ -42,6 +42,7 @@ def run_one(
     timeout: int,
     eval_timeout: int,
     output_root: Path,
+    timeout_retries: int,
     rescue_ranks: set[int],
     rescue_evaluator: Path | None,
     rescue_private_root: Path | None,
@@ -59,6 +60,7 @@ def run_one(
         "max_attempts": max_attempts,
         "timeout": timeout,
         "eval_timeout": eval_timeout,
+        "timeout_retries": timeout_retries,
         "rank": rank,
         "group": group,
     }
@@ -67,6 +69,14 @@ def run_one(
         try:
             existing = json.loads(result_path.read_text(encoding="utf-8"))
             if existing.get("config_hash") == config_hash:
+                return existing
+            # Preserve completed results written before timeout-retry became part of
+            # the manifest. Only old timeout rows need a new execution; all other
+            # completed rows remain valid under the same model configuration.
+            same_base = all(
+                existing.get(key) == value for key, value in config.items() if key != "timeout_retries"
+            )
+            if same_base and existing.get("model_status") != "model-timeout":
                 return existing
         except (OSError, json.JSONDecodeError):
             pass
@@ -79,49 +89,26 @@ def run_one(
         return result
 
     runner = repo / "historical-eval/tools/run-repair-loop.py"
-    command = [
-        sys.executable,
-        str(runner),
-        str(ranking),
-        str(groups),
-        str(rank),
-        "-o",
-        str(target / "run.json"),
-        "--repo",
-        str(repo),
-        "--provider",
-        provider,
-        "--model",
-        model,
-        "--effort",
-        effort,
-        "--strategy",
-        strategy,
-        "--max-attempts",
-        str(max_attempts),
-        "--timeout",
-        str(timeout),
-        "--eval-timeout",
-        str(eval_timeout),
-    ]
-    started = time.monotonic()
-    completed = subprocess.run(
-        command,
-        cwd=repo,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        check=False,
-    )
-    (target / "scheduler.log").write_text(completed.stdout, encoding="utf-8")
-    run_result: dict[str, Any] = {}
-    run_path = target / "run.json"
-    if run_path.exists():
-        try:
-            run_result = json.loads(run_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            run_result = {}
 
+    def execute_once(run_path: Path, log_path: Path) -> tuple[dict[str, Any], int, float]:
+        command = [
+            sys.executable, str(runner), str(ranking), str(groups), str(rank), "-o", str(run_path),
+            "--repo", str(repo), "--provider", provider, "--model", model, "--effort", effort,
+            "--strategy", strategy, "--max-attempts", str(max_attempts), "--timeout", str(timeout),
+            "--eval-timeout", str(eval_timeout),
+        ]
+        started = time.monotonic()
+        completed = subprocess.run(command, cwd=repo, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False)
+        log_path.write_text(completed.stdout, encoding="utf-8")
+        run_result: dict[str, Any] = {}
+        if run_path.exists():
+            try:
+                run_result = json.loads(run_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                run_result = {}
+        return run_result, completed.returncode, time.monotonic() - started
+
+    run_result, returncode, elapsed = execute_once(target / "run.json", target / "scheduler.log")
     attempts = run_result.get("attempts", [])
     final_attempt = attempts[-1] if attempts else {}
     public_status = final_attempt.get("evaluation", {}).get("status") or final_attempt.get("status")
@@ -129,14 +116,49 @@ def run_one(
         **config,
         "config_hash": config_hash,
         "historical_status": historical_status,
-        "model_status": run_result.get("final_status", "runner-error" if completed.returncode else "unknown"),
+        "model_status": run_result.get("final_status", "runner-error" if returncode else "unknown"),
         "public_status": public_status,
         "attempts": len(attempts),
-        "seconds": round(time.monotonic() - started, 3),
-        "returncode": completed.returncode,
-        "run": str(run_path),
+        "seconds": round(elapsed, 3),
+        "returncode": returncode,
+        "run": str(target / "run.json"),
         "scheduler_log": str(target / "scheduler.log"),
     }
+
+    retry_records: list[dict[str, Any]] = []
+    for retry_index in range(1, timeout_retries + 1):
+        if result.get("model_status") != "model-timeout":
+            break
+        retry_dir = target / f"retry-{retry_index:03d}"
+        retry_dir.mkdir(parents=True, exist_ok=True)
+        retry_run, retry_rc, retry_seconds = execute_once(retry_dir / "run.json", retry_dir / "scheduler.log")
+        retry_attempts = retry_run.get("attempts", [])
+        retry_last = retry_attempts[-1] if retry_attempts else {}
+        retry_record = {
+            "retry": retry_index,
+            "model_status": retry_run.get("final_status", "runner-error" if retry_rc else "unknown"),
+            "public_status": retry_last.get("evaluation", {}).get("status") or retry_last.get("status"),
+            "seconds": round(retry_seconds, 3),
+            "returncode": retry_rc,
+            "run": str(retry_dir / "run.json"),
+        }
+        retry_records.append(retry_record)
+        if retry_record["model_status"] != "model-timeout":
+            result.update(
+                model_status=retry_record["model_status"],
+                public_status=retry_record["public_status"],
+                seconds=round(result["seconds"] + retry_seconds, 3),
+                returncode=retry_rc,
+                run=retry_record["run"],
+                scheduler_log=str(retry_dir / "scheduler.log"),
+            )
+            run_result = retry_run
+            attempts = retry_attempts
+            final_attempt = retry_last
+            break
+    if retry_records:
+        result["timeout_retries"] = retry_records
+        result["timeout_retry_status"] = retry_records[-1]["model_status"]
 
     if rank in rescue_ranks and rescue_evaluator and rescue_private_root and attempts:
         patch = attempts[-1].get("patch")
@@ -180,6 +202,7 @@ def main() -> int:
     parser.add_argument("--effort", default="medium")
     parser.add_argument("--strategy", choices=("oneshot", "repair-loop"), default="oneshot")
     parser.add_argument("--max-attempts", type=int, default=1)
+    parser.add_argument("--timeout-retries", type=int, default=1, help="retry a model timeout once by default")
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--eval-timeout", type=int, default=180)
     parser.add_argument("--max-workers", type=int, default=4)
@@ -228,6 +251,7 @@ def main() -> int:
                     args.timeout,
                     args.eval_timeout,
                     output_root,
+                    max(0, args.timeout_retries),
                     rescue_ranks,
                     args.rescue_evaluator.resolve() if args.rescue_evaluator else None,
                     rescue_private_root,

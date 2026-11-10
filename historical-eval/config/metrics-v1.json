@@ -1,0 +1,55 @@
+{
+  "schema": "historical-repair-benchmark/metrics/v1",
+  "primary_order": [
+    "hidden_behavior_pass_rate",
+    "hidden_behavior_pass_count",
+    "public_hidden_false_pass_rate",
+    "resolved_coverage",
+    "difficulty_and_category_pass_rate",
+    "timeout_retry_recovery_rate",
+    "patch_validity_rate",
+    "latency_and_throughput"
+  ],
+  "metrics": {
+    "hidden_behavior_pass_rate": {
+      "formula": "hidden_behavior_passes / behavior_denominator",
+      "primary": true,
+      "timeout_policy": "retry once; unresolved timeout is reported separately"
+    },
+    "hidden_behavior_pass_count": {
+      "formula": "count(candidate passes private behavioral verifier)",
+      "primary": true
+    },
+    "public_hidden_false_pass_rate": {
+      "formula": "public_pass_and_hidden_fail / public_pass",
+      "primary": true
+    },
+    "resolved_coverage": {
+      "formula": "resolved_cases / behavior_denominator",
+      "primary": false,
+      "description": "cases with a non-timeout verdict after the retry budget"
+    },
+    "difficulty_and_category_pass_rate": {
+      "formula": "passes grouped by consensus difficulty and bug category",
+      "primary": false
+    },
+    "timeout_retry_recovery_rate": {
+      "formula": "timeouts_resolved_after_retry / initial_timeouts",
+      "primary": false
+    },
+    "patch_validity_rate": {
+      "formula": "compiling_or_testable_patches / patch_attempts",
+      "primary": false
+    },
+    "latency_and_throughput": {
+      "formula": "p50/p90 model seconds, p50/p90 end_to_end seconds, samples_per_hour",
+      "primary": false,
+      "tie_breaker_only": true
+    },
+    "timeout_rate": {
+      "formula": "unresolved_timeouts / behavior_denominator",
+      "primary": false,
+      "ability_score_excluded": true
+    }
+  }
+}
