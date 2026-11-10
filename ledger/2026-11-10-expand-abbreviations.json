@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-10-expand-abbreviations",
+  "date": "2026-11-10",
+  "topic": "expand-abbreviations",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add lazy context direct executor",
+      "refactor: document context execution helper",
+      "chore: record delivery lazy-direct-executor",
+      "feat!: make direct context capture lazy by default",
+      "chore: record delivery direct-executor-default",
+      "refactor!: rename context direct executor",
+      "chore: record delivery direct-context-executor-rename",
+      "docs: expand TTL and CRR abbreviations"
+    ],
+    "files": 11,
+    "insertions": 558,
+    "deletions": 74
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Expanded the first occurrences of Alibaba TransmittableThreadLocal (TTL) and Capture/Replay/Restore (CRR) across the current branch Javadoc, user guides, migration notes, design contract, changelog, and the desktop CRR article. Documentation references, formatting, and diff checks passed."
+}
