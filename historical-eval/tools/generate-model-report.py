@@ -62,6 +62,12 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
     durations = [float(row["seconds"]) for row in rows if isinstance(row.get("seconds"), (int, float))]
     passes = statuses.get("model-pass", 0)
     unresolved_timeouts = statuses.get("model-timeout", 0)
+    retry_initial = sum(1 for row in rows if row.get("timeout_retries"))
+    retry_recovered = sum(
+        1 for row in rows
+        if row.get("timeout_retries")
+        and row.get("timeout_retries", [{}])[-1].get("model_status") != "model-timeout"
+    )
     completed = len(rows)
     return {
         "model_id": config.get("id", run_dir.name.replace(".runs", "")),
@@ -78,6 +84,8 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
         "status_counts": dict(sorted(statuses.items())),
         "public_status_counts": dict(sorted(public_statuses.items())),
         "unresolved_timeout_count": unresolved_timeouts,
+        "timeout_retry_initial": retry_initial,
+        "timeout_retry_recovered": retry_recovered,
         "latency_seconds": {
             "mean": round(statistics.mean(durations), 3) if durations else None,
             "p50": percentile(durations, 0.50),
