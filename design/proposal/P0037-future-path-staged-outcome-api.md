@@ -12,7 +12,7 @@
   - 阶段链在最后一个处理器注册前 MUST 不可结束，从而让遗漏分支成为编译期错误，而不是运行时默认分支。
 - 被否决方向：继续暴露状态查询组合（仍要求用户记住状态读取顺序）；为每个取消枚举值建立独立阶段（把内部枚举变成不稳定的公开 API）；让同步 Result 自动包装成 Future（丢失同步语义）；单一 `OutcomePath` 终点同时返回 Future 和 Result（Java 类型表达不自然，调用方难以判断执行模型）。
 
-本提案消费的任务终止语义由[任务终止与 scope 原因契约](task-termination-and-scope.md)定义。
+本提案消费的任务终止语义由[任务终止与 scope 原因契约](../task-termination-and-scope.md)定义。
 `FuturePath` 的取消阶段处理 `CancellationReason` 和 `ExecutionDisposition`，不得重新公开
 `GROUP_CANCELLED`、`MEMBER_CANCELLED` 或 `FAIL_FAST` 作为新的稳定原因。
 
