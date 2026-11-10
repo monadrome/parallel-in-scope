@@ -1,0 +1,20 @@
+ledger/2026-11-09-lazy-direct-executor.json
+  s_51a7dc8d9e3065::t_fc7a38fef0f7dc 1-77,79-88,90-121
+  s_51a7dc8d9e3065::t_c52d3eb8d42533 78,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2571d464b3f7cd45fa3e8649d6efa4f71eba3069",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
