@@ -84,7 +84,13 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
         "service_tier": service_tier,
         "completed": completed,
         "denominator": denominator,
-        "state": "complete" if completed >= denominator else "incomplete",
+        "state": (
+            "incomplete"
+            if completed < denominator
+            else "complete-with-unresolved-timeouts"
+            if unresolved_timeouts > 0
+            else "complete"
+        ),
         "pass_count": passes,
         "behavior_pass_count": behavior_passes,
         "rescue_hidden_passes": rescue_passes,
