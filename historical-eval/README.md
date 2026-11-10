@@ -202,4 +202,9 @@ python3 historical-eval/tools/evaluate-group-patch.py \
   -o /tmp/model-result.json
 ```
 
+`tools/run-repair-loop.py` 和 `tools/run-codex-group.py` 默认保留 Codex 会话，
+因此可以在模型进程结束后继续查看会话记录和 `session.log`。每条结果会记录
+`session_persistence: persistent` 以及实际命令；只有显式传入 `--ephemeral` 才会
+使用一次性 Codex 会话。ZCode runner 默认同样保留运行日志，不会传递一次性会话选项。
+
 `tools/run-codex-group.py` 可按投票排名启动独立 Codex 会话。第 1 组试跑已完成：模型编译/会话成功，但历史回归测试为 `model-fail`，结果保存在 `catalog/model-runs/all/001-abaf2bf6e921d7eb/`。
