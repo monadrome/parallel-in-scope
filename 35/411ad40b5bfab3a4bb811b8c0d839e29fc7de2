@@ -1,0 +1,38 @@
+historical-eval/catalog/model-runs/final-scorecard.json
+  s_fcaade8c4507a4::t_99d59e96f3f748 4,8,10-14,23,25,27,32-34,48-49,52-53,71,73,75,80-82,95-96,98-99,102-103,107,121,123,125,130-132,143-144,147-148,152,166,168,170,175-177,189-190,192-193,196-197,201,215,217,219,224-226,239-240,243-244,248
+  s_fcaade8c4507a4::t_80f3460d0e4745 50-51,56-57,59-61,100-101,145-146,194-195,241-242
+historical-eval/tools/generate-model-report.py
+  s_fcaade8c4507a4::t_4a9616a1651104 59,64,67-82,86-89,94-95,120-123,133-134,141-143,151-153,155,160-163,167-168,171-172,176
+  s_fcaade8c4507a4::t_fd1fff339f4f9e 194,196-197,201,203,207-208,211
+  s_fcaade8c4507a4::t_d22514584f17f5 62-63,65-66
+  s_fcaade8c4507a4::t_9e6ae51d1d4463 124,135-140,169-170
+  s_fcaade8c4507a4::t_5d9220f3e8d03a 216-217,221,223-227,229-230,232-234,236,239
+  s_fcaade8c4507a4::t_8b7bb361762c38 261-265
+  s_fcaade8c4507a4::t_7757756c31fe79 60
+  s_fcaade8c4507a4::t_54481e9ef7de11 10,15
+  s_fcaade8c4507a4::t_2020eeaebbd4eb 25-31,250-253
+  s_fcaade8c4507a4::t_7ba0660a476728 96-110
+  s_fcaade8c4507a4::t_8e6e256a6ec87b 129-131
+  s_fcaade8c4507a4::t_72b5773827481e 260,266-267,270-271,282,284-285,287-288
+historical-eval/catalog/model-runs/final-scorecard.html
+  s_fcaade8c4507a4::t_80f3460d0e4745 2
+historical-eval/catalog/model-runs/final-scorecard.md
+  s_fcaade8c4507a4::t_99d59e96f3f748 4,6,8-9,11-14,16
+  s_fcaade8c4507a4::t_80f3460d0e4745 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "35411ad40b5bfab3a4bb811b8c0d839e29fc7de2",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
