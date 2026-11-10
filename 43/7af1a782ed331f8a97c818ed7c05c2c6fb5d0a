@@ -1,0 +1,23 @@
+historical-eval/catalog/model-runs/final-scorecard.html
+  s_fcaade8c4507a4::t_15a6aab00f75ae 1-2
+historical-eval/catalog/model-runs/final-scorecard.json
+  s_fcaade8c4507a4::t_15a6aab00f75ae 1-197
+historical-eval/catalog/model-runs/final-scorecard.md
+  s_fcaade8c4507a4::t_15a6aab00f75ae 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "437af1a782ed331f8a97c818ed7c05c2c6fb5d0a",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
