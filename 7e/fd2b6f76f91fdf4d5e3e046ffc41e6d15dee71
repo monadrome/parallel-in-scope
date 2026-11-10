@@ -1,0 +1,36 @@
+historical-eval/config/private-evaluator-contract.json
+  s_fcaade8c4507a4::t_f3a9d61a6bd9b2 1-13
+historical-eval/tools/generate-model-report.py
+  s_fcaade8c4507a4::t_b822a1b2f5c2f5 1-55,60-145,148-164
+  s_fcaade8c4507a4::t_35560853a5ef51 146-147
+  s_fcaade8c4507a4::t_cceb3f080db0a0 56-59
+historical-eval/tools/check-prompt-leakage.py
+  s_fcaade8c4507a4::t_f3a9d61a6bd9b2 1-37
+historical-eval/config/metrics-v1.json
+  s_fcaade8c4507a4::t_8ef2ef77a5e924 1-55
+historical-eval/tools/run-repair-loop.py
+  s_fcaade8c4507a4::t_15a19a34e6a5a5 28-44,455,469-472,515
+historical-eval/config/model-registry.json
+  s_fcaade8c4507a4::t_8ef2ef77a5e924 1-60
+historical-eval/config/benchmark-v1.json
+  s_fcaade8c4507a4::t_8ef2ef77a5e924 1-53
+historical-eval/tools/run-model-matrix.py
+  s_fcaade8c4507a4::t_e95e9834ae29f6 45,63,73-80,93-111,119,122-124,128-161
+  s_fcaade8c4507a4::t_19a63fbd3a2f5e 205,254
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "7efd2b6f76f91fdf4d5e3e046ffc41e6d15dee71",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
