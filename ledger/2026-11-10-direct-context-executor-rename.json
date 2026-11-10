@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-10-direct-context-executor-rename",
+  "date": "2026-11-10",
+  "topic": "direct-context-executor-rename",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add lazy context direct executor",
+      "refactor: document context execution helper",
+      "chore: record delivery lazy-direct-executor",
+      "feat!: make direct context capture lazy by default",
+      "chore: record delivery direct-executor-default",
+      "refactor!: rename context direct executor"
+    ],
+    "files": 10,
+    "insertions": 496,
+    "deletions": 70
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-direct-context-rename-2026-11-10",
+        "head": "74ba5cf6a1502de84085cea6a4618e2d68ab7009",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Renamed ContextExecutors.directExecutor() to directContextExecutor() to avoid Guava naming collision; synchronized implementation, tests, Javadoc, migration docs, user guides, design docs, and changelog. Full mvn test passed (3323 core + 164 queue tests plus lincheck); spotless, doc refs, and Java conventions passed. Rename-only refactoring review completed with zero findings."
+}
