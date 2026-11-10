@@ -1,0 +1,19 @@
+ledger/2026-11-10-ci-flaky-waiter-order.json
+  s_51a7dc8d9e3065::t_d3b582c33a6b77 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "da1f1d7546319b62c4e64157d923689b351cd039",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
