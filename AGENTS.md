@@ -357,6 +357,12 @@ Documentation must stay readable and correct without the Git object database:
   request already carries the work, and then update that pull request's
   description and verification to match its final commits. Contributors
   without write access open a pull request as `CONTRIBUTING.md` describes.
+- After pushing a pull request, actively monitor every required CI/CD check until
+  it reaches a terminal result. Wait for queued or running jobs when necessary;
+  do not report delivery complete while a required check is still pending or
+  failing. If a check fails, inspect its logs, fix the cause, push the fix, and
+  repeat the monitoring cycle until the required checks pass or an external
+  blocker is recorded.
 - Delivery includes documentation maintenance and in-flight proposals. Proposals
   are tracked under `design/proposal/`; their lifecycle is defined in
   `design/proposal-lifecycle.md`. Analysis drafts are temporary inputs: do not
