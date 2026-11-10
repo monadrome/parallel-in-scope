@@ -72,9 +72,14 @@ final class TaskBatch<T> implements AutoCloseable {
                     .terminationFuture()
                     .addListener(
                             () -> {
-                                scopeTermination.observe(
-                                        Verify.verifyNotNull(element.termination(), "settled task has no termination"),
-                                        null);
+                                try {
+                                    scopeTermination.observe(
+                                            Verify.verifyNotNull(
+                                                    Futures.getDone(((Task<T>) element).terminationFuture())),
+                                            null);
+                                } catch (ExecutionException failure) {
+                                    throw new AssertionError("task termination classification cannot fail", failure);
+                                }
                             },
                             MoreExecutors.directExecutor());
         }
@@ -254,11 +259,8 @@ final class TaskBatch<T> implements AutoCloseable {
         ExecutionExitTracker.warnUnfinished("batch", unfinished, LOGGER);
         String batchName = results.isEmpty() ? "" : results.get(0).taskName();
         ScopeTerminationCause primary = scopeTermination.cause();
-        ScopeTermination aggregate = primary == null
-                ? ScopeTermination.fromResults(batchName, frozen)
-                : primary.kind() == ScopeTerminationCause.Kind.FAILURE
-                        ? ScopeTermination.failed(primary)
-                        : ScopeTermination.cancelled(primary);
+        ScopeTermination aggregate =
+                ScopeTermination.fromPrimary(primary, ScopeTermination.fromResults(batchName, frozen));
         return new TaskBatchResult<>(batchName, frozen, observations, unfinished, aggregate);
     }
 

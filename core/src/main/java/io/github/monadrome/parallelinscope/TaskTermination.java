@@ -105,25 +105,47 @@ public final class TaskTermination<T> {
             case SUCCESS:
                 return success(value, disposition);
             case USER_FAILURE:
-                return failed(
-                        FailureCause.userCodeFailure(checkNotNull(failure, "user failure cannot be null")),
-                        ExecutionDisposition.ENTERED);
+                return failed(failureCauseFor(outcome, failure), ExecutionDisposition.ENTERED);
             case SUBMISSION_FAILURE:
-                return failed(
-                        FailureCause.submissionRejected(checkNotNull(failure, "submission failure cannot be null")),
-                        disposition);
+                return failed(failureCauseFor(outcome, failure), disposition);
             case TIMEOUT:
-                return cancelled(CancellationReason.deadlineExceeded(source), disposition);
             case FAIL_FAST:
-                return cancelled(CancellationReason.abortedByFailFast(source), disposition);
             case GROUP_CANCELLED:
-                return cancelled(CancellationReason.cancelledByParentScope(source), disposition);
             case MEMBER_CANCELLED:
-                return cancelled(CancellationReason.cancelledByCaller(source), disposition);
+                return cancelled(cancellationReasonFor(outcome, source, null), disposition);
             case RUNNING:
                 throw new IllegalArgumentException("running is not a logical task termination");
             default:
                 throw new AssertionError("unknown legacy task outcome: " + outcome);
+        }
+    }
+
+    static FailureCause failureCauseFor(TaskOutcome outcome, @Nullable Throwable failure) {
+        Throwable cause = checkNotNull(failure, "failure cannot be null");
+        switch (outcome) {
+            case USER_FAILURE:
+                return FailureCause.userCodeFailure(cause);
+            case SUBMISSION_FAILURE:
+                return FailureCause.submissionRejected(cause);
+            default:
+                throw new IllegalArgumentException("outcome does not describe a failure: " + outcome);
+        }
+    }
+
+    static CancellationReason cancellationReasonFor(TaskOutcome outcome, String source, @Nullable String failedTask) {
+        switch (outcome) {
+            case TIMEOUT:
+                return CancellationReason.deadlineExceeded(source);
+            case FAIL_FAST:
+                return CancellationReason.abortedByFailFast(source);
+            case GROUP_CANCELLED:
+                return CancellationReason.cancelledByParentScope(source);
+            case MEMBER_CANCELLED:
+                return failedTask == null
+                        ? CancellationReason.cancelledByCaller(source)
+                        : CancellationReason.cancelledByMember(failedTask);
+            default:
+                throw new IllegalArgumentException("outcome does not describe cancellation: " + outcome);
         }
     }
 

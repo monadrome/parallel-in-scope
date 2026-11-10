@@ -99,28 +99,27 @@ public final class ScopeTermination {
             case SUBMISSION_FAILURE:
                 return failed(ScopeTerminationCause.failed(
                         failureCause == null
-                                ? (outcome == TaskOutcome.SUBMISSION_FAILURE
-                                        ? FailureCause.submissionRejected(
-                                                new IllegalStateException("missing submission failure cause"))
-                                        : FailureCause.userCodeFailure(
-                                                new IllegalStateException("missing user failure cause")))
+                                ? TaskTermination.failureCauseFor(
+                                        outcome, new IllegalStateException("missing failure cause"))
                                 : failureCause,
                         failedTask));
             case TIMEOUT:
-                return cancelled(ScopeTerminationCause.cancelled(CancellationReason.deadlineExceeded(source)));
             case FAIL_FAST:
-                return cancelled(ScopeTerminationCause.cancelled(CancellationReason.abortedByFailFast(source)));
             case GROUP_CANCELLED:
-                return cancelled(ScopeTerminationCause.cancelled(CancellationReason.cancelledByParentScope(source)));
             case MEMBER_CANCELLED:
                 return cancelled(ScopeTerminationCause.cancelled(
-                        failedTask == null
-                                ? CancellationReason.cancelledByCaller(source)
-                                : CancellationReason.cancelledByMember(failedTask)));
+                        TaskTermination.cancellationReasonFor(outcome, source, failedTask)));
             case RUNNING:
             default:
                 throw new IllegalArgumentException("running is not a scope termination");
         }
+    }
+
+    static ScopeTermination fromPrimary(@Nullable ScopeTerminationCause primary, ScopeTermination fallback) {
+        if (primary == null) {
+            return fallback;
+        }
+        return primary.kind() == ScopeTerminationCause.Kind.FAILURE ? failed(primary) : cancelled(primary);
     }
 
     @Override
