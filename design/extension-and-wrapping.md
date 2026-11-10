@@ -228,11 +228,11 @@ for (TaskCompletion<T> event : batch.completions()) {
 ### 5.4.1 带上下文的直接回调
 
 Guava 的 `MoreExecutors.directExecutor()` 在调用 `execute` 的线程 inline 执行 listener；对异步 future，
-该线程通常是完成线程。通用的 `ContextExecutors.directExecutor()` 在每次 `execute` 调用点捕获当前 TTL，
+该线程通常是完成线程。通用的 `ContextExecutors.directContextExecutor()` 在每次 `execute` 调用点捕获当前 TTL，
 适合把调用点上下文带入同步命令：
 
 ```java
-Executor activeContextExecutor = ContextExecutors.directExecutor();
+Executor activeContextExecutor = ContextExecutors.directContextExecutor();
 activeContextExecutor.execute(command);
 ```
 
@@ -253,7 +253,7 @@ future.addListener(listener, listenerExecutor);
 `registrationContextExecutor()` 在创建时 capture 一次，之后每次命令都 replay 这份固定快照，再 restore 完成线程的原值。
 每个请求上下文 MUST 创建独立实例；同一请求的 listener 可以复用实例。不要把它做成持有请求状态的全局单例。
 
-这两个 executor 的区别是上下文归属，而不是执行速度：`directExecutor()` 属于每次 `execute` 调用，
+这两个 executor 的区别是上下文归属，而不是执行速度：`directContextExecutor()` 属于每次 `execute` 调用，
 `registrationContextExecutor()` 属于创建或注册动作。注册时上下文需要保留时，不能用前者替代后者。
 
 ### 5.5 重试

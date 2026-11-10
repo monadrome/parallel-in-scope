@@ -8,7 +8,7 @@ import java.util.concurrent.Executor;
 /**
  * Executors that preserve a selected TTL context while retaining direct execution.
  *
- * <p>{@link #directExecutor()} captures the TTL context at each {@link Executor#execute(Runnable)} call.
+ * <p>{@link #directContextExecutor()} captures the TTL context at each {@link Executor#execute(Runnable)} call.
  * Each command then runs synchronously on the calling thread, with that call's context installed for
  * the command and the caller's context restored afterwards. This is the general-purpose direct
  * executor and can be reused by unrelated requests.
@@ -42,7 +42,7 @@ public final class ContextExecutors {
      * @return an executor that always runs commands inline and restores the caller's context
      * @since 0.5.0
      */
-    public static Executor directExecutor() {
+    public static Executor directContextExecutor() {
         return new DirectExecutor();
     }
 
@@ -70,7 +70,7 @@ public final class ContextExecutors {
 
         @Override
         public String toString() {
-            return "ContextExecutors.directExecutor()";
+            return "ContextExecutors.directContextExecutor()";
         }
     }
 
