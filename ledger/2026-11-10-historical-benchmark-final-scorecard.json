@@ -25,10 +25,12 @@
       "fix: distinguish unresolved timeout scorecards",
       "test: record timeout-aware model scorecard",
       "chore: record delivery historical-benchmark-final-scorecard",
-      "fix: label model timeout states"
+      "fix: label model timeout states",
+      "chore: record delivery historical-benchmark-final-scorecard",
+      "fix: disambiguate scorecard model tracks"
     ],
     "files": 18,
-    "insertions": 2041,
+    "insertions": 2053,
     "deletions": 5
   },
   "reviews": {
@@ -48,5 +50,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Finalized the scorecard after the user chose to stop remaining timeout retries; unresolved timeouts remain separate from capability scoring. The refactoring-review planner was required on the large historical diff but no detector run was completed. Model-level report states now distinguish unresolved timeouts."
+  "notes": "Finalized the scorecard after the user chose to stop remaining timeout retries; unresolved timeouts remain separate from capability scoring. The refactoring-review planner was required on the large historical diff but no detector run was completed. Report now distinguishes model-level unresolved timeout states and disambiguates oneshot versus continuation model registry tracks."
 }
