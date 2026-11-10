@@ -1,0 +1,20 @@
+historical-eval/tools/generate-model-report.py
+  s_fcaade8c4507a4::t_e75405f528ca07 109,116,180-192
+  s_fcaade8c4507a4::t_b92d33bc078222 172-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "d84df3b7f431882d47022d509b634aef30c55513",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
