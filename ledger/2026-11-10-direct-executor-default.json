@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-10-direct-executor-default",
+  "date": "2026-11-10",
+  "topic": "direct-executor-default",
+  "routes": [
+    "concurrency",
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat!: make direct context capture lazy by default"
+    ],
+    "files": 8,
+    "insertions": 137,
+    "deletions": 127
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "lazy-direct-executor-c137a8ba-20261110-083014-febef8",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 74762,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 74772,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 74742,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 3,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-direct-default-2026-11-10",
+        "head": "c137a8ba66827865055917c3854a6a5b84a69953",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "focused PIT": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "core/target/pit-reports/mutations.xml",
+      "statuses": {
+        "KILLED": 4
+      },
+      "total": 4,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Changed directExecutor to per-execute capture and added registrationContextExecutor for creation-time listener context. Full Maven tests, focused tests, race claims, formatting, docs, and conventions passed. Refactoring review found no issues. Focused PIT passed after removing invalid VOID_METHODS_CALLS from the command; independent multi-review timed out at the harness hard timeout, and the direct fallback was inconclusive because local Codex plugin/MCP initialization failed."
+}
