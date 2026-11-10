@@ -1,0 +1,19 @@
+ledger/2026-11-10-direct-context-executor-rename.json
+  s_51a7dc8d9e3065::t_d23da2a2ff5b09 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "785df931110af1bc4081d837c9f9e374fae55a35",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
