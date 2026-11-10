@@ -737,36 +737,35 @@ TaskBatchResult<Account> batch = MdcBridge.withFields(
 同一线程池上绕过本库直接投递的代码仍需自行包装 TTL。保存并恢复两者的原值，才能在
 direct/CallerRuns 或嵌套调用时保留外层上下文。
 
-如果每次 `execute` 调用点的当前上下文才是权威来源，可以使用 lazy 版本：
+### 让直接回调携带上下文
+
+Guava 的 `MoreExecutors.directExecutor()` 会在 future 完成线程上执行 listener，不会保存注册线程的 TTL。
+通用的 `ContextExecutors.directExecutor()` 在每次 `execute` 调用点捕获当前上下文，适合同一个 executor
+被不同调用方复用：
 
 ```java
-Executor activeContextExecutor = ContextExecutors.lazyDirectExecutor();
+Executor activeContextExecutor = ContextExecutors.directExecutor();
 activeContextExecutor.execute(callback);
 ```
 
-`lazyDirectExecutor()` 在每次 command 执行前捕获调用线程当前的 TTL，再在本次 inline 执行前回放，
-执行结束后恢复调用线程原有的绑定。它适合同一个 executor 被不同调用方上下文复用，或需要让 TTL copier
-为每次 command 创建新的值副本的场景。它不会传播创建 executor 的线程上下文，因此异步 listener 如果需要
-注册时上下文，仍应使用 `directExecutor()`。如果 copier 会创建浅拷贝或深拷贝，callback 看到的对象可能与
-调用方不是同一个 identity；需要这类语义时应使用值相等或不可变对象。
+它每次 command 执行前 capture 当前 TTL，再 replay、inline 执行并 restore 调用线程原有的绑定。executor
+本身不持有创建线程的上下文；配置的 copier 也会每次 command 执行一次。CRR 恢复的是绑定关系，不保证
+绑定值深拷贝。使用浅 copier 时，`Map`、`List` 或上下文对象的内部值仍可能共享；需要隔离时应使用不可变、
+写时复制或明确的深拷贝值。
 
-### 让直接回调携带注册时上下文
-
-Guava 的 `MoreExecutors.directExecutor()` 会在 future 完成线程上执行 listener，不会保存注册 listener
-线程的 TTL。需要保留注册时上下文时，在注册点创建本库提供的直接执行器：
+如果 listener 属于注册者，而不是完成线程，使用专门保存注册上下文的 executor：
 
 ```java
-Executor listenerExecutor = ContextExecutors.directExecutor();
+Executor listenerExecutor = ContextExecutors.registrationContextExecutor();
 future.addListener(listener, listenerExecutor);
 ```
 
-`ContextExecutors.directExecutor()` 在创建时捕获当前 TTL，每次 inline 执行前回放，执行结束后恢复完成线程
-原有的值。每个请求上下文应创建独立实例；同一请求的多个 listener 可以复用。仅把
-`MoreExecutors.directExecutor()` 再包一层 TTL 执行器不够，因为那会在 future 完成时才捕获，时机已经太晚。
+`registrationContextExecutor()` 在创建时 capture 一次，之后每次 inline 执行前 replay 这份固定快照，
+执行结束后恢复完成线程原有的绑定。每个请求上下文应创建独立实例，同一请求的多个 listener 可以复用。
+不要把它做成持有请求状态的全局单例。
 
-CRR 恢复的是 TTL 的绑定关系，不会自动深拷贝绑定值。如果 listener 修改了 `TTL.get()` 返回的
-`Map`、`List` 或可变请求上下文，默认 copier 可能让这个对象与捕获快照及后续 listener 共享。需要隔离时，
-优先使用不可变或写时复制的上下文值，或者为 TTL 配置合适的 copier 做深拷贝。
+两者的区别是上下文归属：`directExecutor()` 属于每次 `execute` 调用，
+`registrationContextExecutor()` 属于创建或注册动作。注册时上下文需要保留时，不能用前者替代后者。
 
 ### 与 OpenTelemetry 协作
 

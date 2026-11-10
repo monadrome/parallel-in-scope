@@ -225,32 +225,36 @@ for (TaskCompletion<T> event : batch.completions()) {
 
 需要跨线程组合时才对 `ImmediateResult.asFuture()` 自行注册 callback；同步出口本身不提供运行中回调。
 
-### 5.4.1 注册时上下文的直接回调
+### 5.4.1 带上下文的直接回调
 
 Guava 的 `MoreExecutors.directExecutor()` 在调用 `execute` 的线程 inline 执行 listener；对异步 future，
-该线程通常是完成线程，因而不会保留 listener 注册线程的 TTL。应用需要这个语义时，可在注册点创建
-`ContextExecutors.directExecutor()`：
+该线程通常是完成线程。通用的 `ContextExecutors.directExecutor()` 在每次 `execute` 调用点捕获当前 TTL，
+适合把调用点上下文带入同步命令：
 
 ```java
-Executor listenerExecutor = ContextExecutors.directExecutor();
+Executor activeContextExecutor = ContextExecutors.directExecutor();
+activeContextExecutor.execute(command);
+```
+
+该 executor 每次执行前 capture 当前调用线程的 TTL，随后 replay、inline 执行并 restore 进入时的原值。
+它不持有创建 executor 的线程上下文，可以在不同请求之间复用；配置的 copier 也会每次 command 执行一次。
+CRR 只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List` 或上下文对象在默认 copier 下可能仍由
+多个 listener 共享。需要值级隔离时 MUST 使用不可变/写时复制值，或配置能提供深拷贝的 TTL copier。
+在 `execute` 内调用 `TtlRunnable.get` 被排除，因为这会把 capture 时机推迟到当前 command 已经开始执行之后。
+该 API 只覆盖应用 callback，不替换库内部的框架 direct callbacks，避免把应用上下文扩大到 future 记账和完成通知。
+
+如果异步 Future 的 listener 属于注册者，而不是完成线程，使用显式的注册上下文 executor：
+
+```java
+Executor listenerExecutor = ContextExecutors.registrationContextExecutor();
 future.addListener(listener, listenerExecutor);
 ```
 
-该 executor 在创建时捕获 TTL 快照，每次命令执行前 replay，结束后 restore 执行线程原值，并继续保持
-direct executor 的同步执行特性。每个请求上下文 MUST 创建独立实例；同一请求的 listener 可以复用实例。
-CRR 只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List` 或上下文对象在默认 copier 下可能仍由
-多个 listener 共享。需要值级隔离时 MUST 使用不可变/写时复制值，或配置能提供深拷贝的 TTL copier。
-在 `execute` 内调用 `TtlRunnable.get` 被排除，因为捕获时机已经落在完成线程；全局单例也被排除，因为会
-长期持有请求上下文。该 API 只覆盖应用 callback，不替换库内部的框架 direct callbacks，避免把应用上下文
-扩大到 future 记账和完成通知。
+`registrationContextExecutor()` 在创建时 capture 一次，之后每次命令都 replay 这份固定快照，再 restore 完成线程的原值。
+每个请求上下文 MUST 创建独立实例；同一请求的 listener 可以复用实例。不要把它做成持有请求状态的全局单例。
 
-此规则承接 proposal:P0039。
-
-同一扩展点还提供 `ContextExecutors.lazyDirectExecutor()`，但它不是注册时上下文 executor 的别名：它在每次
-`execute` 调用点 capture 当前线程上下文，再 replay、inline 执行并 restore。调用点上下文是权威来源时可以使用它，
-例如同一个 executor 被不同请求同步复用，或 TTL copier 需要为每次 command 生成独立的顶层副本。它 MUST NOT 被用于
-传播 executor 创建线程的 listener 注册上下文；异步 future listener 需要注册时上下文时仍 MUST 使用
-`directExecutor()`。lazy 版本也不保证对象 identity；shallow copier 只隔离顶层对象，嵌套对象仍可能共享。
+这两个 executor 的区别是上下文归属，而不是执行速度：`directExecutor()` 属于每次 `execute` 调用，
+`registrationContextExecutor()` 属于创建或注册动作。注册时上下文需要保留时，不能用前者替代后者。
 
 ### 5.5 重试
 

@@ -841,47 +841,38 @@ TaskBatchResult<Account> batch = MdcBridge.withFields(
 When the fields already live in a TTL the application sets — in a filter, before this library is
 involved — the capture is automatic and only `inExecution` is needed inside executions.
 
-### Direct callbacks with the registration context
+### Direct callbacks with context propagation
 
-Guava's `MoreExecutors.directExecutor()` runs a listener on whichever thread completes the future. It
-does not retain the TTL context from the thread that registered the listener. When that registration
-context matters, create a direct executor at the registration point:
-
-```java
-Executor listenerExecutor = ContextExecutors.directExecutor();
-future.addListener(listener, listenerExecutor);
-```
-
-`ContextExecutors.directExecutor()` captures the current TTL context when it is created, replays it around
-each inline command, and restores the completion thread's previous values afterwards. Create a separate
-instance for each request context; it is reusable for listeners belonging to that same context. Wrapping
-`MoreExecutors.directExecutor()` with a TTL executor is insufficient here because the wrapper captures when
-the future completes, which is too late.
-
-CRR restores the TTL bindings; it does not deep-copy mutable objects stored in those bindings. If a listener
-mutates a `Map`, `List`, or mutable request context returned by `TTL.get()`, that object can be shared with the
-captured snapshot and with later listeners. Prefer immutable or copy-on-write context values, or configure an
-appropriate TTL copier when deep isolation is required.
-
-This covers library-managed work only. The library performs the TTL capture and restore around each
-task, so these executions need no TTL agent; code on the same pool that submits directly, outside this
-library, still has to wrap TTL itself. Saving and restoring both values also preserves enclosing
-contexts when an execution runs directly on the caller or makes a nested library call.
-
-When the context at each `execute` call is the intended source, use the lazy variant:
+Guava's `MoreExecutors.directExecutor()` runs a listener on whichever thread completes the future and does not
+retain the TTL context from the registration thread. The general-purpose `ContextExecutors.directExecutor()`
+captures the context at each `execute` call, so one executor can be reused by different call-site contexts:
 
 ```java
-Executor activeContextExecutor = ContextExecutors.lazyDirectExecutor();
+Executor activeContextExecutor = ContextExecutors.directExecutor();
 activeContextExecutor.execute(callback);
 ```
 
-`lazyDirectExecutor()` captures the calling thread's current TTL context for every command, then
-replays and restores it around that inline command. It is suitable when one executor is reused by
-different call-site contexts, or when a TTL copier must create a fresh per-command value. It does not
-propagate the context from executor creation, so asynchronous listeners that need registration-time
-context must continue to use `directExecutor()`. A copier that creates a shallow or deep copy also
-means the callback may not see the same object identity; use value equality or immutable values when
-that is the intended contract.
+It captures the current TTL before each command, replays it around the inline command, and restores the caller's
+entry bindings afterwards. The executor does not retain the context from its creation thread, and a configured
+copier runs once per command. CRR restores bindings; it does not promise deep copies of bound values. A shallow
+copier can still leave mutable contents of a `Map`, `List`, or context object shared. Use immutable, copy-on-write,
+or explicitly deep-copied values when isolation is required.
+
+When a listener belongs to the registration context rather than the completion thread, use the explicit
+registration-context executor:
+
+```java
+Executor listenerExecutor = ContextExecutors.registrationContextExecutor();
+future.addListener(listener, listenerExecutor);
+```
+
+`registrationContextExecutor()` captures once when it is created, replays that fixed snapshot around each inline
+command, and restores the completion thread's entry bindings afterwards. Create one instance per request context;
+it can be reused by listeners belonging to that same context. Do not make it a global singleton that retains request state.
+
+The distinction is context ownership: `directExecutor()` belongs to each `execute` call, while
+`registrationContextExecutor()` belongs to the creation or registration action. Use the latter when registration-time
+context must survive until a later completion callback.
 
 ### OpenTelemetry
 

@@ -35,6 +35,13 @@ TaskGroupResult<Profile> result = runtime
 `GroupValues.typedValues()` 和公开的 `Tuple2` 类型已删除。需要编译期类型安全时使用
 `valueOf(TaskKey<T>)`；动态场景使用 `valueAt(int)` 或 `valueOf(String)`。消费方需要针对 v0.5 开发线重新编译。
 
+## 带上下文的直接执行器
+
+`ContextExecutors.directExecutor()` 现在在每次 `execute` 调用点捕获 TTL。它是可复用的默认实现，
+适用于上下文属于当前调用点的命令。原来的创建时捕获语义改名为
+`ContextExecutors.registrationContextExecutor()`，用于必须保留 Future listener 或 callback 注册上下文的场景。
+`lazyDirectExecutor()` 已删除，迁移到 `directExecutor()` 即可。
+
 | 删除的名字 | 替换为 |
 |---|---|
 | `io.github.monadrome.parallelinscope.SmartBlockingQueue` | `io.github.monadrome.parallelinscope.SubmissionAwareBlockingQueue` |
