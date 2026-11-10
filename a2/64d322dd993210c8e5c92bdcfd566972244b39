@@ -1,0 +1,31 @@
+historical-eval/tools/generate-model-report.py
+  s_fcaade8c4507a4::t_ce4e5a2ecd7046 333
+  s_fcaade8c4507a4::t_7d291ee0a4f99a 242,252
+  s_fcaade8c4507a4::t_994f31e9082a2c 116,125-132,141-149,250
+  s_fcaade8c4507a4::t_37b1c2a6deae3b 112-113,150-151,162-163,245-247
+  s_fcaade8c4507a4::t_da9b3a0e6041ee 286,297,301-309,329-332,334
+  s_fcaade8c4507a4::t_ddac2614538e29 18-27,114-115,124,133-140,166,248-249
+  s_fcaade8c4507a4::t_b4e4244bc32c47 222-224
+  s_fcaade8c4507a4::t_2419ca7879f084 106-111,117-123,152-161,164-165,239-241,243-244,251,253-254,287
+historical-eval/tools/test_generate_model_report.py
+  s_fcaade8c4507a4::t_a263118444106a 1-82
+historical-eval/config/model-registry.json
+  s_fcaade8c4507a4::t_8384f35b0acdbd 70,73-74,81,84-85
+  s_fcaade8c4507a4::t_f545d5cdb21237 64-69,71-72,75-80,82-83,86-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a264d322dd993210c8e5c92bdcfd566972244b39",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
