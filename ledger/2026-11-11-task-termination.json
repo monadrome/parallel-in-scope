@@ -1,0 +1,217 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-11-task-termination",
+  "date": "2026-11-11",
+  "topic": "task-termination",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add single-assignment task termination model",
+      "refactor: consolidate termination projection helpers",
+      "fix: classify cancellation-shaped results by attribution"
+    ],
+    "files": 35,
+    "insertions": 1530,
+    "deletions": 43
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "task-termination-92259690-20261111-202800-f0b9e0",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 854861,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "claude",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 808649,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 2463,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 476709,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 8826,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 5,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-feat-task-termination-2026-11-11",
+        "head": "9a59a204b162db8a7c1bcc7fca0b4a56558af74c",
+        "incompleteAgents": 3,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "D04"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "D06"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn-test": 1,
+      "pit": 3
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-audit-task-termination/batch-A/mutations.xml",
+      "statuses": {
+        "KILLED": 228,
+        "SURVIVED": 7
+      },
+      "total": 235,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Claude review confirmed one cancellation classification defect and the fix was linked; other reviewers were unavailable or timed out. PIT batch A passed; batch B and focused ImmediateResult baseline runs were inconclusive."
+}
