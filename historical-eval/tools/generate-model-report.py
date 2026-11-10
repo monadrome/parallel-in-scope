@@ -61,6 +61,13 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
     public_statuses = Counter(str(row.get("public_status", "unknown")) for row in rows)
     durations = [float(row["seconds"]) for row in rows if isinstance(row.get("seconds"), (int, float))]
     passes = statuses.get("model-pass", 0)
+    rescue_passes = sum(1 for row in rows if row.get("rescue_hidden_status") == "rescue-pass")
+    rescue_fails = sum(1 for row in rows if row.get("rescue_hidden_status") == "rescue-fail")
+    public_rescue_fails = sum(
+        1 for row in rows
+        if row.get("model_status") == "model-pass" and row.get("rescue_hidden_status") == "rescue-fail"
+    )
+    behavior_passes = passes - public_rescue_fails
     unresolved_timeouts = statuses.get("model-timeout", 0)
     retry_initial = sum(1 for row in rows if row.get("timeout_retries"))
     retry_recovered = sum(
@@ -79,8 +86,11 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
         "denominator": denominator,
         "state": "complete" if completed >= denominator else "incomplete",
         "pass_count": passes,
-        "pass_rate_on_completed": round(passes / completed, 4) if completed else None,
-        "pass_rate_on_denominator": round(passes / denominator, 4) if denominator else None,
+        "behavior_pass_count": behavior_passes,
+        "rescue_hidden_passes": rescue_passes,
+        "rescue_hidden_fails": rescue_fails,
+        "pass_rate_on_completed": round(behavior_passes / completed, 4) if completed else None,
+        "pass_rate_on_denominator": round(behavior_passes / denominator, 4) if denominator else None,
         "status_counts": dict(sorted(statuses.items())),
         "public_status_counts": dict(sorted(public_statuses.items())),
         "unresolved_timeout_count": unresolved_timeouts,
@@ -103,8 +113,8 @@ def markdown(report: dict[str, Any]) -> str:
         f"- State: **{report['state']}**",
         f"- Behavioural denominator: **{report['denominator']}**",
         "",
-        "| Provider | Model | Effort | Service tier | Completed | Pass | Pass / completed | Pass / denominator | Timeout | p50 (s) | p90 (s) | State |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Provider | Model | Effort | Service tier | Completed | Behavior pass | Pass / completed | Pass / denominator | Rescue fail | Timeout | p50 (s) | p90 (s) | State |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for item in report["models"]:
         latency = item["latency_seconds"]
@@ -113,8 +123,8 @@ def markdown(report: dict[str, Any]) -> str:
         fmt = lambda x: "—" if x is None else f"{x:.2%}" if isinstance(x, float) and x <= 1 else str(x)
         lines.append(
             f"| `{item['provider']}` | `{item['model']}` | `{item['effort']}` | `{item['service_tier']}` | "
-            f"{item['completed']}/{item['denominator']} | {item['pass_count']} | {fmt(rate)} | {fmt(denominator_rate)} | "
-            f"{item['unresolved_timeout_count']} | {latency['p50'] if latency['p50'] is not None else '—'} | "
+            f"{item['completed']}/{item['denominator']} | {item['behavior_pass_count']} | {fmt(rate)} | {fmt(denominator_rate)} | "
+            f"{item['rescue_hidden_fails']} | {item['unresolved_timeout_count']} | {latency['p50'] if latency['p50'] is not None else '—'} | "
             f"{latency['p90'] if latency['p90'] is not None else '—'} | `{item['state']}` |"
         )
     lines += ["", "Timeouts remain separate from capability scoring until the configured retry policy resolves them.", ""]
@@ -130,7 +140,7 @@ def html(report: dict[str, Any]) -> str:
         cards.append(
             f"<article class='card'><h2>{item['model']}</h2>"
             f"<p class='muted'>{item['provider']} · effort={item['effort']} · service_tier={item['service_tier']}</p>"
-            f"<div class='stats'><div><b>{item['pass_count']}</b><span>pass</span></div>"
+            f"<div class='stats'><div><b>{item['behavior_pass_count']}</b><span>behavior pass</span></div>"
             f"<div><b>{item['completed']}/{item['denominator']}</b><span>completed</span></div>"
             f"<div><b>{item['unresolved_timeout_count']}</b><span>timeout</span></div>"
             f"<div><b>{rate_text}</b><span>pass / completed</span></div></div>"
