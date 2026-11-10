@@ -106,12 +106,14 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
 
 
 def markdown(report: dict[str, Any]) -> str:
+    policy = report.get("execution_policy", {})
     lines = [
         "# Historical model evaluation",
         "",
         f"- Benchmark: `{report['benchmark_version']}`",
         f"- State: **{report['state']}**",
         f"- Behavioural denominator: **{report['denominator']}**",
+        f"- Model timeout: **{policy.get('model_timeout_seconds', '—')}s**; timeout retries: **{policy.get('timeout_retries', '—')}**",
         "",
         "| Provider | Model | Effort | Service tier | Completed | Behavior pass | Pass / completed | Pass / denominator | Rescue fail | Timeout | p50 (s) | p90 (s) | State |",
         "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
@@ -167,8 +169,27 @@ def main() -> int:
     for directory in sorted(args.run_root.glob("*.runs")):
         if directory.is_dir():
             models.append(collect_model(directory, registry, denominator))
-    state = "complete" if models and all(item["completed"] >= denominator for item in models) else "provisional"
-    report = {"schema": "historical-model-scorecard/v1", "benchmark_version": manifest.get("benchmark_version", "historical-v1"), "state": state, "denominator": denominator, "models": models}
+    all_rows_complete = bool(models) and all(item["completed"] >= denominator for item in models)
+    has_unresolved_timeout = any(item["unresolved_timeout_count"] > 0 for item in models)
+    if not all_rows_complete:
+        state = "provisional"
+    elif has_unresolved_timeout:
+        state = "complete-with-unresolved-timeouts"
+    else:
+        state = "complete"
+    execution_policy = manifest.get("execution_policy", {}) if isinstance(manifest, dict) else {}
+    report = {
+        "schema": "historical-model-scorecard/v1",
+        "benchmark_version": manifest.get("benchmark_version", "historical-v1"),
+        "state": state,
+        "denominator": denominator,
+        "execution_policy": {
+            "model_timeout_seconds": execution_policy.get("model_timeout_seconds"),
+            "timeout_retries": execution_policy.get("timeout_retries"),
+            "unresolved_timeout_is_model_failure": execution_policy.get("unresolved_timeout_is_model_failure"),
+        },
+        "models": models,
+    }
     output = args.output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.with_suffix(".json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
