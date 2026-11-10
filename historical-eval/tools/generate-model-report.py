@@ -69,11 +69,11 @@ def collect_model(run_dir: Path, registry: dict[str, dict[str, Any]], denominato
     )
     behavior_passes = passes - public_rescue_fails
     unresolved_timeouts = statuses.get("model-timeout", 0)
-    retry_initial = sum(1 for row in rows if row.get("timeout_retries"))
+    retry_entries = [row.get("timeout_retries") for row in rows if isinstance(row.get("timeout_retries"), list)]
+    retry_initial = len(retry_entries)
     retry_recovered = sum(
-        1 for row in rows
-        if row.get("timeout_retries")
-        and row.get("timeout_retries", [{}])[-1].get("model_status") != "model-timeout"
+        1 for entries in retry_entries
+        if entries and isinstance(entries[-1], dict) and entries[-1].get("model_status") != "model-timeout"
     )
     completed = len(rows)
     return {
