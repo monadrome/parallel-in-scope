@@ -199,7 +199,8 @@ class ResizableBlockingQueueTest {
     /**
      * The second parked taker is released by the first take's {@code c > 1} notEmpty signal chain;
      * dropping that signal strands it even though the second offer's own {@code signalNotEmpty} (c ==
-     * 0 only) cannot reach it.
+     * 0 only) cannot reach it. The non-fair take lock does not specify which parked taker receives
+     * which element, so the assertion checks the delivered set rather than waiter identity.
      */
     @Test
     void secondBlockedTaker_completesAfterTwoOffers() throws Exception {
@@ -212,8 +213,12 @@ class ResizableBlockingQueueTest {
 
         queue.offer("a");
         queue.offer("b");
-        assertEquals("a", takerA.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
-        assertEquals("b", takerB.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        List<String> received = Arrays.asList(
+                takerA.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                takerB.future().get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        assertEquals(2, received.size());
+        assertTrue(received.contains("a"));
+        assertTrue(received.contains("b"));
     }
 
     /**
