@@ -1,0 +1,22 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java
+  s_51a7dc8d9e3065::t_d0cba3ca90cd19 34-36,40,50,68-72
+core/src/test/java/io/github/monadrome/parallelinscope/ContextExecutorsTest.java
+  s_51a7dc8d9e3065::t_1f139674b01122 108,110-111
+  s_51a7dc8d9e3065::t_79fa1068c1dd2b 109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "312098774ad1320b8f88fc68f131c9447e318e74",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
