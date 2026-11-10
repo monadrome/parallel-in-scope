@@ -1,0 +1,197 @@
+{
+  "schema": "historical-model-scorecard/v1",
+  "benchmark_version": "historical-v1",
+  "state": "complete-with-unresolved-timeouts",
+  "denominator": 90,
+  "execution_policy": {
+    "model_timeout_seconds": 1800,
+    "timeout_retries": 2,
+    "unresolved_timeout_is_model_failure": false
+  },
+  "models": [
+    {
+      "model_id": "codex-luna-max",
+      "provider": "codex",
+      "model": "gpt-5.6-luna",
+      "effort": "max",
+      "service_tier": "fast",
+      "completed": 90,
+      "denominator": 90,
+      "state": "complete",
+      "pass_count": 9,
+      "behavior_pass_count": 8,
+      "rescue_hidden_passes": 1,
+      "rescue_hidden_fails": 1,
+      "pass_rate_on_completed": 0.0889,
+      "pass_rate_on_denominator": 0.0889,
+      "status_counts": {
+        "model-fail": 73,
+        "model-pass": 9,
+        "model-timeout": 4,
+        "no-change": 2,
+        "test-timeout": 2
+      },
+      "public_status_counts": {
+        "model-fail": 75,
+        "model-pass": 9,
+        "not-run": 6
+      },
+      "unresolved_timeout_count": 4,
+      "timeout_retry_initial": 36,
+      "timeout_retry_recovered": 32,
+      "latency_seconds": {
+        "mean": 775.779,
+        "p50": 726.316,
+        "p90": 1427.906,
+        "max": 1823.349
+      }
+    },
+    {
+      "model_id": "codex-sol-medium",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "service_tier": "fast",
+      "completed": 90,
+      "denominator": 90,
+      "state": "complete",
+      "pass_count": 6,
+      "behavior_pass_count": 5,
+      "rescue_hidden_passes": 1,
+      "rescue_hidden_fails": 1,
+      "pass_rate_on_completed": 0.0556,
+      "pass_rate_on_denominator": 0.0556,
+      "status_counts": {
+        "model-fail": 78,
+        "model-pass": 6,
+        "model-timeout": 2,
+        "no-change": 2,
+        "runner-error": 1,
+        "test-timeout": 1
+      },
+      "public_status_counts": {
+        "None": 1,
+        "model-fail": 79,
+        "model-pass": 6,
+        "not-run": 4
+      },
+      "unresolved_timeout_count": 2,
+      "timeout_retry_initial": 0,
+      "timeout_retry_recovered": 0,
+      "latency_seconds": {
+        "mean": 282.175,
+        "p50": 250.895,
+        "p90": 489.92,
+        "max": 900.642
+      }
+    },
+    {
+      "model_id": "codex-terra-continuation-medium",
+      "provider": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "service_tier": "fast",
+      "completed": 90,
+      "denominator": 90,
+      "state": "complete",
+      "pass_count": 9,
+      "behavior_pass_count": 8,
+      "rescue_hidden_passes": 1,
+      "rescue_hidden_fails": 1,
+      "pass_rate_on_completed": 0.0889,
+      "pass_rate_on_denominator": 0.0889,
+      "status_counts": {
+        "model-fail": 79,
+        "model-pass": 9,
+        "test-timeout": 2
+      },
+      "public_status_counts": {
+        "model-fail": 81,
+        "model-pass": 9
+      },
+      "unresolved_timeout_count": 0,
+      "timeout_retry_initial": 0,
+      "timeout_retry_recovered": 0,
+      "latency_seconds": {
+        "mean": 274.751,
+        "p50": 244.055,
+        "p90": 425.944,
+        "max": 578.134
+      }
+    },
+    {
+      "model_id": "codex-terra61-medium",
+      "provider": "codex",
+      "model": "gpt-6.1-terra",
+      "effort": "medium",
+      "service_tier": "fast",
+      "completed": 90,
+      "denominator": 90,
+      "state": "complete",
+      "pass_count": 8,
+      "behavior_pass_count": 7,
+      "rescue_hidden_passes": 1,
+      "rescue_hidden_fails": 1,
+      "pass_rate_on_completed": 0.0778,
+      "pass_rate_on_denominator": 0.0778,
+      "status_counts": {
+        "model-fail": 76,
+        "model-pass": 8,
+        "out-of-scope": 1,
+        "runner-error": 4,
+        "test-timeout": 1
+      },
+      "public_status_counts": {
+        "None": 4,
+        "model-fail": 77,
+        "model-pass": 8,
+        "not-run": 1
+      },
+      "unresolved_timeout_count": 0,
+      "timeout_retry_initial": 0,
+      "timeout_retry_recovered": 0,
+      "latency_seconds": {
+        "mean": 230.043,
+        "p50": 223.406,
+        "p90": 328.835,
+        "max": 483.319
+      }
+    },
+    {
+      "model_id": "zcode-glm53-max",
+      "provider": "zcode",
+      "model": "account:bigmodel-individual-coding-plan/GLM-5.3",
+      "effort": "max",
+      "service_tier": "n/a",
+      "completed": 90,
+      "denominator": 90,
+      "state": "complete",
+      "pass_count": 1,
+      "behavior_pass_count": 1,
+      "rescue_hidden_passes": 0,
+      "rescue_hidden_fails": 2,
+      "pass_rate_on_completed": 0.0111,
+      "pass_rate_on_denominator": 0.0111,
+      "status_counts": {
+        "model-fail": 8,
+        "model-pass": 1,
+        "model-timeout": 9,
+        "no-change": 72
+      },
+      "public_status_counts": {
+        "model-fail": 8,
+        "model-pass": 1,
+        "not-run": 81
+      },
+      "unresolved_timeout_count": 9,
+      "timeout_retry_initial": 0,
+      "timeout_retry_recovered": 0,
+      "latency_seconds": {
+        "mean": 223.969,
+        "p50": 27.511,
+        "p90": 887.826,
+        "max": 902.818
+      }
+    }
+  ]
+}
