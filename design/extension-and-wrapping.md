@@ -246,6 +246,12 @@ CRR 只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List
 
 此规则承接 proposal:P0039。
 
+同一扩展点还提供 `ContextExecutors.lazyDirectExecutor()`，但它不是注册时上下文 executor 的别名：它在每次
+`execute` 调用点 capture 当前线程上下文，再 replay、inline 执行并 restore。调用点上下文是权威来源时可以使用它，
+例如同一个 executor 被不同请求同步复用，或 TTL copier 需要为每次 command 生成独立的顶层副本。它 MUST NOT 被用于
+传播 executor 创建线程的 listener 注册上下文；异步 future listener 需要注册时上下文时仍 MUST 使用
+`directExecutor()`。lazy 版本也不保证对象 identity；shallow copier 只隔离顶层对象，嵌套对象仍可能共享。
+
 ### 5.5 重试
 
 ```java
