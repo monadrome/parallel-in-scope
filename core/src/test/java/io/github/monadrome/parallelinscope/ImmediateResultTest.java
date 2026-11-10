@@ -124,6 +124,10 @@ class ImmediateResultTest {
             assertThat(task.failure()).isNull();
             ImmediateResult<Integer> cancelled = ImmediateResult.fromTask(task, TaskOutcome.FAIL_FAST);
             assertThat(cancelled.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(cancelled.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
+            assertThat(Verify.verifyNotNull(cancelled.cancellationReason()).kind())
+                    .isEqualTo(CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
+            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.ENTERED);
             Throwable frozen = Verify.verifyNotNull(cancelled.failure());
             if (cause instanceof CancellationException) {
                 assertThat(frozen).isSameAs(cause);

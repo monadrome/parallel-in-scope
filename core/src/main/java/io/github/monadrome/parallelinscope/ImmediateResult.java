@@ -241,9 +241,7 @@ public final class ImmediateResult<T> {
 
     private static <T> ImmediateResult<T> fromFailure(
             TaskFuture<T> task, TaskOutcome outcome, Throwable cause, ExecutionDisposition disposition) {
-        if (outcome == TaskOutcome.USER_FAILURE
-                || outcome == TaskOutcome.SUBMISSION_FAILURE
-                || cause instanceof CancellationException) {
+        if (outcome == TaskOutcome.USER_FAILURE || outcome == TaskOutcome.SUBMISSION_FAILURE) {
             FailureCause failure = outcome == TaskOutcome.SUBMISSION_FAILURE
                     ? FailureCause.submissionRejected(cause)
                     : FailureCause.userCodeFailure(cause);
@@ -257,11 +255,11 @@ public final class ImmediateResult<T> {
         }
         LeanCancellationException cancellation =
                 new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
-        cancellation.initCause(cause);
+        Throwable stored = cause instanceof CancellationException ? cause : cancellation;
+        if (stored != cause) {
+            cancellation.initCause(cause);
+        }
         return new ImmediateResult<>(
-                TaskTermination.fromLegacy(outcome, null, cause, disposition, task.taskName()),
-                outcome,
-                null,
-                cancellation);
+                TaskTermination.fromLegacy(outcome, null, cause, disposition, task.taskName()), outcome, null, stored);
     }
 }

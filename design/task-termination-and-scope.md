@@ -145,3 +145,11 @@ P0037 的 staged path 消费 `TaskTermination` 的三分支和 `CancellationReas
 - scope primary cause 只通过一次 CAS 发布，成员结果继续保留次级事件；
 - Batch 与 Group 共用 `ScopeTermination`，但保留各自的索引、key、combine 和失败选择规则；
 - 所有 rejection、窗口放弃、inline guard 和取消交错都必须落到 `TaskTermination`，不得留下 pending future。
+
+## 8. 评审修复记录
+
+独立评审发现，取消信号以 `CancellationException` 形式完成 future 时，若冻结使用的旧归因是
+`TIMEOUT`、`FAIL_FAST`、`GROUP_CANCELLED` 或 `MEMBER_CANCELLED`，不得仅按异常类型把结果投影为
+`Failed(UserCodeFailure)`。实现现按冻结的旧归因选择 `TaskTermination` 分支，同时继续保留原始取消异常
+作为 `ImmediateResult.failure()`，并由回归测试覆盖 `FAIL_FAST` 路径；反向验证仅撤掉该分类修复时测试会
+观察到 `FAILED`，因此该修复保护了本节和第 1 节的三态契约。
