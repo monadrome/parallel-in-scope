@@ -89,7 +89,7 @@ class ContextExecutorsTest {
 
     @Test
     void rejectsNullCommands() {
-        assertThatThrownBy(() -> ContextExecutors.directExecutor().execute(null))
+        assertThatThrownBy(() -> ContextExecutors.directContextExecutor().execute(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("command cannot be null");
         assertThatThrownBy(() -> ContextExecutors.registrationContextExecutor().execute(null))
@@ -99,14 +99,14 @@ class ContextExecutorsTest {
 
     @Test
     void hasStableDiagnosticNamesWithoutExposingTheCapturedContext() {
-        assertThat(ContextExecutors.directExecutor()).hasToString("ContextExecutors.directExecutor()");
+        assertThat(ContextExecutors.directContextExecutor()).hasToString("ContextExecutors.directContextExecutor()");
         assertThat(ContextExecutors.registrationContextExecutor())
                 .hasToString("ContextExecutors.registrationContextExecutor()");
     }
 
     @Test
-    void directExecutorCapturesTheCurrentContextForEachCommand() {
-        Executor direct = ContextExecutors.directExecutor();
+    void directContextExecutorCapturesTheCurrentContextForEachCommand() {
+        Executor direct = ContextExecutors.directContextExecutor();
         try {
             TTL.set("first");
             AtomicReference<String> first = new AtomicReference<>();
@@ -125,10 +125,10 @@ class ContextExecutorsTest {
     }
 
     @Test
-    void directExecutorRunsTheCopierForEachCommandAndRestoresTheCallerBinding() {
+    void directContextExecutorRunsTheCopierForEachCommandAndRestoresTheCallerBinding() {
         List<String> original = new ArrayList<>(Arrays.asList("a"));
         COPYING_TTL.set(original);
-        Executor direct = ContextExecutors.directExecutor();
+        Executor direct = ContextExecutors.directContextExecutor();
         try {
             AtomicReference<List<String>> first = new AtomicReference<>();
             direct.execute(() -> {
@@ -149,9 +149,9 @@ class ContextExecutorsTest {
     }
 
     @Test
-    void directExecutorRestoresTheCallerBindingAfterFailure() {
+    void directContextExecutorRestoresTheCallerBindingAfterFailure() {
         TTL.set("caller");
-        Executor direct = ContextExecutors.directExecutor();
+        Executor direct = ContextExecutors.directContextExecutor();
         try {
             assertThatThrownBy(() -> direct.execute(() -> {
                         assertThat(TTL.get()).isEqualTo("caller");

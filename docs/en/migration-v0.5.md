@@ -37,11 +37,12 @@ consumers against the v0.5 line.
 
 ## Context-propagating direct executors
 
-`ContextExecutors.directExecutor()` now captures TTL context at each `execute` call. This is the
-reusable default for commands whose context belongs to the call site. The old creation-time
+The project-specific `ContextExecutors.directExecutor()` method is renamed to
+`ContextExecutors.directContextExecutor()` to avoid colliding with Guava's `MoreExecutors.directExecutor()`.
+The renamed method captures TTL context at each `execute` call. This is the reusable default for commands whose context belongs to the call site. The old creation-time
 behavior is available as `ContextExecutors.registrationContextExecutor()` and is intended for a
 Future listener or callback that must retain the context from registration. `lazyDirectExecutor()`
-is removed; replace it with `directExecutor()`.
+is removed; replace it with `directContextExecutor()`.
 
 | Removed name | Replacement |
 |---|---|
