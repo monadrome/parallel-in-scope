@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,6 +56,34 @@ final class TaskExecutionState {
     /** The task name carried for diagnostics. */
     String name() {
         return name;
+    }
+
+    /** Returns the current internal state for the task wrapper. */
+    State stateValue() {
+        return Verify.verifyNotNull(state.get());
+    }
+
+    /** Returns the public live status represented by this claim state. */
+    TaskStatus status() {
+        switch (Verify.verifyNotNull(state.get())) {
+            case PENDING:
+                return TaskStatus.PENDING;
+            case RUNNING:
+                return TaskStatus.CLAIMED;
+            case EXITED:
+            case SKIPPED:
+                return TaskStatus.EXITED;
+            default:
+                throw new AssertionError("unknown task execution state");
+        }
+    }
+
+    /** Returns the disposition fixed by the claim CAS when a terminal result is frozen. */
+    ExecutionDisposition disposition() {
+        State current = Verify.verifyNotNull(state.get());
+        return current == State.RUNNING || current == State.EXITED
+                ? ExecutionDisposition.ENTERED
+                : ExecutionDisposition.NOT_ENTERED;
     }
 
     /** Whether the execution has neither exited nor been determined to never enter. */

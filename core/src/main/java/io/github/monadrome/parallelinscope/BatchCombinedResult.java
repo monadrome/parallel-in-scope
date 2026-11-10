@@ -66,6 +66,22 @@ public final class BatchCombinedResult<E, C> {
         return terminal;
     }
 
+    /** Returns the shared three-state termination for elements and the terminal combine. */
+    public ScopeTermination termination() {
+        if (!elements.termination().successful()) {
+            return elements.termination();
+        }
+        if (terminal.successful()) {
+            return ScopeTermination.succeeded();
+        }
+        return ScopeTermination.fromResults(elements.batchName(), java.util.Collections.singletonList(terminal));
+    }
+
+    /** Alias that makes the scope-level meaning explicit at call sites. */
+    public ScopeTermination scopeTermination() {
+        return termination();
+    }
+
     /**
      * The terminal combine's final observation snapshot, or {@code null} when the bounded cleanup
      * wait elapsed before the combine's execution-exit observation was published — the same honesty rule

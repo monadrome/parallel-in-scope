@@ -5,6 +5,16 @@
 > one-shot 链 `runtime.group(name, timeout).par(...).runAll()` 重设计。仍在使用 `0.2.x` 的应用在完成本文迁移后，
 > 请继续阅读 [v0.3 迁移指南](migration-v0.3.md)。
 
+### v0.5 任务终止投影
+
+开发线新增逻辑终止投影，但 `TaskCompletion` 仍然表示退出后的观测快照。通过
+`ImmediateResult.termination()` 读取 `SUCCESS`/`FAILED`/`CANCELLED` 三个分支，再通过
+`failureCause()`、`cancellationReason()` 和 `disposition()` 读取封闭原因与 execution claim 事实。
+`TaskOutcome`/`outcome()` 继续作为迁移适配，`RUNNING`、`GROUP_CANCELLED`、`MEMBER_CANCELLED` 和
+`FAIL_FAST` 不应作为新的稳定业务原因。Batch/Group 结果通过 `termination()`/`scopeTermination()`
+暴露共享的 `ScopeTermination`。逻辑终止可能早于线程退出，释放与直接执行共享的资源前仍需检查
+`executionExitConfirmed()`。
+
 `0.2.0` 用不可变执行拓扑替代可变配置和运行期 resolver，是一次源码级破坏性迁移。
 
 发布身份同时变更：GitHub 账号由 `huatalk` 改名为 `monadrome`，`io.github.huatalk:parallel-in-scope` 变为 `io.github.monadrome:parallel-in-scope`，根 Java 包 `io.github.huatalk.parallelinscope` 变为 `io.github.monadrome.parallelinscope`。同步更新依赖坐标、import、`package` 声明和 SPI 服务加载名。`0.1.0` 仍以旧坐标发布在 Maven Central 上。

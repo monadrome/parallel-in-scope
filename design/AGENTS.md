@@ -92,6 +92,7 @@
 | [batch-terminal-combine.md](batch-terminal-combine.md) | `Par.mapAndCombine` 批次终端汇总契约：一次准入准备并 bind、恰好一次的成功门控提交、共享 deadline/取消生命周期、图边诚实、空输入拒绝 |
 | [batch-settle-attribution.md](batch-settle-attribution.md) | 批次元素与终端汇总按**落定时刻**归因：bind 前注册的钉子监听器、冻结等待钉子而非 cleanup budget、执行自抛 CE/IE 为 `USER_FAILURE`、与冻结时分类的差异范围与接受的残余 |
 | [task-group-adopted-futures.md](task-group-adopted-futures.md) | **组成员收养外部 future 契约**：`adopt` 把在途 `ListenableFuture` 声明为成员；组 token 以同一取消意图取消 source、先 bind 后连接、准入失败放弃 source；值进入普通组合与冻结结果，资源由外部管道或接收方管理；生产者 `Par` 让嵌套等待进入执行器等待图，与线程池饥饿观测互补 |
+| [task-termination-and-scope.md](task-termination-and-scope.md) | **任务终止与 scope 原因契约**：逻辑终止、execution claim、实时状态、退出后观测和 Batch/Group 单一 primary cause 的统一模型 |
 
 相关决策（仅在任务涉及对应决策背景或边界时加载）：
 

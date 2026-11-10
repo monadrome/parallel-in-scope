@@ -45,6 +45,7 @@ final class TaskBatch<T> implements AutoCloseable {
     private final ExecutionExitTracker executionExit;
     private final @Nullable CancellationToken token;
     private final @Nullable Duration closeGrace;
+    private final ScopeTerminationAccumulator scopeTermination;
     /** Publication barrier for synchronous exits, without an aggregated observation value. */
     private final ListenableFuture<?> observationsReady;
 
@@ -62,10 +63,20 @@ final class TaskBatch<T> implements AutoCloseable {
         this.executionExit = checkNotNull(executionExit, "executionExit cannot be null");
         this.token = token;
         this.closeGrace = closeGrace;
+        this.scopeTermination = new ScopeTerminationAccumulator();
         ImmutableList.Builder<ListenableFuture<TaskCompletion<T>>> observations =
                 ImmutableList.builderWithExpectedSize(this.results.size());
         for (TaskFuture<T> element : this.results) {
             observations.add(((Task<T>) element).observationView());
+            ((Task<T>) element)
+                    .terminationFuture()
+                    .addListener(
+                            () -> {
+                                scopeTermination.observe(
+                                        Verify.verifyNotNull(element.termination(), "settled task has no termination"),
+                                        null);
+                            },
+                            MoreExecutors.directExecutor());
         }
         ImmutableList<ListenableFuture<TaskCompletion<T>>> inputs = observations.build();
         this.observationsReady = Futures.whenAllSucceed(inputs).call(() -> null, MoreExecutors.directExecutor());
@@ -242,7 +253,13 @@ final class TaskBatch<T> implements AutoCloseable {
         Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
         ExecutionExitTracker.warnUnfinished("batch", unfinished, LOGGER);
         String batchName = results.isEmpty() ? "" : results.get(0).taskName();
-        return new TaskBatchResult<>(batchName, frozen, observations, unfinished);
+        ScopeTerminationCause primary = scopeTermination.cause();
+        ScopeTermination aggregate = primary == null
+                ? ScopeTermination.fromResults(batchName, frozen)
+                : primary.kind() == ScopeTerminationCause.Kind.FAILURE
+                        ? ScopeTermination.failed(primary)
+                        : ScopeTermination.cancelled(primary);
+        return new TaskBatchResult<>(batchName, frozen, observations, unfinished, aggregate);
     }
 
     /**

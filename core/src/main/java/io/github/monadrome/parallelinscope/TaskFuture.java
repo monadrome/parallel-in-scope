@@ -69,6 +69,17 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     Throwable failure();
 
     /**
+     * Returns the immutable logical termination once this future is done, or {@code null} while it
+     * is still pending. The value is frozen at logical termination and does not wait for physical
+     * execution exit.
+     */
+    @Nullable
+    TaskTermination<T> termination();
+
+    /** Returns the live execution status without waiting or changing the future. */
+    TaskStatus status();
+
+    /**
      * Returns the observation future of this task: a {@code ListenableFuture} of the task's final
      * immutable {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
      * outcome, failure, and on success the result.

@@ -255,6 +255,10 @@ null --all success-----------> SUCCESS
 
 ### 6.1 三种终止状态与执行退出等待
 
+任务逻辑终止由 `TaskTermination` 单独冻结，执行 claim 由 `TaskExecutionState` 的
+`PENDING -> RUNNING` CAS 线性化。取消在 claim 后发生时 disposition 仍为 `ENTERED`；只有 claim
+未成功才是 `NOT_ENTERED`。`ExecutionPhaseHintFuture.phase()` 只能用于诊断，不能替代这个 CAS。
+
 区分三种终止（关闭语义见
 [取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）：
 

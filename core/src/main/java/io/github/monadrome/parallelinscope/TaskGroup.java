@@ -125,6 +125,9 @@ final class TaskGroup<R> implements AutoCloseable {
     /** First writer wins: names the member or combine whose own outcome recorded a failure. */
     private final AtomicReference<@Nullable String> failedTaskName = new AtomicReference<>();
 
+    /** First successful cause CAS for the group's shared three-state termination projection. */
+    private final ScopeTerminationAccumulator scopeTermination = new ScopeTerminationAccumulator();
+
     /** One-shot guard that keeps the terminal combine from being submitted twice. */
     private final AtomicBoolean terminalSubmitted = new AtomicBoolean();
 
@@ -926,6 +929,10 @@ final class TaskGroup<R> implements AutoCloseable {
             }
             TaskOutcome observedReason = member.reason;
 
+            scopeTermination.observe(
+                    TaskTermination.fromLegacy(observedReason, member.failure, memberDisposition(member), member.name),
+                    member.name);
+
             if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
                 memberSuccesses.incrementAndGet();
             }
@@ -1167,6 +1174,12 @@ final class TaskGroup<R> implements AutoCloseable {
         for (MemberState member : orderedMembers) {
             snapshots.put(member.name, memberSnapshot(member));
         }
+        ScopeTerminationCause primary = scopeTermination.cause();
+        ScopeTermination aggregate = primary == null
+                ? ScopeTermination.fromLegacy(outcome, failedName, failureCauseFor(failedName), groupName)
+                : primary.kind() == ScopeTerminationCause.Kind.FAILURE
+                        ? ScopeTermination.failed(primary)
+                        : ScopeTermination.cancelled(primary);
         return new TaskGroupReport(
                 groupId,
                 groupName,
@@ -1176,18 +1189,55 @@ final class TaskGroup<R> implements AutoCloseable {
                 Objects.requireNonNull(outcome, "group outcome is committed before snapshot"),
                 failedName,
                 snapshots,
-                terminal == null ? null : memberSnapshot(terminal));
+                terminal == null ? null : memberSnapshot(terminal),
+                aggregate);
+    }
+
+    private @Nullable FailureCause failureCauseFor(@Nullable String failedName) {
+        if (failedName == null) {
+            return null;
+        }
+        MemberState failed = failedTask();
+        if (failed == null) {
+            return null;
+        }
+        return com.google.common.base.Verify.verifyNotNull(
+                        failed.view.termination(), "failed member termination is published before snapshot")
+                .failureCause();
+    }
+
+    private static ExecutionDisposition memberDisposition(MemberState member) {
+        if (member.view.termination() != null) {
+            return com.google.common.base.Verify.verifyNotNull(member.view.termination())
+                    .disposition();
+        }
+        ExecutionPhaseHintFuture<Object> prepared = member.prepared;
+        return prepared == null ? ExecutionDisposition.ENTERED : prepared.executionDisposition();
     }
 
     private static TaskCompletion<?> memberSnapshot(MemberState member) {
         return TaskCompletion.memberSnapshot(
                 member.name,
                 member.context.multiTaskContext().unitId(),
-                Objects.requireNonNull(member.reason, "member reason is recorded before convergence"),
+                com.google.common.base.Verify.verifyNotNull(
+                        member.reason, "member reason is recorded before convergence"),
                 member.failure,
                 member.context.submitTimeNanos(),
                 member.context.startTimeNanos(),
-                member.context.endTimeNanos());
+                member.context.endTimeNanos(),
+                terminationSnapshot(member));
+    }
+
+    private static TaskTermination<Object> terminationSnapshot(MemberState member) {
+        if (member.view.termination() != null) {
+            return com.google.common.base.Verify.verifyNotNull(member.view.termination());
+        }
+        return TaskTermination.fromLegacy(
+                com.google.common.base.Verify.verifyNotNull(
+                        member.reason, "member reason is recorded before convergence"),
+                member.failure,
+                memberDisposition(member),
+                member.name);
     }
 
     /** Returns a member or terminal awaited by the caller; member-to-combine data flow adds no edge. */

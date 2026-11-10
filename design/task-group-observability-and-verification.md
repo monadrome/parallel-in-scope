@@ -11,6 +11,10 @@
 
 ### 10.1 成员级观测快照
 
+成员有两个独立的可观察值：逻辑终止由 `ImmediateResult.termination()` 在 future 终态时冻结，退出后
+观测由 `TaskCompletion` 在 execution-exit 信号后发布。逻辑终止可能先于用户线程退出；调用方必须用
+`executionExitConfirmed()` 或 `TaskStatus.EXITED` 判断直接执行是否已退出。
+
 成员完成时发布统一的 `TaskCompletion` 终态快照（成员 future 终态与执行退出两个信号汇合），
 最终经 `TaskGroupResult.members()`/`terminal()` 可见：
 
@@ -18,9 +22,10 @@
 - submit/start/end timing；
 - queue wait 分类（`enqueued()` 由等待时长派生）；
 - 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
-- `outcome()`：与 `resultOf(name).outcome()` 相同的冻结归因，每个成员只有一个结论（[取消契约](task-group-cancellation.md) §8.4.1）。
+- `termination()`：与 `resultOf(name).termination()` 相同的冻结逻辑终止，每个成员只有一个结论；旧的
+  `outcome()` 只作为 `TaskOutcome` 兼容投影（[任务终止契约](task-termination-and-scope.md)）。
 
-快照在成员 future 终态**且**任务代码进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 outcome 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
+快照在成员 future 终态**且**任务代码进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 `TaskTermination` 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
 
 Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskCompletion/结果关联，不需要新增 current group context。TaskCompletion 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
 
@@ -90,7 +95,7 @@ fake-group-batch -> A/B/C
 13. 内部状态更新（归类、成功计数、首失败名）不持锁、不执行外部调用；级联取消与 combine 提交
     在这些更新之后触发，收敛屏障的递增与收敛本身排在最后（且在该 callback 的 `finally` 中），
     重入安全由原子状态的幂等性而非互斥保证；
-14. 同一成员的成员 future 状态、`TaskOutcome`（成员结果 `outcome()`）、Group result 三者一致。
+14. 同一成员的 `TaskTermination`、成员结果和 Group result 一致；执行退出与逻辑终止分开验证。
 
 ## 14. 必测矩阵
 

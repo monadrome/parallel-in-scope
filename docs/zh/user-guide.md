@@ -319,6 +319,16 @@ TaskGroupResult<Page> result = global
 ## 即时结果 {#task-future-attribution}
 
 `ImmediateResult<T>` 类似 Either<Throwable,T>，浅不可变，不实现 Future。
+
+每个冻结结果还通过 `termination()` 暴露三分支 `TaskTermination<T>`：`SUCCESS`、`FAILED` 和
+`CANCELLED`。失败携带区分用户代码失败与提交拒绝的 `FailureCause`；取消携带
+`CancellationReason` 与 `ExecutionDisposition`。`ENTERED` 表示取得 execution claim，
+`NOT_ENTERED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。旧的 `outcome()` 继续作为
+迁移适配读取。
+
+逻辑终止与执行退出分开。取消可以先落定结果，而用户代码仍在响应中断并展开 finally。释放与直接任务
+共享的资源前，检查 `executionExitConfirmed()` 和 `unexitedExecutions()`；实时诊断使用独立的
+`TaskStatus`，不会改写已经发布的终止值。
 outcome 永不为 RUNNING；SUCCESS 允许 null，其他终态保存非 null Throwable。
 failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括取消。
 读取不等待、不消费中断标志。
