@@ -1,0 +1,35 @@
+CHANGELOG.md
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 11,14
+docs/en/user-guide.md
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 847,851,873
+docs/en/migration-v0.5.md
+  s_51a7dc8d9e3065::t_9def11c902a9e4 40-42
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 45
+docs/zh/user-guide.md
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 743,747,767
+design/extension-and-wrapping.md
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 231,235,256
+core/src/test/java/io/github/monadrome/parallelinscope/ContextExecutorsTest.java
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 92,102,108-109,128,131,152,154
+core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 11,45,73
+docs/zh/migration-v0.5.md
+  s_51a7dc8d9e3065::t_9def11c902a9e4 40-41
+  s_51a7dc8d9e3065::t_db82eb1cec76fb 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "74ba5cf6a1502de84085cea6a4618e2d68ab7009",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
