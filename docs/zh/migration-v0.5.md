@@ -38,7 +38,8 @@ TaskGroupResult<Profile> result = runtime
 ## 带上下文的直接执行器
 
 项目自己的 `ContextExecutors.directExecutor()` 已改名为 `ContextExecutors.directContextExecutor()`，避免与 Guava 的
-`MoreExecutors.directExecutor()` 混淆。改名后的方法在每次 `execute` 调用点捕获 TTL，是可复用的默认实现，
+`MoreExecutors.directExecutor()` 混淆。改名后的方法在每次 `execute` 调用点捕获 Alibaba
+TransmittableThreadLocal（TTL），是可复用的默认实现，
 适用于上下文属于当前调用点的命令。原来的创建时捕获语义改名为
 `ContextExecutors.registrationContextExecutor()`，用于必须保留 Future listener 或 callback 注册上下文的场景。
 `lazyDirectExecutor()` 已删除，迁移到 `directContextExecutor()` 即可。

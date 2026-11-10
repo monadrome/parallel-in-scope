@@ -5,7 +5,7 @@
 
 > 本文定义 parallel-in-scope 的**扩展边界**：用户如何在不破坏结构化并发语义的前提下，给任务代码加上自己的横切能力（MDC、追踪、指标、重试），以及哪些对象归库、哪些归用户。
 > 与 [first-principles.md](first-principles.md) 的关系：本文是判据 2（能否参数化现有机制）与判据 4（是否引入第二套执行管道）在"包装"主题上的具体化。
-> **状态：定稿——不提供任务装饰器 SPI，唯一用户扩展点是任务代码本身（§10 含暂缓理由与重开条件）。** TTL 包装器检测与 L8 守卫已落地（见 §6 落地记录）。
+> **状态：定稿——不提供任务装饰器 SPI，唯一用户扩展点是任务代码本身（§10 含暂缓理由与重开条件）。** Alibaba TransmittableThreadLocal（TTL）包装器检测与 L8 守卫已落地（见 §6 落地记录）。
 
 ## 0. 一句话结论
 
@@ -238,7 +238,7 @@ activeContextExecutor.execute(command);
 
 该 executor 每次执行前 capture 当前调用线程的 TTL，随后 replay、inline 执行并 restore 进入时的原值。
 它不持有创建 executor 的线程上下文，可以在不同请求之间复用；配置的 copier 也会每次 command 执行一次。
-CRR 只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List` 或上下文对象在默认 copier 下可能仍由
+Capture、Replay、Restore（CRR）只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List` 或上下文对象在默认 copier 下可能仍由
 多个 listener 共享。需要值级隔离时 MUST 使用不可变/写时复制值，或配置能提供深拷贝的 TTL copier。
 在 `execute` 内调用 `TtlRunnable.get` 被排除，因为这会把 capture 时机推迟到当前 command 已经开始执行之后。
 该 API 只覆盖应用 callback，不替换库内部的框架 direct callbacks，避免把应用上下文扩大到 future 记账和完成通知。

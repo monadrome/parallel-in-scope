@@ -136,7 +136,7 @@ TaskBatchResult<Price> elements = run.batchResult();
 `terminalValueOrThrow()` 先检查元素：失败的价格以它自己的异常抛出，不会被报成 combine 的
 `FAIL_FAST` 取消；combine 自身失败按同一规则处理。
 
-汇总任务随批次一起准备（TTL 捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
+汇总任务随批次一起准备（Alibaba TransmittableThreadLocal（TTL）捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
 才向它自己的 Par 恰好提交一次。任一元素失败或 deadline 先到，汇总不会运行，其
 `terminalResult()` 记录批次的归因（`FAIL_FAST` / `TIMEOUT`）；汇总提交被拒则记
 `SUBMISSION_FAILURE`。汇总体以 `Combiner<List<@Nullable E>, C>` 接收按输入顺序排列的元素值——因此
@@ -749,7 +749,8 @@ activeContextExecutor.execute(callback);
 ```
 
 它每次 command 执行前 capture 当前 TTL，再 replay、inline 执行并 restore 调用线程原有的绑定。executor
-本身不持有创建线程的上下文；配置的 copier 也会每次 command 执行一次。CRR 恢复的是绑定关系，不保证
+本身不持有创建线程的上下文；配置的 copier 也会每次 command 执行一次。Capture、Replay、Restore（CRR）
+恢复的是绑定关系，不保证
 绑定值深拷贝。使用浅 copier 时，`Map`、`List` 或上下文对象的内部值仍可能共享；需要隔离时应使用不可变、
 写时复制或明确的深拷贝值。
 

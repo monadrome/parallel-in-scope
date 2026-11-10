@@ -159,7 +159,7 @@ TaskBatchResult<Price> elements = run.batchResult();
 `terminalValueOrThrow()` checks the elements first, so a failed price is thrown as itself rather
 than as the combine's `FAIL_FAST` cancellation; the combine's own failure follows the same rule.
 
-The combine is prepared with the batch (TTL capture and deadline binding happen on the calling
+The combine is prepared with the batch (Alibaba TransmittableThreadLocal (TTL) capture and deadline binding happen on the calling
 thread) but submitted to its own Par exactly once, only after all elements succeed. When any element
 fails or the deadline expires first, the combine never runs and its `terminalResult()` records the
 batch's attribution (`FAIL_FAST` / `TIMEOUT`); a rejected combine handoff records
@@ -854,7 +854,8 @@ activeContextExecutor.execute(callback);
 
 It captures the current TTL before each command, replays it around the inline command, and restores the caller's
 entry bindings afterwards. The executor does not retain the context from its creation thread, and a configured
-copier runs once per command. CRR restores bindings; it does not promise deep copies of bound values. A shallow
+copier runs once per command. Capture/replay/restore (CRR) restores bindings; it does not promise deep copies of
+bound values. A shallow
 copier can still leave mutable contents of a `Map`, `List`, or context object shared. Use immutable, copy-on-write,
 or explicitly deep-copied values when isolation is required.
 
