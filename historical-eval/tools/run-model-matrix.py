@@ -70,11 +70,14 @@ def run_one(
             existing = json.loads(result_path.read_text(encoding="utf-8"))
             if existing.get("config_hash") == config_hash:
                 return existing
-            # Preserve completed results written before timeout-retry became part of
-            # the manifest. Only old timeout rows need a new execution; all other
-            # completed rows remain valid under the same model configuration.
+            # Preserve completed results written before the timeout policy changed.
+            # Only old timeout rows need a new execution; all other completed rows
+            # remain valid under the same model configuration even when the timeout
+            # or retry budget is increased.
             same_base = all(
-                existing.get(key) == value for key, value in config.items() if key != "timeout_retries"
+                existing.get(key) == value
+                for key, value in config.items()
+                if key not in {"timeout", "timeout_retries"}
             )
             if same_base and existing.get("model_status") != "model-timeout":
                 return existing
@@ -202,8 +205,8 @@ def main() -> int:
     parser.add_argument("--effort", default="medium")
     parser.add_argument("--strategy", choices=("oneshot", "repair-loop"), default="oneshot")
     parser.add_argument("--max-attempts", type=int, default=1)
-    parser.add_argument("--timeout-retries", type=int, default=1, help="retry a model timeout once by default")
-    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--timeout-retries", type=int, default=2, help="retry a model timeout up to two times by default")
+    parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--eval-timeout", type=int, default=180)
     parser.add_argument("--max-workers", type=int, default=4)
     parser.add_argument("--ranks", help="comma-separated ranks; default is all eligible ranks")

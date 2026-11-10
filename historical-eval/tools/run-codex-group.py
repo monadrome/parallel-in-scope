@@ -19,7 +19,7 @@ def main():
     parser.add_argument("rank", type=int)
     parser.add_argument("-o", "--output", type=Path, required=True)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--model", default="gpt-5.6-terra")
     parser.add_argument("--reasoning-effort", default="medium")
     parser.add_argument(

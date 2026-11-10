@@ -188,7 +188,7 @@ reasoning_effort: medium
 
 103 组按上述顺序完成了 `codex + gpt-5.6-terra`、`medium` 评测：88 组历史 sandbox 可判定，其中模型通过 8 组、失败 80 组；15 组因历史测试 `baseline-pass` 或 `fixed-fail` 标记为 `not-eligible`。完整排序和结果见 `catalog/model-runs/final-report.md`，机器可读结果见同名 `.json` 和 `.jsonl`。
 
-同一批 103 组随后使用 `codex + gpt-5.6-luna`、`max` 独立评测。主结果为通过 9 组、失败 71 组、超时 6 组、patch 被拒绝 2 组，历史可判定集通过率为 10.23%；6 个 timeout 样本各重试一次后仍全部 timeout。结果见 `catalog/model-runs/luna-max-report.md`，重试和分片选择记录见 `luna-max-run-meta.json`。
+同一批 103 组随后使用 `codex + gpt-5.6-luna`、`max` 独立评测。主结果为通过 9 组、失败 71 组、超时 6 组、patch 被拒绝 2 组，历史可判定集通过率为 10.23%；旧批次的 timeout 样本各重试一次后仍全部 timeout。当前评测策略将模型单次 timeout 上限设为 1800 秒，最多进行 2 次 fresh retry，未解决的 timeout 单独计数，不计为模型失败。结果见 `catalog/model-runs/luna-max-report.md`，重试和分片选择记录见 `luna-max-run-meta.json`。
 
 第三轮使用 `codex + gpt-6.1-sol`、`medium` 独立评测：通过 7 组、失败 78 组、超时 3 组，历史可判定集通过率为 7.95%。结果见 `catalog/model-runs/sol-medium-report.md`，运行元数据见 `sol-medium-run-meta.json`。
 

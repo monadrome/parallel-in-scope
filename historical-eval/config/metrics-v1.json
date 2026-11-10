@@ -14,7 +14,7 @@
     "hidden_behavior_pass_rate": {
       "formula": "hidden_behavior_passes / behavior_denominator",
       "primary": true,
-      "timeout_policy": "retry once; unresolved timeout is reported separately"
+      "timeout_policy": "allow up to two fresh retries at the 1800-second model timeout; unresolved timeout is reported separately"
     },
     "hidden_behavior_pass_count": {
       "formula": "count(candidate passes private behavioral verifier)",

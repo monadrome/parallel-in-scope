@@ -15,9 +15,9 @@
     "excluded_from_behavior_score": [10, 18, 30, 37, 47, 57, 66, 74, 76, 85, 96, 99, 103]
   },
   "execution_policy": {
-    "model_timeout_seconds": 900,
+    "model_timeout_seconds": 1800,
     "evaluator_timeout_seconds": 180,
-    "timeout_retries": 1,
+    "timeout_retries": 2,
     "retry_same_model_config": true,
     "retry_fresh_workspace": true,
     "unresolved_timeout_is_model_failure": false,

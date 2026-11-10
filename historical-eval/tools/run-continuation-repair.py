@@ -125,7 +125,7 @@ def main() -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--model", default="gpt-5.6-terra")
     parser.add_argument("--effort", default="medium")
-    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--eval-timeout", type=int, default=180)
     args = parser.parse_args()
 

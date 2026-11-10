@@ -322,7 +322,7 @@ def main() -> int:
     parser.add_argument("--reasoning-effort", "--effort", dest="effort", default="medium")
     parser.add_argument("--strategy", choices=("oneshot", "repair-loop"), default="oneshot")
     parser.add_argument("--max-attempts", type=int, default=2)
-    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--eval-timeout", type=int, default=180)
     parser.add_argument("--keep-workspaces", action="store_true")
     parser.add_argument(

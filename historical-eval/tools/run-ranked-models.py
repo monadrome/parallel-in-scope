@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--model", default="gpt-5.6-terra")
     parser.add_argument("--reasoning-effort", default="medium")
-    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args()
     ranking = [json.loads(line) for line in args.ranking.read_text(encoding="utf-8").splitlines()]
     sandbox = {json.loads(line)["group"]: json.loads(line) for line in args.sandbox_results.read_text(encoding="utf-8").splitlines()}
