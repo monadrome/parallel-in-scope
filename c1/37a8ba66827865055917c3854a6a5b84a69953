@@ -1,0 +1,33 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java
+  s_51a7dc8d9e3065::t_bf9e4b9b687d60 11-14,16-18,25-27,36-40,46,50,52-55,57,60-61,64,68,77-83,87,92
+docs/zh/user-guide.md
+  s_51a7dc8d9e3065::t_574a1ce49cd2b9 740-744,747,751-754,756,759,763-765,767-768
+docs/en/migration-v0.5.md
+  s_51a7dc8d9e3065::t_f7046f10f470fb 38-45
+core/src/test/java/io/github/monadrome/parallelinscope/ContextExecutorsTest.java
+  s_51a7dc8d9e3065::t_5d41a15f43f7b8 32,36,54,73,75,95,101,103-104,108-109,113,117,128,131,134,140,152,154,156,174,200,214
+docs/zh/migration-v0.5.md
+  s_51a7dc8d9e3065::t_f7046f10f470fb 38-44
+docs/en/user-guide.md
+  s_51a7dc8d9e3065::t_574a1ce49cd2b9 844,846-848,851-852,855-859,861-862,865-866,869-875
+CHANGELOG.md
+  s_51a7dc8d9e3065::t_f7046f10f470fb 11-15
+design/extension-and-wrapping.md
+  s_51a7dc8d9e3065::t_78bb10e75c5948 228,231-232,235-236,239-240,243-251,253-254,256-257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c137a8ba66827865055917c3854a6a5b84a69953",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
