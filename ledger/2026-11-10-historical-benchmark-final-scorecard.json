@@ -23,10 +23,12 @@
       "docs: describe persistent model sessions",
       "test: extend timeout retry budget",
       "fix: distinguish unresolved timeout scorecards",
-      "test: record timeout-aware model scorecard"
+      "test: record timeout-aware model scorecard",
+      "chore: record delivery historical-benchmark-final-scorecard",
+      "fix: label model timeout states"
     ],
-    "files": 17,
-    "insertions": 1985,
+    "files": 18,
+    "insertions": 2041,
     "deletions": 5
   },
   "reviews": {
@@ -46,5 +48,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Finalized the scorecard after the user chose to stop remaining timeout retries; unresolved timeouts remain separate from capability scoring. The refactoring-review planner was required on the large historical diff but no detector run was completed."
+  "notes": "Finalized the scorecard after the user chose to stop remaining timeout retries; unresolved timeouts remain separate from capability scoring. The refactoring-review planner was required on the large historical diff but no detector run was completed. Model-level report states now distinguish unresolved timeouts."
 }
