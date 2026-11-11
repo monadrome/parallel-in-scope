@@ -3,6 +3,7 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -183,6 +184,10 @@ public class TaskBatchResultTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(IllegalStateException.class)
                     .hasRootCauseMessage("recorded failure");
+            TaskBatchResult<Integer> frozen = batch.finish();
+            assertThat(frozen.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
+            assertThat(Verify.verifyNotNull(frozen.termination().cause()).failure())
+                    .hasMessage("recorded failure");
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -241,6 +246,25 @@ public class TaskBatchResultTest {
         if (!aggregate.isCancelled()) {
             Futures.getUnchecked(aggregate);
         }
+    }
+
+    @Test
+    public void scopeTerminationPrefersTheFailureOverAReplayOfFailFastCancellation() {
+        CancellationToken token = new CancellationToken();
+        token.failFastCancel();
+        Task<String> cancelled = Task.attributedOnSettle("batch", token, Futures.<String>immediateCancelledFuture());
+        Task<String> failed = Task.attributedOnSettle(
+                "batch", token, Futures.immediateFailedFuture(new IllegalStateException("boom")));
+
+        TaskBatchResult<String> result =
+                TaskBatch.of(Arrays.asList(cancelled, failed)).finish();
+
+        assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
+        assertThat(Verify.verifyNotNull(
+                                Verify.verifyNotNull(result.termination().cause())
+                                        .failure())
+                        .getMessage())
+                .isEqualTo("boom");
     }
 
     @Test

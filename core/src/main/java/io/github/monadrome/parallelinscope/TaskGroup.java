@@ -403,7 +403,7 @@ final class TaskGroup<R> implements AutoCloseable {
      * chosen budget.
      */
     public void cancel() {
-        groupToken.cancel();
+        groupToken.cancelFromCaller();
     }
 
     /**
@@ -929,9 +929,15 @@ final class TaskGroup<R> implements AutoCloseable {
             }
             TaskOutcome observedReason = member.reason;
 
-            scopeTermination.observe(
-                    TaskTermination.fromLegacy(observedReason, member.failure, memberDisposition(member), member.name),
-                    member.name);
+            ScopeTerminationCause explicitCause = explicitScopeCause(member, observedReason);
+            if (explicitCause == null) {
+                scopeTermination.observe(
+                        TaskTermination.fromLegacy(
+                                observedReason, member.failure, memberDisposition(member), member.name),
+                        member.name);
+            } else {
+                scopeTermination.observe(explicitCause);
+            }
 
             if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
                 memberSuccesses.incrementAndGet();
@@ -1017,6 +1023,16 @@ final class TaskGroup<R> implements AutoCloseable {
             return TaskOutcome.TIMEOUT;
         }
         return TokenOutcomes.forCancelled(groupToken, whenUncommitted);
+    }
+
+    private @Nullable ScopeTerminationCause explicitScopeCause(MemberState member, TaskOutcome reason) {
+        if (reason == TaskOutcome.MEMBER_CANCELLED) {
+            return ScopeTerminationCause.cancelled(CancellationReason.cancelledByMember(member.name));
+        }
+        if (reason == TaskOutcome.GROUP_CANCELLED && groupToken.cancelledByCaller()) {
+            return ScopeTerminationCause.cancelled(CancellationReason.cancelledByCaller(groupName));
+        }
+        return null;
     }
 
     /**

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
@@ -420,6 +421,11 @@ class RequestCancellationTest {
                 });
 
         assertThat(result.batchResult().results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(Verify.verifyNotNull(
+                                Verify.verifyNotNull(result.scopeTermination().cause())
+                                        .cancellationReason())
+                        .kind())
+                .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
         assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
         assertThat(elementExecutions).hasValue(0);
         assertThat(combiners).hasValue(0);

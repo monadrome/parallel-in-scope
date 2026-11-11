@@ -379,8 +379,18 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
             skipExecution();
-        } else {
-            phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING);
+        } else if (phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
+            // Cancellation and the execution claim must compete on the same state machine. If run()
+            // has published RUNNING but has not claimed its execution slot yet, mark that slot
+            // skipped before publishing the cancellation so the worker cannot claim it afterwards.
+            skipExecutionIfPending();
+        }
+    }
+
+    private void skipExecutionIfPending() {
+        TaskExecutionState taskCode = executionState;
+        if (taskCode != null && taskCode.skipIfPending()) {
+            releaseCallable();
         }
     }
 }
