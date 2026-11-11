@@ -11,8 +11,9 @@
 > Latest stable release: `0.4.1`. This release adds typed task keys, request cancellation, adopted
 > futures, and runtime diagnostics. Migrating from `0.3.x`? Read the [v0.4 migration guide](docs/en/migration-v0.4.md) first.
 
-A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution,
-context propagation, sliding-window scheduling, and thread-pool deadlock and starvation diagnostics.
+parallel-in-scope builds on the thread pools and asynchronous tasks you already have. It gives those
+tasks a clearer, safer lifecycle: structured grouping, cooperative cancellation, fail-fast execution,
+context propagation, bounded scheduling, and thread-pool deadlock and starvation diagnostics.
 
 ## Requirements
 
@@ -137,13 +138,17 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 
 ## Core Capabilities
 
-- Fail-fast cancellation within a task batch
-- Deadline, fail-fast, and parent-to-child cancellation propagation
+- Batch execution for homogeneous inputs with `Par.map(...)`
+- Structured task groups for heterogeneous work, dependencies, and final aggregation
+- Fail-fast cancellation within a batch or task group
+- Explicit cancellation, deadlines, request signals, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
-- Opt-in queue refusal (`rejectEnqueue` with `SubmissionAwareBlockingQueue`) and workload-fit diagnostics (`TaskType` flags blocking work in compute pools; it never changes execution)
-- Frozen task observations: `completions()` / group `members()` and `terminal()`
+- Frozen task observations: `completions()` / group `members()` and `terminal()` results
+- Thread-pool waiting-graph, deadlock, starvation, and workload-fit diagnostics
+- Opt-in queue refusal with `rejectEnqueue` and `SubmissionAwareBlockingQueue`
 - Cycle detection across task and executor graphs
+- Queue extensions including `DrainingBlockingQueue` and `ResizableBlockingQueue`
 
 ## Documentation
 
