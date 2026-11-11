@@ -8,6 +8,12 @@
 
 ## 8. 取消、deadline 与 fail-fast
 
+当前结果契约把取消原因和执行事实分开：任务冻结为 `Cancelled(CancellationReason, disposition)`，
+其中 disposition 只来自 execution claim CAS；Batch/Group 冻结为三态 `ScopeTermination`，只保留一次
+CAS 提交的 primary cause。旧 `TaskOutcome` 映射仍供迁移读取，但 `GROUP_CANCELLED`、`MEMBER_CANCELLED`
+和 `FAIL_FAST` 不再是新的稳定任务原因。原因对象携带 parent、member、deadline 或请求入口的 source
+identity，迟到业务失败保留在成员结果和诊断中，不覆盖已经提交的 scope cause。
+
 ### 8.1 Token 结构
 
 不新增公共 `GroupCancellationToken`，也不存在公开的组运行句柄或成员直消入口：组的执行取消来源是显式

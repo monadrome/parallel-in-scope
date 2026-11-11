@@ -117,6 +117,16 @@ public final class TaskGroupResult<R> {
         return report.outcome();
     }
 
+    /** Returns the shared three-state logical termination of this group scope. */
+    public ScopeTermination termination() {
+        return report.termination();
+    }
+
+    /** Alias that makes the scope-level meaning explicit at call sites. */
+    public ScopeTermination scopeTermination() {
+        return termination();
+    }
+
     /**
      * The name of the first task recorded as failed, or null when none failed.
      *

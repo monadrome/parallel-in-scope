@@ -365,6 +365,18 @@ diagnostics and workload-fit timing do not apply.
 ## Immediate results {#task-future-attribution}
 
 `ImmediateResult<T>` is a shallowly immutable value-or-throwable container, not a Future.
+
+Each frozen result also exposes `termination()`, a three-branch `TaskTermination<T>` value:
+`SUCCESS`, `FAILED`, or `CANCELLED`. A failed termination carries a `FailureCause` that distinguishes
+user-code failure from submission rejection. A cancelled termination carries a `CancellationReason`
+and an `ExecutionDisposition`. `ENTERED` means the execution claim was acquired; `NOT_ENTERED` means
+the claim was not acquired and does not mean that framework preparation had no side effects. The
+legacy `outcome()` method remains an adapter for older callers.
+
+Logical termination and execution exit are separate. A cancellation can settle the result while user
+code is still unwinding after interruption. Check `executionExitConfirmed()` and
+`unexitedExecutions()` before releasing resources shared with direct task executions. `TaskStatus` is
+the live status view for internal task diagnostics; it does not rewrite a published termination.
 `outcome()` never returns RUNNING; SUCCESS may hold null, and every non-success holds a throwable.
 `failure()` reads it and `valueOrThrow()` wraps it in ExecutionException with the original cause,
 including cancellation. Container reads never block or consume an interrupt.

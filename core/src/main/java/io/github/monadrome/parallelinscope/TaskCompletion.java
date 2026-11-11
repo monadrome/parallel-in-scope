@@ -35,6 +35,7 @@ public final class TaskCompletion<T> {
     private final TaskOutcome outcome;
     private final @Nullable T result;
     private final @Nullable Throwable failure;
+    private final @Nullable TaskTermination<T> termination;
 
     private TaskCompletion(
             String taskName,
@@ -47,6 +48,32 @@ public final class TaskCompletion<T> {
             TaskOutcome outcome,
             @Nullable T result,
             @Nullable Throwable failure) {
+        this(
+                taskName,
+                unitId,
+                groupId,
+                taskIndex,
+                submitTimeNanos,
+                startTimeNanos,
+                endTimeNanos,
+                outcome,
+                result,
+                failure,
+                null);
+    }
+
+    private TaskCompletion(
+            String taskName,
+            @Nullable TaskId<TaskUnit> unitId,
+            @Nullable TaskId<TaskGroupRun> groupId,
+            int taskIndex,
+            long submitTimeNanos,
+            long startTimeNanos,
+            long endTimeNanos,
+            TaskOutcome outcome,
+            @Nullable T result,
+            @Nullable Throwable failure,
+            @Nullable TaskTermination<T> termination) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         Verify.verify(unitId == null || groupId == null, "a record names at most one identity space");
         this.unitId = unitId;
@@ -59,6 +86,7 @@ public final class TaskCompletion<T> {
         this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
         this.result = result;
         this.failure = failure;
+        this.termination = termination;
     }
 
     /**
@@ -75,6 +103,30 @@ public final class TaskCompletion<T> {
             long endTimeNanos) {
         return new TaskCompletion<>(
                 memberName, unitId, null, 0, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, null, failure);
+    }
+
+    /** Creates a member snapshot with the authoritative claim disposition. */
+    static TaskCompletion<Object> memberSnapshot(
+            String memberName,
+            TaskId<TaskUnit> unitId,
+            TaskOutcome outcome,
+            @Nullable Throwable failure,
+            long submitTimeNanos,
+            long startTimeNanos,
+            long endTimeNanos,
+            TaskTermination<Object> termination) {
+        return new TaskCompletion<>(
+                memberName,
+                unitId,
+                null,
+                0,
+                submitTimeNanos,
+                startTimeNanos,
+                endTimeNanos,
+                outcome,
+                null,
+                failure,
+                termination);
     }
 
     /**
@@ -125,7 +177,8 @@ public final class TaskCompletion<T> {
                 timing.endTimeNanos(),
                 result.outcome(),
                 value,
-                result.failure());
+                result.failure(),
+                result.termination());
     }
 
     /**
@@ -210,6 +263,23 @@ public final class TaskCompletion<T> {
      */
     public TaskOutcome outcome() {
         return outcome;
+    }
+
+    /** Returns the immutable logical termination captured by this exit observation. */
+    public TaskTermination<T> termination() {
+        TaskTermination<T> frozen = termination;
+        if (frozen != null) {
+            return frozen;
+        }
+        ExecutionDisposition disposition = outcome == TaskOutcome.SUCCESS || startTimeNanos != 0
+                ? ExecutionDisposition.ENTERED
+                : ExecutionDisposition.NOT_ENTERED;
+        return TaskTermination.fromLegacy(outcome, result, failure, disposition, taskName);
+    }
+
+    /** Returns whether the execution claim was acquired. */
+    public ExecutionDisposition disposition() {
+        return termination().disposition();
     }
 
     /** Returns whether the task completed successfully, including with a null result. */

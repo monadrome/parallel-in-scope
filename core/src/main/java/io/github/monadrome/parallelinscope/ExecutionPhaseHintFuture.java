@@ -82,6 +82,42 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return current == ExecutionPhase.RUNNING && isCancelled() ? ExecutionPhase.CANCEL_REQUESTED_RUNNING : current;
     }
 
+    /**
+     * Returns the disposition from the execution-claim state machine. The phase hint is deliberately
+     * not consulted: it is a diagnostic observation and is not the linearization point for claim.
+     */
+    ExecutionDisposition executionDisposition() {
+        if (submissionFailure != null) {
+            return ExecutionDisposition.NOT_ENTERED;
+        }
+        TaskExecutionState taskCode = executionState;
+        if (taskCode != null) {
+            return taskCode.disposition();
+        }
+        return submissionFailure != null || phase() == ExecutionPhase.CANCELLED_BEFORE_RUN
+                ? ExecutionDisposition.NOT_ENTERED
+                : ExecutionDisposition.ENTERED;
+    }
+
+    /** Returns a live status combining logical future completion with the execution claim state. */
+    TaskStatus status() {
+        TaskExecutionState taskCode = executionState;
+        if (!isDone()) {
+            return taskCode == null && phase() == ExecutionPhase.RUNNING
+                    ? TaskStatus.CLAIMED
+                    : taskCode == null ? TaskStatus.PENDING : taskCode.status();
+        }
+        if (taskCode != null && taskCode.isOutstanding()) {
+            return TaskStatus.TERMINATED;
+        }
+        if (taskCode != null) {
+            return TaskStatus.EXITED;
+        }
+        return phase() == ExecutionPhase.RUNNING || phase() == ExecutionPhase.CANCEL_REQUESTED_RUNNING
+                ? TaskStatus.TERMINATED
+                : TaskStatus.EXITED;
+    }
+
     private void releaseCallable() {
         callable = null;
     }

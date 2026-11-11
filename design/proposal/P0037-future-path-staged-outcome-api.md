@@ -12,6 +12,10 @@
   - 阶段链在最后一个处理器注册前 MUST 不可结束，从而让遗漏分支成为编译期错误，而不是运行时默认分支。
 - 被否决方向：继续暴露状态查询组合（仍要求用户记住状态读取顺序）；为每个取消枚举值建立独立阶段（把内部枚举变成不稳定的公开 API）；让同步 Result 自动包装成 Future（丢失同步语义）；单一 `OutcomePath` 终点同时返回 Future 和 Result（Java 类型表达不自然，调用方难以判断执行模型）。
 
+本提案消费的任务终止语义由[任务终止与 scope 原因契约](task-termination-and-scope.md)定义。
+`FuturePath` 的取消阶段处理 `CancellationReason` 和 `ExecutionDisposition`，不得重新公开
+`GROUP_CANCELLED`、`MEMBER_CANCELLED` 或 `FAIL_FAST` 作为新的稳定原因。
+
 ## 1. 失败模式与改前最佳代码
 
 当前调用方需要先读取状态，再调用与状态匹配的查询方法。异步场景还必须记住哪些方法允许调用、哪些方法会抛异常，以及取消原因是否携带可用的详细信息：
@@ -90,7 +94,7 @@ interface FutureSubmissionFailureStage<R> {
 
 interface FutureCancelledStage<R> {
     FutureTerminalStage<R> onCancelled(
-            BiFunction<? super TaskOutcome, ? super Throwable, ? extends R> handler);
+            BiFunction<? super CancellationReason, ? super ExecutionDisposition, ? extends R> handler);
 }
 
 interface FutureTerminalStage<R> {
@@ -109,11 +113,12 @@ Result 入口使用相同的四个处理阶段，最后阶段返回只提供 `to
 | `onSuccess` | `SUCCESS` |
 | `onUserFailure` | `USER_FAILURE` |
 | `onSubmissionFailure` | `SUBMISSION_FAILURE` |
-| `onCancelled` | `MEMBER_CANCELLED`、`GROUP_CANCELLED`、`FAIL_FAST`、`TIMEOUT` |
+| `onCancelled` | `CancellationReason`（含 source identity）与 `ExecutionDisposition` |
 
 `RUNNING` 不是可交付给路径的终态。若内部出现未完成状态，路径实现 MUST 报告库内部错误，而不是调用用户处理器。
 
-取消处理器收到的 detail 不保证是 `CancellationException`；对于组级结果，它可能是记录下来的业务失败。用户应以 `TaskOutcome` 判断类别，以 detail 作为诊断信息。
+取消处理器收到稳定的 `CancellationReason` 和 claim disposition；业务失败保留在 `FailureCause` 和 scope
+成员结果中，不通过取消阶段伪装成第二个 scope 原因。
 
 ## 5. 同步与异步语义
 
@@ -151,7 +156,8 @@ FuturePath.fromResult(result)
 2. 机制复用：复用 `TaskOutcome`、`ImmediateResult` 和现有 Future 完成传播，不新增执行内核。
 3. 结构化安全：Future 入口沿用既有取消与完成传播；Result 入口只处理终态快照，不引入第二套生命周期。
 4. 无隐式状态：路径显式持有 source 和 handler，不使用 ambient 状态。
-5. 归因一致：公共阶段建立在现有 outcome 词汇之上，取消 detail 仍作为诊断数据处理。
+5. 归因一致：公共阶段建立在 `TaskTermination` 的三分支之上，取消原因和 claim disposition 分别表达
+   触发来源与执行事实。
 6. 抽象边界：该能力只负责结果投影与分派，不改变 Batch、Group、取消或 deadline 契约。
 
 ## 9. 落地前需要定稿的问题

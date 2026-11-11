@@ -1,6 +1,7 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.base.Function;
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
@@ -34,18 +35,21 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     private final CancellationToken token;
     private final TaskObservation<T> observation;
     private final @Nullable SettableFuture<TaskOutcome> settledAttribution;
+    private final @Nullable SettableFuture<TaskTermination<T>> settledTermination;
 
     private Task(
             String taskName,
             CancellationToken token,
             ListenableFuture<T> delegate,
             TaskObservation<T> observation,
-            @Nullable SettableFuture<TaskOutcome> settledAttribution) {
+            @Nullable SettableFuture<TaskOutcome> settledAttribution,
+            @Nullable SettableFuture<TaskTermination<T>> settledTermination) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.token = Objects.requireNonNull(token, "token cannot be null");
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
         this.observation = Objects.requireNonNull(observation, "observation cannot be null");
         this.settledAttribution = settledAttribution;
+        this.settledTermination = settledTermination;
     }
 
     /**
@@ -63,7 +67,11 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      * @return the task view over {@code delegate}
      */
     static <T> Task<T> of(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
-        return new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), null);
+        SettableFuture<TaskTermination<T>> termination = SettableFuture.create();
+        Task<T> view =
+                new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), null, termination);
+        view.pinTermination();
+        return view;
     }
 
     /**
@@ -72,7 +80,10 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      */
     static <T> Task<T> of(
             String taskName, CancellationToken token, ListenableFuture<T> delegate, TaskObservation<T> observation) {
-        return new Task<>(taskName, token, delegate, observation, null);
+        SettableFuture<TaskTermination<T>> termination = SettableFuture.create();
+        Task<T> view = new Task<>(taskName, token, delegate, observation, null, termination);
+        view.pinTermination();
+        return view;
     }
 
     /**
@@ -106,13 +117,18 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
          * on that token.
          */
         SettableFuture<TaskOutcome> attribution = SettableFuture.create();
-        Task<T> view = new Task<>(taskName, token, delegate, observationOf(taskName, token, delegate), attribution);
+        SettableFuture<TaskTermination<T>> termination = SettableFuture.create();
+        Task<T> view = new Task<>(
+                taskName, token, delegate, observationOf(taskName, token, delegate), attribution, termination);
         delegate.addListener(
                 () -> {
                     try {
-                        attribution.set(view.outcome());
+                        TaskOutcome settled = view.outcome();
+                        termination.set(view.freezeTermination(settled));
+                        attribution.set(settled);
                     } catch (Throwable classificationFailure) {
                         attribution.setException(classificationFailure);
+                        termination.setException(classificationFailure);
                     }
                 },
                 MoreExecutors.directExecutor());
@@ -211,6 +227,102 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         return FutureInspector.exceptionNow(delegate);
     }
 
+    @Override
+    public @Nullable TaskTermination<T> termination() {
+        if (!delegate.isDone()) {
+            return null;
+        }
+        SettableFuture<TaskTermination<T>> pinned = settledTermination;
+        if (pinned != null) {
+            if (!pinned.isDone()) {
+                return null;
+            }
+            try {
+                return Futures.getDone(pinned);
+            } catch (ExecutionException failure) {
+                throw new AssertionError("task termination classification cannot fail", failure.getCause());
+            }
+        }
+        return freezeTermination();
+    }
+
+    /** Returns the internal publication signal for the pinned logical termination. */
+    ListenableFuture<TaskTermination<T>> terminationFuture() {
+        SettableFuture<TaskTermination<T>> pinned = settledTermination;
+        if (pinned != null) {
+            return pinned;
+        }
+        TaskTermination<T> current = termination();
+        return Futures.immediateFuture(Verify.verifyNotNull(current, "task termination is not available"));
+    }
+
+    @Override
+    public TaskStatus status() {
+        if (delegate instanceof ExecutionPhaseHintFuture) {
+            return ((ExecutionPhaseHintFuture<?>) delegate).status();
+        }
+        if (!delegate.isDone()) {
+            return TaskStatus.PENDING;
+        }
+        return TaskStatus.EXITED;
+    }
+
+    private void pinTermination() {
+        SettableFuture<TaskTermination<T>> pinned = settledTermination;
+        if (pinned == null) {
+            return;
+        }
+        delegate.addListener(
+                () -> {
+                    try {
+                        pinned.set(freezeTermination());
+                    } catch (Throwable failure) {
+                        pinned.setException(failure);
+                    }
+                },
+                MoreExecutors.directExecutor());
+    }
+
+    private TaskTermination<T> freezeTermination() {
+        return freezeTermination(outcome());
+    }
+
+    private TaskTermination<T> freezeTermination(TaskOutcome settled) {
+        ExecutionDisposition disposition =
+                recordedSubmissionFailure() != null ? ExecutionDisposition.NOT_ENTERED : executionDisposition();
+        if (settled == TaskOutcome.SUCCESS) {
+            try {
+                return TaskTermination.success(Futures.getDone(delegate), disposition);
+            } catch (ExecutionException impossible) {
+                throw new AssertionError("successful task cannot have a failed future", impossible);
+            }
+        }
+        Throwable cause = terminationFailure();
+        return TaskTermination.fromLegacy(settled, cause, disposition, taskName);
+    }
+
+    /** Reads a settled failure without relying on the token-refined live failure accessor. */
+    private Throwable terminationFailure() {
+        if (recordedSubmissionFailure() != null) {
+            return Verify.verifyNotNull(recordedSubmissionFailure());
+        }
+        try {
+            Futures.getDone(delegate);
+        } catch (ExecutionException failure) {
+            return Verify.verifyNotNull(failure.getCause());
+        } catch (java.util.concurrent.CancellationException cancellation) {
+            return cancellation;
+        }
+        throw new AssertionError("failed task has no settled failure");
+    }
+
+    private ExecutionDisposition executionDisposition() {
+        if (delegate instanceof ExecutionPhaseHintFuture) {
+            return ((ExecutionPhaseHintFuture<?>) delegate).executionDisposition();
+        }
+        return delegate.isCancelled() ? ExecutionDisposition.NOT_ENTERED : ExecutionDisposition.ENTERED;
+    }
+
     /**
      * The submission failure recorded on the prepared future this view wraps, if any. Views over
      * anything else — a derived view, a group summary, a test-created task — have none.
@@ -250,7 +362,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /** Wraps a future derived from this task, which keeps this task's name and token. */
     private <R> Task<R> derived(ListenableFuture<R> derived) {
-        return new Task<>(taskName, token, derived, TaskObservation.unattributed(taskName, token, derived), null);
+        return new Task<>(taskName, token, derived, TaskObservation.unattributed(taskName, token, derived), null, null);
     }
 
     /**
