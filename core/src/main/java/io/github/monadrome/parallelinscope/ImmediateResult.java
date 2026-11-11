@@ -24,11 +24,14 @@ import org.jspecify.annotations.Nullable;
  * @since 0.3.0
  */
 public final class ImmediateResult<T> {
+    private final TaskTermination<T> termination;
     private final TaskOutcome outcome;
     private final @Nullable T value;
     private final @Nullable Throwable failure;
 
-    private ImmediateResult(TaskOutcome outcome, @Nullable T value, @Nullable Throwable failure) {
+    private ImmediateResult(
+            TaskTermination<T> termination, TaskOutcome outcome, @Nullable T value, @Nullable Throwable failure) {
+        this.termination = checkNotNull(termination, "termination cannot be null");
         this.outcome = outcome;
         this.value = value;
         this.failure = failure;
@@ -36,7 +39,7 @@ public final class ImmediateResult<T> {
 
     /** Creates an already successful result, including a null value. */
     public static <T> ImmediateResult<T> succeeded(@Nullable T value) {
-        return new ImmediateResult<>(TaskOutcome.SUCCESS, value, null);
+        return new ImmediateResult<>(TaskTermination.success(value), TaskOutcome.SUCCESS, value, null);
     }
 
     /**
@@ -54,12 +57,43 @@ public final class ImmediateResult<T> {
                 outcome != TaskOutcome.SUCCESS && outcome != TaskOutcome.RUNNING,
                 "failed result requires a non-success terminal outcome, but was %s",
                 outcome);
-        return new ImmediateResult<>(outcome, null, checkNotNull(failure, "failure cannot be null"));
+        Throwable original = checkNotNull(failure, "failure cannot be null");
+        return new ImmediateResult<>(
+                TaskTermination.fromLegacy(outcome, null, original, dispositionFor(outcome), "result"),
+                outcome,
+                null,
+                original);
+    }
+
+    private static ExecutionDisposition dispositionFor(TaskOutcome outcome) {
+        return outcome == TaskOutcome.SUBMISSION_FAILURE
+                ? ExecutionDisposition.NOT_ENTERED
+                : ExecutionDisposition.ENTERED;
     }
 
     /** Returns the frozen terminal attribution; never RUNNING. */
     public TaskOutcome outcome() {
         return outcome;
+    }
+
+    /** Returns the immutable logical termination represented by this result. */
+    public TaskTermination<T> termination() {
+        return termination;
+    }
+
+    /** Returns whether the execution claim was acquired. */
+    public ExecutionDisposition disposition() {
+        return termination.disposition();
+    }
+
+    /** Returns the closed failure cause, or null unless this result failed. */
+    public @Nullable FailureCause failureCause() {
+        return termination.failureCause();
+    }
+
+    /** Returns the closed cancellation reason, or null unless this result was cancelled. */
+    public @Nullable CancellationReason cancellationReason() {
+        return termination.cancellationReason();
     }
 
     /** Returns the original failure, or null on success. */
@@ -175,38 +209,59 @@ public final class ImmediateResult<T> {
     /** Freezes a done task using the enclosing scope's authoritative attribution. */
     static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskOutcome outcome) {
         checkArgument(outcome != TaskOutcome.RUNNING, "task '%s' is still running", task.taskName());
+        ExecutionDisposition disposition = dispositionOf(task);
         Throwable recorded = task.failure();
         if (recorded != null) {
-            return fromFailure(task, outcome, recorded);
+            return fromFailure(task, outcome, recorded, disposition);
         }
         try {
             T value = Futures.getDone(task);
             if (outcome == TaskOutcome.SUCCESS) {
-                return succeeded(value);
+                return new ImmediateResult<>(
+                        TaskTermination.success(value, disposition), TaskOutcome.SUCCESS, value, null);
             }
         } catch (ExecutionException failure) {
             Throwable cause = Verify.verifyNotNull(failure.getCause());
-            return fromFailure(task, outcome, cause);
+            return fromFailure(task, outcome, cause, disposition);
         } catch (CancellationException failure) {
             // Guava creates this exception when reading a cancelled future. Freeze it once, with
             // task identity and attribution, so subsequent reads share a useful stable cause.
             LeanCancellationException cancellation =
                     new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
             cancellation.initCause(failure);
-            return failed(outcome, cancellation);
+            return fromFailure(task, outcome, cancellation, disposition);
         }
         throw new AssertionError("successful task has non-success attribution: " + outcome);
     }
 
-    private static <T> ImmediateResult<T> fromFailure(TaskFuture<T> task, TaskOutcome outcome, Throwable cause) {
+    private static ExecutionDisposition dispositionOf(TaskFuture<?> task) {
+        TaskTermination<?> termination = task.termination();
+        return termination == null ? dispositionFor(task.outcome()) : termination.disposition();
+    }
+
+    private static <T> ImmediateResult<T> fromFailure(
+            TaskFuture<T> task, TaskOutcome outcome, Throwable cause, ExecutionDisposition disposition) {
         if (outcome == TaskOutcome.USER_FAILURE
                 || outcome == TaskOutcome.SUBMISSION_FAILURE
                 || cause instanceof CancellationException) {
-            return failed(outcome, cause);
+            FailureCause failure = outcome == TaskOutcome.SUBMISSION_FAILURE
+                    ? FailureCause.submissionRejected(cause)
+                    : FailureCause.userCodeFailure(cause);
+            return new ImmediateResult<>(
+                    TaskTermination.failed(
+                            failure,
+                            outcome == TaskOutcome.SUBMISSION_FAILURE ? disposition : ExecutionDisposition.ENTERED),
+                    outcome,
+                    null,
+                    cause);
         }
         LeanCancellationException cancellation =
                 new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
         cancellation.initCause(cause);
-        return failed(outcome, cancellation);
+        return new ImmediateResult<>(
+                TaskTermination.fromLegacy(outcome, null, cause, disposition, task.taskName()),
+                outcome,
+                null,
+                cancellation);
     }
 }

@@ -13,6 +13,10 @@ ImmediateResult<T> 类似 Either<Throwable,T>，不实现 Future；asFuture 提�
 - 结果确定：任务成功、失败或取消已经落定。
 - 执行退出：直接任务退出 finally，或被原子确定不会再进入执行。
 
+逻辑终止由 `TaskTermination`/`ImmediateResult.termination()` 表达，包含 `kind`、
+`FailureCause`/`CancellationReason` 和由 execution-claim CAS 决定的 `ExecutionDisposition`。它不等待
+执行退出；实时的 `TaskStatus` 与 `executionExitConfirmed()` 负责诊断和资源释放判断。
+
 取消可能先完成结果而执行仍在关闭资源。Java 不能强制停止任意 Callable/close，
 因此没有硬性“资源一定关闭”或墙钟耗时上限；executor.execute 也可能同步阻塞在用户执行。
 有界清理耗尽时返回 unexitedExecutions、缺失最终观测，并告警；不伪造退出时刻。
@@ -103,9 +107,11 @@ par.map(ids, this::fetch,
 | Par.map | 同步 TaskBatchResult<T> |
 | 各 group stage.runAll | 同步 TaskGroupResult<R>，保持一次性、创建线程、阶段 guard |
 | Batch.results | 输入顺序 List<ImmediateResult<T>> |
+| Batch.termination / scopeTermination | ScopeTermination 三态快照和单一 primary cause |
 | Group.results / resultOf / resultAt | 名称/位置未类型化终态容器 |
 | Group.resultOf(TaskKey) | 按原声明 key 的对象身份即时读取成员或终端容器，规则见组声明契约 §4.1 |
 | Group.valuesResult | ImmediateResult<GroupValues>；combine 失败也使聚合失败 |
+| Group.termination / scopeTermination | ScopeTermination 三态快照，保留 failed task、成员结果和 source identity |
 | Group.terminalResult | @Nullable ImmediateResult<R>，null 仅表示无 combine |
 | valuesOrThrow / terminalValueOrThrow / orThrow | 即时读取，不等待，不消费标志 |
 | executionExitConfirmed / unexitedExecutions | 返回时直接执行退出状态，浅不可变、不轮询 |
@@ -118,6 +124,8 @@ TaskGroup、TaskFuture、TaskBatch、TaskGroupReport 均包私有。Par.submit/s
 观测从完成的观测信号重建，保留真实成功值和最终时间。计数覆盖全部任务，即使最终观测缺失。
 
 **非成功公开 ImmediateResult 一律携带非 null throwable；成功结果可为 null，且 null 值合法。**
+同时，`termination()` 是不含 `RUNNING` 的三分支逻辑终止；submission failure 通过
+`FailureCause.SUBMISSION_REJECTED` 表达，取消通过 `CancellationReason` 与 `ExecutionDisposition` 表达。
 failed 要求非 SUCCESS/RUNNING outcome 与非 null Throwable；valueOrThrow 的 Left 统一抛
 ExecutionException，cause 为存储的原对象。成员结果经内核归一化：USER_FAILURE/SUBMISSION_FAILURE
 与已有 CancellationException 保留原对象，其余取消终态冻结为带任务名/归因的

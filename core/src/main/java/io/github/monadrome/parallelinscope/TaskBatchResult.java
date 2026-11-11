@@ -40,21 +40,43 @@ public final class TaskBatchResult<T> {
     private final List<ImmediateResult<T>> results;
     private final List<@Nullable TaskCompletion<T>> completions;
     private final Map<String, Integer> unexitedExecutions;
+    private final ScopeTermination termination;
 
     TaskBatchResult(
             String batchName,
             List<ImmediateResult<T>> results,
             List<@Nullable TaskCompletion<T>> completions,
             Map<String, Integer> unexitedExecutions) {
+        this(batchName, results, completions, unexitedExecutions, null);
+    }
+
+    TaskBatchResult(
+            String batchName,
+            List<ImmediateResult<T>> results,
+            List<@Nullable TaskCompletion<T>> completions,
+            Map<String, Integer> unexitedExecutions,
+            @Nullable ScopeTermination scopeTermination) {
         this.batchName = batchName;
         this.results = ImmutableList.copyOf(results);
         this.completions = Collections.unmodifiableList(new ArrayList<>(completions));
         this.unexitedExecutions = ImmutableMap.copyOf(unexitedExecutions);
+        this.termination =
+                scopeTermination == null ? ScopeTermination.fromResults(batchName, this.results) : scopeTermination;
     }
 
     /** Terminal values or failures in input order. */
     public List<ImmediateResult<T>> results() {
         return results;
+    }
+
+    /** Returns the shared three-state logical termination of this batch scope. */
+    public ScopeTermination termination() {
+        return termination;
+    }
+
+    /** Alias that makes the scope-level meaning explicit at call sites. */
+    public ScopeTermination scopeTermination() {
+        return termination;
     }
 
     /**

@@ -22,6 +22,7 @@ final class TaskGroupReport {
     private final @Nullable String failedTaskName;
     private final Map<String, TaskCompletion<?>> members;
     private final @Nullable TaskCompletion<?> terminal;
+    private final ScopeTermination termination;
 
     TaskGroupReport(
             TaskId<TaskGroupRun> groupId,
@@ -33,6 +34,30 @@ final class TaskGroupReport {
             @Nullable String failedTaskName,
             Map<String, TaskCompletion<?>> members,
             @Nullable TaskCompletion<?> terminal) {
+        this(
+                groupId,
+                groupName,
+                startTimeNanos,
+                endTimeNanos,
+                deadlineNanos,
+                outcome,
+                failedTaskName,
+                members,
+                terminal,
+                null);
+    }
+
+    TaskGroupReport(
+            TaskId<TaskGroupRun> groupId,
+            String groupName,
+            long startTimeNanos,
+            long endTimeNanos,
+            long deadlineNanos,
+            TaskOutcome outcome,
+            @Nullable String failedTaskName,
+            Map<String, TaskCompletion<?>> members,
+            @Nullable TaskCompletion<?> terminal,
+            @Nullable ScopeTermination scopeTermination) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
         this.groupName = Objects.requireNonNull(groupName, "groupName cannot be null");
         this.startTimeNanos = startTimeNanos;
@@ -42,6 +67,17 @@ final class TaskGroupReport {
         this.failedTaskName = failedTaskName;
         this.members = ImmutableMap.copyOf(members);
         this.terminal = terminal;
+        TaskCompletion<?> failed = failedTaskName == null ? null : this.members.get(failedTaskName);
+        if (failed == null && terminal != null && terminal.taskName().equals(failedTaskName)) {
+            failed = terminal;
+        }
+        this.termination = scopeTermination == null
+                ? ScopeTermination.fromLegacy(
+                        outcome,
+                        failedTaskName,
+                        failed == null ? null : failed.termination().failureCause(),
+                        groupName)
+                : scopeTermination;
     }
 
     TaskId<TaskGroupRun> groupId() {
@@ -67,6 +103,11 @@ final class TaskGroupReport {
     /** Returns the terminal outcome of the group as a whole. */
     TaskOutcome outcome() {
         return outcome;
+    }
+
+    /** Returns the shared three-state scope termination and its single primary cause. */
+    ScopeTermination termination() {
+        return termination;
     }
 
     /** Returns the key name of the first failed member or terminal combine, or null if none failed. */

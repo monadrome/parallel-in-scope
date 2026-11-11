@@ -222,6 +222,20 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 
 ### 3.3 结果类型
 
+任务的当前逻辑终止值是 `TaskTermination<T>`，而同步 Batch/Group 结果通过 `ImmediateResult<T>` 的
+`termination()` 投影暴露同一值：
+
+```text
+Success(value, ENTERED)
+Failed(FailureCause, ENTERED | NOT_ENTERED)
+Cancelled(CancellationReason, ENTERED | NOT_ENTERED)
+```
+
+`FailureCause` 区分 `USER_CODE_FAILURE` 与 `SUBMISSION_REJECTED` 并保留原始异常；
+`CancellationReason` 区分 caller、parent scope、deadline、fail-fast 和 member，并携带 source identity。
+`ExecutionDisposition` 只由 execution claim 的原子 CAS 决定，不能由 `ExecutionPhaseHintFuture.phase()`
+单独推断。`TaskStatus` 单独表达实时的 pending、claim、逻辑终止和退出状态。
+
 ```java
 public enum TaskOutcome {
     RUNNING,
@@ -235,14 +249,9 @@ public enum TaskOutcome {
 }
 ```
 
-`TaskOutcome` 是全库统一的单任务终态词汇，同时服务批量报告、组成员结果与组级结果；`RUNNING`
-表示尚未终态，不会出现在完成后的结果快照中。组级只会出现 `SUCCESS`、`USER_FAILURE`、
-`SUBMISSION_FAILURE`、`TIMEOUT`、`MEMBER_CANCELLED`、`GROUP_CANCELLED`。有失败记录且 group token
-未提交取消态（`RUNNING`/`SUCCESS`/`FAIL_FAST`）时，组沿用失败任务自己的 outcome
-（`USER_FAILURE`/`SUBMISSION_FAILURE`）；token 一旦提交取消态（如 `TIMEOUT`），组级 outcome
-保持该取消归因，已记录的业务失败仍保留在 `valuesResult` 的 throwable 中。`MEMBER_CANCELLED`
-表示取消源自组员或直接作用于组员，`GROUP_CANCELLED` 表示组被整体取消或取消自上传播。
-完整 token→outcome 映射见[取消与归因 §8.4.1](task-group-cancellation.md)（本文不复述）。
+上面的 `TaskOutcome` 是 0.5.0 的兼容适配投影；它保留旧调用方所需的 `RUNNING` 和结构化取消枚举，
+但不再定义新的逻辑终止模型。冻结结果必须读取 `TaskTermination` 的三分支；`RUNNING` 只表示实时查询
+尚未产生终止对象。完整模型见[任务终止与 scope 原因契约](task-termination-and-scope.md)。
 
 `TaskGroupResult<R>` 的访问器面以
 [同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
@@ -259,9 +268,9 @@ public enum TaskOutcome {
 - Map 按声明顺序稳定输出且不可修改；
 - 非成功成员结果一律携带 throwable，成功结果可为 null；归因、取消归一化与组 valuesResult 的
   记录失败优先规则见[同步出口契约 §3](synchronous-scope-exit.md)（本文不复述）；
-- 结果保存完成原因，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
+- 结果保存 `TaskTermination` 与 scope primary cause，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
 - 成员结果只携带打平后的只读数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
 - `runAll()` 正常返回 `TaskGroupResult`：组的非 `SUCCESS` outcome 是结果数据，不通过异常
   表达（聚合读取的异常规则见同步出口契约 §3）；
 - 内部成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为
-  cancelled；公开侧只见冻结后的 `ImmediateResult` 容器。
+  cancelled；公开侧只见冻结后的 `ImmediateResult` 与独立的 `TaskCompletion` 退出快照。
