@@ -315,6 +315,13 @@ Documentation must stay readable and correct without the Git object database:
   caused by the change and rerun affected checks without pausing for review of
   the first implementation. Report unrelated failures or blockers; do not claim
   completion while required checks are blocked.
+- After the behavior commit exists, run every CI/CD job that is reproducible
+  locally (for example the workflow's documentation, Maven, runtime-consumer,
+  static-analysis, and packaging commands) before pushing or waiting for the
+  remote workflow. These preflight checks inspect the exact committed tree; if
+  one fails, fix it in a follow-up commit and rerun the affected local job.
+  Local preflight does not replace remote CI: after pushing, monitor the remote
+  checks to a terminal result and apply any environment-specific fixes there.
 - For every code change, run `/refactoring-review`
   (`.agents/skills/refactoring-review/SKILL.md`) after the behavior commit and
   before Adversarial Review or delivery. `scripts/refactoring-review.py plan`
