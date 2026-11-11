@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-11-enum-direct-context-executor",
+  "date": "2026-11-11",
+  "topic": "enum-direct-context-executor",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "unknown"
+  },
+  "change": {
+    "commits": [
+      "refactor: use enum singleton for direct context executor"
+    ],
+    "files": 2,
+    "insertions": 9,
+    "deletions": 5
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-fix-enum-direct-context-executor-2026-11-11",
+        "head": "ac493ada0008a2a06ca75f408f018fa73ca70c44",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "T01"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [
+    {
+      "source": "core/target/pit-reports/mutations.xml",
+      "statuses": {
+        "KILLED": 8
+      },
+      "total": 8,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Enum singleton implementation; refactoring detector first attempt stalled and rerun completed; full tests passed."
+}
