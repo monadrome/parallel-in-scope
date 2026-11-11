@@ -1,0 +1,20 @@
+ledger/2026-11-11-task-termination.json
+  s_5ad4597eb7d0f3::t_3365d0f423665a 1-142,144-152,154-162,164-172,174-182,184-217
+  s_5ad4597eb7d0f3::t_685b256c39be84 143,153,163,173,183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e07ccac04c24a52790284a81147ad530ee34f2f0",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
