@@ -1,0 +1,28 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
+  s_5ad4597eb7d0f3::t_046172012fa65c 102-103,111,119-121
+  s_5ad4597eb7d0f3::t_c17b2dac85c8bc 118,122
+core/src/main/java/io/github/monadrome/parallelinscope/TaskTermination.java
+  s_5ad4597eb7d0f3::t_c17b2dac85c8bc 108,110,135
+  s_5ad4597eb7d0f3::t_046172012fa65c 115,123-134,136-148
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_5ad4597eb7d0f3::t_d2e2e455bd573d 75-82
+  s_5ad4597eb7d0f3::t_c17b2dac85c8bc 262-263
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_5ad4597eb7d0f3::t_abc1ad3dbb9454 1178-1179,1197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "922596900bbbff7b86843d9b0a71b2751a0aab6d",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
