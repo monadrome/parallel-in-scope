@@ -1175,11 +1175,8 @@ final class TaskGroup<R> implements AutoCloseable {
             snapshots.put(member.name, memberSnapshot(member));
         }
         ScopeTerminationCause primary = scopeTermination.cause();
-        ScopeTermination aggregate = primary == null
-                ? ScopeTermination.fromLegacy(outcome, failedName, failureCauseFor(failedName), groupName)
-                : primary.kind() == ScopeTerminationCause.Kind.FAILURE
-                        ? ScopeTermination.failed(primary)
-                        : ScopeTermination.cancelled(primary);
+        ScopeTermination aggregate = ScopeTermination.fromPrimary(
+                primary, ScopeTermination.fromLegacy(outcome, failedName, failureCauseFor(failedName), groupName));
         return new TaskGroupReport(
                 groupId,
                 groupName,
@@ -1197,10 +1194,7 @@ final class TaskGroup<R> implements AutoCloseable {
         if (failedName == null) {
             return null;
         }
-        MemberState failed = failedTask();
-        if (failed == null) {
-            return null;
-        }
+        MemberState failed = com.google.common.base.Verify.verifyNotNull(failedTask());
         return com.google.common.base.Verify.verifyNotNull(
                         failed.view.termination(), "failed member termination is published before snapshot")
                 .failureCause();

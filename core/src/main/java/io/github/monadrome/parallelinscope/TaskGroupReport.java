@@ -33,29 +33,6 @@ final class TaskGroupReport {
             TaskOutcome outcome,
             @Nullable String failedTaskName,
             Map<String, TaskCompletion<?>> members,
-            @Nullable TaskCompletion<?> terminal) {
-        this(
-                groupId,
-                groupName,
-                startTimeNanos,
-                endTimeNanos,
-                deadlineNanos,
-                outcome,
-                failedTaskName,
-                members,
-                terminal,
-                null);
-    }
-
-    TaskGroupReport(
-            TaskId<TaskGroupRun> groupId,
-            String groupName,
-            long startTimeNanos,
-            long endTimeNanos,
-            long deadlineNanos,
-            TaskOutcome outcome,
-            @Nullable String failedTaskName,
-            Map<String, TaskCompletion<?>> members,
             @Nullable TaskCompletion<?> terminal,
             @Nullable ScopeTermination scopeTermination) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
