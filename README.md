@@ -146,11 +146,9 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
 - Frozen task observations: `completions()` / group `members()` and `terminal()` results
 - Thread-pool waiting-graph, deadlock, starvation, and workload-fit diagnostics
-- Opt-in queue refusal with `rejectEnqueue` and `SubmissionAwareBlockingQueue` (renamed from
-  `SmartBlockingQueue` in `0.5.0`)
+- Opt-in queue refusal with `rejectEnqueue` and `SubmissionAwareBlockingQueue`
 - Cycle detection across task and executor graphs
-- Queue extensions including `DrainingBlockingQueue` and `ResizableBlockingQueue` (renamed from
-  `VariableLinkedBlockingQueue` in `0.5.0`)
+- Queue extensions including `DrainingBlockingQueue` and `ResizableBlockingQueue`
 
 ## Documentation
 
