@@ -105,6 +105,11 @@ class ContextExecutorsTest {
     }
 
     @Test
+    void directContextExecutorReturnsTheSameSingleton() {
+        assertThat(ContextExecutors.directContextExecutor()).isSameAs(ContextExecutors.directContextExecutor());
+    }
+
+    @Test
     void directContextExecutorCapturesTheCurrentContextForEachCommand() {
         Executor direct = ContextExecutors.directContextExecutor();
         try {
