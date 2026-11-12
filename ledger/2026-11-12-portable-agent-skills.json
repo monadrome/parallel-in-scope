@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-12-portable-agent-skills",
+  "date": "2026-11-12",
+  "topic": "portable-agent-skills",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "feat: make contract assurance skill portable"
+    ],
+    "files": 17,
+    "insertions": 751,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Versioned the contract-first-assurance bundle locally; external agent-skills migration remains deferred."
+}
