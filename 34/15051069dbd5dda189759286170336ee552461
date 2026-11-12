@@ -1,0 +1,19 @@
+AGENTS.md
+  s_14133166df2b46::t_72abbb89bdd677 179-187,239-244
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "3415051069dbd5dda189759286170336ee552461",
+  "prompts": {},
+  "sessions": {
+    "s_14133166df2b46": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cf08-cf2f-7d12-9bff-a1bb46f27827",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
