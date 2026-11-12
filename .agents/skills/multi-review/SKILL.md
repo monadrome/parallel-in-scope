@@ -34,6 +34,31 @@ test -f tools/llm-review-bench/dist/cli.js || npm --prefix tools/llm-review-benc
 需要固定 reviewer provenance 时用 `--systems <file>`；只跑部分 reviewer 用 `--agents`。
 默认会自动选择 `PATH` 上可用的真实 CLI，不会使用 fixture。
 
+### 当前可用 reviewer 组合
+
+按当前机器上的可用性固定模型与 effort；Claude 系列暂不可用，不要把 `claude` 放进 systems 文件。
+
+| adapter | model | effort | 备注 |
+|---|---|---|---|
+| `codex` | `gpt-6.1-terra` | `medium` | Codex 的 reasoning effort 会传给 CLI。 |
+| `kiro` | `gpt-5.6-terra` 或 `kimi-k3` | `max` | 每个 run 选择一个 Kiro 模型；通过 `extraArgs: ["--effort", "max"]` 传递 Kiro effort。 |
+| `zcode` | `glm-5.3` | `max` | 当前 `llm-review-bench` adapter registry 尚未包含 `zcode`；不得把它伪装成已计入 benchmark 的 reviewer，需先补 adapter 或单独记录外部审查。 |
+
+示例 systems 文件：
+
+```json
+{
+  "systems": [
+    {"agent": "codex", "provider": "openai", "model": "gpt-6.1-terra", "effort": "medium"},
+    {"agent": "kiro", "provider": "kiro", "model": "gpt-5.6-terra", "effort": "max", "extraArgs": ["--effort", "max"]}
+  ]
+}
+```
+
+如果要比较 Kiro 的两个模型，分别启动两个 run；不要在同一个 systems 文件中重复 `kiro`，因为协议要求
+每个 adapter 名称唯一。Kimi K3 的可用性属于 Kiro 模型矩阵，不等同于旧的 `kimi` adapter；只有在独立
+确认 Kimi CLI 凭据可用时才启用 `kimi` adapter。
+
 ## 2. 选择 case 并运行
 
 按用户目标选一个，不要混用：
