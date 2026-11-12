@@ -1,0 +1,6 @@
+interface:
+  display_name: "Contract Diff"
+  short_description: "契约差异归并"
+  default_prompt: "Use $contract-diff as part of the contract-first assurance workflow."
+policy:
+  allow_implicit_invocation: false

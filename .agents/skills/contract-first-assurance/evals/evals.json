@@ -1,0 +1,37 @@
+{
+  "skill_name": "contract-first-assurance",
+  "version": "1.1.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "concurrency-contract-assurance",
+      "prompt": "独立检查一个包含取消、deadline 和 execution exit 语义的 PR。请冻结可执行 contract，使用 fresh context 生成候选测试，在真实实现上分类验证结果，并给出反向验证和未决契约缺口。",
+      "expected_output": "A report with stable contract IDs, isolated candidate tests, explicit result classifications, reverse-verification status, and contract gaps.",
+      "assertions": [
+        "Does not treat a timeout or partial PIT run as passing",
+        "Separates implementation defects from test assumptions and missing oracle details",
+        "Records the same run directory and adapter inputs across phases"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "documentation-only-change",
+      "prompt": "对一个只修改用户文档的 PR 做独立 assurance。请提取文档承诺，说明哪些 Java 测试、mutation testing 和反向验证不适用，并保留可审计的跳过原因。",
+      "expected_output": "A contract and report that keep documentation evidence while marking inapplicable executable phases as SKIPPED with reasons.",
+      "assertions": [
+        "Does not invent production tests for a documentation-only diff",
+        "Reports skipped phases explicitly with reasons"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "missing-host-adapter",
+      "prompt": "在一个没有提供构建命令和 mutation 策略的陌生 polyglot 仓库中运行独立 assurance。请说明哪些输入缺失，并停止在可复现的 BLOCKED 或 INCONCLUSIVE 状态，不要猜测 Maven、Gradle 或 PIT 命令。",
+      "expected_output": "A blocked or inconclusive report naming missing adapter inputs and avoiding guessed ecosystem commands.",
+      "assertions": [
+        "Names the missing adapter values",
+        "Does not infer a build ecosystem from the repository name"
+      ]
+    }
+  ]
+}

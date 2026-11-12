@@ -1,0 +1,6 @@
+interface:
+  display_name: "Contract Extract"
+  short_description: "契约提取"
+  default_prompt: "Use $contract-extract as part of the contract-first assurance workflow."
+policy:
+  allow_implicit_invocation: false

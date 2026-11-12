@@ -1,0 +1,39 @@
+name: vformation
+workspace_root: repository-root
+base_ref: origin/dev/v0.5.0
+artifact_root: .contract-first-assurance
+
+change_scope:
+  default: current-branch-diff
+
+contract_paths:
+  - AGENTS.md
+  - design/
+  - adr/
+  - verification/
+
+public_api_paths:
+  - core/src/main/java/
+  - blocking-queues/src/main/java/
+
+build_commands:
+  compile: mvn -DskipTests compile
+  targeted_tests: mvn test -Dtest='<ClassName>#<methodName>'
+  full_suite: mvn test
+
+format_commands:
+  - mvn spotless:check
+  - python3 scripts/check-doc-refs.py
+
+mutation_policy:
+  applies: true
+  instructions: verification/pit.md
+  runner: PIT scope is selected and reported according to verification/pit.md
+
+isolation:
+  source_paths:
+    - core/src/main/java/
+    - blocking-queues/src/main/java/
+  test_paths:
+    - core/src/test/java/
+    - blocking-queues/src/test/java/
