@@ -4,7 +4,8 @@
   "date": "2026-11-11",
   "topic": "task-termination",
   "routes": [
-    "contract"
+    "contract",
+    "docs"
   ],
   "implementer": {
     "agent": "codex",
@@ -18,10 +19,12 @@
       "chore: record delivery task-termination",
       "docs: refresh review matrix and local links",
       "fix: preserve scope termination cause ordering",
-      "docs: run local CI preflight after commits"
+      "docs: run local CI preflight after commits",
+      "chore: record delivery task-termination",
+      "docs: partition PIT mutation runs"
     ],
-    "files": 42,
-    "insertions": 1904,
+    "files": 43,
+    "insertions": 2081,
     "deletions": 47
   },
   "reviews": {
@@ -350,6 +353,17 @@
       "total": 124,
       "inconclusive": 0,
       "inconclusiveRate": 0.0
+    },
+    {
+      "source": "tmp/pit-audit-task-termination/partition-task-execution-state/mutations.xml",
+      "statuses": {
+        "KILLED": 13,
+        "NO_COVERAGE": 7,
+        "SURVIVED": 5
+      },
+      "total": 25,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
     }
   ],
   "interventions": {
@@ -361,5 +375,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Round 2 Codex/Kiro review confirmed five findings; all were fixed, regression-tested, reverse-verified where applicable, and linked to the review. Final follow-up review timed out for both reviewers. Full mvn test passed after cleaning a stale Maven/Surefire process. PIT batch A, accumulator, and claim-narrow runs produced valid XML; broad claim/follow-up runs were inconclusive because PIT minions timed out."
+  "notes": "Round 2 Codex/Kiro review confirmed five findings; all were fixed, regression-tested, reverse-verified where applicable, and linked. Final follow-up review timed out for both reviewers. Full mvn test passed after cleaning a stale Maven/Surefire process. PIT batch A, accumulator, and claim partitions produced raw XML; broad partitions were inconclusive because PIT minions timed out. PIT is now documented as serial divide-and-conquer partitions with per-partition artifacts and raw timeout preservation."
 }
