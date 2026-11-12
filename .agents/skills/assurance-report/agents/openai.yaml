@@ -1,0 +1,6 @@
+interface:
+  display_name: "Assurance Report"
+  short_description: "独立验证报告"
+  default_prompt: "Use $assurance-report as part of the contract-first assurance workflow."
+policy:
+  allow_implicit_invocation: false

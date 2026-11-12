@@ -1,0 +1,6 @@
+interface:
+  display_name: "Contract-First Assurance"
+  short_description: "独立验证 PR 的契约与行为证据"
+  default_prompt: "Use $contract-first-assurance to independently verify this change against an executable contract."
+policy:
+  allow_implicit_invocation: true
