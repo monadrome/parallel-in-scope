@@ -1,0 +1,14 @@
+AGENTS.md
+  s_4d4bea29d57e17::t_8fcadd6571dc9d 30-31
+  s_4d4bea29d57e17::t_80dbd641c32be7 66,474
+  s_e2c8cce2466ed4::t_8658b6804aebf6 80,86-90,92-94,509-510
+  s_e2c8cce2466ed4::t_b46fad50478431 152,172-173
+  s_14133166df2b46::t_72abbb89bdd677 179-187,239-244
+  s_1f7d9b63a8a776::t_a46d1910984f03 335,399
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "76da2194db4f4a1662bbe84210167f7ab706f383",
+  "prompts": {}
+}
