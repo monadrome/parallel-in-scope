@@ -47,6 +47,9 @@ python3 scripts/refactoring-review.py plan  # refactoring-review gate and detect
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
 python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures
 python3 .agents/skills/contract-first-assurance/scripts/verify_package.py  # verify the versioned assurance skill bundle
+python3 scripts/check-worktree-skills.py  # verify required project skills are materialized and tracked
+python3 scripts/check-project-baseline.py  # verify the development-line baseline is consistent
+python3 .agents/skills/contract-first-assurance/scripts/verify_run.py --run-dir <run-dir>  # verify assurance inputs, logs, and hashes
 ```
 
 The `contract-first-assurance` skill is maintained as a versioned local bundle.
@@ -59,6 +62,23 @@ verifier after changing any member of the bundle. The current repository adapter
 is `.agents/skills/contract-first-assurance/adapters/vformation.yaml`; a future
 standalone agent-skills checkout should provide its own adapter instead of
 copying these repository paths into the portable phases.
+
+Project skills required by repository workflows are listed in
+`.worktreeinclude.yaml` and must be committed under `.agents/skills/`. A new
+worktree must pass `python3 scripts/check-worktree-skills.py` before a skill is
+invoked. The check rejects missing, untracked, and symlinked skill directories;
+it never copies files from a parent checkout. This makes the Git commit the
+source of truth for worktree availability.
+
+The current development line and its upstream ref are declared once in
+`.agents/project-baseline.json`. Review gates and their documentation are
+checked with `python3 scripts/check-project-baseline.py`; update that manifest
+and all reported consumers together when the development line changes.
+
+Assurance runs must keep their input snapshots, command logs, resolved commit
+IDs, package and adapter versions, and SHA-256 artifact hashes in the run
+directory. `verify_run.py` is the final reproducibility gate; a report without a
+valid `run-manifest.json` is incomplete.
 
 ## Task Routes
 

@@ -52,6 +52,22 @@ def component_paths(path: Path) -> List[str]:
     return paths
 
 
+def section_paths(path: Path, section: str) -> List[str]:
+    paths = []
+    in_section = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line == f"{section}:":
+            in_section = True
+            continue
+        if in_section and line and not line.startswith(" "):
+            in_section = False
+        if in_section:
+            match = COMPONENT_RE.match(line)
+            if match:
+                paths.append(match.group(1))
+    return paths
+
+
 def verify(root: Path) -> List[str]:
     errors = []
     manifest = root / "package.yaml"
@@ -76,6 +92,11 @@ def verify(root: Path) -> List[str]:
                 f"version mismatch: {component_skill} != package {version}"
             )
 
+    for adapter in section_paths(manifest, "host_adapters"):
+        adapter_path = root / adapter
+        if not adapter_path.is_file():
+            errors.append(f"missing host adapter: {adapter_path}")
+
     if entrypoint.is_file():
         text = entrypoint.read_text(encoding="utf-8")
         for marker in ("${SKILL_ROOT}", "${RUN_DIR}"):
@@ -84,7 +105,11 @@ def verify(root: Path) -> List[str]:
         if ".agents/skills/contract-" in text:
             errors.append("entrypoint contains a fixed project skill path")
 
-    for reference in ("references/invocation-modes.md", "references/host-adapter.md"):
+    for reference in (
+        "references/invocation-modes.md",
+        "references/host-adapter.md",
+        "references/reproducible-runs.md",
+    ):
         if not (root / reference).is_file():
             errors.append(f"missing package reference: {root / reference}")
     return errors

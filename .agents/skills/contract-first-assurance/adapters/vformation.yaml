@@ -1,4 +1,5 @@
 name: vformation
+version: 1.0.0
 workspace_root: repository-root
 base_ref: origin/dev/v0.5.0
 artifact_root: .contract-first-assurance

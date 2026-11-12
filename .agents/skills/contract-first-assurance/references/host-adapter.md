@@ -12,6 +12,7 @@ maintenance instructions:
 | Key | Meaning |
 | --- | --- |
 | `workspace_root` | Root of the repository being verified. |
+| `adapter_version` | Version of the repository adapter used for the run. |
 | `change_scope` | PR, commit range, or working-tree paths under review. |
 | `base_ref` | Comparison base when the change is not supplied explicitly. |
 | `build_commands` | Commands for compile checks, target tests, and the full suite. |
@@ -35,8 +36,10 @@ Use the first source that explicitly defines a value:
 4. A safe generic default only for `artifact_root`.
 
 The host adapter must be read before the first build or test command. Keep its
-resolved values in the run's `verification-summary.md` so another worktree can
-reproduce the run without relying on the parent checkout.
+resolved values in the run manifest and `verification-summary.md` so another
+worktree can reproduce the run without relying on the parent checkout. The
+manifest records the adapter version, resolved base and head commits, dirty
+state, command argv, tool versions, and hashes of copied inputs and outputs.
 
 ## Isolation boundary
 
