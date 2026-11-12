@@ -153,3 +153,12 @@ P0037 的 staged path 消费 `TaskTermination` 的三分支和 `CancellationReas
 `Failed(UserCodeFailure)`。实现现按冻结的旧归因选择 `TaskTermination` 分支，同时继续保留原始取消异常
 作为 `ImmediateResult.failure()`，并由回归测试覆盖 `FAIL_FAST` 路径；反向验证仅撤掉该分类修复时测试会
 观察到 `FAILED`，因此该修复保护了本节和第 1 节的三态契约。
+
+第二轮独立评审又确认了四个并发与来源归因问题，现已一并修复：
+
+- Batch 在提交完成后才安装 scope 观察器时，已完成的 `ABORTED_BY_FAIL_FAST` 可能先于触发失败回放；
+  该取消现在是可被后续触发失败替换的临时原因，并有回归测试和反向验证。
+- Future 已进入 `RUNNING` phase 但 execution claim 尚未成功时取消，现与 `PENDING -> RUNNING` CAS 竞争；
+  只有真正赢得 `PENDING -> SKIPPED` 的取消才提前释放 callable。
+- caller-owned `cancelOn` 和显式 group cancel 记录 `CANCELLED_BY_CALLER`；采用已取消 source 的成员记录
+  `CANCELLED_BY_MEMBER`；parent propagation 仍保留 `CANCELLED_BY_PARENT_SCOPE`。
