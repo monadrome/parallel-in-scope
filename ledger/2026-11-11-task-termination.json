@@ -14,11 +14,15 @@
     "commits": [
       "feat: add single-assignment task termination model",
       "refactor: consolidate termination projection helpers",
-      "fix: classify cancellation-shaped results by attribution"
+      "fix: classify cancellation-shaped results by attribution",
+      "chore: record delivery task-termination",
+      "docs: refresh review matrix and local links",
+      "fix: preserve scope termination cause ordering",
+      "docs: run local CI preflight after commits"
     ],
-    "files": 35,
-    "insertions": 1530,
-    "deletions": 43
+    "files": 42,
+    "insertions": 1904,
+    "deletions": 47
   },
   "reviews": {
     "adversarial": [
@@ -124,6 +128,122 @@
           "systemsTotal": 5,
           "costsByCurrency": []
         }
+      },
+      {
+        "runId": "task-termination-bd4438c1-20261112-011956-62acf2",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 231407,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 184662,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 764389,
+            "findings": {
+              "total": 4,
+              "adjudicated": 4,
+              "confirmed": 4,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 4,
+          "adjudicated": 4,
+          "confirmed": 4,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 184662,
+          "systemsWithUsage": 1,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "task-termination-7a23b6fb-20261112-054142-081a28",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 854879,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 854877,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
       }
     ],
     "refactoring": [
@@ -183,13 +303,19 @@
             "disposition": "applied"
           }
         ]
+      },
+      {
+        "run": "refactoring-fix-scope-2026-11-12",
+        "head": "7a23b6fb0f8475e1e44c841ebc1efd128a24b9f2",
+        "incompleteAgents": 6,
+        "findings": []
       }
     ]
   },
   "gates": {
     "failures": {
-      "mvn-test": 1,
-      "pit": 3
+      "mvn-test": 2,
+      "pit": 5
     }
   },
   "pit": [
@@ -200,6 +326,28 @@
         "SURVIVED": 7
       },
       "total": 235,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "tmp/pit-audit-task-termination/focused-accumulator/mutations.xml",
+      "statuses": {
+        "KILLED": 8,
+        "SURVIVED": 1,
+        "TIMED_OUT": 1
+      },
+      "total": 10,
+      "inconclusive": 1,
+      "inconclusiveRate": 0.1
+    },
+    {
+      "source": "tmp/pit-audit-task-termination/focused-claim/mutations.xml",
+      "statuses": {
+        "KILLED": 64,
+        "NO_COVERAGE": 40,
+        "SURVIVED": 20
+      },
+      "total": 124,
       "inconclusive": 0,
       "inconclusiveRate": 0.0
     }
@@ -213,5 +361,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Claude review confirmed one cancellation classification defect and the fix was linked; other reviewers were unavailable or timed out. PIT batch A passed; batch B and focused ImmediateResult baseline runs were inconclusive."
+  "notes": "Round 2 Codex/Kiro review confirmed five findings; all were fixed, regression-tested, reverse-verified where applicable, and linked to the review. Final follow-up review timed out for both reviewers. Full mvn test passed after cleaning a stale Maven/Surefire process. PIT batch A, accumulator, and claim-narrow runs produced valid XML; broad claim/follow-up runs were inconclusive because PIT minions timed out."
 }
