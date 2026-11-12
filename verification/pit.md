@@ -38,6 +38,35 @@ the complete affected scope, in one run or documented batches. A maintainer may
 request a broader audit; this policy does not introduce a scheduled CI job or
 authorize a release build.
 
+### Partition long-running core runs
+
+When a core run stalls in a mutation worker, split the selected scope by
+production class or by a small contract group and run the partitions serially in
+the same checkout. Keep each partition's command, XML, log, and metadata under
+its own directory; do not let a later partition overwrite an earlier result.
+Use explicit `targetClasses` and `targetTests` for every partition. A timeout or
+missing XML makes that partition `inconclusive`; it does not make the remaining
+partitions pass and it must not be hidden by Maven's exit status. Retry a stalled
+partition once after addressing the reported cause, then retain the raw timeout
+and continue with independent partitions so one mutation site cannot block the
+whole audit.
+
+For example, a focused partition can be run with the same explicit mutator set:
+
+```bash
+mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
+  '-DtargetClasses=io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture*' \
+  '-DtargetTests=io.github.monadrome.parallelinscope.TaskTerminationTest*,io.github.monadrome.parallelinscope.CallableReferenceReleaseTest*' \
+  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'
+```
+
+Do not run Maven or PIT concurrently in one checkout. Archive the command and
+raw counts before starting the next partition, and report the aggregate as
+`pass` only when every required partition has complete XML and every exception
+has a recorded disposition. A partitioned run is a way to isolate execution
+failures; it does not relax the scope, freshness, or disposition requirements
+above.
+
 ## Run against current code and tests
 
 Run from the repository root with the build JDK and a green unmutated test suite.
