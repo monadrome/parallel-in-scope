@@ -176,6 +176,15 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   Respelled public members need changelog and migration-guide entries. Preserve
   third-party names and original spellings in dated records (released changelogs,
   `migration-v0.2` tables, accepted ADRs).
+- Write all newly added project-authored agent-facing and maintainer-facing
+  documentation in English. This includes new content in `AGENTS.md`, `design/`,
+  `adr/`, `verification/`, `refactoring-review/`, repository scripts and tooling
+  documentation, and issue or pull-request templates. Existing Chinese content
+  in those areas may remain unchanged. New content in user-facing documentation
+  maintained for Chinese users, such as `README.zh-CN.md`, `docs/zh/`, and
+  `demo/docs/zh-CN/`, may be written in Chinese. Code snippets, proper names,
+  quoted external text, and historical records may retain their original
+  language when translating them would change their meaning.
 - Accessors use the bare `x()` style everywhere (`token.state()`, `event.result()`);
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
@@ -226,6 +235,13 @@ Documentation has two top-level audiences; keep their entry points and responsib
   `adr/`, and verification instructions. `design/` owns current contracts, proposals, and review
   history; `adr/` owns durable decisions and their rationale. Users must not need these internal
   documents to use the public API.
+
+All newly added agent-facing and other maintainer-facing documentation is English by default; this
+rule does not require translating existing Chinese content. If a task proposes translating, editing,
+renaming, or deleting existing Chinese content in an agent-facing or maintainer-facing area, first
+prepare the inventory, proposed wording, and affected-reference list for human review. Do not apply
+that change until the user has explicitly approved it. New or maintained Chinese user-facing
+documentation remains covered by the documented Chinese-user exceptions.
 
 Group related contracts, ADRs, and history by subject in their existing routes where useful. Link
 related documents by subject without duplicating implementation rationale. Subject grouping is a
