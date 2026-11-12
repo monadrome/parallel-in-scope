@@ -122,6 +122,16 @@ final class TaskExecutionState {
         }
     }
 
+    /** Marks a still-unclaimed execution skipped and reports whether this call won the claim race. */
+    boolean skipIfPending() {
+        if (!state.compareAndSet(State.PENDING, State.SKIPPED)) {
+            return false;
+        }
+        ExecutionExitTracker.complete(terminal);
+        tracker.release();
+        return true;
+    }
+
     /** The terminal signal of this slot, for observation-future barriers. */
     ListenableFuture<@Nullable Void> terminal() {
         return terminal;

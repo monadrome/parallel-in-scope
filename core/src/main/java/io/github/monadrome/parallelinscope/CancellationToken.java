@@ -53,6 +53,7 @@ final class CancellationToken {
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
     private final @Nullable ParentLink parentLink;
     private volatile @Nullable RequestCancellationLink requestCancellationLink;
+    private volatile boolean cancelledByCaller;
 
     /*
      * The monotonic clock of this token's deadline domain. A child always inherits its parent's
@@ -338,7 +339,7 @@ final class CancellationToken {
 
     RequestCancellationLink cancelOn(ListenableFuture<?> signal) {
         checkNotNull(signal, "signal cannot be null");
-        RequestCancellationLink link = new RequestCancellationLink(this::cancel);
+        RequestCancellationLink link = new RequestCancellationLink(this::cancelFromCaller);
         requestCancellationLink = link;
         if (state() != RUNNING) {
             link.sever();
@@ -382,6 +383,17 @@ final class CancellationToken {
         if (transitionTo(CANCELLED)) {
             futureToken.cancel(true);
         }
+    }
+
+    /** Cancels this token from a caller-owned request source. */
+    void cancelFromCaller() {
+        cancelledByCaller = true;
+        cancel();
+    }
+
+    /** Returns whether this token's own cancellation was requested by its caller. */
+    boolean cancelledByCaller() {
+        return cancelledByCaller && state() == CANCELLED;
     }
 
     /**

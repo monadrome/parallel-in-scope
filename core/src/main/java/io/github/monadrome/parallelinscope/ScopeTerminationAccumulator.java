@@ -5,11 +5,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 
 /**
- * First-writer-wins scope-cause collector used by Batch and Group convergence.
+ * Scope-cause collector used by Batch and Group convergence.
  *
- * <p>The compare-and-set is the scope cause's linearization point. Recording a failure occurs
- * before callers fan out fail-fast cancellation, so a consequence cannot become the primary cause
- * ahead of the failure that triggered it.
+ * <p>The compare-and-set is the scope cause's linearization point. A fail-fast cancellation is a
+ * provisional consequence while the triggering failure is still being published; it may be replaced
+ * by that failure, but caller, parent, deadline, and member cancellations remain first-writer-wins.
  */
 final class ScopeTerminationAccumulator {
     private final AtomicReference<@Nullable ScopeTerminationCause> primary = new AtomicReference<>();
@@ -23,7 +23,25 @@ final class ScopeTerminationAccumulator {
         } else {
             return;
         }
-        primary.compareAndSet(null, cause);
+        observe(cause);
+    }
+
+    void observe(ScopeTerminationCause cause) {
+        while (true) {
+            ScopeTerminationCause current = primary.get();
+            if (current != null && !isFailFastCancellation(current)) {
+                return;
+            }
+            if (primary.compareAndSet(current, cause)) {
+                return;
+            }
+        }
+    }
+
+    private static boolean isFailFastCancellation(ScopeTerminationCause cause) {
+        return cause.kind() == ScopeTerminationCause.Kind.CANCELLATION
+                && Verify.verifyNotNull(cause.cancellationReason()).kind()
+                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST;
     }
 
     @Nullable

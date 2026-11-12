@@ -4,6 +4,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.base.Verify;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ClosingFuture;
 import com.google.common.util.concurrent.FluentFuture;
@@ -223,6 +224,11 @@ class TaskGroupAdoptedFutureTest {
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(Verify.verifyNotNull(
+                                Verify.verifyNotNull(result.termination().cause())
+                                        .cancellationReason())
+                        .kind())
+                .isEqualTo(CancellationReason.Kind.CANCELLED_BY_MEMBER);
         assertThat(result.resultOf(FIRST).outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
         assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
         assertThat(sibling.isCancelled()).isTrue();
@@ -239,6 +245,11 @@ class TaskGroupAdoptedFutureTest {
                 .runAll();
 
         assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(Verify.verifyNotNull(
+                                Verify.verifyNotNull(result.termination().cause())
+                                        .cancellationReason())
+                        .kind())
+                .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
         assertThat(pending.isCancelled()).isTrue();
         assertThat(pending.interrupted).isTrue();
     }
