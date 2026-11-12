@@ -22,7 +22,7 @@ def required_paths() -> list[str]:
     ]
 
 
-def tracked(path: str) -> bool:
+def has_tracked_path(path: str) -> bool:
     result = subprocess.run(
         ["git", "ls-files", "--error-unmatch", "--", path],
         cwd=ROOT,
@@ -50,7 +50,7 @@ def main() -> int:
             errors.append(f"required skill must not be a symlink: {relative}")
         if path.is_dir() and not (path / "SKILL.md").is_file():
             errors.append(f"skill directory has no SKILL.md: {relative}")
-        if not tracked(relative):
+        if not has_tracked_path(relative):
             errors.append(f"required skill is not tracked: {relative}")
 
     package_verifier = ROOT / ".agents" / "skills" / "contract-first-assurance" / "scripts" / "verify_package.py"
