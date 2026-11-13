@@ -1,0 +1,33 @@
+core/src/main/java/io/github/monadrome/parallelinscope/FutureInspector.java
+  s_6ef012108ae407::t_6a3b8d31388a10 21-24
+AGENTS.md
+  s_6ef012108ae407::t_6a3b8d31388a10 182-221
+design/proposal/P0041-future-consumption-standard.md
+  s_6ef012108ae407::t_da1c62e70f38e3 1-595
+core/src/main/java/io/github/monadrome/parallelinscope/TaskFuture.java
+  s_6ef012108ae407::t_6a3b8d31388a10 25-28,104-105
+core/src/test/java/io/github/monadrome/parallelinscope/TaskTerminationTest.java
+  s_6ef012108ae407::t_6a3b8d31388a10 39-42,66-67
+  s_6ef012108ae407::t_0664085c6a250b 43-46,51-52,58-59,65
+  s_6ef012108ae407::t_379f4827781f2c 47-50,53-57,60-64
+core/src/test/java/io/github/monadrome/parallelinscope/FutureInspectorTest.java
+  s_6ef012108ae407::t_319456723cfd60 9,59-65
+design/AGENTS.md
+  s_6ef012108ae407::t_da1c62e70f38e3 171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "59c77a9e52100b936acd237ed2e11153fe21b68a",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
