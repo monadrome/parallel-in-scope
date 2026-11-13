@@ -23,7 +23,16 @@ version: "1.1.0"
 
 本轮的 `RUN_DIR` 是 adapter 解析出的 run 目录，默认是仓库根目录下的
 `.contract-first-assurance/<run-id>`。所有阶段必须使用同一个 `RUN_DIR`，并在
-`verification-summary.md` 中记录解析后的 adapter 值，使独立 worktree 可以复现。
+`run-manifest.json` 和 `verification-summary.md` 中记录解析后的 adapter 值，使
+独立 worktree 可以复现。运行清单和哈希规则见
+[references/reproducible-runs.md](references/reproducible-runs.md)。
+
+开始第一阶段前必须：
+
+1. 解析并冻结 package、adapter、base/head commit 和 dirty 状态；
+2. 将 contract 来源、脱敏 API、adapter 配置和 dirty worktree patch（如果有）复制到 `${RUN_DIR}/inputs/`；
+3. 创建 `${RUN_DIR}/logs/`，所有命令保存精确 argv、退出码、stdout 和 stderr 路径；
+4. 写入 `run-manifest.json`，为输入和最终工件计算 SHA-256。
 
 ## 目标
 
@@ -303,6 +312,9 @@ ${RUN_DIR}/report.md
 
 ```text
 ${RUN_DIR}/
+├── run-manifest.json
+├── inputs/
+├── logs/
 ├── contract.md
 ├── contract-gaps.md
 ├── candidates/
@@ -313,6 +325,13 @@ ${RUN_DIR}/
 ```
 
 如果某一步未执行，必须保留对应的 `SKIPPED`、`BLOCKED` 或 `INCONCLUSIVE` 状态和原因。
+最终报告前运行：
+
+```bash
+python3 ${SKILL_ROOT}/scripts/verify_run.py --run-dir ${RUN_DIR}
+```
+
+校验失败时，不能把本轮报告标为可复现或通过。
 
 ## 示例调用
 

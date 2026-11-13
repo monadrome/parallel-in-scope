@@ -27,13 +27,13 @@ description: 项目内的复杂度灰度评测与重构注意力路由。凡是�
 
    ```bash
    python3 scripts/refactoring-review.py plan \
-     --base origin/dev/v0.4.0 \
+     --base origin/dev/v0.5.0 \
      --head HEAD \
      --output-dir .agents/reviews/<topic>-complexity \
      --force
    ```
 
-   `--base` 可省略，因为项目配置默认使用 `origin/dev/v0.4.0`。如果只是调试未提交状态，
+   `--base` 可省略，因为项目配置默认使用 `origin/dev/v0.5.0`。如果只是调试未提交状态，
    可以使用 `--allow-dirty`，但必须说明结果不包含未提交代码，不能把它当正式评测证据。
 
 3. 读取以下产物：

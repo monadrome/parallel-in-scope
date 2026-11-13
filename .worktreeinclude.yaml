@@ -1,0 +1,16 @@
+version: 1
+policy: repository-tracked
+
+# Project skills must be committed so `git worktree add` materializes them in
+# every checkout. This manifest is a presence and provenance check, not a copy
+# of the parent checkout's untracked files.
+required:
+  - path: .agents/skills/assurance-report
+  - path: .agents/skills/complexity-review-eval
+  - path: .agents/skills/contract-diff
+  - path: .agents/skills/contract-extract
+  - path: .agents/skills/contract-first-assurance
+  - path: .agents/skills/dependency-audit
+  - path: .agents/skills/isolated-test-generation
+  - path: .agents/skills/multi-review
+  - path: .agents/skills/refactoring-review

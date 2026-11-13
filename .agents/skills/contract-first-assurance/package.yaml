@@ -23,10 +23,12 @@ components:
 references:
   invocation: references/invocation-modes.md
   host_adapter: references/host-adapter.md
+  reproducible_runs: references/reproducible-runs.md
 
 host_adapters:
   - path: adapters/vformation.yaml
     applies_to: parallel-in-scope
+    version: 1.0.0
 
 runtime:
   required:
@@ -39,6 +41,9 @@ runtime:
 outputs:
   default_root: .contract-first-assurance
   required_files:
+    - run-manifest.json
+    - inputs/
+    - logs/
     - contract.md
     - contract-gaps.md
     - candidates/

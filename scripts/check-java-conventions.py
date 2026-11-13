@@ -19,7 +19,7 @@ and normalized source text, and a key fails only when the head holds it more tim
 the base. An unchanged pre-existing violation therefore passes wherever it moves, while a
 newly added duplicate of it fails.
 
-The base is a git revision (default: the merge base of origin/dev/v0.4.0 and HEAD),
+The base is a git revision (default: the merge base of origin/dev/v0.5.0 and HEAD),
 extracted with `git archive`, or a directory given by --base-root. The head is the working
 tree's src/main/java unless --head-root names another directory. Violations print as
 `path:line: rule: message`. Exit status: 0 pass, 1 new violations, 2 the check could not run.
@@ -42,7 +42,7 @@ from typing import Iterable, Iterator, Sequence
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = "src/main/java"
 SOURCE_DIRS = ("core/src/main/java", "blocking-queues/src/main/java")
-DEFAULT_UPSTREAM = "origin/dev/v0.4.0"
+DEFAULT_UPSTREAM = "origin/dev/v0.5.0"
 # The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
 EXCLUDED_PREFIXES = ("io/github/monadrome/queues/", "io/github/monadrome/parallelinscope/queue/", "src/main/java/io/github/monadrome/parallelinscope/queue/")
 

@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Verify the reproducibility metadata and hashes of an assurance run."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+
+REQUIRED_FILES = (
+    "contract.md",
+    "contract-gaps.md",
+    "candidate-status.csv",
+    "verification-summary.md",
+    "report.md",
+)
+REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
+
+
+def safe_path(run_dir: Path, relative: str) -> Path:
+    path = Path(relative)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"manifest path is not relative: {relative}")
+    resolved = (run_dir / path).resolve()
+    if run_dir.resolve() not in resolved.parents and resolved != run_dir.resolve():
+        raise ValueError(f"manifest path escapes run directory: {relative}")
+    return resolved
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify(run_dir: Path) -> list[str]:
+    errors = []
+    manifest_path = run_dir / "run-manifest.json"
+    if not manifest_path.is_file():
+        return [f"missing {manifest_path}"]
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return [f"cannot read run manifest: {error}"]
+
+    if manifest.get("schemaVersion") != "contract-assurance-run/v1":
+        errors.append("unsupported or missing run manifest schemaVersion")
+    for key in ("runId", "createdAt", "package", "adapter", "workspace", "inputs", "commands", "artifacts"):
+        if key not in manifest:
+            errors.append(f"run manifest is missing {key}")
+    workspace = manifest.get("workspace", {})
+    for key in ("base", "head", "dirty"):
+        if key not in workspace:
+            errors.append(f"workspace metadata is missing {key}")
+
+    for relative in REQUIRED_FILES:
+        try:
+            path = safe_path(run_dir, relative)
+        except ValueError as error:
+            errors.append(str(error))
+            continue
+        if not path.is_file():
+            errors.append(f"missing required artifact: {relative}")
+    for relative in REQUIRED_DIRECTORIES:
+        if not (run_dir / relative).is_dir():
+            errors.append(f"missing required directory: {relative}")
+
+    def verify_hashes(field: str) -> None:
+        values = manifest.get(field, {})
+        if not isinstance(values, dict):
+            errors.append(f"{field} must be an object of relative path to sha256")
+            return
+        for relative, expected in values.items():
+            try:
+                path = safe_path(run_dir, relative)
+            except ValueError as error:
+                errors.append(str(error))
+                continue
+            if not path.is_file():
+                errors.append(f"{field} references missing file: {relative}")
+            elif not isinstance(expected, str) or len(expected) != 64 or sha256(path) != expected:
+                errors.append(f"{field} hash mismatch: {relative}")
+
+    verify_hashes("inputs")
+    verify_hashes("artifacts")
+    artifacts = manifest.get("artifacts", {})
+    if isinstance(artifacts, dict):
+        for required in REQUIRED_FILES:
+            if required not in artifacts:
+                errors.append(f"artifacts does not hash required file: {required}")
+
+    commands = manifest.get("commands", [])
+    if not isinstance(commands, list):
+        errors.append("commands must be a list")
+    else:
+        for index, command in enumerate(commands):
+            if not isinstance(command, dict):
+                errors.append(f"command {index} is not an object")
+                continue
+            for key in ("phase", "argv", "exitCode", "stdout", "stderr"):
+                if key not in command:
+                    errors.append(f"command {index} is missing {key}")
+            for key in ("stdout", "stderr"):
+                if key in command:
+                    try:
+                        if not safe_path(run_dir, command[key]).is_file():
+                            errors.append(f"command {index} {key} log is missing: {command[key]}")
+                    except (TypeError, ValueError) as error:
+                        errors.append(f"command {index} {key}: {error}")
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run-dir", required=True, type=Path)
+    args = parser.parse_args()
+    errors = verify(args.run_dir.resolve())
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}")
+        return 1
+    print(f"OK: reproducible assurance run {args.run_dir.resolve()}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -98,7 +98,7 @@ asks for migration. Moving a violation to another file also reports it.
 ## Usage
 
 ```bash
-python3 scripts/check-java-conventions.py                    # base: merge base of origin/dev/v0.4.0 and HEAD
+python3 scripts/check-java-conventions.py                    # base: merge base of origin/dev/v0.5.0 and HEAD
 python3 scripts/check-java-conventions.py --base <rev>       # base: src/main/java at <rev>, via git archive
 python3 scripts/check-java-conventions.py --base-root <dir> --head-root <dir>  # two directories, no git
 ```
