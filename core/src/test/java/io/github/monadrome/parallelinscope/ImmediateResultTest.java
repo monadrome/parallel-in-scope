@@ -4,15 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.base.Verify;
+import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class ImmediateResultTest {
@@ -161,6 +164,62 @@ class ImmediateResultTest {
         assertThat(frozenFailure.failure()).isSameAs(cause);
         assertThat(Verify.verifyNotNull(frozenFailure.failureCause()).kind())
                 .isEqualTo(FailureCause.Kind.USER_CODE_FAILURE);
+    }
+
+    @Test
+    void submissionFailureFreezingPreservesNotClaimedDisposition() {
+        SubmissionException cause = new SubmissionException(new IllegalStateException("rejected"));
+        class SubmissionTask extends ForwardingListenableFuture.SimpleForwardingListenableFuture<Integer>
+                implements TaskFuture<Integer> {
+            SubmissionTask() {
+                super(Futures.immediateFailedFuture(cause));
+            }
+
+            @Override
+            public String taskName() {
+                return "submission";
+            }
+
+            @Override
+            public TaskClassification outcome() {
+                return TaskClassification.SUBMISSION_FAILURE;
+            }
+
+            @Override
+            public long deadlineNanos() {
+                return Long.MAX_VALUE;
+            }
+
+            @Override
+            public Duration remaining() {
+                return Duration.ZERO;
+            }
+
+            @Override
+            public Throwable failure() {
+                return cause;
+            }
+
+            @Override
+            public @Nullable TaskTermination<Integer> termination() {
+                return null;
+            }
+
+            @Override
+            public TaskStatus status() {
+                return TaskStatus.RESULT_SETTLED;
+            }
+
+            @Override
+            public ListenableFuture<TaskExitObservation<Integer>> completionFuture() {
+                return Futures.immediateFailedFuture(new AssertionError("unused"));
+            }
+        }
+        TaskFuture<Integer> task = new SubmissionTask();
+
+        ImmediateResult<Integer> result = ImmediateResult.fromTask(task, TaskClassification.SUBMISSION_FAILURE);
+        assertThat(result.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+        assertThat(Verify.verifyNotNull(result.failureCause()).kind()).isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
     }
 
     @Test
