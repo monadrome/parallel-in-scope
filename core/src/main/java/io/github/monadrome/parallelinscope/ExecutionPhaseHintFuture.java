@@ -94,7 +94,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         if (taskCode != null) {
             return taskCode.disposition();
         }
-        return submissionFailure != null || phase() == ExecutionPhase.CANCELLED_BEFORE_RUN
+        return phase() == ExecutionPhase.CANCELLED_BEFORE_RUN
                 ? ExecutionDisposition.NOT_CLAIMED
                 : ExecutionDisposition.CLAIMED;
     }
