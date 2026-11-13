@@ -1,0 +1,19 @@
+ledger/2026-11-13-v050-doc-alignment.json
+  s_300fc739e78067::t_315360ff1a2439 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "897b3b6908e0afffa5141c78b2a583218181c463",
+  "prompts": {},
+  "sessions": {
+    "s_300fc739e78067": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d5a9-4125-7650-b52a-d6010a423a9d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
