@@ -68,7 +68,7 @@ BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskT
 | 缓存读取 | 10-20 | 缓存通常能扛更高并发 |
 | 文件 IO | 3-5 | 磁盘 IO 是瓶颈 |
 
-### 3. 用 reportString() / outcomeCounts() 快速判断
+### 3. 用 reportString() / terminationKindCounts() 快速判断
 
 ```java
 // 一行看全貌
@@ -76,7 +76,7 @@ String report = result.reportString();
 // "SUCCESS:8,USER_FAILURE:1,FAIL_FAST:1 | firstException=..."
 
 // 结构化访问
-Map<TaskOutcome, Integer> counts = result.outcomeCounts();
+Map<TaskTermination, Integer> counts = result.terminationKindCounts();
 Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult();
 ```
 
@@ -99,7 +99,7 @@ par.map( items, item -> {
 }, opts);
 ```
 
-让异常自然抛出，框架会自动记录到 `outcomeCounts()` / `failedTaskResult()` 里，fail-fast 也会正确触发。
+让异常自然抛出，框架会自动记录到 `terminationKindCounts()` / `failedTaskResult()` 里，fail-fast 也会正确触发。
 
 ---
 

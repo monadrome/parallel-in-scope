@@ -159,7 +159,7 @@ class GroupDraftContractTest {
                 .submitAll()) {
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(group.terminalFuture()).isPresent();
             assertThat(group.terminalFuture().get().get(2, TimeUnit.SECONDS)).containsExactly("alice", "41");
         } finally {

@@ -34,7 +34,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     private final String taskName;
     private final CancellationToken token;
     private final TaskObservation<T> observation;
-    private final @Nullable SettableFuture<TaskOutcome> settledAttribution;
+    private final @Nullable SettableFuture<TaskClassification> settledAttribution;
     private final @Nullable SettableFuture<TaskTermination<T>> settledTermination;
 
     private Task(
@@ -42,7 +42,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
             CancellationToken token,
             ListenableFuture<T> delegate,
             TaskObservation<T> observation,
-            @Nullable SettableFuture<TaskOutcome> settledAttribution,
+            @Nullable SettableFuture<TaskClassification> settledAttribution,
             @Nullable SettableFuture<TaskTermination<T>> settledTermination) {
         this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
         this.token = Objects.requireNonNull(token, "token cannot be null");
@@ -101,8 +101,8 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
          * token's FAIL_FAST through the bind's aggregate listener on the same delegate. Reading the
          * token later — when the batch freezes — would let that commit reattribute the element that
          * caused it: an execution that raised its own java.util.concurrent.CancellationException or
-         * InterruptedException reads TaskOutcome.USER_FAILURE while the token is still running and
-         * TaskOutcome.FAIL_FAST once its own failure committed the cascade. The pin fixes the read
+         * InterruptedException reads TaskClassification.USER_FAILURE while the token is still running and
+         * TaskClassification.FAIL_FAST once its own failure committed the cascade. The pin fixes the read
          * to completion time, the moment a group member is classified in TaskGroup.memberCompleted.
          *
          * Classification of a settled delegate reads only immutable future state and the token's
@@ -116,14 +116,14 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
          * bind's listeners lets it read the token before this element's failure commits fail-fast
          * on that token.
          */
-        SettableFuture<TaskOutcome> attribution = SettableFuture.create();
+        SettableFuture<TaskClassification> attribution = SettableFuture.create();
         SettableFuture<TaskTermination<T>> termination = SettableFuture.create();
         Task<T> view = new Task<>(
                 taskName, token, delegate, observationOf(taskName, token, delegate), attribution, termination);
         delegate.addListener(
                 () -> {
                     try {
-                        TaskOutcome settled = view.outcome();
+                        TaskClassification settled = view.outcome();
                         termination.set(view.freezeTermination(settled));
                         attribution.set(settled);
                     } catch (Throwable classificationFailure) {
@@ -161,26 +161,26 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     @Override
-    public TaskOutcome outcome() {
+    public TaskClassification outcome() {
         // A recorded submission failure outranks the future's own state. A batch element failed by
         // a handoff failure is claimed before it is settled, and the token's fail-fast cascade can
         // cancel it in between; without this the element would report that cancellation instead of
         // the submission failure that actually ended it.
         if (recordedSubmissionFailure() != null) {
-            return TaskOutcome.SUBMISSION_FAILURE;
+            return TaskClassification.SUBMISSION_FAILURE;
         }
         if (!delegate.isDone()) {
-            return TaskOutcome.RUNNING;
+            return TaskClassification.RUNNING;
         }
         if (delegate.isCancelled()) {
-            return TokenOutcomes.forCancelled(token, TaskOutcome.MEMBER_CANCELLED);
+            return TokenOutcomes.forCancelled(token, TaskClassification.MEMBER_CANCELLED);
         }
         try {
             // The delegate is done here, so read it with Futures.getDone: unlike get(), it never
             // throws InterruptedException, and a caller thread that happens to carry the
             // interrupt flag can no longer turn a success into a phantom USER_FAILURE.
             Futures.getDone(delegate);
-            return TaskOutcome.SUCCESS;
+            return TaskClassification.SUCCESS;
         } catch (ExecutionException failure) {
             return classifyFailure(token, failure.getCause());
         }
@@ -192,14 +192,14 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      * through the token instead of being recorded as a user failure. Shared by {@link #outcome()}
      * and the observation snapshot, so a task reads the same attribution on both.
      */
-    static TaskOutcome classifyFailure(CancellationToken token, @Nullable Throwable cause) {
+    static TaskClassification classifyFailure(CancellationToken token, @Nullable Throwable cause) {
         if (cause instanceof SubmissionException) {
-            return TaskOutcome.SUBMISSION_FAILURE;
+            return TaskClassification.SUBMISSION_FAILURE;
         }
         if (TokenOutcomes.causedByCancellation(cause)) {
-            return TokenOutcomes.forCancelled(token, TaskOutcome.USER_FAILURE);
+            return TokenOutcomes.forCancelled(token, TaskClassification.USER_FAILURE);
         }
-        return TaskOutcome.USER_FAILURE;
+        return TaskClassification.USER_FAILURE;
     }
 
     @Override
@@ -220,8 +220,8 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         if (recorded != null) {
             return recorded;
         }
-        TaskOutcome outcome = outcome();
-        if (outcome != TaskOutcome.USER_FAILURE && outcome != TaskOutcome.SUBMISSION_FAILURE) {
+        TaskClassification outcome = outcome();
+        if (outcome != TaskClassification.USER_FAILURE && outcome != TaskClassification.SUBMISSION_FAILURE) {
             return null;
         }
         return FutureInspector.exceptionNow(delegate);
@@ -287,10 +287,10 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         return freezeTermination(outcome());
     }
 
-    private TaskTermination<T> freezeTermination(TaskOutcome settled) {
+    private TaskTermination<T> freezeTermination(TaskClassification settled) {
         ExecutionDisposition disposition =
                 recordedSubmissionFailure() != null ? ExecutionDisposition.NOT_CLAIMED : executionDisposition();
-        if (settled == TaskOutcome.SUCCESS) {
+        if (settled == TaskClassification.SUCCESS) {
             try {
                 return TaskTermination.success(Futures.getDone(delegate), disposition);
             } catch (ExecutionException impossible) {
@@ -348,7 +348,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      * null for every other view, which attributes from the token at read time.
      */
     @Nullable
-    ListenableFuture<TaskOutcome> settledAttribution() {
+    ListenableFuture<TaskClassification> settledAttribution() {
         return settledAttribution;
     }
 

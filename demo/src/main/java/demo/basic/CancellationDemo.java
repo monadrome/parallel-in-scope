@@ -65,7 +65,7 @@ public class CancellationDemo {
                     options);
 
             // map 同步返回时所有元素已终态（成功、失败或被取消）：直接读冻结的分布，无需再等待
-            System.out.println("结果分布: " + result.outcomeCounts());
+            System.out.println("结果分布: " + result.terminationKindCounts());
             long endTime = System.currentTimeMillis();
 
             // 3. 查看结果

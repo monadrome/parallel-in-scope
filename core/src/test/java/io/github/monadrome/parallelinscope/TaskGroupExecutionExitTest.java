@@ -78,7 +78,7 @@ class TaskGroupExecutionExitTest {
             // The cancel lands and the future converges while the execution is still parked: close must
             // keep waiting for the execution to exit rather than returning with the future.
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
@@ -260,7 +260,7 @@ class TaskGroupExecutionExitTest {
             // returned far below any grace.
             assertThat(closeElapsedMillis).isLessThan(1000);
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(executionExited.getCount()).isEqualTo(1);
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
@@ -351,7 +351,7 @@ class TaskGroupExecutionExitTest {
                 Thread.interrupted();
             }
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
 
             release.countDown();
             assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
@@ -483,7 +483,7 @@ class TaskGroupExecutionExitTest {
             groupReady.countDown();
 
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             assertThat(awaitFailure.get()).isInstanceOf(IllegalStateException.class);
             assertThat(closeFailure.get()).isInstanceOf(IllegalStateException.class);
         } finally {
@@ -571,7 +571,7 @@ class TaskGroupExecutionExitTest {
 
             callbackRelease.countDown();
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
         } finally {
             callbackRelease.countDown();
             callbackExecutor.shutdownNow();
@@ -628,7 +628,7 @@ class TaskGroupExecutionExitTest {
                     .submitAll();
 
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             // The future's own holder release sits in run()'s finally, just after completion:
             // await the probe instead of racing it.
@@ -652,7 +652,7 @@ class TaskGroupExecutionExitTest {
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             group.close();
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
         } finally {
             global.close();
             executor.shutdownNow();

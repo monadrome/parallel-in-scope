@@ -94,7 +94,7 @@ public final class TaskTermination<T> {
 
     /** Builds the new model from a legacy outcome while retaining the migration projection. */
     static <T> TaskTermination<T> fromLegacy(
-            TaskOutcome outcome,
+            TaskClassification outcome,
             @Nullable T value,
             @Nullable Throwable failure,
             ExecutionDisposition disposition,
@@ -120,7 +120,7 @@ public final class TaskTermination<T> {
         }
     }
 
-    static FailureCause failureCauseFor(TaskOutcome outcome, @Nullable Throwable failure) {
+    static FailureCause failureCauseFor(TaskClassification outcome, @Nullable Throwable failure) {
         Throwable cause = checkNotNull(failure, "failure cannot be null");
         switch (outcome) {
             case USER_FAILURE:
@@ -132,7 +132,8 @@ public final class TaskTermination<T> {
         }
     }
 
-    static CancellationReason cancellationReasonFor(TaskOutcome outcome, String source, @Nullable String failedTask) {
+    static CancellationReason cancellationReasonFor(
+            TaskClassification outcome, String source, @Nullable String failedTask) {
         switch (outcome) {
             case TIMEOUT:
                 return CancellationReason.deadlineExceeded(source);
@@ -151,7 +152,7 @@ public final class TaskTermination<T> {
 
     /** Convenience overload used when the successful value is read directly from a future. */
     static <T> TaskTermination<T> fromLegacy(
-            TaskOutcome outcome, @Nullable Throwable failure, ExecutionDisposition disposition, String source) {
+            TaskClassification outcome, @Nullable Throwable failure, ExecutionDisposition disposition, String source) {
         return fromLegacy(outcome, null, failure, disposition, source);
     }
 

@@ -70,8 +70,8 @@ public interface GroupStart {
      * or reuse the source yourself afterwards: cancelling it is a direct member cancellation, which
      * cancels the whole group. Each future can be adopted once per group.
      *
-     * <p>The member reads {@link TaskOutcome#SUCCESS} with the source's value and {@link
-     * TaskOutcome#USER_FAILURE} with its failure; cancellation is attributed through the group like
+     * <p>The member reads {@link TaskClassification#SUCCESS} with the source's value and {@link
+     * TaskClassification#USER_FAILURE} with its failure; cancellation is attributed through the group like
      * any member's. The library runs no execution for it: no executor submission, TTL replay, task-type
      * diagnostic, or workload-fit timing applies. Its execution-exit slot is released when the source
      * settles, so {@link TaskGroupResult#executionExitConfirmed()} also confirms that every adopted

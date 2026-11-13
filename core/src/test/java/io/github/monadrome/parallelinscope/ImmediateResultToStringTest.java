@@ -19,9 +19,9 @@ class ImmediateResultToStringTest {
     void aFailureNamesItsOutcomeAndThrowable() {
         IllegalStateException boom = new IllegalStateException("boom");
 
-        assertThat(ImmediateResult.failed(TaskOutcome.USER_FAILURE, boom).toString())
+        assertThat(ImmediateResult.failed(TaskClassification.USER_FAILURE, boom).toString())
                 .isEqualTo("ImmediateResult[outcome=USER_FAILURE, failure=java.lang.IllegalStateException: boom]");
-        assertThat(ImmediateResult.failed(TaskOutcome.TIMEOUT, new LeanCancellationException("late"))
+        assertThat(ImmediateResult.failed(TaskClassification.TIMEOUT, new LeanCancellationException("late"))
                         .toString())
                 .startsWith("ImmediateResult[outcome=TIMEOUT, failure=")
                 .contains("LeanCancellationException", "late");

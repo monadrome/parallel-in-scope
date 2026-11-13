@@ -44,7 +44,7 @@ if (snapshot.disposition() == ExecutionDisposition.CLAIMED) {
 5. `ParRuntime.awaitQuiescence(...)` 在 runtime 已关闭后等待已准入执行和观测作用域排空。
 
 `ImmediateResult.asFuture()` 保持原名，仍是只读、立即完成的 Guava 适配器；它不表示执行退出或
-runtime 静止。`TaskOutcome` 也保持原名，作为继续消费旧 outcome 枚举的兼容投影。需要原因和 claim
+runtime 静止。`TaskTermination` 也保持原名，作为继续消费旧 outcome 枚举的兼容投影。需要原因和 claim
 归因的新代码应读取 `TaskTermination`、`FailureCause`、`CancellationReason` 和
 `ExecutionDisposition`。
 
@@ -127,3 +127,6 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 ```
 
 同时更新 import；`SubmissionAwareBlockingQueue` 仍在 `parallel-in-scope` 中。
+
+
+已移除的公开 `TaskOutcome` 类型由 `TaskTermination` 和 `ScopeTermination` 取代；调用方需要重新编译并迁移 `outcome()` 读取。

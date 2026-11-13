@@ -132,7 +132,7 @@ the exception came from, never on its type:
 
 Any late exception carrying a suppressed exception, typically a failing `close()` in
 try-with-resources, stays a `WARNING` with the suppressed failure attached. The log level never
-changes the result: read cancellation counts from `outcomeCounts()` or `TaskOutcome`, not from
+changes the result: read cancellation counts from `terminationKindCounts()` or `TaskTermination`, not from
 the number of warnings.
 
 A `Checkpoints` blocking adapter interrupted while the scope is not cancelled throws the same
@@ -153,7 +153,7 @@ All sources use the same internal token state check. The external input is decla
 flag. See [Cancel when a request completes](../user-guide.md#request-cancellation).
 Nested `Par.map` calls inherit a parent token,
 so cancellation reaches child tasks at their next checkpoint or interruptible blocking operation.
-Task executions can also throw cancellation exceptions. `ImmediateResult.outcome()` exposes the frozen
+Task executions can also throw cancellation exceptions. `ImmediateResult.termination()` exposes the frozen
 task attribution; see [Immediate results](../user-guide.md#task-future-attribution).
 Interrupting the caller waiting in `map` or `runAll` does not cancel execution; those waits restore
 the interrupt flag on exit. Results expose no execution-owned token or running future;

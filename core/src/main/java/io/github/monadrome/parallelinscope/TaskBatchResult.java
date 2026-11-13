@@ -157,8 +157,17 @@ public final class TaskBatchResult<T> {
      * @return an immutable count per outcome; outcomes that did not occur are absent
      * @since 0.4.0
      */
-    public Map<TaskOutcome, Integer> outcomeCounts() {
-        EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
+    /** Counts task-level termination branches without conflating cancellation causes. */
+    public Map<TaskTermination.Kind, Integer> terminationKindCounts() {
+        EnumMap<TaskTermination.Kind, Integer> counts = new EnumMap<>(TaskTermination.Kind.class);
+        for (ImmediateResult<T> result : results) {
+            counts.merge(result.termination().kind(), 1, Integer::sum);
+        }
+        return Maps.immutableEnumMap(counts);
+    }
+
+    Map<TaskClassification, Integer> outcomeCounts() {
+        EnumMap<TaskClassification, Integer> counts = new EnumMap<>(TaskClassification.class);
         for (ImmediateResult<T> result : results) {
             counts.merge(result.outcome(), 1, Integer::sum);
         }
@@ -201,7 +210,8 @@ public final class TaskBatchResult<T> {
     }
 
     static boolean isRecordedFailure(ImmediateResult<?> result) {
-        return result.outcome() == TaskOutcome.USER_FAILURE || result.outcome() == TaskOutcome.SUBMISSION_FAILURE;
+        return result.outcome() == TaskClassification.USER_FAILURE
+                || result.outcome() == TaskClassification.SUBMISSION_FAILURE;
     }
 
     /** The exception an aggregate read throws for a selected failure; an Error is thrown directly. */

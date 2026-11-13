@@ -79,7 +79,7 @@ class ObservationFutureTest {
             assertThat(first.waitTime().isNegative()).isFalse();
 
             TaskExitObservation<String> second = completions.get(1);
-            assertThat(second.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(second.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(second.failure()).isSameAs(boom);
             assertThat(second.result()).isNull();
             assertThat(second.unitId()).isEqualTo(first.unitId());
@@ -127,7 +127,7 @@ class ObservationFutureTest {
             for (int index = 1; index < 3; index++) {
                 TaskExitObservation<String> abandoned = completions.get(index);
                 assertThat(abandoned.taskIndex()).isEqualTo(index);
-                assertThat(abandoned.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                assertThat(abandoned.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
                 assertThat(abandoned.startTimeNanos()).isZero();
                 assertThat(abandoned.endTimeNanos()).isZero();
                 assertThat(abandoned.executionTime()).isZero();
@@ -157,7 +157,7 @@ class ObservationFutureTest {
             assertThat(queued.cancel(true)).isTrue();
 
             TaskExitObservation<String> snapshot = queued.completionFuture().get(2, TimeUnit.SECONDS);
-            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+            assertThat(snapshot.outcome()).isEqualTo(TaskClassification.MEMBER_CANCELLED);
             assertThat(snapshot.startTimeNanos()).isZero();
             assertThat(snapshot.endTimeNanos()).isZero();
         } finally {
@@ -211,7 +211,7 @@ class ObservationFutureTest {
 
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
             TaskExitObservation<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
-            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(snapshot.outcome()).isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             block.countDown();
             global.close();
@@ -242,8 +242,8 @@ class ObservationFutureTest {
 
             List<TaskExitObservation<String>> completions =
                     batch.observationsFuture().get(2, TimeUnit.SECONDS);
-            assertThat(completions.get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(completions.get(1).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(completions.get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            assertThat(completions.get(1).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
         } finally {
             block.countDown();
             global.close();
@@ -292,7 +292,7 @@ class ObservationFutureTest {
             TaskExitObservation<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
             // A direct cancel of a submitted task trips the token's fail-fast binding, exactly as
             // task.outcome() already reads it; the snapshot agrees with that attribution.
-            assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(snapshot.outcome()).isEqualTo(TaskClassification.FAIL_FAST);
             assertThat(snapshot.startTimeNanos()).isGreaterThan(0L);
             assertThat(snapshot.endTimeNanos()).isGreaterThanOrEqualTo(snapshot.startTimeNanos());
         } finally {
@@ -379,7 +379,7 @@ class ObservationFutureTest {
             assertThat(summary.groupId()).isEqualTo(group.groupId());
             assertThat(summary.taskIndex()).isZero();
             assertThat(summary.result()).isSameAs(result);
-            assertThat(summary.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(summary.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(summary.submitTimeNanos()).isEqualTo(result.startTimeNanos());
             assertThat(summary.endTimeNanos()).isEqualTo(result.endTimeNanos());
 
@@ -390,7 +390,7 @@ class ObservationFutureTest {
             assertThat(member.taskName()).isEqualTo("user");
             assertThat(member.successful()).isTrue();
             assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
         } finally {
             global.close();
             pool.shutdownNow();
@@ -412,7 +412,7 @@ class ObservationFutureTest {
 
             TaskExitObservation<TaskGroupReport> summary =
                     group.convergenceFuture().completionFuture().get(2, TimeUnit.SECONDS);
-            assertThat(summary.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(summary.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(summary.failure()).isSameAs(boom);
             assertThat(summary.result()).isNotNull();
         } finally {

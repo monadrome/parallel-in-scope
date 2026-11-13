@@ -219,7 +219,7 @@ class GroupDraftLifecycleTest {
 
             release.countDown();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
 
             // The entered members released theirs through run()'s finally.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -248,7 +248,7 @@ class GroupDraftLifecycleTest {
                     .submitAll();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(group.callableReleased("one")).isTrue();
             assertThat(group.callableReleased("two")).isTrue();
         } finally {
@@ -281,7 +281,7 @@ class GroupDraftLifecycleTest {
 
             release.countDown();
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             // The execution exits after the future settles, so the release is awaited rather than assumed.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(group.callableReleasedAt(0)).isTrue();
@@ -310,7 +310,7 @@ class GroupDraftLifecycleTest {
 
             assertThat(executionOrder).containsExactly("a", "b", "c");
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
         } finally {
             global.close();
             direct.shutdownNow();

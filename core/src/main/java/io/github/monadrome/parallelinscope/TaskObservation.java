@@ -118,7 +118,7 @@ final class TaskObservation<T> {
      * Publishes the final snapshot of a task prevented from starting. Start and end times are zero.
      * First writer wins: a concurrent publication keeps whichever snapshot was published first.
      */
-    void publishSkipped(TaskOutcome outcome, @Nullable Throwable failure) {
+    void publishSkipped(TaskClassification outcome, @Nullable Throwable failure) {
         Verify.verify(unitId != null, "an observation with no unit cannot publish a skipped snapshot");
         publish(TaskExitObservation.snapshot(
                 Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, outcome, null, failure));
@@ -258,7 +258,7 @@ final class TaskObservation<T> {
                     submitTimeNanos,
                     startTimeNanos,
                     endTimeNanos,
-                    TokenOutcomes.forCancelled(token, TaskOutcome.MEMBER_CANCELLED),
+                    TokenOutcomes.forCancelled(token, TaskClassification.MEMBER_CANCELLED),
                     null,
                     null);
         }
@@ -272,7 +272,7 @@ final class TaskObservation<T> {
                     submitTimeNanos,
                     startTimeNanos,
                     endTimeNanos,
-                    TaskOutcome.SUCCESS,
+                    TaskClassification.SUCCESS,
                     Futures.getDone(settle),
                     null);
         } catch (ExecutionException failure) {

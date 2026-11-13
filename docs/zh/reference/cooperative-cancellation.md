@@ -174,7 +174,7 @@ logger 上记录 `task '<name>' failed after cancellation` 并附原异常。级
 | 其他：用户自建的 `CancellationException` / `LeanCancellationException`、包装后的异常、非内核引起的 `InterruptedException`、任何业务失败 | `WARNING` |
 
 带 suppressed 的迟到异常（典型是 try-with-resources 中 `close()` 失败）一律 `WARNING`，并附带
-suppressed。日志级别不改变结果：取消次数读 `outcomeCounts()` 或 `TaskOutcome`，不要数告警条数。
+suppressed。日志级别不改变结果：取消次数读 `terminationKindCounts()` 或 `TaskTermination`，不要数告警条数。
 
 scope 未取消时被中断的 `Checkpoints` 阻塞适配器抛出同一类型的 `LeanCancellationException`，cause 为
 `InterruptedException`，任务结果为 `USER_FAILURE`：单凭中断无法知道是谁发出的。
@@ -193,7 +193,7 @@ scope 未取消时被中断的 `Checkpoints` 阻塞适配器抛出同一类型�
 所有触发源通过内部 token 状态检查体现，checkpoint 只需判断是否应该停止。
 外部取消输入声明在批次的 `BatchOptions` 或组的 `GroupStart` 上（组须在首个成员前声明），任务代码内无需轮询应用标志，
 详见[请求完成时取消执行](../user-guide.md#request-cancellation)。
-任务代码也可以抛出取消异常。`ImmediateResult.outcome()` 呈现冻结的任务归因，
+任务代码也可以抛出取消异常。`ImmediateResult.termination()` 呈现冻结的任务归因，
 见[即时结果](../user-guide.md#task-future-attribution)。
 中断等待 `map` / `runAll` 的调用线程不会取消执行；等待结束恢复中断标志。
 结果不暴露执行所属的 token 或运行中的 future，`asFuture().cancel(...)` 始终返回 false。

@@ -16,10 +16,10 @@
 | 传播 | 把决定送到绑定的 future 和子作用域 | `bind()` 的组合 future、`ParentLink`、Guava 级联 | [取消传播](cancellation-propagation.md) §1–§4 |
 | 执行 | 执行能否进入、中断投递、线程交接 | `ExecutionPhaseHintFuture`、`TaskExecutionState` | [中断契约](interruption-contract.md) §2.3–§2.4、[runner 中断投递](runner-interrupt-delivery.md) |
 | 协作 | 执行观察取消并退出 | `Checkpoints` 的检查点与阻塞适配器 | [中断契约](interruption-contract.md) §3.1 |
-| 归因 | 把 token 状态映射为 `TaskOutcome` | `TokenOutcomes`、落定钉子 | [组取消](task-group-cancellation.md) §8.4.1、[落定归因](batch-settle-attribution.md) |
+| 归因 | 把 token 状态映射为 `TaskTermination` | `TokenOutcomes`、落定钉子 | [组取消](task-group-cancellation.md) §8.4.1、[落定归因](batch-settle-attribution.md) |
 | 出口 | 等结果落定，再有界等待执行退出 | `ExecutionExitTracker`、同步冻结 | [同步出口](synchronous-scope-exit.md) §4 |
 
-token 是包私有的内核类型，公开面只有 `TaskOutcome` 这套归因词汇
+token 是包私有的内核类型，公开面只有 `TaskTermination` 这套归因词汇
 （[取消传播](cancellation-propagation.md) §5.3）。
 
 ## 2. 取消来源

@@ -15,7 +15,7 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskOutcome;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,7 +85,7 @@ class SentinelGuardTest {
                     BatchOptions.timeout("thread-limited", Duration.ofSeconds(5))
                             .parallelism(6));
 
-            assertThat(batch.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 6);
+            assertThat(batch.terminationKindCounts()).containsEntry(TaskTermination.Kind.SUCCESS, 6);
             assertThat(batch.valuesOrThrow()).containsOnly("fallback");
             release.countDown();
             for (Future<String> holder : holding) {
@@ -121,9 +121,9 @@ class SentinelGuardTest {
                         .parallelism(4)
                         .closeGrace(Duration.ofSeconds(5)));
 
-        assertThat(batch.outcomeCounts())
-                .containsEntry(TaskOutcome.USER_FAILURE, 1)
-                .containsEntry(TaskOutcome.FAIL_FAST, 3);
+        assertThat(batch.terminationKindCounts())
+                .containsEntry(TaskTermination.Kind.FAILED, 1)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 3);
         assertThat(batch.executionExitConfirmed()).isTrue();
         ClusterNode node = ClusterBuilderSlot.getClusterNode("traced");
         assertThat(node.totalException()).isEqualTo(1);

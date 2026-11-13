@@ -68,12 +68,12 @@ class ParMapAndCombineTest {
 
             assertThat(combineRuns).hasValue(1);
             assertThat(result.terminalValueOrThrow()).isEqualTo(20);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(2, 4, 6, 8);
             assertThat(result.executionExitConfirmed()).isTrue();
             TaskExitObservation<Integer> terminal = result.terminal();
             assertThat(terminal).isNotNull();
-            assertThat(terminal.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(terminal.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(terminal.result()).isEqualTo(20);
         } finally {
             io.shutdownNow();
@@ -106,12 +106,12 @@ class ParMapAndCombineTest {
                             });
 
             assertThat(combineRuns).hasValue(0);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.FAIL_FAST);
             // One attribution per task: the terminal's own child token reads differently, but its
             // final observation carries the frozen FAIL_FAST.
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
             ImmediateResult<Integer> failing = result.batchResult().results().get(1);
-            assertThat(failing.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(failing.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(failing.failure()).isSameAs(boom);
         } finally {
             executor.shutdownNow();
@@ -142,8 +142,8 @@ class ParMapAndCombineTest {
                             });
 
             assertThat(combineRuns).hasValue(0);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.TIMEOUT))
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            assertThat(result.batchResult().outcomeCounts().get(TaskClassification.TIMEOUT))
                     .isEqualTo(2);
         } finally {
             executor.shutdownNow();
@@ -167,9 +167,9 @@ class ParMapAndCombineTest {
                                 throw combineFailure;
                             });
 
-            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.SUCCESS))
+            assertThat(result.batchResult().outcomeCounts().get(TaskClassification.SUCCESS))
                     .isEqualTo(2);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.terminalResult().failure()).isSameAs(combineFailure);
             assertThatThrownBy(result::terminalValueOrThrow)
                     .isInstanceOf(java.util.concurrent.CompletionException.class)
@@ -196,9 +196,9 @@ class ParMapAndCombineTest {
                                 throw combineFailure;
                             });
 
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.terminalResult().failure()).isSameAs(combineFailure);
-            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.TIMEOUT))
+            assertThat(result.batchResult().outcomeCounts().get(TaskClassification.TIMEOUT))
                     .isNull();
         } finally {
             executor.shutdownNow();
@@ -234,7 +234,7 @@ class ParMapAndCombineTest {
                             values -> Objects.requireNonNull(values).size());
 
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(1, 2);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
         } finally {
             release.countDown();
             io.shutdownNow();
@@ -284,7 +284,7 @@ class ParMapAndCombineTest {
                             });
 
             assertThat(result.terminalValueOrThrow()).isEqualTo("joined");
-            assertThat(result.batchResult().results().get(1).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.batchResult().results().get(1).outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(result.batchResult().results().get(1).valueOrThrow()).isNull();
         } finally {
             executor.shutdownNow();
@@ -343,7 +343,7 @@ class ParMapAndCombineTest {
                         return 1;
                     })
                     .runAll();
-            assertThat(group.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(group.outcome()).isEqualTo(TaskClassification.SUCCESS);
         } finally {
             outer.shutdownNow();
             inner.shutdownNow();
@@ -394,7 +394,7 @@ class ParMapAndCombineTest {
             // The saturated CallerRuns pool would hand the combine to the converging thread; the
             // inline guard records SUBMISSION_FAILURE instead of running user code there.
             assertThat(combineRuns).hasValue(0);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(1, 2);
             assertThatThrownBy(result::terminalValueOrThrow)
                     .isInstanceOf(SubmissionException.class)
@@ -609,9 +609,9 @@ class ParMapAndCombineTest {
             assertThat(combineRuns)
                     .as("a combine cancelled while queued must never enter its execution")
                     .hasValue(0);
-            assertThat(result.batchResult().outcomeCounts().get(TaskOutcome.SUCCESS))
+            assertThat(result.batchResult().outcomeCounts().get(TaskClassification.SUCCESS))
                     .isEqualTo(2);
-            assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             elementPool.shutdownNow();
             combineGate.shutdownNow();

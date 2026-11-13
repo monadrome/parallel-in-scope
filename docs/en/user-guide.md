@@ -92,7 +92,7 @@ its parent's. The first failure cancels unfinished siblings, including elements 
 window. `valuesOrThrow()` reads frozen data through `orThrow()`: the first recorded execution
 failure in input order is rethrown as-is when unchecked and wrapped in `CompletionException` when
 checked, before any cancellation is reported; pure cancellation throws `CancellationException`.
-Successful values may be null. `outcomeCounts()` counts the outcomes and `failedTaskResult()` returns
+Successful values may be null. `terminationKindCounts()` counts the outcomes and `failedTaskResult()` returns
 the first failed element, the same names `TaskGroupResult` uses.
 
 An executor handoff failure is recorded as `SUBMISSION_FAILURE` with a `SubmissionException`
@@ -554,7 +554,7 @@ keyed by member name, and `terminal()` is the available combine observation or n
 All observations contain identity, submit/start/end times, duration, outcome, failure, and actual
 successful values. Never-started tasks have zero start/end times. Missing observations stay missing
 in the frozen result; no pending business future is returned. Batch and group
-`outcomeCounts()`/`reportString()` still include every terminal task, regardless of missing observations.
+`terminationKindCounts()`/`reportString()` still include every terminal task, regardless of missing observations.
 
 `failure()` carries the detail, not the verdict. A successful task always reports null. Every other
 outcome carries a throwable: the execution-thrown exception for `USER_FAILURE` — including an
@@ -974,7 +974,7 @@ for (TaskExitObservation<Account> completion : batch.completions()) {
     metrics.record(
             completion.taskName(),
             completion.successful() ? "ok" : "failed",
-            completion.outcome(),
+            completion.termination(),
             completion.waitTime(),
             completion.executionTime());
 }

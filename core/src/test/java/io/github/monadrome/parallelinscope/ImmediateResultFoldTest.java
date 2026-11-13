@@ -31,12 +31,12 @@ class ImmediateResultFoldTest {
 
     @Test
     void everyTerminalOutcomeReachesExactlyOneBranch() {
-        Map<TaskOutcome, String> branches = new EnumMap<>(TaskOutcome.class);
-        for (TaskOutcome outcome : TaskOutcome.values()) {
-            if (outcome == TaskOutcome.RUNNING) {
+        Map<TaskClassification, String> branches = new EnumMap<>(TaskClassification.class);
+        for (TaskClassification outcome : TaskClassification.values()) {
+            if (outcome == TaskClassification.RUNNING) {
                 continue;
             }
-            if (outcome == TaskOutcome.SUCCESS) {
+            if (outcome == TaskClassification.SUCCESS) {
                 branches.put(
                         outcome,
                         ImmediateResult.succeeded(1).fold(v -> "value", f -> "user", f -> "submission", (o, t) -> "x"));
@@ -64,14 +64,14 @@ class ImmediateResultFoldTest {
                             }));
         }
         assertThat(branches)
-                .containsEntry(TaskOutcome.SUCCESS, "value")
-                .containsEntry(TaskOutcome.USER_FAILURE, "user")
-                .containsEntry(TaskOutcome.SUBMISSION_FAILURE, "submission")
-                .containsEntry(TaskOutcome.MEMBER_CANCELLED, "cancelled")
-                .containsEntry(TaskOutcome.GROUP_CANCELLED, "cancelled")
-                .containsEntry(TaskOutcome.FAIL_FAST, "cancelled")
-                .containsEntry(TaskOutcome.TIMEOUT, "cancelled")
-                .hasSize(TaskOutcome.values().length - 1);
+                .containsEntry(TaskClassification.SUCCESS, "value")
+                .containsEntry(TaskClassification.USER_FAILURE, "user")
+                .containsEntry(TaskClassification.SUBMISSION_FAILURE, "submission")
+                .containsEntry(TaskClassification.MEMBER_CANCELLED, "cancelled")
+                .containsEntry(TaskClassification.GROUP_CANCELLED, "cancelled")
+                .containsEntry(TaskClassification.FAIL_FAST, "cancelled")
+                .containsEntry(TaskClassification.TIMEOUT, "cancelled")
+                .hasSize(TaskClassification.values().length - 1);
     }
 
     @Test
@@ -85,7 +85,8 @@ class ImmediateResultFoldTest {
         assertThatThrownBy(() -> result.fold(v -> "", f -> "", null, (o, t) -> ""))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> result.fold(v -> "", f -> "", f -> "", null)).isInstanceOf(NullPointerException.class);
-        ImmediateResult<String> failed = ImmediateResult.failed(TaskOutcome.USER_FAILURE, new IllegalStateException());
+        ImmediateResult<String> failed =
+                ImmediateResult.failed(TaskClassification.USER_FAILURE, new IllegalStateException());
         assertThatThrownBy(() -> failed.fold(null, f -> "", f -> "", (o, t) -> ""))
                 .isInstanceOf(NullPointerException.class);
     }
@@ -119,8 +120,8 @@ class ImmediateResultFoldTest {
                 }
             }
             assertThat(batch.outcomeCounts())
-                    .containsEntry(TaskOutcome.USER_FAILURE, 1)
-                    .containsEntry(TaskOutcome.FAIL_FAST, 5);
+                    .containsEntry(TaskClassification.USER_FAILURE, 1)
+                    .containsEntry(TaskClassification.FAIL_FAST, 5);
             assertThat(failures).isEqualTo(1);
             assertThat(cancellations).isEqualTo(5);
             assertThat(batch.results().get(1).failure()).isInstanceOf(CancellationException.class);

@@ -53,7 +53,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskId",
             BASE_PACKAGE + ".TaskKey",
             BASE_PACKAGE + ".TaskOptions",
-            BASE_PACKAGE + ".TaskOutcome",
             BASE_PACKAGE + ".TaskStatus",
             BASE_PACKAGE + ".TaskTermination",
             BASE_PACKAGE + ".TaskTermination$Kind",

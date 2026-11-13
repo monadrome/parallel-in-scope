@@ -209,7 +209,7 @@ final class TaskBatch<T> implements AutoCloseable {
     private static void awaitAttribution(TaskFuture<?> task) {
         try {
             Uninterruptibles.getUninterruptibly(settledAttributionOf(task));
-        } catch (ExecutionException reportedWhenFrozen) {
+        } catch (ExecutionException ignored) {
         }
     }
 
@@ -217,11 +217,11 @@ final class TaskBatch<T> implements AutoCloseable {
      * The outcome a batch freezes for a settled task: the attribution pinned when it settled, so a
      * fail-fast cascade committed by the task's own failure cannot reattribute it.
      */
-    private static TaskOutcome attributionAtSettle(TaskFuture<?> task) {
+    private static TaskClassification attributionAtSettle(TaskFuture<?> task) {
         try {
             return Verify.verifyNotNull(Futures.getDone(settledAttributionOf(task)));
-        } catch (ExecutionException classificationFailure) {
-            throw new AssertionError("settled task attribution cannot fail", classificationFailure.getCause());
+        } catch (ExecutionException failure) {
+            throw new AssertionError("settled task attribution cannot fail", failure.getCause());
         }
     }
 
@@ -230,7 +230,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * {@link Task#attributedOnSettle}: the constructor and both factories are package-private, and
      * the batch submission paths are their only producers.
      */
-    private static ListenableFuture<TaskOutcome> settledAttributionOf(TaskFuture<?> task) {
+    private static ListenableFuture<TaskClassification> settledAttributionOf(TaskFuture<?> task) {
         return Verify.verifyNotNull(
                 ((Task<?>) task).settledAttribution(),
                 "batch task '%s' carries no settle attribution",
@@ -493,7 +493,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * @return a BatchReport containing outcome counts and the first exception (if any)
      */
     public BatchReport report() {
-        Map<TaskOutcome, Integer> outcomeMap =
+        Map<TaskClassification, Integer> outcomeMap =
                 results.stream().collect(toImmutableEnumMap(TaskFuture::outcome, x -> 1, Integer::sum));
         Throwable firstException = results.stream()
                 .map(TaskFuture::failure)
@@ -522,7 +522,7 @@ final class TaskBatch<T> implements AutoCloseable {
 
     /** Immutable report of batch task execution state. */
     static final class BatchReport {
-        private final Map<TaskOutcome, Integer> stateCounts;
+        private final Map<TaskClassification, Integer> stateCounts;
         private final @Nullable Throwable firstException;
 
         /**
@@ -531,7 +531,7 @@ final class TaskBatch<T> implements AutoCloseable {
          * @param stateCounts counts keyed by terminal or current future state
          * @param firstException the first observed failure, or {@code null}
          */
-        BatchReport(Map<TaskOutcome, Integer> stateCounts, @Nullable Throwable firstException) {
+        BatchReport(Map<TaskClassification, Integer> stateCounts, @Nullable Throwable firstException) {
             this.stateCounts = Maps.immutableEnumMap(Objects.requireNonNull(stateCounts, "stateCounts cannot be null"));
             this.firstException = firstException;
         }
@@ -541,7 +541,7 @@ final class TaskBatch<T> implements AutoCloseable {
          *
          * @return the immutable state count map, empty when the batch had no elements
          */
-        public Map<TaskOutcome, Integer> stateCounts() {
+        public Map<TaskClassification, Integer> stateCounts() {
             return stateCounts;
         }
 

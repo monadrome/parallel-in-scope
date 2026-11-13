@@ -111,9 +111,9 @@ public final class TaskGroupResult<R> {
      * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code
      * SUBMISSION_FAILURE}) whatever order the tasks completed in; otherwise {@code SUCCESS} or a
      * cancellation outcome ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}).
-     * See {@link TaskOutcome}.
+     * See {@link TaskClassification}.
      */
-    public TaskOutcome outcome() {
+    TaskClassification outcome() {
         return report.outcome();
     }
 
@@ -294,7 +294,7 @@ public final class TaskGroupResult<R> {
      */
     @CanIgnoreReturnValue
     public TaskGroupResult<R> orThrow() {
-        if (outcome() == TaskOutcome.SUCCESS) {
+        if (outcome() == TaskClassification.SUCCESS) {
             return this;
         }
         Throwable failure = report.recordedFailure();
@@ -308,8 +308,20 @@ public final class TaskGroupResult<R> {
     }
 
     /** Counts every member and declared combine, including tasks without final observations. */
-    public Map<TaskOutcome, Integer> outcomeCounts() {
-        EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
+    /** Counts task-level termination branches for members and the optional combine. */
+    public Map<TaskTermination.Kind, Integer> terminationKindCounts() {
+        EnumMap<TaskTermination.Kind, Integer> counts = new EnumMap<>(TaskTermination.Kind.class);
+        for (ImmediateResult<?> result : results.values()) {
+            counts.merge(result.termination().kind(), 1, Integer::sum);
+        }
+        if (terminalResult != null) {
+            counts.merge(terminalResult.termination().kind(), 1, Integer::sum);
+        }
+        return Maps.immutableEnumMap(counts);
+    }
+
+    Map<TaskClassification, Integer> outcomeCounts() {
+        EnumMap<TaskClassification, Integer> counts = new EnumMap<>(TaskClassification.class);
         for (ImmediateResult<?> result : results.values()) {
             counts.merge(result.outcome(), 1, Integer::sum);
         }

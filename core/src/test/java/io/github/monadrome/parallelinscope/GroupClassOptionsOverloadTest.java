@@ -54,8 +54,8 @@ class GroupClassOptionsOverloadTest {
                 .runAll();
 
         assertThat(System.nanoTime() - start).isLessThan(HONORED_WITHIN_NANOS);
-        assertThat(result.resultOf("blocked").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.resultOf("blocked").outcome()).isEqualTo(TaskClassification.TIMEOUT);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
     }
 
     @Test
@@ -71,8 +71,8 @@ class GroupClassOptionsOverloadTest {
                 .runAll();
 
         assertThat(System.nanoTime() - start).isLessThan(HONORED_WITHIN_NANOS);
-        assertThat(result.resultAt(1).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.resultAt(1).outcome()).isEqualTo(TaskClassification.TIMEOUT);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
     }
 
     @Test
@@ -89,7 +89,7 @@ class GroupClassOptionsOverloadTest {
 
         assertThat(System.nanoTime() - start).isLessThan(HONORED_WITHIN_NANOS);
         assertThat(result.terminalResult()).isNotNull();
-        assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-        assertThat(result.resultOf("count").outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.TIMEOUT);
+        assertThat(result.resultOf("count").outcome()).isEqualTo(TaskClassification.SUCCESS);
     }
 }

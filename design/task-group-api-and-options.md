@@ -237,7 +237,7 @@ Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
 单独推断。`TaskStatus` 单独表达实时的 pending、claim、逻辑终止和退出状态。
 
 ```java
-public enum TaskOutcome {
+public enum TaskTermination {
     RUNNING,
     SUCCESS,
     USER_FAILURE,
@@ -249,7 +249,7 @@ public enum TaskOutcome {
 }
 ```
 
-上面的 `TaskOutcome` 是 0.5.0 的兼容适配投影；它保留旧调用方所需的 `RUNNING` 和结构化取消枚举，
+上面的 `TaskTermination` 是 0.5.0 的兼容适配投影；它保留旧调用方所需的 `RUNNING` 和结构化取消枚举，
 但不再定义新的逻辑终止模型。冻结结果必须读取 `TaskTermination` 的三分支；`RUNNING` 只表示实时查询
 尚未产生终止对象。完整模型见[任务终止与 scope 原因契约](task-termination-and-scope.md)。
 

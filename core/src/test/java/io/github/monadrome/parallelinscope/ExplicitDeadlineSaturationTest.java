@@ -119,7 +119,7 @@ class ExplicitDeadlineSaturationTest {
         assertThat(slowExited.getCount()).isZero();
         assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(batch.unexitedExecutions()).isEmpty();
-        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(remaining.get()).isLessThan(Duration.ofNanos(Long.MAX_VALUE));
     }
 

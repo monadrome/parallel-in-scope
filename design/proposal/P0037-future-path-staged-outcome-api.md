@@ -6,7 +6,7 @@
 - 形状：`FuturePath` 可以从 `ListenableFuture<T>` 或 `ImmediateResult<T>` 创建；两种入口共享结果分派阶段，但分别以异步 Future 或同步 Result 作为终点，不能互相伪装。
 - 拟议 MUST：
   - 路径 MUST 依次处理 `SUCCESS`、`USER_FAILURE`、`SUBMISSION_FAILURE` 和取消类终态；每个阶段只能进入下一个阶段，不能跳过、重复或重排。
-  - `SUCCESS` 阶段接收 nullable 值；两个失败阶段接收原始 `Throwable`；取消阶段接收 `TaskOutcome` 与可选的详细 Throwable。
+  - `SUCCESS` 阶段接收 nullable 值；两个失败阶段接收原始 `Throwable`；取消阶段接收 `TaskTermination` 与可选的详细 Throwable。
   - 取消阶段 MUST 覆盖 `MEMBER_CANCELLED`、`GROUP_CANCELLED`、`FAIL_FAST`、`TIMEOUT`，但不得要求用户为每个内部取消原因分别注册处理器。
   - 从 Future 创建的路径 MUST 保持异步语义并产生 `ListenableFuture<R>`；从 Result 创建的路径 MUST 保持同步语义并产生 `ImmediateResult<R>`。
   - 阶段链在最后一个处理器注册前 MUST 不可结束，从而让遗漏分支成为编译期错误，而不是运行时默认分支。
@@ -108,7 +108,7 @@ Result 入口使用相同的四个处理阶段，最后阶段返回只提供 `to
 
 本提案的穷尽性针对用户可处理的稳定语义，而不是针对当前枚举的每一个常量：
 
-| 公共阶段 | 覆盖的 `TaskOutcome` |
+| 公共阶段 | 覆盖的 `TaskTermination` |
 | --- | --- |
 | `onSuccess` | `SUCCESS` |
 | `onUserFailure` | `USER_FAILURE` |
@@ -153,7 +153,7 @@ FuturePath.fromResult(result)
 ## 8. 第一性原理评估
 
 1. 消除的忘记：忘记处理失败类别、误用状态读取方法、在不合法状态上调用结果查询。
-2. 机制复用：复用 `TaskOutcome`、`ImmediateResult` 和现有 Future 完成传播，不新增执行内核。
+2. 机制复用：复用 `TaskTermination`、`ImmediateResult` 和现有 Future 完成传播，不新增执行内核。
 3. 结构化安全：Future 入口沿用既有取消与完成传播；Result 入口只处理终态快照，不引入第二套生命周期。
 4. 无隐式状态：路径显式持有 source 和 handler，不使用 ambient 状态。
 5. 归因一致：公共阶段建立在 `TaskTermination` 的三分支之上，取消原因和 claim disposition 分别表达

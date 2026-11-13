@@ -11,7 +11,7 @@
 ## 目标与论证
 
 [TaskBatchResult](../../core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java)
-用 `orThrow()` 作为聚合失败闸门，完整统计只在 `outcomeCounts()` 被请求时构造。
+用 `orThrow()` 作为聚合失败闸门，完整统计只在 `terminationKindCounts()` 被请求时构造。
 失败检查与值收集的取舍见 [同步出口契约](../synchronous-scope-exit.md)。
 
 改前改后用户代码均为 `batch.valuesOrThrow()`。报告缓存只有出现真实重复查询需求时再评估。
@@ -22,7 +22,7 @@
 GroupValues/TaskGroupResult 按名称读遍 N 项可能重复定位；只在真实大组需求下评估共享索引。
 用户代码改前改后均为 batch.valuesOrThrow() 或现有名称查询；无签名或迁移变化。
 
-核心 followup 的成员值重复 fold（combine 输入与成功 GroupValues）、Group outcomeCounts
+核心 followup 的成员值重复 fold（combine 输入与成功 GroupValues）、Group terminationKindCounts
 重复计数与运行中频繁图查询的派生投影成本同样只作为测量候选；正常关闭一次分析不等于
 频繁查询瓶颈。当前图模型已更新，必须重新测量；复用值结构不得公开部分失败值或延长大对象寿命。
 

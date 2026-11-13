@@ -29,8 +29,8 @@ Cancelled(CancellationReason, disposition)
 同时携带诊断用 source identity。
 
 `ImmediateResult<T>` 是同步结果的兼容容器，并暴露同一个逻辑终止投影：`termination()`、
-`disposition()`、`failureCause()` 和 `cancellationReason()`。它继续提供旧的 `TaskOutcome` 适配读取，
-但新代码必须以 `TaskTermination` 的 kind、cause 和 disposition 为依据。旧 `TaskOutcome.RUNNING` 只
+`disposition()`、`failureCause()` 和 `cancellationReason()`。它不再提供旧的平面结果适配读取，
+但新代码必须以 `TaskTermination` 的 kind、cause 和 disposition 为依据。旧 `TaskTermination.RUNNING` 只
 存在于迁移投影和内部实时读取，不属于 `TaskTermination` 或冻结结果的终态。
 
 ## 2. execution claim 与实时状态
@@ -110,16 +110,16 @@ scope 只保留一个 primary cause。`ScopeTerminationAccumulator` 使用一次
 | `CANCELLED_BY_MEMBER` | 成员直消造成的 scope 取消 |
 
 原因对象携带 source identity，尤其用于多层 parent 和多个 member 的诊断。枚举名称不能替代来源身份。
-旧 `GROUP_CANCELLED`、`MEMBER_CANCELLED` 和 `FAIL_FAST` 只作为 `TaskOutcome` 兼容投影，不作为新的
+旧 `GROUP_CANCELLED`、`MEMBER_CANCELLED` 和 `FAIL_FAST` 只作为 `TaskTermination` 兼容投影，不作为新的
 稳定任务原因。
 
 ## 6. 迁移与用户代码
 
-改前用户需要同时理解实时 `TaskOutcome`、token 传播和 scope 收敛：
+改前用户需要同时理解实时 `TaskTermination`、token 传播和 scope 收敛：
 
 ```java
-if (task.outcome() == TaskOutcome.GROUP_CANCELLED
-        || task.outcome() == TaskOutcome.FAIL_FAST) {
+if (task.termination() == TaskTermination.GROUP_CANCELLED
+        || task.termination() == TaskTermination.FAIL_FAST) {
     // 还要猜测 scope 是否已经收敛
 }
 ```
@@ -143,7 +143,7 @@ switch (termination.kind()) {
 }
 ```
 
-旧 `TaskOutcome` 的适配方向如下：`SUCCESS` → `Success`，`USER_FAILURE` →
+旧 `TaskTermination` 的适配方向如下：`SUCCESS` → `Success`，`USER_FAILURE` →
 `Failed(UserCodeFailure)`，`SUBMISSION_FAILURE` → `Failed(SubmissionRejected)`，`TIMEOUT` →
 `Cancelled(DeadlineExceeded)`，`FAIL_FAST` → `Cancelled(AbortedByFailFast)`。`GROUP_CANCELLED` 和
 `MEMBER_CANCELLED` 必须读取 source identity、parent 链和 scope cause 后再映射，适配层不得声称一一对应。

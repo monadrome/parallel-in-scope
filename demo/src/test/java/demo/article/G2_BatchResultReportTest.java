@@ -114,13 +114,13 @@ class G2_BatchResultReportTest {
             try {
                 future.get(5, TimeUnit.SECONDS);
             } catch (ExecutionException | CancellationException ignored) {
-                // Both are terminal states counted by outcomeCounts().
+                // Both are terminal states counted by terminationKindCounts().
             }
         }
     }
 
     private static int totalStateCount(TaskBatchResult<?> result) {
-        return result.outcomeCounts().values().stream()
+        return result.terminationKindCounts().values().stream()
                 .mapToInt(Integer::intValue)
                 .sum();
     }

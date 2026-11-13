@@ -84,10 +84,10 @@ class TaskGroupConvergenceTest {
 
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
                 String named = result.failedTaskName();
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+                assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
                 assertThat(named).isIn("m1", "m3");
                 assertThat(Objects.requireNonNull(result.members().get(named)).outcome())
-                        .isEqualTo(TaskOutcome.USER_FAILURE);
+                        .isEqualTo(TaskClassification.USER_FAILURE);
                 // Once fixed, the failing task name is never rewritten.
                 assertThat(result.failedTaskName()).isEqualTo(named);
             }
@@ -129,10 +129,10 @@ class TaskGroupConvergenceTest {
                 release.countDown();
 
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+                assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
                 assertThat(result.members()).hasSize(MEMBERS);
                 for (TaskExitObservation<?> member : result.members().values()) {
-                    assertThat(member.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+                    assertThat(member.outcome()).isEqualTo(TaskClassification.SUCCESS);
                     assertThat(member.submitTimeNanos()).isGreaterThan(0L);
                     assertThat(member.startTimeNanos()).isGreaterThan(0L);
                     assertThat(member.endTimeNanos()).isGreaterThan(member.startTimeNanos());
@@ -187,11 +187,11 @@ class TaskGroupConvergenceTest {
                     .isInstanceOf(AssertionError.class);
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
-                    .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+                    .isEqualTo(TaskClassification.MEMBER_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
         } finally {
             hold.countDown();
             global.close();

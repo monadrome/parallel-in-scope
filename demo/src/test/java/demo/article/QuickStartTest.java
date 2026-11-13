@@ -79,8 +79,8 @@ class QuickStartTest {
         String report = result3.reportString();
         assertThat(report).contains("SUCCESS:8");
 
-        // outcomeCounts() / failedTaskResult() 结构化读取
-        assertThat(result3.outcomeCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS, 8);
+        // terminationKindCounts() / failedTaskResult() 结构化读取
+        assertThat(result3.terminationKindCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskTermination.Kind.SUCCESS, 8);
         assertThat(result3.failedTaskResult()).isEmpty();
     }
 }

@@ -28,7 +28,7 @@ final class PriceService {
     String price(String sku) throws ExecutionException {
         ImmediateResult<String> result =
                 par.map(Collections.singletonList(sku), client::fetch, options).results().get(0);
-        return result.outcome() == TaskOutcome.SUCCESS ? result.valueOrThrow() : UNKNOWN;
+        return result.termination() == TaskTermination.SUCCESS ? result.valueOrThrow() : UNKNOWN;
     }
 }
 
@@ -50,7 +50,7 @@ The rules that keep this deterministic:
 - Block the stub on a latch through `Checkpoints.checkAwait`, which responds to the cancellation
   interrupt. Never use `Thread.sleep` to simulate a slow call, and never use a wait that ignores
   interruption: the execution would keep its worker after the deadline.
-- Assert the outcome (`TaskOutcome.TIMEOUT`, or your fallback value), not elapsed time.
+- Assert the outcome (`TaskTermination.TIMEOUT`, or your fallback value), not elapsed time.
 - When the test needs to know that the execution has started, release a second latch from inside the
   execution and wait for it; do not rely on timing.
 - Expect the library to log a warning for an execution that fails after cancellation; it is the stub
@@ -93,7 +93,7 @@ an interface owned by your code base and return a fixed result from the test dou
 
 ```java
 ImmediateResult<String> timedOut =
-        ImmediateResult.failed(TaskOutcome.TIMEOUT, new TimeoutException("stub"));
+        ImmediateResult.failed(TaskTermination.TIMEOUT, new TimeoutException("stub"));
 ```
 
 Keep at least one test that runs the real `Par` with an injected timeout, so the wiring between

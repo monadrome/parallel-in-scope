@@ -266,7 +266,7 @@ instead of the element's failure.
 - Renaming for a one-word difference; keeping `BatchReport` under a new name (it held two derivable
   fields); wrapping every failure in a new unchecked exception (overturns the group's rethrow as-is);
   a batch `failedTaskName()` (elements share the batch name, so it locates nothing);
-  `BatchCombinedResult.outcomeCounts()` (a third counting scheme).
+  `BatchCombinedResult.terminationKindCounts()` (a third counting scheme).
 - Converging the read surface further: positional and named lookups, `GroupValues.valueOf` versus
   `TaskGroupResult.resultOf`, and `results()` versus `members()` each carry a different failure
   meaning or type source, so removing any one removes a legitimate use. The former `typedValues`
@@ -290,7 +290,7 @@ Narrowly adopted as `ImmediateResult.successful()` and three-way `fold` (`propos
   it, and no downstream need was shown.
 - Keeping the status quo and documenting a full switch: leaves "forgetting a case" to the user.
 - A step builder with every outcome branch required: the simplest call site needs one lambda per
-  outcome, and every new `TaskOutcome` value breaks every call site.
+  outcome, and every new `TaskTermination` value breaks every call site.
 - A visitor interface: Java 8 has no exhaustiveness check, so it breaks call sites like the step
   builder and adds anonymous-class boilerplate.
 - A match chain directly on the live future without a snapshot: each handler reads the token at its

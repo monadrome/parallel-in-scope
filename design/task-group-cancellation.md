@@ -10,7 +10,7 @@
 
 当前结果契约把取消原因和执行事实分开：任务冻结为 `Cancelled(CancellationReason, disposition)`，
 其中 disposition 只来自 execution claim CAS；Batch/Group 冻结为三态 `ScopeTermination`，只保留一次
-CAS 提交的 primary cause。旧 `TaskOutcome` 映射仍供迁移读取，但 `GROUP_CANCELLED`、`MEMBER_CANCELLED`
+CAS 提交的 primary cause。旧 `TaskTermination` 映射仍供迁移读取，但 `GROUP_CANCELLED`、`MEMBER_CANCELLED`
 和 `FAIL_FAST` 不再是新的稳定任务原因。原因对象携带 parent、member、deadline 或请求入口的 source
 identity，迟到业务失败保留在成员结果和诊断中，不覆盖已经提交的 scope cause。
 
@@ -115,7 +115,7 @@ deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min）�
 则记 `TIMEOUT`，否则记 `GROUP_CANCELLED`；两个 token 都仍是 `RUNNING` 说明没有框架路径碰过
 该成员，即用户直消，记 `MEMBER_CANCELLED`。
 
-组级 outcome 同样读 group token 推导（`TaskGroupResult.outcome()`）：`TIMEOUT` → `TIMEOUT`；
+组级 outcome 同样读 group token 推导（`TaskGroupResult.termination()`）：`TIMEOUT` → `TIMEOUT`；
 `FAIL_FAST` → 有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），
 无失败成员（fail-fast 由成员直消触发）则记 `MEMBER_CANCELLED`；`PROPAGATED_CANCELLED` 按
 `originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELLED`；`CANCELLED`（请求来源、内部直消组或成员直消
@@ -132,7 +132,7 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 ### 8.4.1 token → outcome 归因映射（单一实现）
 
 上述"读 token 归因 outcome"的映射在根包的包私有 `TokenOutcomes.forCancelled(token, whenUncommitted)`
-中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome` 与批次元素 `Task.outcome()` 的落定归因
+中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome` 与批次元素 `Task.termination()` 的落定归因
 共用：
 
 | token state | 归因 outcome |

@@ -284,7 +284,7 @@ class SlidingWindowSubmitterTest {
             assertThatThrownBy(() -> batch.results().get(0).get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(executionRan).isFalse();
         } finally {
         }
@@ -339,7 +339,7 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(RejectedExecutionException.class);
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(RejectedExecutionException.class);
@@ -455,7 +455,7 @@ class SlidingWindowSubmitterTest {
             assertThat(batch.results()).hasSize(3);
             for (int i = 0; i < 3; i++) {
                 int index = i;
-                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
                 assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
                         .isInstanceOf(ExecutionException.class)
                         .hasCauseInstanceOf(SubmissionException.class)
@@ -493,7 +493,7 @@ class SlidingWindowSubmitterTest {
             assertThat(batch.results()).hasSize(3);
             for (int i = 0; i < 3; i++) {
                 int index = i;
-                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThat(batch.results().get(index).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
                 assertThatThrownBy(() -> batch.results().get(index).get(1, TimeUnit.SECONDS))
                         .isInstanceOf(ExecutionException.class)
                         .hasCauseInstanceOf(SubmissionException.class)
@@ -560,7 +560,7 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
@@ -630,7 +630,7 @@ class SlidingWindowSubmitterTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThatThrownBy(() -> batch.submitCanceller().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
@@ -665,7 +665,7 @@ class SlidingWindowSubmitterTest {
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(AssertionError.class);
             TaskBatch.BatchReport report = batch.report();
-            assertThat(report.stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
+            assertThat(report.stateCounts()).containsEntry(TaskClassification.SUBMISSION_FAILURE, 3);
             assertThat(report.firstException())
                     .isInstanceOf(SubmissionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
@@ -723,7 +723,7 @@ class SlidingWindowSubmitterTest {
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(tasks).allMatch(ExecutionPhaseHintFuture::callableReleased);
             batch.close();
-            assertThat(batch.report().stateCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 3);
+            assertThat(batch.report().stateCounts()).containsEntry(TaskClassification.SUBMISSION_FAILURE, 3);
         } finally {
             workers.shutdownNow();
         }
@@ -839,9 +839,9 @@ class SlidingWindowSubmitterTest {
 
             // The claimed element ran and its caller sees the real result, not a submission failure.
             assertThat(batch.results().get(1).get(2, TimeUnit.SECONDS)).isEqualTo(2);
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.SUCCESS);
             // The unclaimed element was abandoned without ever entering user code.
-            assertThat(batch.results().get(2).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.results().get(2).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(ranValues.get()).isEqualTo(2);
         } finally {
             workers.shutdownNow();
@@ -908,10 +908,10 @@ class SlidingWindowSubmitterTest {
 
                 // The invariant: an execution that entered user code is reported as a real success,
                 // never as an abandoned element; an abandoned element never entered user code.
-                assertThat(batch.results().get(0).outcome() == TaskOutcome.SUCCESS)
+                assertThat(batch.results().get(0).outcome() == TaskClassification.SUCCESS)
                         .as("round %s element 0", round)
                         .isEqualTo(ran0.get() == 1);
-                assertThat(batch.results().get(1).outcome() == TaskOutcome.SUCCESS)
+                assertThat(batch.results().get(1).outcome() == TaskClassification.SUCCESS)
                         .as("round %s element 1", round)
                         .isEqualTo(ran1.get() == 1);
             }

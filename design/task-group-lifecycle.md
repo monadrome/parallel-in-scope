@@ -72,7 +72,7 @@ memberName
 TaskExecutionContext
 成员 ListenableFuture（包私有）
 执行 future/phase
-member TaskOutcome（可空，成员终态时赋值）
+member TaskTermination（可空，成员终态时赋值）
 failure（可空）
 ```
 

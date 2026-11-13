@@ -17,7 +17,7 @@ P0015 的已提交成员/terminal TIMEOUT 上升遗漏已并入
 TaskGroupResult<Void> result = runtime.group("load", timeout)
         .par(TaskKey.<Integer>named("member"), par, () -> { throw ownCancellation; })
         .runAll();
-TaskOutcome outcome = result.resultOf("member").outcome();
+TaskTermination outcome = result.resultOf("member").termination();
 ```
 
 今日同一代码在 token 未提交框架取消时保留 USER_FAILURE，即使执行恰在预算之后自抛 CE。

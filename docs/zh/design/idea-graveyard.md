@@ -80,7 +80,7 @@ ListenableFuture<Report> report = Futures.transform(allPrices, this::buildReport
 | 退避策略？ | 固定间隔？指数退避？抖动？ |
 | 幂等性？ | 重试一个 HTTP POST 安全吗？ |
 | 重试时是否占用并发窗口？ | 占用则降低吞吐，不占用则可能超出并发限制 |
-| 重试的结果算成功还是另一种状态？ | 影响批次结果 `outcomeCounts()` 的统计语义 |
+| 重试的结果算成功还是另一种状态？ | 影响批次结果 `terminationKindCounts()` 的统计语义 |
 
 把这些策略内置到框架中，要么做得太简单（覆盖不了实际场景），要么做得太复杂（变成了 Resilience4j）。无论哪种，都偏离了 parallel-in-scope 的定位。
 
