@@ -30,7 +30,7 @@ class ImmediateResultTest {
     }
 
     @Test
-    void canonicalFactoriesAndFoldExposeTypedBranches() {
+    void cancelledAndSubmissionRejectedResultsExposeReasonAndDisposition() {
         RuntimeException cause = new RuntimeException("cancelled");
         ImmediateResult<Integer> cancelled =
                 ImmediateResult.cancelled(CancellationReason.cancelledByCaller("test"), cause);
