@@ -25,21 +25,17 @@ def read_json(path: Path) -> dict:
         raise ValueError(f"cannot read {path}: {error}") from error
 
 
-def main() -> int:
-    errors = []
-    try:
-        baseline = read_json(BASELINE)
-    except ValueError as error:
-        print(f"ERROR: {error}")
-        return 1
-
+def validate_baseline(baseline: dict, errors: list[str]) -> tuple[object, object]:
     development_line = baseline.get("developmentLine")
     upstream_ref = baseline.get("upstreamRef")
     if not isinstance(development_line, str) or not isinstance(upstream_ref, str):
         errors.append("baseline must define string developmentLine and upstreamRef")
     elif upstream_ref != f"origin/{development_line}":
         errors.append(f"upstreamRef {upstream_ref!r} does not match developmentLine {development_line!r}")
+    return development_line, upstream_ref
 
+
+def validate_agents(development_line: object, errors: list[str]) -> None:
     agents_text = AGENTS.read_text(encoding="utf-8")
     declared = re.search(r"All new work targets `([^`]+)`", agents_text)
     if not declared:
@@ -47,6 +43,8 @@ def main() -> int:
     elif declared.group(1) != development_line:
         errors.append(f"AGENTS.md declares {declared.group(1)!r}, expected {development_line!r}")
 
+
+def validate_review_config(upstream_ref: object, errors: list[str]) -> None:
     try:
         config_base = read_json(CONFIG).get("defaultBase")
     except ValueError as error:
@@ -55,6 +53,8 @@ def main() -> int:
         if config_base != upstream_ref:
             errors.append(f"refactoring-review/config.json defaultBase is {config_base!r}, expected {upstream_ref!r}")
 
+
+def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
     java_text = JAVA_GATE.read_text(encoding="utf-8")
     if f'DEFAULT_UPSTREAM = "{upstream_ref}"' not in java_text:
         errors.append(f"scripts/check-java-conventions.py does not use {upstream_ref}")
@@ -66,10 +66,28 @@ def main() -> int:
     doc_text = DOC.read_text(encoding="utf-8")
     if "check-java-conventions.py" not in doc_text:
         errors.append("verification/java-conventions.md does not document the Java convention gate")
+
+
+def validate_stale_references(errors: list[str]) -> None:
     live_files = (AGENTS, CONFIG, JAVA_GATE, COMPLEXITY_SKILL, DOC)
     live_text = "\n".join(path.read_text(encoding="utf-8") for path in live_files)
     if "origin/dev/v0.4.0" in live_text:
         errors.append("a live baseline file still contains origin/dev/v0.4.0")
+
+
+def main() -> int:
+    errors = []
+    try:
+        baseline = read_json(BASELINE)
+    except ValueError as error:
+        print(f"ERROR: {error}")
+        return 1
+
+    development_line, upstream_ref = validate_baseline(baseline, errors)
+    validate_agents(development_line, errors)
+    validate_review_config(upstream_ref, errors)
+    validate_script_and_docs(upstream_ref, errors)
+    validate_stale_references(errors)
 
     if errors:
         for error in errors:
