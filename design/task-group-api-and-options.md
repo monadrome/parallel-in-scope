@@ -236,22 +236,9 @@ Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
 `ExecutionDisposition` 只由 execution claim 的原子 CAS 决定，不能由 `ExecutionPhaseHintFuture.phase()`
 单独推断。`TaskStatus` 单独表达实时的 pending、claim、逻辑终止和退出状态。
 
-```java
-public enum TaskTermination {
-    RUNNING,
-    SUCCESS,
-    USER_FAILURE,
-    SUBMISSION_FAILURE,
-    MEMBER_CANCELLED,
-    GROUP_CANCELLED,
-    FAIL_FAST,
-    TIMEOUT
-}
-```
+冻结任务结果读取 `TaskTermination<T>` 的 `kind()`、`failureCause()`、`cancellationReason()` 和 `disposition()`；其 kind 只有 `SUCCESS`、`FAILED`、`CANCELLED`。实时执行状态读取 `TaskStatus`，作用域聚合读取 `ScopeTermination`。
 
-上面的 `TaskTermination` 是 0.5.0 的兼容适配投影；它保留旧调用方所需的 `RUNNING` 和结构化取消枚举，
-但不再定义新的逻辑终止模型。冻结结果必须读取 `TaskTermination` 的三分支；`RUNNING` 只表示实时查询
-尚未产生终止对象。完整模型见[任务终止与 scope 原因契约](task-termination-and-scope.md)。
+完整模型见[任务终止与 scope 原因契约](task-termination-and-scope.md)。
 
 `TaskGroupResult<R>` 的访问器面以
 [同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
