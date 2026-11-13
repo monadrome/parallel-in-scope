@@ -15,7 +15,7 @@ The batch result's counting reads must describe completed, failed, cancelled, an
 - Results preserve the input order where the API promises ordering.
 - Successful, failed, cancelled, and timed-out tasks are reported separately.
 - A task failure triggers fail-fast cancellation of the remaining batch.
-- `outcomeCounts()`, `failedTaskResult()`, and `reportString()` read frozen terminal results and stay stable on repeated reads; they never report RUNNING.
+- `terminationKindCounts()`, `failedTaskResult()`, and `reportString()` read frozen terminal results and stay stable on repeated reads; they never report RUNNING.
 - Empty and failed/cancelled batches have deterministic counts.
 
 ## Test layers

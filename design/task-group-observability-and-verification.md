@@ -23,7 +23,7 @@
 - queue wait 分类（`enqueued()` 由等待时长派生）；
 - 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
 - `termination()`：与 `resultOf(name).termination()` 相同的冻结逻辑终止，每个成员只有一个结论；旧的
-  `outcome()` 只作为 `TaskOutcome` 兼容投影（[任务终止契约](task-termination-and-scope.md)）。
+  `outcome()` 只作为 `TaskTermination` 兼容投影（[任务终止契约](task-termination-and-scope.md)）。
 
 快照在成员 future 终态**且**任务代码进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 `TaskTermination` 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
 

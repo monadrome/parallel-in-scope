@@ -101,7 +101,7 @@ class LateFailureLoggingTest {
                 },
                 BatchOptions.timeout("loop", Duration.ofMillis(100)).closeGrace(Duration.ofSeconds(2)));
 
-        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
         LogRecord record = singleRecord();
         assertThat(record.getLevel()).isEqualTo(Level.FINE);
         assertThat(record.getThrown()).isInstanceOf(CheckpointCancellation.class);
@@ -115,7 +115,7 @@ class LateFailureLoggingTest {
                 i -> Checkpoints.checkTake(empty),
                 BatchOptions.timeout("take", Duration.ofMillis(100)).closeGrace(Duration.ofSeconds(2)));
 
-        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
         LogRecord record = singleRecord();
         assertThat(record.getLevel()).isEqualTo(Level.FINE);
         assertThat(record.getThrown())
@@ -141,7 +141,7 @@ class LateFailureLoggingTest {
                 })
                 .runAll();
 
-        assertThat(result.resultAt(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.resultAt(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
         LogRecord record = singleRecord();
         assertThat(record.getLevel()).isEqualTo(Level.WARNING);
         assertThat(record.getThrown()).isInstanceOf(CheckpointCancellation.class);
@@ -158,7 +158,7 @@ class LateFailureLoggingTest {
                 })
                 .runAll();
 
-        assertThat(result.resultAt(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.resultAt(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
         LogRecord record = singleRecord();
         assertThat(record.getLevel()).isEqualTo(Level.FINE);
         assertThat(record.getThrown()).isInstanceOf(InterruptedException.class);
@@ -181,7 +181,7 @@ class LateFailureLoggingTest {
                 BatchOptions.timeout("foreign-interrupt", Duration.ofSeconds(5)));
 
         ImmediateResult<Integer> element = batch.results().get(0);
-        assertThat(element.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(element.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         Throwable failure = Verify.verifyNotNull(element.failure());
         assertThat(failure.getClass()).isEqualTo(LeanCancellationException.class);
         assertThat(failure).hasCauseInstanceOf(InterruptedException.class);

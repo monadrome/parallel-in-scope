@@ -74,7 +74,7 @@ class TaskGroupTest {
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(executions).hasValue(2);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(result.members().keySet()).containsExactly("text", "number");
             assertThat(group.members().keySet()).containsExactly("text", "number");
             assertThat(group.findMember("text")).contains(group.futureOf(KEY_TEXT_STRING));
@@ -192,12 +192,12 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failure");
             assertThat(Objects.requireNonNull(result.members().get("failure")).outcome())
-                    .isEqualTo(TaskOutcome.USER_FAILURE);
+                    .isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.FAIL_FAST);
+                    .isEqualTo(TaskClassification.FAIL_FAST);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -225,12 +225,12 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("slow-boom");
             assertThat(Objects.requireNonNull(result.members().get("fast")).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             assertThat(Objects.requireNonNull(result.members().get("slow-boom")).outcome())
-                    .isEqualTo(TaskOutcome.USER_FAILURE);
+                    .isEqualTo(TaskClassification.USER_FAILURE);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -253,10 +253,10 @@ class TaskGroupTest {
                     .submitAll();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("rejected");
             assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
-                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                    .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             // The rejected execution never ran and its holder was released with the rejection.
             assertThat(group.callableReleased("rejected")).isTrue();
         } finally {
@@ -287,7 +287,7 @@ class TaskGroupTest {
             assertThat(group.futureOf(KEY_INLINE_THREAD).get(2, TimeUnit.SECONDS))
                     .isSameAs(submitter);
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
         } finally {
             global.close();
             direct.shutdownNow();
@@ -317,9 +317,9 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
-                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                    .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(executionRan.get()).isFalse();
         } finally {
             global.close();
@@ -349,9 +349,9 @@ class TaskGroupTest {
                     .submitAll();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failed");
-            assertThat(group.futureOf(KEY_FAILED_INTEGER).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(group.futureOf(KEY_FAILED_INTEGER).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(group.futureOf(KEY_FAILED_INTEGER).failure())
                     .isInstanceOf(SubmissionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
@@ -393,13 +393,13 @@ class TaskGroupTest {
                     .par(KEY_FAILED_INTEGER, global.par(ParId.of("broken")), () -> 1)
                     .runAll();
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failed");
-            assertThat(result.resultAt(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.resultAt(0).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(result.resultAt(0).failure())
                     .isInstanceOf(SubmissionException.class)
                     .hasCauseInstanceOf(AssertionError.class);
-            assertThat(result.outcomeCounts()).containsEntry(TaskOutcome.SUBMISSION_FAILURE, 1);
+            assertThat(result.outcomeCounts()).containsEntry(TaskClassification.SUBMISSION_FAILURE, 1);
             assertThat(global.inFlight()).isZero();
             assertThat(captured).anySatisfy(record -> {
                 assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
@@ -456,9 +456,9 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(calls).hasValue(0);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("member")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             global.close();
             direct.shutdownNow();
@@ -483,9 +483,9 @@ class TaskGroupTest {
                     .submitAll()
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
-            assertThat(first.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(first.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(first.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
 
             TaskGroupReport second = global.groupDraft("member-timeout", TIMEOUT)
                     .par(
@@ -499,9 +499,9 @@ class TaskGroupTest {
                     .submitAll()
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
-            assertThat(second.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(second.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(second.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -528,11 +528,11 @@ class TaskGroupTest {
             group.futureOf(KEY_CANCELLED_INTEGER).cancel(true);
 
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
-                    .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+                    .isEqualTo(TaskClassification.MEMBER_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
         } finally {
             release.countDown();
             global.close();
@@ -563,11 +563,11 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("sibling")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -603,11 +603,11 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("tight")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("shared")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -667,7 +667,7 @@ class TaskGroupTest {
             // failure while the group token is still RUNNING, and the group adopts the recorded
             // member failure as USER_FAILURE. Either way the deadline reached every level
             // (asserted below).
-            assertThat(result.outcome()).isIn(TaskOutcome.TIMEOUT, TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isIn(TaskClassification.TIMEOUT, TaskClassification.USER_FAILURE);
             // The member token is never bound, so only constructor-listener propagation from the
             // group token can move it; await the cascade, which runs after the group converges.
             Awaitility.await()
@@ -712,10 +712,10 @@ class TaskGroupTest {
             group.cancel();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(result.members().values())
                     .extracting(TaskExitObservation::outcome)
-                    .containsOnly(TaskOutcome.GROUP_CANCELLED);
+                    .containsOnly(TaskClassification.GROUP_CANCELLED);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -742,7 +742,7 @@ class TaskGroupTest {
             assertThat(group.members().keySet()).containsExactly("first", "second");
             assertThat(group.futureOf(KEY_FIRST_INTEGER).get()).isEqualTo(1);
             assertThat(group.futureOf(KEY_SECOND_INTEGER).get()).isEqualTo(2);
-            assertThat(group.convergenceFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(group.convergenceFuture().get().outcome()).isEqualTo(TaskClassification.SUCCESS);
         } finally {
             global.close();
             direct.shutdownNow();
@@ -770,11 +770,11 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(Objects.requireNonNull(result.members().get("rejected")).outcome())
-                    .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                    .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(Objects.requireNonNull(result.members().get("later")).outcome())
-                    .isEqualTo(TaskOutcome.FAIL_FAST);
+                    .isEqualTo(TaskClassification.FAIL_FAST);
             assertThat(calls).hasValue(0);
             assertThat(SubmissionScope.current()).isNull();
         } finally {
@@ -864,9 +864,9 @@ class TaskGroupTest {
             assertThat(first.groupId()).isNotEqualTo(second.groupId());
             assertThat(first.futureOf(KEY_ONE_INTEGER)).isNotSameAs(second.futureOf(KEY_ONE_INTEGER));
             assertThat(first.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             assertThat(second.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             assertThat(second.futureOf(KEY_ONE_INTEGER).get(2, TimeUnit.SECONDS))
                     .isEqualTo(2);
         } finally {
@@ -934,7 +934,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
-            assertThat(group.convergenceFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(group.convergenceFuture().get().outcome()).isEqualTo(TaskClassification.SUCCESS);
 
             global.close();
             assertThatThrownBy(() -> global.groupDraft("closed", TIMEOUT).submitAll())
@@ -997,9 +997,9 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(result.members().get("slow")).startTimeNanos())
                     .isPositive();
         } finally {
@@ -1202,9 +1202,9 @@ class TaskGroupTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.results().get(0)).isCancelled();
-            assertThat(nested.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(nested.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(Objects.requireNonNull(nested.members().get("child")).outcome())
-                    .isEqualTo(TaskOutcome.TIMEOUT);
+                    .isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             global.close();
             outer.shutdownNow();
@@ -1241,7 +1241,7 @@ class TaskGroupTest {
             TaskGroup<Void> completed = global.groupDraft("done", TIMEOUT).submitAll();
             completed.convergenceFuture().get(2, TimeUnit.SECONDS);
             completed.close(); // must not disturb the recorded result
-            assertThat(completed.convergenceFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(completed.convergenceFuture().get().outcome()).isEqualTo(TaskClassification.SUCCESS);
 
             TaskGroup<Void> unfinished = global.groupDraft("close-cancel", TIMEOUT)
                     .par(TaskKey.<Integer>named("slow"), global.par(ParId.of("worker")), () -> {
@@ -1253,9 +1253,9 @@ class TaskGroupTest {
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             unfinished.close();
             TaskGroupReport result = unfinished.convergenceFuture().get(2, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -1319,9 +1319,9 @@ class TaskGroupTest {
             TaskGroup<Void> group = Objects.requireNonNull(publishedGroup.get());
 
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
-                    .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
             Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> observedReason.get() != null
@@ -1353,7 +1353,7 @@ class TaskGroupTest {
             global.close();
             release.countDown();
             assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
         } finally {
             release.countDown();
             global.close();
@@ -1376,10 +1376,10 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThatThrownBy(result::orThrow).isSameAs(boom);
             assertThat(result.reportString()).contains("outcome=USER_FAILURE", "failedTask=text");
-            assertThat(result.outcomeCounts()).containsEntry(TaskOutcome.USER_FAILURE, 1);
+            assertThat(result.outcomeCounts()).containsEntry(TaskClassification.USER_FAILURE, 1);
         } finally {
             global.close();
             executor.shutdownNow();

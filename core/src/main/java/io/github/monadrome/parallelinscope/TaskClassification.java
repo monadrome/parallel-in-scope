@@ -26,7 +26,7 @@ package io.github.monadrome.parallelinscope;
  *
  * @since 0.3.0
  */
-public enum TaskOutcome {
+enum TaskClassification {
     /** Task has not reached a terminal state. */
     RUNNING,
     /** User callable returned normally. */

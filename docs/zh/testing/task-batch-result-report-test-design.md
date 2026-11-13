@@ -3,7 +3,7 @@
 
 ## 1. 目标
 
-本测试集验证 TaskBatchResult.outcomeCounts()/failedTaskResult()/reportString() 对冻结终态结果的表达，并验证 Par.map
+本测试集验证 TaskBatchResult.terminationKindCounts()/failedTaskResult()/reportString() 对冻结终态结果的表达，并验证 Par.map
 fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING，也不会在返回后更新。
 
 测试不把线程调度产生的偶然状态数量当作产品契约。凡是断言精确数量的场景，都必须先通过已完成 Future 或显式同步原语建立确定状态。
@@ -72,7 +72,7 @@ sleep 只能提高某种执行顺序出现的概率，不能建立 happens-befor
 
 ### 只断言字符串包含若干片段
 
-文本断言不能替代结构化状态验证。核心测试先验证 `outcomeCounts()`/`failedTaskResult()`，再验证字符串是该结构的稳定表示。
+文本断言不能替代结构化状态验证。核心测试先验证 `terminationKindCounts()`/`failedTaskResult()`，再验证字符串是该结构的稳定表示。
 
 ### 为了得到 6/4 而吞掉任务异常
 
@@ -85,13 +85,13 @@ sleep 只能提高某种执行顺序出现的概率，不能建立 happens-befor
 | mixed terminal states | success + two failures + cancellation | 精确计数、列表首失败、完整字符串 |
 | frozen report | 重复读取终态报告 | 内容一致且不含 RUNNING |
 | empty batch | 空 Future 列表 | 空 map、空 `failedTaskResult()`、空字符串 |
-| immutable counts | 修改 outcomeCounts | 抛 `UnsupportedOperationException` |
+| immutable counts | 修改 terminationKindCounts | 抛 `UnsupportedOperationException` |
 | all-success integration | `Par.map()` 全部返回 | 总数 N、无异常、`SUCCESS:N` |
 | controlled fail-fast integration | 根失败 + 阻塞 sibling + 待提交任务 | 总数守恒、失败根因、存在取消 |
 
 ## 6. 维护准则
 
-- 新增状态时，同时更新 `TaskOutcome` 分类测试和文本顺序测试。
+- 新增状态时，同时更新 `TaskTermination` 分类测试和文本顺序测试。
 - 更改首异常选择策略时，必须明确是“列表顺序”还是“完成顺序”，并更新 API 文档。
 - 并发测试若出现偶发失败，首先检查是否缺失同步关系，不得通过增加 sleep 或重试掩盖。
 - Demo 测试只使用公共 API；内部枚举的精确断言放在主项目测试中。

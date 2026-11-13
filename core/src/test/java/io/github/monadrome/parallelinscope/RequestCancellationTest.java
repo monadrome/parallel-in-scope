@@ -90,7 +90,7 @@ class RequestCancellationTest {
         assertThat(runSingle(ScopeKind.BATCH, runtime, derived, source, () -> {
                     throw new AssertionError("execution must not run");
                 }))
-                .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                .isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(par.map(Collections.singletonList(1), value -> value, base).valuesOrThrow())
                 .containsExactly(1);
         assertThat(source.listeners()).hasSize(1);
@@ -110,7 +110,7 @@ class RequestCancellationTest {
 
         GroupStep step = start.par(MEMBER, par, () -> 1);
         assertThatThrownBy(() -> start.cancelOn(source)).isInstanceOf(IllegalStateException.class);
-        assertThat(step.runAll().resultAt(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(step.runAll().resultAt(0).outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(source.listeners()).hasSize(1);
         assertThat(source.isDone()).isFalse();
     }
@@ -145,7 +145,7 @@ class RequestCancellationTest {
                         .runAll()
                         .resultAt(0)
                         .outcome())
-                .isEqualTo(TaskOutcome.SUCCESS);
+                .isEqualTo(TaskClassification.SUCCESS);
         assertThat(source.listeners()).hasSize(1);
         assertThat(source.isDone()).isFalse();
         assertSevered(source, 0);
@@ -159,12 +159,12 @@ class RequestCancellationTest {
         AtomicInteger executions = new AtomicInteger();
         complete(source, completion);
 
-        TaskOutcome outcome = runSingle(ScopeKind.BATCH, runtime, source, () -> {
+        TaskClassification outcome = runSingle(ScopeKind.BATCH, runtime, source, () -> {
             executions.incrementAndGet();
             return 1;
         });
 
-        assertThat(outcome).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(outcome).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(executions).hasValue(0);
         assertThat(source.listeners()).hasSize(1);
         assertSevered(source, 0);
@@ -178,12 +178,12 @@ class RequestCancellationTest {
         AtomicInteger executions = new AtomicInteger();
         complete(source, completion);
 
-        TaskOutcome outcome = runSingle(ScopeKind.GROUP, runtime, source, () -> {
+        TaskClassification outcome = runSingle(ScopeKind.GROUP, runtime, source, () -> {
             executions.incrementAndGet();
             return 1;
         });
 
-        assertThat(outcome).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(outcome).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(executions).hasValue(0);
         assertThat(source.listeners()).hasSize(1);
         assertSevered(source, 0);
@@ -206,7 +206,7 @@ class RequestCancellationTest {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch interrupted = new CountDownLatch(1);
         AtomicBoolean wasInterrupted = new AtomicBoolean();
-        AtomicReference<TaskOutcome> outcome = new AtomicReference<>();
+        AtomicReference<TaskClassification> outcome = new AtomicReference<>();
         AtomicReference<Throwable> callerFailure = new AtomicReference<>();
         Callable<Integer> taskCode = () -> {
             entered.countDown();
@@ -239,7 +239,7 @@ class RequestCancellationTest {
 
         assertThat(caller.isAlive()).isFalse();
         assertThat(callerFailure.get()).isNull();
-        assertThat(outcome.get()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(outcome.get()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(wasInterrupted.get()).isTrue();
         assertSevered(source, 0);
     }
@@ -250,9 +250,9 @@ class RequestCancellationTest {
         ParRuntime runtime = pooledRuntime();
         TrackingFuture<Void> source = new TrackingFuture<>();
 
-        TaskOutcome outcome = runSingle(scope, runtime, source, () -> 1);
+        TaskClassification outcome = runSingle(scope, runtime, source, () -> 1);
 
-        assertThat(outcome).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(outcome).isEqualTo(TaskClassification.SUCCESS);
         assertThat(source.isDone()).isFalse();
         assertThat(source.isCancelled()).isFalse();
         assertThat(source.listeners()).hasSize(1);
@@ -278,13 +278,13 @@ class RequestCancellationTest {
         TrackingFuture<Void> source = new TrackingFuture<>();
         AtomicInteger secondExecutions = new AtomicInteger();
 
-        assertThat(runSingle(ScopeKind.BATCH, runtime, source, () -> 1)).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(runSingle(ScopeKind.BATCH, runtime, source, () -> 1)).isEqualTo(TaskClassification.SUCCESS);
         source.succeed(null);
         assertThat(runSingle(ScopeKind.BATCH, runtime, source, () -> {
                     secondExecutions.incrementAndGet();
                     return 2;
                 }))
-                .isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                .isEqualTo(TaskClassification.GROUP_CANCELLED);
 
         assertThat(secondExecutions).hasValue(0);
         assertThat(source.listeners()).hasSize(2);
@@ -304,7 +304,7 @@ class RequestCancellationTest {
         assertThat(par.map(Collections.emptyList(), value -> value, options).valuesOrThrow())
                 .isEmpty();
         assertThat(runtime.group("empty", TIMEOUT).cancelOn(source).runAll().outcome())
-                .isEqualTo(TaskOutcome.SUCCESS);
+                .isEqualTo(TaskClassification.SUCCESS);
         assertThatThrownBy(() -> par.mapAndCombine(
                         Collections.emptyList(),
                         value -> value,
@@ -388,12 +388,12 @@ class RequestCancellationTest {
         AtomicInteger executions = new AtomicInteger();
         source.fail(new IllegalStateException("request failed"));
 
-        TaskOutcome outcome = runSingle(scope, runtime, source, () -> {
+        TaskClassification outcome = runSingle(scope, runtime, source, () -> {
             executions.incrementAndGet();
             return 1;
         });
 
-        assertThat(outcome).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(outcome).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(executions).hasValue(0);
         assertSevered(source, 0);
     }
@@ -420,13 +420,13 @@ class RequestCancellationTest {
                     return Objects.requireNonNull(values).size();
                 });
 
-        assertThat(result.batchResult().results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(result.batchResult().results().get(0).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(Verify.verifyNotNull(
                                 Verify.verifyNotNull(result.scopeTermination().cause())
                                         .cancellationReason())
                         .kind())
                 .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
-        assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(elementExecutions).hasValue(0);
         assertThat(combiners).hasValue(0);
         assertThat(source.listeners()).hasSize(1);
@@ -435,20 +435,20 @@ class RequestCancellationTest {
 
     static Stream<Arguments> ancestorRaces() {
         return Stream.of(
-                Arguments.of(AncestorRace.ANCESTOR_CANCEL, TaskOutcome.GROUP_CANCELLED),
-                Arguments.of(AncestorRace.SOURCE, TaskOutcome.GROUP_CANCELLED),
-                Arguments.of(AncestorRace.ANCESTOR_TIMEOUT, TaskOutcome.TIMEOUT));
+                Arguments.of(AncestorRace.ANCESTOR_CANCEL, TaskClassification.GROUP_CANCELLED),
+                Arguments.of(AncestorRace.SOURCE, TaskClassification.GROUP_CANCELLED),
+                Arguments.of(AncestorRace.ANCESTOR_TIMEOUT, TaskClassification.TIMEOUT));
     }
 
     @ParameterizedTest
     @MethodSource("ancestorRaces")
-    void ancestorAndSourceRacesRetainFirstWinsAttributionAndInterrupt(AncestorRace race, TaskOutcome expectedOutcome)
-            throws Exception {
+    void ancestorAndSourceRacesRetainFirstWinsAttributionAndInterrupt(
+            AncestorRace race, TaskClassification expectedOutcome) throws Exception {
         ParRuntime runtime = pooledRuntime();
         Par par = runtime.par(WORKER);
         TrackingFuture<Void> source = new TrackingFuture<>();
         AtomicReference<CancellationToken> parentToken = new AtomicReference<>();
-        AtomicReference<TaskOutcome> childOutcome = new AtomicReference<>();
+        AtomicReference<TaskClassification> childOutcome = new AtomicReference<>();
         AtomicReference<Throwable> callerFailure = new AtomicReference<>();
         CountDownLatch childEntered = new CountDownLatch(1);
         CountDownLatch releaseChild = new CountDownLatch(1);
@@ -509,12 +509,12 @@ class RequestCancellationTest {
         assertSevered(source, 0);
     }
 
-    private static TaskOutcome runSingle(
+    private static TaskClassification runSingle(
             ScopeKind scope, ParRuntime runtime, TrackingFuture<Void> source, Callable<Integer> taskCode) {
         return runSingle(scope, runtime, BatchOptions.timeout("batch", TIMEOUT).cancelOn(source), source, taskCode);
     }
 
-    private static TaskOutcome runSingle(
+    private static TaskClassification runSingle(
             ScopeKind scope,
             ParRuntime runtime,
             BatchOptions options,

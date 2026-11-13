@@ -186,9 +186,9 @@ for (Item item : items) {
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskOutcome`（以下列出取消相关的值）：
+库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskTermination`（以下列出取消相关的值）：
 
-| `TaskOutcome` | 含义 |
+| `TaskTermination` | 含义 |
 |---|---|
 | `FAIL_FAST` | 某个兄弟任务失败，触发 fail-fast |
 | `TIMEOUT` | 批次或组的 deadline 到期 |

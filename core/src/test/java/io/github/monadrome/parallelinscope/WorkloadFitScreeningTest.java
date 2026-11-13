@@ -304,7 +304,7 @@ class WorkloadFitScreeningTest {
                 clock.failWith(null);
             }
 
-            assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.results().get(0).outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(result.valuesOrThrow()).containsExactly(1);
             assertThat(measurement(CPU).executions()).isZero();
             assertThat(worker.submit(() -> TaskExecutionContext.current() == null)
@@ -333,7 +333,7 @@ class WorkloadFitScreeningTest {
             clock.failWith(null);
         }
 
-        assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.results().get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(result.results().get(0).failure()).isSameAs(own);
         assertThat(measurement(CPU).executions()).isZero();
     }

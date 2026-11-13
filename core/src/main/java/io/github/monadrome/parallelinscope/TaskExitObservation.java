@@ -34,7 +34,7 @@ public final class TaskExitObservation<T> {
     private final long submitTimeNanos;
     private final long startTimeNanos;
     private final long endTimeNanos;
-    private final TaskOutcome outcome;
+    private final TaskClassification outcome;
     private final @Nullable T result;
     private final @Nullable Throwable failure;
     private final @Nullable TaskTermination<T> termination;
@@ -47,7 +47,7 @@ public final class TaskExitObservation<T> {
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos,
-            TaskOutcome outcome,
+            TaskClassification outcome,
             @Nullable T result,
             @Nullable Throwable failure,
             @Nullable TaskTermination<T> termination) {
@@ -73,7 +73,7 @@ public final class TaskExitObservation<T> {
     static TaskExitObservation<Object> memberSnapshot(
             String memberName,
             TaskId<TaskUnit> unitId,
-            TaskOutcome outcome,
+            TaskClassification outcome,
             @Nullable Throwable failure,
             long submitTimeNanos,
             long startTimeNanos,
@@ -96,7 +96,7 @@ public final class TaskExitObservation<T> {
     static TaskExitObservation<Object> memberSnapshot(
             String memberName,
             TaskId<TaskUnit> unitId,
-            TaskOutcome outcome,
+            TaskClassification outcome,
             @Nullable Throwable failure,
             long submitTimeNanos,
             long startTimeNanos,
@@ -128,7 +128,7 @@ public final class TaskExitObservation<T> {
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos,
-            TaskOutcome outcome,
+            TaskClassification outcome,
             @Nullable T result,
             @Nullable Throwable failure) {
         return new TaskExitObservation<>(
@@ -148,7 +148,7 @@ public final class TaskExitObservation<T> {
     /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
     static <T> TaskExitObservation<T> withResult(TaskExitObservation<?> timing, ImmediateResult<T> result) {
         T value = null;
-        if (result.outcome() == TaskOutcome.SUCCESS) {
+        if (result.outcome() == TaskClassification.SUCCESS) {
             try {
                 value = result.valueOrThrow();
             } catch (java.util.concurrent.ExecutionException impossible) {
@@ -246,11 +246,11 @@ public final class TaskExitObservation<T> {
     }
 
     /**
-     * Returns how this task ended; never {@link TaskOutcome#RUNNING} in a delivered record. A record
+     * Returns how this task ended; never {@link TaskClassification#RUNNING} in a delivered record. A record
      * read from a batch or group result carries the same outcome as the task's frozen {@link
      * ImmediateResult}: there is one attribution per task.
      */
-    public TaskOutcome outcome() {
+    TaskClassification outcome() {
         return outcome;
     }
 
@@ -260,7 +260,7 @@ public final class TaskExitObservation<T> {
         if (frozen != null) {
             return frozen;
         }
-        ExecutionDisposition disposition = outcome == TaskOutcome.SUCCESS || startTimeNanos != 0
+        ExecutionDisposition disposition = outcome == TaskClassification.SUCCESS || startTimeNanos != 0
                 ? ExecutionDisposition.CLAIMED
                 : ExecutionDisposition.NOT_CLAIMED;
         return TaskTermination.fromLegacy(outcome, result, failure, disposition, taskName);
@@ -273,7 +273,7 @@ public final class TaskExitObservation<T> {
 
     /** Returns whether the task completed successfully, including with a null result. */
     public boolean successful() {
-        return outcome == TaskOutcome.SUCCESS;
+        return outcome == TaskClassification.SUCCESS;
     }
 
     /**
@@ -290,10 +290,10 @@ public final class TaskExitObservation<T> {
      * Returns the throwable recorded for this task, or null on success.
      *
      * <p>Every non-success outcome carries a throwable: the execution-thrown exception for {@link
-     * TaskOutcome#USER_FAILURE} — including an {@link InterruptedException} or {@link
+     * TaskClassification#USER_FAILURE} — including an {@link InterruptedException} or {@link
      * java.util.concurrent.CancellationException} the execution raised itself — and, for
-     * cancellation-attributed endings such as {@link TaskOutcome#TIMEOUT} or {@link
-     * TaskOutcome#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome. Read
+     * cancellation-attributed endings such as {@link TaskClassification#TIMEOUT} or {@link
+     * TaskClassification#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome. Read
      * {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the
      * detail.
      */

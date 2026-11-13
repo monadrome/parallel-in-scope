@@ -44,10 +44,7 @@ Use the lifecycle layers for the corresponding question:
 5. `ParRuntime.awaitQuiescence(...)` waits for a closed runtime's admitted executions and observation scopes.
 
 `ImmediateResult.asFuture()` keeps its name and remains a read-only, already-completed Guava adapter;
-it does not represent execution exit or runtime quiescence. `TaskOutcome` also keeps its name as a
-compatibility projection for callers that still consume the legacy outcome enum. New code that needs
-causes or claim attribution should read `TaskTermination`, `FailureCause`, `CancellationReason`, and
-`ExecutionDisposition`.
+it does not represent execution exit or runtime quiescence. `TaskTermination` is now the canonical task result. New code reads its kind, cause, cancellation reason, and claim disposition directly; scope results use `ScopeTermination`.
 
 ## TaskGroup member values
 
@@ -128,3 +125,6 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 ```
 
 Update imports; `SubmissionAwareBlockingQueue` remains in `parallel-in-scope`.
+
+
+The removed public `TaskOutcome` type is replaced by `TaskTermination` and `ScopeTermination`; callers must recompile and migrate `outcome()` reads.

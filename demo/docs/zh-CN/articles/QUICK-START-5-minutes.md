@@ -106,12 +106,12 @@ for (ImmediateResult<Integer> element : result.results()) {
 }
 
 // 方式三：结构化读取
-Map<TaskOutcome, Integer> counts = result.outcomeCounts();                  // {SUCCESS=3}
+Map<TaskTermination, Integer> counts = result.terminationKindCounts();                  // {SUCCESS=3}
 Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // 全部成功时为空
 ```
 
 需要知道的一条契约：**批次默认快速失败**。任意元素失败会取消同批其余元素（包括尚未提交的元素），
-因此 `results()` 里可能出现从未执行的 `FAIL_FAST` 元素；逐元素的结论读 `ImmediateResult.outcome()`，
+因此 `results()` 里可能出现从未执行的 `FAIL_FAST` 元素；逐元素的结论读 `ImmediateResult.termination()`，
 逐项的 “全部成功才返回” 可以用 `result.valuesOrThrow()`。结果无需关闭。
 `executionExitConfirmed()` 只确认本批直接执行退出；清理预算耗尽时查看 `unexitedExecutions()`。
 嵌套调用的未退出任务需分别确认。任务内资源用 try-with-resources 关闭。

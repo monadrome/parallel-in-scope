@@ -57,7 +57,7 @@ result.fold(onValue, onUserFailure, onSubmissionFailure, onCancelled);
 
 `onUserFailure` 只处理 `USER_FAILURE`；`onSubmissionFailure` 只处理用户代码运行前的
 `SUBMISSION_FAILURE`。四种取消类 outcome 仍统一进入 `onCancelled`，并通过第一个参数保留
-具体的 `TaskOutcome`。这是 0.4 的公开 API 变化，不保留三参数兼容重载。
+具体的 `TaskTermination`。这是 0.4 的公开 API 变化，不保留三参数兼容重载。
 
 ## 执行术语
 
@@ -139,7 +139,7 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 
 | 0.3 | 0.4 |
 |---|---|
-| `batch.report().stateCounts()` | `batch.outcomeCounts()`，与 `TaskGroupResult.outcomeCounts()` 同名 |
+| `batch.report().stateCounts()` | `batch.terminationKindCounts()`，与 `TaskGroupResult.terminationKindCounts()` 同名 |
 | `batch.report().firstException()` | `batch.failedTaskResult().map(ImmediateResult::failure)`；没有元素记录失败时为空 |
 | `TaskBatchResult.BatchReport` | 删除；直接从结果读取计数与失败元素 |
 | 批次 `valuesOrThrow()` 或合并结果 `terminalValueOrThrow()` 外的 `catch (ExecutionException e)` | 直接 catch 业务异常；checked 的元素或 combine 失败以 `CompletionException` 到达 |
@@ -155,7 +155,7 @@ Report priceReport(Par io, Par cpu, List<String> skus) {
 
 删除 `TaskCompletion.succeeded(...)` 与 `TaskCompletion.failed(...)`：`TaskCompletion` 是库产出的
 观测记录，公开面上没有方法接收它。用它们做测试替身的代码，应改为测试自己基于 `Duration`、
-`TaskOutcome`、`Throwable` 的逻辑，或断言真实的 `completions()`/`members()`。
+`TaskTermination`、`Throwable` 的逻辑，或断言真实的 `completions()`/`members()`。
 `ImmediateResult.succeeded/failed` 保留。
 
 删除 `SmartBlockingQueue.create(int)`。它在容量非正时返回 `SynchronousQueue`，同一个整数悄悄切换
@@ -221,7 +221,7 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 - 限时用 `BatchOptions.timeout`、`TaskOptions.timeout` 或 `ParRuntime.group(name, timeout)`。
 - 提前结束其余工作：在任务代码里抛异常，fail-fast 会取消兄弟任务。
 - 在任务代码内观察取消与剩余预算：`Checkpoints.checkpoint()`、`Checkpoints.remaining()`。
-- 归因读 `TaskOutcome`；`CancellationToken.State` 没有公开替代。
+- 归因读 `TaskTermination`；`CancellationToken.State` 没有公开替代。
 
 公开面仍没有运行句柄或成员直消方法。请求级外部取消改用下面的显式输入，不重新公开 token。
 
@@ -360,5 +360,5 @@ Checkpoints.checkSleep(200, TimeUnit.MILLISECONDS);
 迟到失败日志有变化：取消已落定任务后，执行经读到该取消的 `Checkpoints` 调用退出，或经本次运行中被内核
 取消中断唤醒的 JDK 阻塞调用退出时，`task '<name>' failed after cancellation` 记录为 `FINE`，不再是
 `WARNING`。其他迟到失败（包括带 suppressed `close()` 失败的）仍是 `WARNING`。靠统计这类告警来计数取消的
-监控会看到数量下降；改读 `outcomeCounts()` 或 `TaskOutcome`。见
+监控会看到数量下降；改读 `terminationKindCounts()` 或 `TaskTermination`。见
 [取消之后的日志](reference/cooperative-cancellation.md#logging-after-cancellation)。

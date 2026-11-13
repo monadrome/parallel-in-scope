@@ -61,7 +61,7 @@ result.fold(onValue, onUserFailure, onSubmissionFailure, onCancelled);
 
 `onUserFailure` handles only `USER_FAILURE`; `onSubmissionFailure` handles
 `SUBMISSION_FAILURE`, which is recorded before user code runs. All four cancellation outcomes still
-go to `onCancelled`, with the concrete `TaskOutcome` passed as its first argument. This is a public
+go to `onCancelled`, with the concrete `TaskTermination` passed as its first argument. This is a public
 0.4 API change; the three-argument overload is not retained.
 
 ## Execution exit terminology
@@ -150,7 +150,7 @@ nested batch read inside a batch execution needed a try/catch only to satisfy th
 
 | 0.3 | 0.4 |
 |---|---|
-| `batch.report().stateCounts()` | `batch.outcomeCounts()`, the same name as `TaskGroupResult.outcomeCounts()` |
+| `batch.report().stateCounts()` | `batch.terminationKindCounts()`, the same name as `TaskGroupResult.terminationKindCounts()` |
 | `batch.report().firstException()` | `batch.failedTaskResult().map(ImmediateResult::failure)`; empty when no element recorded a failure |
 | `TaskBatchResult.BatchReport` | removed; read the counts and the failed element from the result itself |
 | `catch (ExecutionException e)` around batch `valuesOrThrow()` or combined `terminalValueOrThrow()` | catch the business exception itself; a checked element or combine failure arrives as `CompletionException` |
@@ -168,7 +168,7 @@ keeps its text; the format is diagnostic, not a parsing contract.
 
 `TaskCompletion.succeeded(...)` and `TaskCompletion.failed(...)` are removed: a `TaskCompletion` is
 an observation the library produces, and no public method accepts one. Code that used them as test
-doubles should test its own logic over the `Duration`, `TaskOutcome`, and `Throwable` it reads, or
+doubles should test its own logic over the `Duration`, `TaskTermination`, and `Throwable` it reads, or
 assert on real `completions()` / `members()`. `ImmediateResult.succeeded/failed` remain.
 
 `SmartBlockingQueue.create(int)` is removed. It returned a `SynchronousQueue` for a non-positive
@@ -243,7 +243,7 @@ par.map(skus, this::fetchPrice, BatchOptions.timeout("prices", Duration.ofSecond
 - End the remaining work early by throwing from an execution; fail-fast cancels the siblings.
 - Inside an execution, observe cancellation and the remaining budget with `Checkpoints.checkpoint()` and
   `Checkpoints.remaining()`.
-- Read attribution from `TaskOutcome`; `CancellationToken.State` has no public replacement.
+- Read attribution from `TaskTermination`; `CancellationToken.State` has no public replacement.
 
 There is still no public running handle or member-cancellation method. Request-scoped external
 cancellation instead uses the new input below, without making the token public again.
@@ -399,5 +399,5 @@ through a `Checkpoints` call that read that cancellation, or through a JDK block
 engine's cancellation interrupt on that run, the `task '<name>' failed after cancellation` record is
 `FINE` instead of `WARNING`. Every other late failure, including one carrying a suppressed
 `close()` failure, stays a `WARNING`. Monitors that counted these warnings to count cancellations
-see fewer of them; read `outcomeCounts()` or `TaskOutcome` instead. See
+see fewer of them; read `terminationKindCounts()` or `TaskTermination` instead. See
 [logging after cancellation](reference/cooperative-cancellation.md#logging-after-cancellation).

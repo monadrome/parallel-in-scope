@@ -74,7 +74,7 @@ class InlineSubmissionLivenessTest {
                                             .taskType(TaskType.COMPUTE));
                     returned.set(true);
                     flagLeaked.set(Thread.currentThread().isInterrupted());
-                    assertThat(batch.report().stateCounts()).containsOnlyKeys(TaskOutcome.TIMEOUT);
+                    assertThat(batch.report().stateCounts()).containsOnlyKeys(TaskClassification.TIMEOUT);
                 },
                 "inline-liveness-caller");
         caller.setDaemon(true);
@@ -197,7 +197,7 @@ class InlineSubmissionLivenessTest {
                     .isFalse();
 
             TaskGroupReport result = group.convergenceFuture().get(WATCHDOG.toMillis(), TimeUnit.MILLISECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             secondStarted.countDown();
             global.close();
@@ -277,7 +277,7 @@ class InlineSubmissionLivenessTest {
             assertThat(executed.get())
                     .as("a dirty flag on the completing thread must not abandon unsubmitted elements")
                     .isEqualTo(12);
-            assertThat(batch.report().stateCounts()).doesNotContainKey(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.report().stateCounts()).doesNotContainKey(TaskClassification.SUBMISSION_FAILURE);
         } finally {
             global.close();
             saturated.shutdownNow();

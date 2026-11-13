@@ -24,11 +24,11 @@ import org.jspecify.annotations.Nullable;
  * #remaining()}, and {@link #failure()} are safe on any thread: they do not block, throw, or change
  * the future. Inherited future operations retain their ordinary blocking and cancellation
  * semantics. {@link #outcome()} and {@link #failure()} report a terminal value once the future is
- * done and never fall back to {@link TaskOutcome#RUNNING} afterward. A terminal value can still be
+ * done and never fall back to {@link TaskClassification#RUNNING} afterward. A terminal value can still be
  * refined while the enclosing scope settles: a group member learns about its group's cancellation
  * through the token chain, which may commit just after the member future was already cancelled, so
- * a direct cancellation can read {@link TaskOutcome#MEMBER_CANCELLED} and then {@link
- * TaskOutcome#GROUP_CANCELLED} for the same future. Reads taken once the enclosing scope has
+ * a direct cancellation can read {@link TaskClassification#MEMBER_CANCELLED} and then {@link
+ * TaskClassification#GROUP_CANCELLED} for the same future. Reads taken once the enclosing scope has
  * converged agree with each other.
  *
  * @param <T> the task result type
@@ -39,18 +39,18 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     String taskName();
 
     /**
-     * Returns how this task ended, or {@link TaskOutcome#RUNNING} while it is still pending.
+     * Returns how this task ended, or {@link TaskClassification#RUNNING} while it is still pending.
      *
-     * <p>A failed task distinguishes {@link TaskOutcome#SUBMISSION_FAILURE} (it was rejected, or
-     * otherwise failed before user code ran) from {@link TaskOutcome#USER_FAILURE}. A cancelled
-     * task is attributed from its token chain, which yields {@link TaskOutcome#TIMEOUT}, {@link
-     * TaskOutcome#FAIL_FAST}, {@link TaskOutcome#GROUP_CANCELLED}, or — when no framework
+     * <p>A failed task distinguishes {@link TaskClassification#SUBMISSION_FAILURE} (it was rejected, or
+     * otherwise failed before user code ran) from {@link TaskClassification#USER_FAILURE}. A cancelled
+     * task is attributed from its token chain, which yields {@link TaskClassification#TIMEOUT}, {@link
+     * TaskClassification#FAIL_FAST}, {@link TaskClassification#GROUP_CANCELLED}, or — when no framework
      * cancellation path committed, meaning the caller cancelled the future directly — {@link
-     * TaskOutcome#MEMBER_CANCELLED}. A failure that merely reports observed cancellation (a
+     * TaskClassification#MEMBER_CANCELLED}. A failure that merely reports observed cancellation (a
      * cooperative checkpoint, or an interrupt racing the cascade cancel) is attributed the same way
      * rather than as a user failure.
      */
-    TaskOutcome outcome();
+    TaskClassification outcome();
 
     /**
      * Returns the absolute deadline in {@link System#nanoTime()} units, or {@link Long#MAX_VALUE}
@@ -62,7 +62,7 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     Duration remaining();
 
     /**
-     * Returns the failure behind a {@link TaskOutcome#USER_FAILURE} or {@code SUBMISSION_FAILURE};
+     * Returns the failure behind a {@link TaskClassification#USER_FAILURE} or {@code SUBMISSION_FAILURE};
      * null otherwise.
      */
     @Nullable

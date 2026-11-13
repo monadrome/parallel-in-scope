@@ -76,7 +76,7 @@ timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `in
 继承要求处于库管理的任务内，deadline 不超过父级。首个失败取消未完成的兄弟，包括滑窗外
 尚未提交的元素。`valuesOrThrow()` 即时读取，先经过 `orThrow()`：按输入顺序首个已记录执行
 失败优先，unchecked 原样抛、checked 包装为 CompletionException；纯取消抛 CancellationException。
-成功值允许 null。`outcomeCounts()` 统计各 outcome，`failedTaskResult()` 返回首个失败元素，
+成功值允许 null。`terminationKindCounts()` 统计各 outcome，`failedTaskResult()` 返回首个失败元素，
 与 `TaskGroupResult` 同名。
 
 executor handoff 失败记录为 SUBMISSION_FAILURE，内部 SubmissionException 保留原 cause，包括
@@ -481,7 +481,7 @@ Batch.completions 是输入顺序的最终 TaskExitObservation 列表；null 表
 Group.members 按名称包含可用最终快照，terminal 是可用 combine 快照或 null。
 快照含身份、submit/start/end、耗时、outcome、failure、真实成功值；未启动任务的
 start/end 为零。不完整项在冻结结果中始终缺失，不返回 pending 业务 future。
-批次与组的 outcomeCounts/reportString 仍统计所有终态成员。
+批次与组的 terminationKindCounts/reportString 仍统计所有终态成员。
 
 `failure()` 承载的是细节而非结论。成功任务一定返回 null。其余 outcome 都带 throwable：
 `USER_FAILURE` 记录执行自己抛出的异常——包括执行主动抛出的 InterruptedException 或
@@ -861,7 +861,7 @@ for (TaskExitObservation<Account> completion : batch.completions()) {
     metrics.record(
             completion.taskName(),
             completion.successful() ? "ok" : "failed",
-            completion.outcome(),
+            completion.termination(),
             completion.waitTime(),
             completion.executionTime());
 }

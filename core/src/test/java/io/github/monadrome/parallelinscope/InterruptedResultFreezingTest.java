@@ -92,7 +92,7 @@ class InterruptedResultFreezingTest {
                 default:
                     throw new AssertionError(entry);
             }
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.failure()).isSameAs(failure);
             assertThatThrownBy(result::valueOrThrow)
                     .isInstanceOf(ExecutionException.class)
@@ -122,13 +122,13 @@ class InterruptedResultFreezingTest {
         Task<Integer> cancelledView = Task.of("cancelled", token, cancelled);
         try {
             Thread.currentThread().interrupt();
-            assertThat(successView.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(successView.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(successView.failure()).isNull();
-            assertThat(failureView.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(failureView.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(failureView.failure()).isSameAs(failure);
-            assertThat(cancelledView.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
+            assertThat(cancelledView.outcome()).isEqualTo(TaskClassification.MEMBER_CANCELLED);
             assertThat(cancelledView.failure()).isNull();
-            assertThat(verifyNotNull(ImmediateResult.fromTask(failureView, TaskOutcome.USER_FAILURE)
+            assertThat(verifyNotNull(ImmediateResult.fromTask(failureView, TaskClassification.USER_FAILURE)
                             .failure()))
                     .isSameAs(failure);
             assertThat(Thread.currentThread().isInterrupted()).isTrue();

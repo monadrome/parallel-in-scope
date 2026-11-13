@@ -51,12 +51,12 @@ class InheritedDeadlineAttributionTest {
                                 TaskKey.<Integer>named("terminal"), par, value -> expireAtCheckpoint(nanos))
                         .runAll();
                 assertThat(combined.terminalResult()).isNotNull();
-                assertThat(combined.terminalResult().outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-                assertThat(combined.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+                assertThat(combined.terminalResult().outcome()).isEqualTo(TaskClassification.TIMEOUT);
+                assertThat(combined.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             } else {
                 TaskGroupResult<Void> result = group.runAll();
-                assertThat(result.resultOf("member").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+                assertThat(result.resultOf("member").outcome()).isEqualTo(TaskClassification.TIMEOUT);
+                assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             }
         } finally {
             runtime.close();

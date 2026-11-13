@@ -42,7 +42,7 @@
 ## 3. 机制
 
 `Task.attributedOnSettle` 构造批次元素与终端汇总的视图，同时向 delegate 注册一个监听器，
-把落定时的 `outcome()` 钉进 `SettableFuture<TaskOutcome>`。视图在 bind 之前创建
+把落定时的 `outcome()` 钉进 `SettableFuture<TaskTermination>`。视图在 bind 之前创建
 （`SlidingWindowSubmitter.viewsFor`、`Par.executeCombined` 的 terminal 视图），Guava
 `AbstractFuture` 按注册顺序执行已落定 future 的监听器——组的 `memberCompleted` 依赖同一前提。
 
@@ -52,7 +52,7 @@
 `TaskBatch` 用"等待落定分类"取代"等待元素 future"，冻结时以 `fromTask(view, 钉住的 outcome)`
 构造结果；观测快照经 `TaskExitObservation.withResult` 取冻结值，三视图一致。批次冻结的每个任务都
 必须带钉子（`Verify`，缺失即内核缺陷）：生产里批次视图只由上述两处产生，空批次不冻结任何元素。
-包私有的活读 `TaskFuture.outcome()` / `TaskBatch.report()` 不变。
+包私有的活读 `TaskFuture.termination()` / `TaskBatch.report()` 不变。
 
 ## 4. 行为差异范围
 

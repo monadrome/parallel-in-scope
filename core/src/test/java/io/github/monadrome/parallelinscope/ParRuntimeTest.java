@@ -903,8 +903,8 @@ class ParRuntimeTest {
             // The token commits TIMEOUT before cancelling the element futures, so once every
             // future is cancelled the attribution is already stable.
             assertThat(result.report().stateCounts())
-                    .containsOnlyKeys(TaskOutcome.TIMEOUT)
-                    .containsEntry(TaskOutcome.TIMEOUT, 2);
+                    .containsOnlyKeys(TaskClassification.TIMEOUT)
+                    .containsEntry(TaskClassification.TIMEOUT, 2);
         } finally {
             global.close();
             executor.shutdownNow();

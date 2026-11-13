@@ -90,7 +90,10 @@ public final class ScopeTermination {
 
     /** Derives the migration projection for a legacy group report. */
     static ScopeTermination fromLegacy(
-            TaskOutcome outcome, @Nullable String failedTask, @Nullable FailureCause failureCause, String source) {
+            TaskClassification outcome,
+            @Nullable String failedTask,
+            @Nullable FailureCause failureCause,
+            String source) {
         checkNotNull(outcome, "outcome cannot be null");
         switch (outcome) {
             case SUCCESS:

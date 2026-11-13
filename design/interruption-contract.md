@@ -179,7 +179,7 @@ OpenJDK `FutureTask.cancel` 用外层 `finally` 执行 `finishCompletion`，是�
   恢复标志，再读当前 token 并应用同一 deadline backstop：已提交才带标记；未提交时 MUST 保持
   无标记的 `LeanCancellationException`（cause 为原中断），归因仍为 `USER_FAILURE`。
 - 标记只用于迟到失败日志（[同步出口契约](synchronous-scope-exit.md) §4），MUST NOT 参与归因；
-  归因结论只来自 token；异常类型只决定这次失败是否交给 token 归因（[取消与归因](task-group-cancellation.md) §8.4.1）。不新增 `TaskOutcome`：确认在落定前还是落定后到达取决于与级联的竞态，
+  归因结论只来自 token；异常类型只决定这次失败是否交给 token 归因（[取消与归因](task-group-cancellation.md) §8.4.1）。不新增 `TaskTermination`：确认在落定前还是落定后到达取决于与级联的竞态，
   新名字会把同一次取消拆成两种结果；执行退出事实已由 `executionExitConfirmed()` 表达。
 - 公开面不提供把用户异常类型映射为取消的入口（已移除 `checkRunnable` / `checkSupplier`：
   token 未提交时结果仍是 `USER_FAILURE`，方法名承诺的取消不成立），也不提供按名字校验的
@@ -270,7 +270,7 @@ if ((runStateAtLeast(ctl.get(), STOP) ||
 
 | # | 用例 | 断言 |
 |---|---|---|
-| 1 | 带中断标志读 `TaskFuture.outcome()` | 结论不变、不抛、返回时标志仍在 |
+| 1 | 带中断标志读 `TaskFuture.termination()` | 结论不变、不抛、返回时标志仍在 |
 | 2 | 带中断标志读 `TaskFuture.failure()`（失败任务） | 返回真实 cause、不抛、标志仍在 |
 | 3 | 带中断标志读裸 `Future` 的 `FutureInspector.outcome` | 成功仍读成 `SUCCESS`，不是 `USER_FAILURE` |
 | 4 | direct executor / `CallerRunsPolicy`（任务代码 inline 于提交线程）+ 任务代码恢复标志 | 提交线程在 `map` 返回后标志为 false |

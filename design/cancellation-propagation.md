@@ -200,7 +200,7 @@ state 与意图、意图沿父链传播、输家不得升级意图）——只�
 
 `CancellationToken` 与 `CancellationToken.State` MUST 保持包私有：没有公开成员接收或返回 token，
 用户自建的 token 不会接入任何执行（无调度器、deadline 不触发、`cancel()` 无作用对象），公开它只会制造
-「手里有取消句柄」的错觉。公开归因词汇 MUST 只有 `TaskOutcome`；公开 javadoc 与用户文档 MUST NOT 链接或
+「手里有取消句柄」的错觉。公开归因词汇 MUST 只有 `TaskTermination`；公开 javadoc 与用户文档 MUST NOT 链接或
 教授 token。外部取消一次运行 MUST 通过 §5.4 的显式取消输入接入已有执行 token，MUST NOT 重新公开
 token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
 公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、

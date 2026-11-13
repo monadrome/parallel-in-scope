@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskOutcome;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Duration;
 import java.util.Arrays;
@@ -115,7 +115,7 @@ class QuoteServiceTest {
 
         TaskBatchResult<Quote> batch = service.quoteAll("web", Arrays.asList("a", "b", "c", "d", "e"));
 
-        assertThat(batch.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 5);
+        assertThat(batch.terminationKindCounts()).containsEntry(TaskTermination.Kind.SUCCESS, 5);
         assertThat(context.getBean(ParRuntime.class).executorWaitReport().cyclicComponents())
                 .isEmpty();
     }

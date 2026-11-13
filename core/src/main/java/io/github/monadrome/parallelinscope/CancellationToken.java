@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The token is the execution kernel's cancellation and attribution state. It is deliberately
  * package-private: no public member accepts or returns one, and the public attribution vocabulary
- * is {@link TaskOutcome}. A token may be linked to a parent so that cancellation propagates to
+ * is {@link TaskClassification}. A token may be linked to a parent so that cancellation propagates to
  * child task groups, and a child never outlives its parent: the effective deadline is the minimum
  * of the requested deadline and the parent's. Before task submission, {@link #bind} connects the
  * token to prepared futures and enforces that deadline together with fail-fast cancellation.

@@ -25,12 +25,15 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ImmediateResult<T> {
     private final TaskTermination<T> termination;
-    private final TaskOutcome outcome;
+    private final TaskClassification outcome;
     private final @Nullable T value;
     private final @Nullable Throwable failure;
 
     private ImmediateResult(
-            TaskTermination<T> termination, TaskOutcome outcome, @Nullable T value, @Nullable Throwable failure) {
+            TaskTermination<T> termination,
+            TaskClassification outcome,
+            @Nullable T value,
+            @Nullable Throwable failure) {
         this.termination = checkNotNull(termination, "termination cannot be null");
         this.outcome = outcome;
         this.value = value;
@@ -39,7 +42,7 @@ public final class ImmediateResult<T> {
 
     /** Creates an already successful result, including a null value. */
     public static <T> ImmediateResult<T> succeeded(@Nullable T value) {
-        return new ImmediateResult<>(TaskTermination.success(value), TaskOutcome.SUCCESS, value, null);
+        return new ImmediateResult<>(TaskTermination.success(value), TaskClassification.SUCCESS, value, null);
     }
 
     /**
@@ -51,10 +54,10 @@ public final class ImmediateResult<T> {
      * @throws NullPointerException if {@code outcome} or {@code failure} is null
      * @throws IllegalArgumentException if {@code outcome} is {@code SUCCESS} or {@code RUNNING}
      */
-    public static <T> ImmediateResult<T> failed(TaskOutcome outcome, Throwable failure) {
+    static <T> ImmediateResult<T> failed(TaskClassification outcome, Throwable failure) {
         checkNotNull(outcome, "outcome cannot be null");
         checkArgument(
-                outcome != TaskOutcome.SUCCESS && outcome != TaskOutcome.RUNNING,
+                outcome != TaskClassification.SUCCESS && outcome != TaskClassification.RUNNING,
                 "failed result requires a non-success terminal outcome, but was %s",
                 outcome);
         Throwable original = checkNotNull(failure, "failure cannot be null");
@@ -65,14 +68,31 @@ public final class ImmediateResult<T> {
                 original);
     }
 
-    private static ExecutionDisposition dispositionFor(TaskOutcome outcome) {
-        return outcome == TaskOutcome.SUBMISSION_FAILURE
+    /** Creates a failed result preserving the original throwable in {@link #failure()}. */
+    public static <T> ImmediateResult<T> failed(FailureCause cause) {
+        checkNotNull(cause, "cause cannot be null");
+        return new ImmediateResult<>(
+                TaskTermination.failed(cause), TaskClassification.SUBMISSION_FAILURE, null, cause.cause());
+    }
+
+    /** Creates a cancelled result preserving the supplied throwable for transport reads. */
+    public static <T> ImmediateResult<T> cancelled(CancellationReason reason, Throwable failure) {
+        Throwable original = checkNotNull(failure, "failure cannot be null");
+        return new ImmediateResult<>(
+                TaskTermination.cancelled(checkNotNull(reason, "reason cannot be null")),
+                TaskClassification.MEMBER_CANCELLED,
+                null,
+                original);
+    }
+
+    private static ExecutionDisposition dispositionFor(TaskClassification outcome) {
+        return outcome == TaskClassification.SUBMISSION_FAILURE
                 ? ExecutionDisposition.NOT_CLAIMED
                 : ExecutionDisposition.CLAIMED;
     }
 
     /** Returns the frozen terminal attribution; never RUNNING. */
-    public TaskOutcome outcome() {
+    TaskClassification outcome() {
         return outcome;
     }
 
@@ -108,7 +128,7 @@ public final class ImmediateResult<T> {
      * @since 0.4.0
      */
     public boolean successful() {
-        return outcome == TaskOutcome.SUCCESS;
+        return outcome == TaskClassification.SUCCESS;
     }
 
     /**
@@ -129,11 +149,19 @@ public final class ImmediateResult<T> {
      * @throws NullPointerException if any function is null
      * @since 0.4.0
      */
+    /** Consumes the three canonical task termination branches. */
     public <R> R fold(
+            Function<? super @Nullable T, ? extends R> onSuccess,
+            Function<? super FailureCause, ? extends R> onFailure,
+            BiFunction<? super CancellationReason, ? super ExecutionDisposition, ? extends R> onCancelled) {
+        return termination.fold(onSuccess, onFailure, onCancelled);
+    }
+
+    <R> R fold(
             Function<? super @Nullable T, ? extends R> onValue,
             Function<? super Throwable, ? extends R> onUserFailure,
             Function<? super Throwable, ? extends R> onSubmissionFailure,
-            BiFunction<? super TaskOutcome, ? super Throwable, ? extends R> onCancelled) {
+            BiFunction<? super TaskClassification, ? super Throwable, ? extends R> onCancelled) {
         checkNotNull(onValue, "onValue cannot be null");
         checkNotNull(onUserFailure, "onUserFailure cannot be null");
         checkNotNull(onSubmissionFailure, "onSubmissionFailure cannot be null");
@@ -208,8 +236,8 @@ public final class ImmediateResult<T> {
     }
 
     /** Freezes a done task using the enclosing scope's authoritative attribution. */
-    static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskOutcome outcome) {
-        checkArgument(outcome != TaskOutcome.RUNNING, "task '%s' is still running", task.taskName());
+    static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskClassification outcome) {
+        checkArgument(outcome != TaskClassification.RUNNING, "task '%s' is still running", task.taskName());
         ExecutionDisposition disposition = dispositionOf(task);
         Throwable recorded = task.failure();
         if (recorded != null) {
@@ -217,9 +245,9 @@ public final class ImmediateResult<T> {
         }
         try {
             T value = Futures.getDone(task);
-            if (outcome == TaskOutcome.SUCCESS) {
+            if (outcome == TaskClassification.SUCCESS) {
                 return new ImmediateResult<>(
-                        TaskTermination.success(value, disposition), TaskOutcome.SUCCESS, value, null);
+                        TaskTermination.success(value, disposition), TaskClassification.SUCCESS, value, null);
             }
         } catch (ExecutionException failure) {
             Throwable cause = Verify.verifyNotNull(failure.getCause());
@@ -241,15 +269,17 @@ public final class ImmediateResult<T> {
     }
 
     private static <T> ImmediateResult<T> fromFailure(
-            TaskFuture<T> task, TaskOutcome outcome, Throwable cause, ExecutionDisposition disposition) {
-        if (outcome == TaskOutcome.USER_FAILURE || outcome == TaskOutcome.SUBMISSION_FAILURE) {
-            FailureCause failure = outcome == TaskOutcome.SUBMISSION_FAILURE
+            TaskFuture<T> task, TaskClassification outcome, Throwable cause, ExecutionDisposition disposition) {
+        if (outcome == TaskClassification.USER_FAILURE || outcome == TaskClassification.SUBMISSION_FAILURE) {
+            FailureCause failure = outcome == TaskClassification.SUBMISSION_FAILURE
                     ? FailureCause.submissionRejected(cause)
                     : FailureCause.userCodeFailure(cause);
             return new ImmediateResult<>(
                     TaskTermination.failed(
                             failure,
-                            outcome == TaskOutcome.SUBMISSION_FAILURE ? disposition : ExecutionDisposition.CLAIMED),
+                            outcome == TaskClassification.SUBMISSION_FAILURE
+                                    ? disposition
+                                    : ExecutionDisposition.CLAIMED),
                     outcome,
                     null,
                     cause);

@@ -84,8 +84,8 @@ public class H1_NullEmptyInputTest {
                         .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
                         .collect(java.util.stream.Collectors.toList()))
                 .isEmpty();
-        // outcomeCounts() 也不会抛异常，状态统计为空
-        assertThat(result.outcomeCounts()).isEmpty();
+        // terminationKindCounts() 也不会抛异常，状态统计为空
+        assertThat(result.terminationKindCounts()).isEmpty();
     }
 
     /** 解决方案：Par.map() 对空列表同样安全返回，零开销。 */
@@ -100,7 +100,7 @@ public class H1_NullEmptyInputTest {
                         .map(io.github.monadrome.parallelinscope.ImmediateResult::asFuture)
                         .collect(java.util.stream.Collectors.toList()))
                 .isEmpty();
-        assertThat(result.outcomeCounts()).isEmpty();
+        assertThat(result.terminationKindCounts()).isEmpty();
     }
 
     /** 正常输入不受影响：Par.map() 对非空列表正常并行执行。 */

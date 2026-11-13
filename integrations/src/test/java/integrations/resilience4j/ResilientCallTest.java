@@ -9,7 +9,7 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskOutcome;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.retry.Retry;
@@ -58,9 +58,9 @@ class ResilientCallTest {
 
         TaskBatchResult<String> batch = runOneFailureAmongBlockedSiblings(breaker);
 
-        assertThat(batch.outcomeCounts())
-                .containsEntry(TaskOutcome.USER_FAILURE, 1)
-                .containsEntry(TaskOutcome.FAIL_FAST, 3);
+        assertThat(batch.terminationKindCounts())
+                .containsEntry(TaskTermination.Kind.FAILED, 1)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 3);
         assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
         assertThat(breaker.getMetrics().getNumberOfBufferedCalls()).isEqualTo(1);
@@ -122,7 +122,7 @@ class ResilientCallTest {
                 BatchOptions.timeout("slow-retry", Duration.ofMillis(200)).closeGrace(Duration.ofSeconds(2)));
 
         assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(5));
-        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(batch.results().get(0).termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
         assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(attempts).hasValue(1);
         assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
@@ -156,7 +156,7 @@ class ResilientCallTest {
                         .cancelOn(requestDone)
                         .closeGrace(Duration.ofSeconds(2)));
 
-        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(batch.results().get(0).termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
         assertThat(batch.executionExitConfirmed()).isTrue();
         assertThat(attempts).hasValue(1);
     }

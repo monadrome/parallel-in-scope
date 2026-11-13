@@ -122,8 +122,8 @@ class VirtualDeadlineTest {
             caller.join(TimeUnit.SECONDS.toMillis(10));
             assertThat(caller.isAlive()).isFalse();
             TaskGroupResult<Void> result = Objects.requireNonNull(outcome.get());
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.resultOf("m").outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            assertThat(result.resultOf("m").outcome()).isEqualTo(TaskClassification.TIMEOUT);
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -196,7 +196,8 @@ class VirtualDeadlineTest {
                             },
                             BatchOptions.timeout("batch", Duration.ofMinutes(1)));
 
-            assertThat(result.outcomeCounts().get(TaskOutcome.USER_FAILURE)).isEqualTo(1);
+            assertThat(result.outcomeCounts().get(TaskClassification.USER_FAILURE))
+                    .isEqualTo(1);
             assertThat(result.executionExitConfirmed())
                     .as("the derived cleanup budget must cover the slow execution's real exit")
                     .isTrue();
@@ -257,9 +258,9 @@ class VirtualDeadlineTest {
             assertThat(caller.isAlive())
                     .as("the nested deadline must fire on the inherited manual scheduler")
                     .isFalse();
-            assertThat(Objects.requireNonNull(nested.get()).outcomeCounts().get(TaskOutcome.TIMEOUT))
+            assertThat(Objects.requireNonNull(nested.get()).outcomeCounts().get(TaskClassification.TIMEOUT))
                     .isEqualTo(1);
-            assertThat(Objects.requireNonNull(outcome.get()).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(outcome.get()).outcome()).isEqualTo(TaskClassification.SUCCESS);
         } finally {
             inner.close();
             outer.close();
@@ -343,8 +344,8 @@ class VirtualDeadlineTest {
             assertThat(startupFailure.get())
                     .as("group startup must converge to a result, not throw, when shutdown races a bind")
                     .isNull();
-            assertThat(Objects.requireNonNull(outerOutcome.get()).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
-            assertThat(Objects.requireNonNull(nestedOutcome.get()).outcome()).isNotEqualTo(TaskOutcome.SUCCESS);
+            assertThat(Objects.requireNonNull(outerOutcome.get()).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            assertThat(Objects.requireNonNull(nestedOutcome.get()).outcome()).isNotEqualTo(TaskClassification.SUCCESS);
         } finally {
             pausing.release.countDown();
             pausing.shutdownNow();

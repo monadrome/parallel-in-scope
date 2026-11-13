@@ -108,7 +108,7 @@ class TaskIdentityTest {
     @Test
     void aSyntheticRecordKeepsTheIdTheCallerSupplied() {
         TaskExitObservation<String> completion = TaskExitObservation.snapshot(
-                "task", TaskId.unit("1"), 0, 10, 30, 80, TaskOutcome.SUCCESS, "value", null);
+                "task", TaskId.unit("1"), 0, 10, 30, 80, TaskClassification.SUCCESS, "value", null);
 
         assertThat(completion.unitId()).isEqualTo(TaskId.unit("1"));
         assertThat(completion.groupId()).isNull();

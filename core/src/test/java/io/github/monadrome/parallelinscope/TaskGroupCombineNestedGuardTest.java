@@ -76,7 +76,7 @@ class TaskGroupCombineNestedGuardTest {
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(combineThread.get()).isEqualTo("combine-worker");
             assertThat(nestedThreads.get()).hasSize(3);
         } finally {
@@ -138,7 +138,7 @@ class TaskGroupCombineNestedGuardTest {
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
             assertThat(outerThread.get()).isEqualTo("outer-combine");
             assertThat(innerThread.get()).isEqualTo("inner-combine");
         } finally {
@@ -173,7 +173,7 @@ class TaskGroupCombineNestedGuardTest {
             });
         }
         AtomicReference<String> innerThread = new AtomicReference<>();
-        AtomicReference<TaskOutcome> innerOutcome = new AtomicReference<>();
+        AtomicReference<TaskClassification> innerOutcome = new AtomicReference<>();
         try {
             TaskGroup<String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
@@ -211,8 +211,8 @@ class TaskGroupCombineNestedGuardTest {
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(innerOutcome.get()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            assertThat(innerOutcome.get()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(innerThread.get()).isNull();
         } finally {
             release.countDown();

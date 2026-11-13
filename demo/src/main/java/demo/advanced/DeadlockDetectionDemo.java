@@ -6,7 +6,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
@@ -77,7 +76,7 @@ public class DeadlockDetectionDemo {
                     optionsA);
 
             // map 同步返回时全部元素已终态：直接读冻结的 outcome 分布，按 TIMEOUT 归因识别死锁
-            if (result.outcomeCounts().getOrDefault(TaskOutcome.TIMEOUT, 0) > 0) {
+            if (result.terminationKindCounts().getOrDefault(io.github.monadrome.parallelinscope.TaskTermination.Kind.CANCELLED, 0) > 0) {
                 long elapsed = System.currentTimeMillis() - start;
                 System.out.println("[main] 死锁！超时 " + elapsed + "ms");
                 System.out.println("[main] 4 个线程全被 task-A 占住");

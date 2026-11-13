@@ -202,8 +202,8 @@ final class TaskGroup<R> implements AutoCloseable {
      * <ul>
      *   <li>every member and the declared terminal combine succeeded: completes normally with the
      *       group's {@link GroupValues};
-     *   <li>a member or the terminal recorded a {@link TaskOutcome#USER_FAILURE} or {@link
-     *       TaskOutcome#SUBMISSION_FAILURE}: fails with that failure as the cause, so {@code get()}
+     *   <li>a member or the terminal recorded a {@link TaskClassification#USER_FAILURE} or {@link
+     *       TaskClassification#SUBMISSION_FAILURE}: fails with that failure as the cause, so {@code get()}
      *       throws {@link ExecutionException};
      *   <li>the group was cancelled, a member was cancelled directly, or the group or a member
      *       deadline expired with no recorded failure: is cancelled, so {@code get()} throws {@link
@@ -277,7 +277,7 @@ final class TaskGroup<R> implements AutoCloseable {
             }
         }
         ImmediateResult<GroupValues> frozenValues;
-        if (report.outcome() == TaskOutcome.SUCCESS) {
+        if (report.outcome() == TaskClassification.SUCCESS) {
             try {
                 frozenValues = ImmediateResult.succeeded(Futures.getDone(values));
             } catch (ExecutionException impossible) {
@@ -312,7 +312,7 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     private ImmediateResult<Object> freezeResult(MemberState member) {
-        TaskOutcome reason = com.google.common.base.Verify.verifyNotNull(member.reason);
+        TaskClassification reason = com.google.common.base.Verify.verifyNotNull(member.reason);
         return ImmediateResult.fromTask(member.view, reason);
     }
 
@@ -921,13 +921,13 @@ final class TaskGroup<R> implements AutoCloseable {
                     // interrupted completing thread can no longer turn a success into a phantom
                     // USER_FAILURE.
                     Futures.getDone(member.future);
-                    member.reason = TaskOutcome.SUCCESS;
+                    member.reason = TaskClassification.SUCCESS;
                 } catch (ExecutionException failure) {
                     member.failure = failure.getCause();
                     member.reason = classifyFailure(member, member.failure);
                 }
             }
-            TaskOutcome observedReason = member.reason;
+            TaskClassification observedReason = member.reason;
 
             ScopeTerminationCause explicitCause = explicitScopeCause(member, observedReason);
             if (explicitCause == null) {
@@ -939,17 +939,18 @@ final class TaskGroup<R> implements AutoCloseable {
                 scopeTermination.observe(explicitCause);
             }
 
-            if (member != terminal && observedReason == TaskOutcome.SUCCESS) {
+            if (member != terminal && observedReason == TaskClassification.SUCCESS) {
                 memberSuccesses.incrementAndGet();
             }
-            if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
+            if (observedReason == TaskClassification.USER_FAILURE
+                    || observedReason == TaskClassification.SUBMISSION_FAILURE) {
                 failedTaskName.compareAndSet(null, member.name);
             }
             if (terminal != null && memberSuccesses.get() == memberStates.size()) {
                 submitTerminalOnce();
             }
 
-            if (observedReason == TaskOutcome.MEMBER_CANCELLED) {
+            if (observedReason == TaskClassification.MEMBER_CANCELLED) {
                 // A directly cancelled member cascades to the whole group; the group token is
                 // cancelled first so members cancelled through their tokens read a terminal group
                 // state.
@@ -960,7 +961,8 @@ final class TaskGroup<R> implements AutoCloseable {
                     }
                 }
             }
-            if (observedReason == TaskOutcome.USER_FAILURE || observedReason == TaskOutcome.SUBMISSION_FAILURE) {
+            if (observedReason == TaskClassification.USER_FAILURE
+                    || observedReason == TaskClassification.SUBMISSION_FAILURE) {
                 // The combine is always the last task to complete, so its failure must commit
                 // FAIL_FAST synchronously: the cascade it triggers must observe a committed group
                 // state. Members keep the established rule and leave the commit to the group bind's
@@ -992,44 +994,44 @@ final class TaskGroup<R> implements AutoCloseable {
      * interrupted — can win the race against the cascade cancel on the member future; it is
      * attributed through the tokens like a cancellation instead of being recorded as a user
      * failure. A spontaneous {@code CancellationException} from user code with no committed
-     * framework cancellation still reads {@link TaskOutcome#USER_FAILURE}.
+     * framework cancellation still reads {@link TaskClassification#USER_FAILURE}.
      */
-    private TaskOutcome classifyFailure(MemberState member, @Nullable Throwable failure) {
+    private TaskClassification classifyFailure(MemberState member, @Nullable Throwable failure) {
         if (failure instanceof SubmissionException) {
-            return TaskOutcome.SUBMISSION_FAILURE;
+            return TaskClassification.SUBMISSION_FAILURE;
         }
         if (TokenOutcomes.causedByCancellation(failure)) {
-            return classifyCancelled(member, TaskOutcome.USER_FAILURE);
+            return classifyCancelled(member, TaskClassification.USER_FAILURE);
         }
-        return TaskOutcome.USER_FAILURE;
+        return TaskClassification.USER_FAILURE;
     }
 
     /**
      * Returns the cancellation outcome of a settled member from its member and group deadlines and
      * the group's cancellation state.
      */
-    private TaskOutcome classifyCancelled(MemberState member) {
+    private TaskClassification classifyCancelled(MemberState member) {
         /*
          * The member token records its own deadline; otherwise the group token is authoritative.
          * The group commits its state before cancelling member futures. A still-RUNNING group
          * therefore identifies a direct member cancellation, rather than a framework cascade.
          */
 
-        return classifyCancelled(member, TaskOutcome.MEMBER_CANCELLED);
+        return classifyCancelled(member, TaskClassification.MEMBER_CANCELLED);
     }
 
-    private TaskOutcome classifyCancelled(MemberState member, TaskOutcome whenUncommitted) {
+    private TaskClassification classifyCancelled(MemberState member, TaskClassification whenUncommitted) {
         if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
-            return TaskOutcome.TIMEOUT;
+            return TaskClassification.TIMEOUT;
         }
         return TokenOutcomes.forCancelled(groupToken, whenUncommitted);
     }
 
-    private @Nullable ScopeTerminationCause explicitScopeCause(MemberState member, TaskOutcome reason) {
-        if (reason == TaskOutcome.MEMBER_CANCELLED) {
+    private @Nullable ScopeTerminationCause explicitScopeCause(MemberState member, TaskClassification reason) {
+        if (reason == TaskClassification.MEMBER_CANCELLED) {
             return ScopeTerminationCause.cancelled(CancellationReason.cancelledByMember(member.name));
         }
-        if (reason == TaskOutcome.GROUP_CANCELLED && groupToken.cancelledByCaller()) {
+        if (reason == TaskClassification.GROUP_CANCELLED && groupToken.cancelledByCaller()) {
             return ScopeTerminationCause.cancelled(CancellationReason.cancelledByCaller(groupName));
         }
         return null;
@@ -1053,7 +1055,7 @@ final class TaskGroup<R> implements AutoCloseable {
          * values are still pending.
          */
 
-        TaskOutcome decided = deriveOutcome();
+        TaskClassification decided = deriveOutcome();
         TaskGroupReport result = snapshot(decided, failedTaskName.get());
         try {
             publishValues(decided);
@@ -1097,8 +1099,8 @@ final class TaskGroup<R> implements AutoCloseable {
      * documented completion contract: a value, the recorded failure, or a cancellation. It is never
      * left pending, so waiting on it cannot outlive the group.
      */
-    private void publishValues(TaskOutcome decided) {
-        if (decided == TaskOutcome.SUCCESS) {
+    private void publishValues(TaskClassification decided) {
+        if (decided == TaskClassification.SUCCESS) {
             List<@Nullable Object> collected = new ArrayList<>(orderedMembers.size());
             for (MemberState member : orderedMembers) {
                 collected.add(settledValue(member));
@@ -1124,17 +1126,17 @@ final class TaskGroup<R> implements AutoCloseable {
      * whenever a member or the terminal combine already failed, the group reports that failure's
      * own outcome regardless of whether the group token committed {@code FAIL_FAST} yet, so the
      * outcome no longer depends on completion order. On fail-fast with no failed member the trigger
-     * was a direct member cancellation, so the group reports {@link TaskOutcome#MEMBER_CANCELLED}.
+     * was a direct member cancellation, so the group reports {@link TaskClassification#MEMBER_CANCELLED}.
      * A token still RUNNING or SUCCESS with no recorded failure means no framework cancellation
      * path committed: the group succeeded only if every member did.
      */
-    private TaskOutcome deriveOutcome() {
+    private TaskClassification deriveOutcome() {
         switch (groupToken.state()) {
             case FAIL_FAST:
                 MemberState failFastFailure = failedTask();
                 return failFastFailure != null
                         ? Objects.requireNonNull(failFastFailure.reason)
-                        : TaskOutcome.MEMBER_CANCELLED;
+                        : TaskClassification.MEMBER_CANCELLED;
             case SUCCESS:
             case RUNNING:
                 MemberState recordedFailure = failedTask();
@@ -1146,10 +1148,10 @@ final class TaskGroup<R> implements AutoCloseable {
                 // thread, so the all-success question is an O(1) comparison instead of a scan that
                 // allocates an iterator and a capturing lambda.
                 boolean allSuccess = memberSuccesses.get() == memberStates.size()
-                        && (terminal == null || terminal.reason == TaskOutcome.SUCCESS);
-                return allSuccess ? TaskOutcome.SUCCESS : TaskOutcome.MEMBER_CANCELLED;
+                        && (terminal == null || terminal.reason == TaskClassification.SUCCESS);
+                return allSuccess ? TaskClassification.SUCCESS : TaskClassification.MEMBER_CANCELLED;
             default:
-                return TokenOutcomes.forCancelled(groupToken, TaskOutcome.MEMBER_CANCELLED);
+                return TokenOutcomes.forCancelled(groupToken, TaskClassification.MEMBER_CANCELLED);
         }
     }
 
@@ -1168,7 +1170,7 @@ final class TaskGroup<R> implements AutoCloseable {
 
     private void completeEmpty() {
         setValues(new ArrayList<>());
-        completion.set(snapshot(TaskOutcome.SUCCESS, null));
+        completion.set(snapshot(TaskClassification.SUCCESS, null));
     }
 
     /**
@@ -1185,7 +1187,7 @@ final class TaskGroup<R> implements AutoCloseable {
         }
     }
 
-    private TaskGroupReport snapshot(TaskOutcome outcome, @Nullable String failedName) {
+    private TaskGroupReport snapshot(TaskClassification outcome, @Nullable String failedName) {
         Map<String, TaskExitObservation<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             snapshots.put(member.name, memberSnapshot(member));
@@ -1280,7 +1282,7 @@ final class TaskGroup<R> implements AutoCloseable {
          * converging thread after the final increment or after completion publication, so that
          * increment is their publishing edge.
          */
-        private @Nullable TaskOutcome reason;
+        private @Nullable TaskClassification reason;
         private @Nullable Throwable failure;
 
         /** One-shot guard that keeps this member from being counted twice by the barrier. */

@@ -216,7 +216,7 @@ class ExecutorWaitAdmissionTest {
                 .par(only, runtime.par(ParId.of("io")), () -> 1)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
     }
 

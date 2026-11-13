@@ -212,7 +212,7 @@ public class G1_CompletionFutureMonitoringTest {
 
         // 验证：捕获到了失败任务的异常
         TaskExitObservation<String> failedEvent = completions.stream()
-                .filter(e -> e.outcome() == io.github.monadrome.parallelinscope.TaskOutcome.USER_FAILURE)
+                .filter(e -> e.termination().kind() == io.github.monadrome.parallelinscope.TaskTermination.Kind.FAILED)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));
         assertThat(failedEvent.failure().getMessage()).contains("item 2 failed");
@@ -222,7 +222,7 @@ public class G1_CompletionFutureMonitoringTest {
 
         // 验证：成功任务没有异常
         long successCount = completions.stream()
-                .filter(e -> e.outcome() == io.github.monadrome.parallelinscope.TaskOutcome.SUCCESS)
+                .filter(e -> e.termination().kind() == io.github.monadrome.parallelinscope.TaskTermination.Kind.SUCCESS)
                 .count();
         assertThat(successCount).isEqualTo(1);
 

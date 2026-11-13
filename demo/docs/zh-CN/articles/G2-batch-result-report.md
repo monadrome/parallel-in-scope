@@ -53,7 +53,7 @@ SUCCESS:6
 ```
 
 如果需要结构化数据，直接读结果本身（与 `TaskGroupResult` 同名）：
-- `outcomeCounts()` — 返回 `Map<TaskOutcome, Integer>`，按状态分组计数
+- `terminationKindCounts()` — 返回 `Map<TaskTermination, Integer>`，按状态分组计数
 - `failedTaskResult()` — 返回输入顺序第一个失败元素的 `ImmediateResult`（无失败时为空 `Optional`）
 
 还可以自定义格式拼接，比如用于日志或监控上报。
@@ -81,7 +81,7 @@ System.out.println(result.reportString());
 // 输出示例: SUCCESS:6
 
 // 结构化访问
-System.out.println("状态统计: " + result.outcomeCounts());
+System.out.println("状态统计: " + result.terminationKindCounts());
 System.out.println("首个失败: " + result.failedTaskResult());
 ```
 
@@ -92,7 +92,7 @@ System.out.println("首个失败: " + result.failedTaskResult());
 这类场景应验证稳定不变量，而不是固定状态数量：
 
 ```java
-int total = result.outcomeCounts().values().stream()
+int total = result.terminationKindCounts().values().stream()
         .mapToInt(Integer::intValue)
         .sum();
 
@@ -109,7 +109,7 @@ assert result.failedTaskResult().isPresent();
 | 代码量 | 20+ 行 | 1 行 |
 | 异常提取 | 手动 getCause() | 自动取第一个失败异常 |
 | 可读性 | 散落在业务逻辑中 | 统一格式，一目了然 |
-| 扩展性 | 每加一个维度多写一段 | `outcomeCounts()` / `failedTaskResult()` 直接给出结构化数据 |
+| 扩展性 | 每加一个维度多写一段 | `terminationKindCounts()` / `failedTaskResult()` 直接给出结构化数据 |
 | fail-fast 语义 | 通常没有统一取消协议 | 报告同时反映失败与取消 |
 
 ---

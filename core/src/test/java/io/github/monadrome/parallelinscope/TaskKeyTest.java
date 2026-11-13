@@ -139,7 +139,7 @@ class TaskKeyTest {
         TaskGroupResult<Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, () -> null).runAll();
 
-        assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.resultOf(user).outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(result.resultOf(user).valueOrThrow()).isNull();
         assertThat(result.valuesOrThrow().valueOf(user)).isNull();
         assertThatThrownBy(() -> result.valuesOrThrow().valueOf(TaskKey.named("user")))
@@ -166,7 +166,7 @@ class TaskKeyTest {
         assertThat(result.resultOf(total).valueOrThrow()).isEqualTo(5);
         assertThatThrownBy(() -> result.valuesOrThrow().valueOf(total)).isInstanceOf(IllegalArgumentException.class);
         assertThat(result.results()).containsOnlyKeys("user", "orders");
-        assertThat(result.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 3);
+        assertThat(result.outcomeCounts()).containsEntry(TaskClassification.SUCCESS, 3);
     }
 
     @Test
@@ -219,10 +219,10 @@ class TaskKeyTest {
                         throw new AssertionError("must not run");
                     })
                     .runAll();
-            assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.resultOf(user).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.resultOf(user).failure()).isSameAs(failure);
             assertThat(result.failedTaskResult()).contains(result.resultOf(user));
-            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
             assertThat(submissions).hasValue(0);
             assertThatThrownBy(() -> result.resultOf(user).valueOrThrow())
                     .isInstanceOf(ExecutionException.class)
@@ -256,7 +256,7 @@ class TaskKeyTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> stage.par(TaskKey.<String>named("user"), par, () -> "again"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(stage.par(total, par, () -> 2).runAll().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(stage.par(total, par, () -> 2).runAll().outcome()).isEqualTo(TaskClassification.SUCCESS);
     }
 
     @Test
@@ -334,7 +334,7 @@ class TaskKeyTest {
         Callable rawTaskCode = () -> 42;
         TaskGroupResult<Void> result =
                 runtime.group("page", TIMEOUT).par(user, par, rawTaskCode).runAll();
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(result.resultOf("user").valueOrThrow()).isEqualTo(42);
         assertThatThrownBy(() -> {
                     String value = result.valuesOrThrow().valueOf(user);
@@ -347,7 +347,7 @@ class TaskKeyTest {
                 .par(total, par, () -> 1)
                 .combineValues(user, par, rawCombine)
                 .runAll();
-        assertThat(combined.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(combined.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(combined.resultOf(user).failure()).isNull();
         assertThat((Object) combined.resultOf(user).valueOrThrow()).isEqualTo(42);
     }
@@ -432,7 +432,7 @@ class TaskKeyTest {
                         .get())
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
-        assertThat(stage.runAll().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(stage.runAll().outcome()).isEqualTo(TaskClassification.SUCCESS);
     }
 
     @Test
@@ -453,8 +453,8 @@ class TaskKeyTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
             group.cancel();
             TaskGroupResult<Integer> result = group.finish();
-            assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
-            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.resultOf(user).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
+            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(result.executionExitConfirmed()).isTrue();
             assertThat(submissions).hasValue(0);
         }
@@ -478,8 +478,8 @@ class TaskKeyTest {
         assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
         group.cancel();
         TaskGroupResult<Integer> result = group.finish();
-        assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
-        assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(result.resultOf(user).outcome()).isEqualTo(TaskClassification.SUCCESS);
+        assertThat(result.resultOf(total).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(result.executionExitConfirmed()).isTrue();
         assertThat(calls).hasValue(1);
     }
@@ -500,8 +500,8 @@ class TaskKeyTest {
                         return 1;
                     })
                     .runAll();
-            assertThat(result.resultOf(user).outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(result.resultOf(user).outcome()).isEqualTo(TaskClassification.SUCCESS);
+            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(result.executionExitConfirmed()).isTrue();
             assertThat(calls).hasValue(0);
         } finally {
@@ -527,7 +527,7 @@ class TaskKeyTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
             group.cancel();
             TaskGroupResult<Integer> result = finishing.get(2, TimeUnit.SECONDS);
-            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+            assertThat(result.resultOf(total).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
             assertThat(result.executionExitConfirmed()).isFalse();
             assertThat(result.unexitedExecutions()).containsEntry("total", 1);
         } finally {
@@ -563,9 +563,9 @@ class TaskKeyTest {
                 .build();
     }
 
-    private static void assertShortTimeout(Supplier<TaskOutcome> run) {
+    private static void assertShortTimeout(Supplier<TaskClassification> run) {
         long started = System.nanoTime();
-        assertThat(run.get()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(run.get()).isEqualTo(TaskClassification.TIMEOUT);
         assertThat(System.nanoTime() - started).isLessThan(Duration.ofSeconds(2).toNanos());
     }
 }

@@ -63,7 +63,7 @@ class SynchronousExecutionTest {
         });
         assertThatThrownBy(() -> batch.valuesOrThrow().add("mutation"))
                 .isInstanceOf(UnsupportedOperationException.class);
-        assertThat(batch.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 2);
+        assertThat(batch.outcomeCounts()).containsEntry(TaskClassification.SUCCESS, 2);
         Thread.currentThread().interrupt();
         try {
             TaskBatchResult<Integer> empty = par.map(null, i -> 1, BatchOptions.timeout("empty", TIMEOUT));
@@ -93,13 +93,13 @@ class SynchronousExecutionTest {
         assertThat(values.valueOf(flag)).isTrue();
         assertThat(group.resultOf(names).valueOrThrow()).containsExactly("alice");
         assertThat(group.resultAt(1).valueOrThrow()).isEqualTo(2);
-        assertThat(group.resultAt(2).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(group.resultAt(2).outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(group.terminalResult()).isNotNull();
         assertThat(group.terminalValueOrThrow()).isNull();
         assertThat(Verify.verifyNotNull(group.members().get("names")).result())
                 .isEqualTo(Collections.singletonList("alice"));
         assertThat(group.executionExitConfirmed()).isTrue();
-        assertThat(group.outcomeCounts()).containsEntry(TaskOutcome.SUCCESS, 4);
+        assertThat(group.outcomeCounts()).containsEntry(TaskClassification.SUCCESS, 4);
         assertThatThrownBy(() -> group.resultOf(TaskKey.<List<Integer>>named("names")))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> group.resultOf("unknown")).isInstanceOf(IllegalArgumentException.class);
@@ -178,13 +178,13 @@ class SynchronousExecutionTest {
                     throw failure;
                 })
                 .runAll();
-        assertThat(parent.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(parent.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThatThrownBy(parent::orThrow).isSameAs(failure);
         assertThat(childInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
         assertThat(childReturned.await(2, TimeUnit.SECONDS)).isTrue();
         TaskGroupResult<Void> nested = Verify.verifyNotNull(child.get());
         assertThat(nested.deadlineNanos()).isEqualTo(parent.deadlineNanos());
-        assertThat(nested.outcome()).isNotEqualTo(TaskOutcome.TIMEOUT).isNotEqualTo(TaskOutcome.SUCCESS);
+        assertThat(nested.outcome()).isNotEqualTo(TaskClassification.TIMEOUT).isNotEqualTo(TaskClassification.SUCCESS);
         assertThatThrownBy(nested::orThrow).isInstanceOf(java.util.concurrent.CancellationException.class);
     }
 
@@ -259,14 +259,19 @@ class SynchronousExecutionTest {
             assertThat(committed.await(2, TimeUnit.SECONDS)).isTrue();
             fail.countDown();
             assertThat(published.await(2, TimeUnit.SECONDS)).isTrue();
-            assertThat(group.futureOf("execution").outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(group.futureOf("execution").outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(group.futureOf("execution").failure()).isSameAs(original);
             TaskGroupResult<Void> result = group.finish();
-            TaskOutcome expected = state == CancellationToken.State.TIMEOUT
-                    ? TaskOutcome.TIMEOUT
-                    : state == CancellationToken.State.FAIL_FAST ? TaskOutcome.FAIL_FAST : TaskOutcome.GROUP_CANCELLED;
+            TaskClassification expected = state == CancellationToken.State.TIMEOUT
+                    ? TaskClassification.TIMEOUT
+                    : state == CancellationToken.State.FAIL_FAST
+                            ? TaskClassification.FAIL_FAST
+                            : TaskClassification.GROUP_CANCELLED;
             assertThat(result.outcome())
-                    .isEqualTo(state == CancellationToken.State.FAIL_FAST ? TaskOutcome.MEMBER_CANCELLED : expected);
+                    .isEqualTo(
+                            state == CancellationToken.State.FAIL_FAST
+                                    ? TaskClassification.MEMBER_CANCELLED
+                                    : expected);
             assertThat(result.resultAt(0).outcome()).isEqualTo(expected);
             assertThat(result.resultAt(0).failure())
                     .isInstanceOf(java.util.concurrent.CancellationException.class)
@@ -353,7 +358,7 @@ class SynchronousExecutionTest {
                 })
                 .runAll();
 
-        assertThat(group.resultOf("waiting").outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+        assertThat(group.resultOf("waiting").outcome()).isEqualTo(TaskClassification.FAIL_FAST);
         assertThat(group.members()).containsOnlyKeys("waiting", "failing");
         group.members()
                 .forEach((name, observed) -> assertThat(observed.outcome())
@@ -393,7 +398,7 @@ class SynchronousExecutionTest {
                             .closeGrace(Duration.ofSeconds(2))
                             .par(TaskKey.<Integer>named("execution"), par, () -> taskCode.apply(1))
                             .runAll();
-                    assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+                    assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
                     assertThat(Verify.verifyNotNull(result.members().get("execution"))
                                     .endTimeNanos())
                             .isNotZero();
@@ -404,7 +409,7 @@ class SynchronousExecutionTest {
                             taskCode,
                             BatchOptions.timeout("cleanup", Duration.ofMillis(150))
                                     .closeGrace(Duration.ofSeconds(2)));
-                    assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+                    assertThat(result.results().get(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
                     assertThat(Verify.verifyNotNull(result.completions().get(0)).endTimeNanos())
                             .isNotZero();
                     confirmed.set(result.executionExitConfirmed());
@@ -492,8 +497,8 @@ class SynchronousExecutionTest {
                 assertThat(result.executionExitConfirmed()).isFalse();
                 assertThat(result.unexitedExecutions()).containsEntry("execution", 1);
                 assertThat(result.members()).isEmpty();
-                assertThat(result.resultAt(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-                assertThat(result.outcomeCounts()).containsEntry(TaskOutcome.TIMEOUT, 1);
+                assertThat(result.resultAt(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
+                assertThat(result.outcomeCounts()).containsEntry(TaskClassification.TIMEOUT, 1);
                 assertThatThrownBy(result::orThrow)
                         .isInstanceOf(java.util.concurrent.CancellationException.class)
                         .isSameAs(result.valuesResult().failure());
@@ -570,12 +575,12 @@ class SynchronousExecutionTest {
                     throw original;
                 },
                 BatchOptions.timeout("failure", TIMEOUT).closeGrace(Duration.ofSeconds(1)));
-        assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+        assertThat(result.results().get(0).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
         assertThat(result.results().get(1).failure()).isSameAs(original);
         assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(original);
         assertThat(result.reportString()).contains("USER_FAILURE:1", "original failure");
         assertThatThrownBy(result::valuesOrThrow).isSameAs(original);
-        assertThat(Verify.verifyNotNull(result.completions().get(0)).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+        assertThat(Verify.verifyNotNull(result.completions().get(0)).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
         assertThat(Verify.verifyNotNull(result.completions().get(1)).failure()).isSameAs(original);
     }
 
@@ -592,7 +597,7 @@ class SynchronousExecutionTest {
         assertThat(memberFailure.valuesResult().failure()).isSameAs(checked);
         assertThat(memberFailure.resultOf("execution").failure()).isSameAs(checked);
         assertThat(Verify.verifyNotNull(memberFailure.terminalResult()).outcome())
-                .isEqualTo(TaskOutcome.FAIL_FAST);
+                .isEqualTo(TaskClassification.FAIL_FAST);
         assertThatThrownBy(memberFailure::valuesOrThrow)
                 .isInstanceOf(java.util.concurrent.CompletionException.class)
                 .hasCauseReference(checked);
@@ -626,7 +631,7 @@ class SynchronousExecutionTest {
             Par rejected = rejecting.par(ParId.of("rejected"));
             TaskBatchResult<Integer> batch =
                     rejected.map(Collections.singletonList(1), i -> i, BatchOptions.timeout("rejected", TIMEOUT));
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(Verify.verifyNotNull(batch.results().get(0).failure()).getCause())
                     .isSameAs(original);
             assertThatThrownBy(batch::valuesOrThrow)
@@ -636,7 +641,7 @@ class SynchronousExecutionTest {
                     .group("rejected", TIMEOUT)
                     .par(TaskKey.<Integer>named("execution"), rejected, () -> 1)
                     .runAll();
-            assertThat(group.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+            assertThat(group.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
             assertThat(Verify.verifyNotNull(group.resultAt(0).failure()).getCause())
                     .isSameAs(original);
             assertThat(group.executionExitConfirmed()).isTrue();
@@ -739,8 +744,8 @@ class SynchronousExecutionTest {
                         }
                     })
                     .runAll();
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-            assertThat(result.resultAt(0).outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            assertThat(result.resultAt(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(diagnosed.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(Verify.verifyNotNull(logged.get())).isInstanceOf(InterruptedException.class);
             assertThat(Verify.verifyNotNull(logged.get()).getSuppressed()).containsExactly(closeFailure);
@@ -797,7 +802,7 @@ class SynchronousExecutionTest {
                         }
                     })
                     .runAll();
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(result.executionExitConfirmed()).isTrue();
             assertThat(diagnosed.await(2, TimeUnit.SECONDS)).isTrue();
             assertThat(logged.get()).isSameAs(closeFailure);

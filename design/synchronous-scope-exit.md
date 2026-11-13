@@ -168,7 +168,7 @@ onUserFailure，`SUBMISSION_FAILURE` 走 onSubmissionFailure，其余四种取�
 outcome 与存储的 throwable。执行失败与取消的切分与聚合读取的失败选取同一口径。onCancelled 的
 throwable MUST NOT 被承诺为 `CancellationException`：组级 valuesResult 的例外与手动
 `failed(outcome, failure)` 都保留原异常。`RUNNING` 与未归类的 outcome MUST 落到 `AssertionError`，
-不被 default 分支吸收：新增 `TaskOutcome` 值时遍历全部 outcome 的测试先变红，迫使显式归类。
+不被 default 分支吸收：新增 `TaskTermination` 值时遍历全部 outcome 的测试先变红，迫使显式归类。
 四个处理器都 MUST 非 null；fold 与 `successful()` 只读冻结数据，不等待、不消费中断。被否决的
 平行快照类型、typestate 链与单任务获取入口见 [decision-log.md](decision-log.md)。历史来源：
 `proposal:P0019`；四类终态分派的实现事实由现行 `ImmediateResult` 契约和对应测试维护。
@@ -234,7 +234,7 @@ close 独立抛出的 `InterruptedException`/`CancellationException` 也是迟�
 
 接受的残余风险：内核投递之后、标志已清除时，独立抛出的无 suppressed `InterruptedException` 也记
 `FINE`；此时取消已提交、结果已落定，降级不隐藏任何结果。被否决：按类型过滤（会隐藏 close 失败）；
-新增 `TaskOutcome` 表示「执行读到取消」（见中断契约 §3.1）。`proposal:P0034`
+新增 `TaskTermination` 表示「执行读到取消」（见中断契约 §3.1）。`proposal:P0034`
 结果归因不因迟到异常被改写。外部 root 取消不再依赖运行句柄或 caller interrupt；
 显式 deadline、fail-fast、祖先取消与 `cancelOn` 请求来源是四类执行取消来源，runtime.close
 接纳后排空而不取消。请求来源只增加既有 token 的输入，不改变同步返回、清理预算或执行退出确认；
@@ -248,7 +248,7 @@ close 独立抛出的 `InterruptedException`/`CancellationException` 也是迟�
 - 复用：共享提交/取消/TTL/phase/执行 tracker；只新增 terminal Either 容器和冻结数据。
 - 结构继承：保留 parent token/min deadline/TTL install-restore。
 - 没有第二套执行管道、隐式 current group、可配置 failure policy。
-- 失败形状沿用 TaskOutcome；Batch 同构、Group 异构，单任务复用组。
+- 失败形状沿用 TaskTermination；Batch 同构、Group 异构，单任务复用组。
 - 不重开已否决 ThrowingFunction；map 仍标准 Function。
 
 迁移路径与用户代码见 docs/en/migration-v0.3.md、docs/zh/migration-v0.3.md。

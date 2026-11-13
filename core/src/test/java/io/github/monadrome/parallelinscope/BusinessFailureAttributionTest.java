@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 /**
  * A business {@link TimeoutException} thrown by a task execution is a user failure, not the framework
  * deadline: the group must converge on the recorded failure's outcome with the original throwable,
- * and unfinished siblings must read {@link TaskOutcome#FAIL_FAST} — never {@link
- * TaskOutcome#TIMEOUT} while the group deadline has not expired.
+ * and unfinished siblings must read {@link TaskClassification#FAIL_FAST} — never {@link
+ * TaskClassification#TIMEOUT} while the group deadline has not expired.
  */
 // JUnit-style: 'global' is assigned inside each test method, not in a constructor or @BeforeEach.
 @SuppressWarnings("NullAway.Init")
@@ -51,14 +51,14 @@ class BusinessFailureAttributionTest {
                     })
                     .runAll();
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failing");
             assertThat(result.valuesResult().failure()).isSameAs(businessFailure);
             ImmediateResult<?> failing = result.resultOf("failing");
-            assertThat(failing.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(failing.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(failing.failure()).isSameAs(businessFailure);
             ImmediateResult<?> sibling = result.resultOf("sibling");
-            assertThat(sibling.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            assertThat(sibling.outcome()).isEqualTo(TaskClassification.FAIL_FAST);
         } finally {
             executor.shutdownNow();
         }
@@ -79,11 +79,11 @@ class BusinessFailureAttributionTest {
                     })
                     .runAll();
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("join");
             ImmediateResult<?> terminal = result.terminalResult();
             assertThat(terminal).isNotNull();
-            assertThat(terminal.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+            assertThat(terminal.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
             assertThat(terminal.failure()).isSameAs(businessFailure);
         } finally {
             executor.shutdownNow();

@@ -83,7 +83,7 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 | | `ImmediateResult` | 6 | ✓（`asFuture` 高频） | ✓ |
 | | `TaskBatchResult` | 7 | ✓ | ✓ |
 | | `TaskCompletion` | 16 | 访问器✓ | ✓ |
-| | `TaskOutcome` | 8 常量 | ✓ | ✓ |
+| | `TaskTermination` | 8 常量 | ✓ | ✓ |
 | 协作取消 | `Checkpoints` | 32（全静态） | ✓ | ✓ |
 | | `LeanCancellationException` | 2 | ✓ | ✓ |
 | | `CancellationToken` | 10 | 仅注释 | 仅措辞 |
@@ -123,8 +123,8 @@ source-only-2026-10-04 的 `deadlockPolicy` 浅包装候选已失去对象：策
 3. **`State` 的正确消费方式也是包私有的**（`shouldInterruptCurrentThread()`）；外部拿到
    六值枚举只能自己猜哪些值算"已取消"。
 4. **用户侧的取消与归因入口在别处**：取消诉求由 deadline（`BatchOptions.timeout` /
-   `group(name, timeout)`）与 `ParRuntime.close()` 承担；归因走 `TaskOutcome` 八值
-   （`TaskGroupResult.outcome()` / `ImmediateResult.outcome()`）。`Checkpoints` 读的是内核
+   `group(name, timeout)`）与 `ParRuntime.close()` 承担；归因走 `TaskTermination` 八值
+   （`TaskGroupResult.termination()` / `ImmediateResult.termination()`）。`Checkpoints` 读的是内核
    安装的 token，与用户构造的 token 无任何关系。
 5. **demo 的引用全部在注释里**（`CancellationDemo.java` 等 5 处），无代码依赖；
    测试引用全在同包（包私有化后照常编译）。
@@ -147,7 +147,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 **被消除的失败模式：**
 
 1. **幻觉 API**：`new CancellationToken()` + `cancel()` 对任何批次/任务组毫无效果且无告警。
-2. **双归因词汇**：`State` 六值与公开的 `TaskOutcome` 八值在 IDE 补全里并行出现。
+2. **双归因词汇**：`State` 六值与公开的 `TaskTermination` 八值在 IDE 补全里并行出现。
 3. **兑现不了的承诺**：公开构造器 `CancellationToken(parent, deadlineNanos)` 承诺"自建父子
    token 树"，而树的所有挂接点均已包私有。
 
@@ -188,7 +188,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 `outcome()` + `results()` + `resultOf(String)` 覆盖；`valuesOrThrow()` 是文档记载的主路径。
 
 - **改前：** `ImmediateResult<GroupValues<V>> vr = result.valuesResult();`
-- **改后：** `if (result.outcome() == TaskOutcome.SUCCESS) { GroupValues<V> v = result.valuesOrThrow(); }`
+- **改后：** `if (result.termination() == TaskTermination.SUCCESS) { GroupValues<V> v = result.valuesOrThrow(); }`
   或按成员走 `results()`。
 - **被消除的失败模式：** 与 `valuesOrThrow()` 双路径并存，读者需比较两者语义差异
   （`ImmediateResult` 包装 vs 直抛）。
@@ -204,7 +204,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 | `ImmediateResult.succeeded`/`failed` | user-guide（en）已记载语义；内核 `TaskGroup.java` 在用 | user-guide |
 | `ImmediateResult.asFuture()` | demo 最高频引用形式（约 42 处方法引用），Guava 组合的逃生口 | demo + user-guide en:477 |
 | `Checkpoints` 阻塞适配器族、`rawCheckpoint` | 维持 09-27 结论：消除"忘记恢复中断标志/误读 InterruptedException"，是归因契约的一部分；demo 在用 | 测试 + reference + demo |
-| `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`outcomeCounts()`、`reportString()`、`executionExitConfirmed()`/`unexitedExecutions()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
+| `TaskGroupResult` 其余访问面（元数据、`resultAt`/`resultOf` 族、`members()`、`terminal()`、`orThrow()`、`terminationKindCounts()`、`reportString()`、`executionExitConfirmed()`/`unexitedExecutions()`） | 一致的冻结快照记录，与包私有 `TaskGroupReport` 镜像；单摘访问器造成两边不对称，收益低于一致性成本 | `SynchronousExecutionTest`、user-guide、README |
 | `GroupValues` 全族（含 `typeAt`/`typeOf`） | 位置/名称双通道 + 类型自省是组结果的完整读取面；typed/Class 重载已进迁移文档 | `GroupDraftContractTest`、user-guide |
 | `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
 | `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |

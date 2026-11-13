@@ -19,7 +19,7 @@ final class TaskGroupReport {
     private final long startTimeNanos;
     private final long endTimeNanos;
     private final long deadlineNanos;
-    private final TaskOutcome outcome;
+    private final TaskClassification outcome;
     private final @Nullable String failedTaskName;
     private final Map<String, TaskExitObservation<?>> members;
     private final @Nullable TaskExitObservation<?> terminal;
@@ -31,7 +31,7 @@ final class TaskGroupReport {
             long startTimeNanos,
             long endTimeNanos,
             long deadlineNanos,
-            TaskOutcome outcome,
+            TaskClassification outcome,
             @Nullable String failedTaskName,
             Map<String, TaskExitObservation<?>> members,
             @Nullable TaskExitObservation<?> terminal,
@@ -79,7 +79,7 @@ final class TaskGroupReport {
     }
 
     /** Returns the terminal outcome of the group as a whole. */
-    TaskOutcome outcome() {
+    TaskClassification outcome() {
         return outcome;
     }
 
@@ -126,7 +126,7 @@ final class TaskGroupReport {
      */
     @CanIgnoreReturnValue
     TaskGroupReport orThrow() {
-        if (outcome == TaskOutcome.SUCCESS) {
+        if (outcome == TaskClassification.SUCCESS) {
             return this;
         }
         TaskExitObservation<?> failed = failedTaskSnapshot();
@@ -146,8 +146,8 @@ final class TaskGroupReport {
      *
      * @return the immutable outcome count map, empty for an empty group
      */
-    Map<TaskOutcome, Integer> outcomeCounts() {
-        EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
+    Map<TaskClassification, Integer> outcomeCounts() {
+        EnumMap<TaskClassification, Integer> counts = new EnumMap<>(TaskClassification.class);
         for (TaskExitObservation<?> member : members.values()) {
             counts.merge(member.outcome(), 1, Integer::sum);
         }

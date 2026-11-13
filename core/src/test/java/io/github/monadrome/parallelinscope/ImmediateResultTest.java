@@ -22,7 +22,7 @@ class ImmediateResultTest {
         try {
             for (String value : new String[] {"value", null}) {
                 ImmediateResult<String> result = ImmediateResult.succeeded(value);
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+                assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
                 assertThat(result.failure()).isNull();
                 assertThat(result.valueOrThrow()).isEqualTo(value);
                 ListenableFuture<String> future = result.asFuture();
@@ -43,8 +43,8 @@ class ImmediateResultTest {
     void everyLeftKeepsOriginalThrowableIncludingCancellationAndError() {
         Thread.currentThread().interrupt();
         try {
-            for (TaskOutcome outcome : TaskOutcome.values()) {
-                if (outcome == TaskOutcome.RUNNING || outcome == TaskOutcome.SUCCESS) continue;
+            for (TaskClassification outcome : TaskClassification.values()) {
+                if (outcome == TaskClassification.RUNNING || outcome == TaskClassification.SUCCESS) continue;
                 for (Throwable cause : new Throwable[] {
                     new IllegalStateException("failure"),
                     new CancellationException("cancelled"),
@@ -77,13 +77,13 @@ class ImmediateResultTest {
     @Test
     @SuppressWarnings("NullAway") // Deliberately invalid arguments.
     void factoriesRejectNonterminalAndInvalidLeft() {
-        assertThatThrownBy(() -> ImmediateResult.failed(TaskOutcome.RUNNING, new Exception()))
+        assertThatThrownBy(() -> ImmediateResult.failed(TaskClassification.RUNNING, new Exception()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ImmediateResult.failed(TaskOutcome.SUCCESS, new Exception()))
+        assertThatThrownBy(() -> ImmediateResult.failed(TaskClassification.SUCCESS, new Exception()))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ImmediateResult.failed(null, new Exception()))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> ImmediateResult.failed(TaskOutcome.USER_FAILURE, null))
+        assertThatThrownBy(() -> ImmediateResult.failed(TaskClassification.USER_FAILURE, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -108,7 +108,7 @@ class ImmediateResultTest {
         TaskFuture<Integer> pending =
                 Task.of("still-running", token, com.google.common.util.concurrent.SettableFuture.create());
 
-        assertThatThrownBy(() -> ImmediateResult.fromTask(pending, TaskOutcome.RUNNING))
+        assertThatThrownBy(() -> ImmediateResult.fromTask(pending, TaskClassification.RUNNING))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("still-running");
     }
@@ -122,8 +122,8 @@ class ImmediateResultTest {
             TaskFuture<Integer> task = Task.of("cancel-race", token, Futures.immediateFailedFuture(cause));
             token.failFastCancel();
             assertThat(task.failure()).isNull();
-            ImmediateResult<Integer> cancelled = ImmediateResult.fromTask(task, TaskOutcome.FAIL_FAST);
-            assertThat(cancelled.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+            ImmediateResult<Integer> cancelled = ImmediateResult.fromTask(task, TaskClassification.FAIL_FAST);
+            assertThat(cancelled.outcome()).isEqualTo(TaskClassification.FAIL_FAST);
             assertThat(cancelled.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
             assertThat(Verify.verifyNotNull(cancelled.cancellationReason()).kind())
                     .isEqualTo(CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
@@ -137,7 +137,7 @@ class ImmediateResultTest {
             assertThatThrownBy(cancelled::valueOrThrow)
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseReference(frozen);
-            ImmediateResult<Integer> recorded = ImmediateResult.fromTask(task, TaskOutcome.USER_FAILURE);
+            ImmediateResult<Integer> recorded = ImmediateResult.fromTask(task, TaskClassification.USER_FAILURE);
             assertThat(recorded.failure()).isSameAs(cause);
         }
     }

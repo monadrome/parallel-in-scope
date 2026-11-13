@@ -204,7 +204,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         TaskObservation<V> published = observation;
         if (published != null) {
             // The first-writer-wins observation must precede cancellation from settlement.
-            published.publishSkipped(TaskOutcome.SUBMISSION_FAILURE, wrapped);
+            published.publishSkipped(TaskClassification.SUBMISSION_FAILURE, wrapped);
         }
         return true;
     }

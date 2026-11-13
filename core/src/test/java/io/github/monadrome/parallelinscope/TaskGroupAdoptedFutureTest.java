@@ -127,13 +127,13 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(SECOND, pending)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("first");
         assertThat(result.valuesOrThrow().valueOf(SECOND)).isEqualTo("second");
         assertThat(result.executionExitConfirmed()).isTrue();
         TaskExitObservation<?> observed =
                 Objects.requireNonNull(result.members().get("second"));
-        assertThat(observed.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(observed.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(observed.result()).isEqualTo("second");
     }
 
@@ -151,9 +151,9 @@ class TaskGroupAdoptedFutureTest {
                 })
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(result.terminalValueOrThrow()).isEqualTo("adopted:2");
-        assertThat(result.resultOf(adopted).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.resultOf(adopted).outcome()).isEqualTo(TaskClassification.SUCCESS);
     }
 
     @Test
@@ -171,11 +171,11 @@ class TaskGroupAdoptedFutureTest {
                 })
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(result.failedTaskName()).isEqualTo("failing");
         assertThat(pending.isCancelled()).isTrue();
         assertThat(pending.interrupted).isTrue();
-        assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
+        assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
         assertThat(produced.closes).hasValue(0);
         assertThat(result.executionExitConfirmed()).isTrue();
     }
@@ -191,7 +191,7 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(SECOND, sibling)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(result.failedTaskName()).isEqualTo("first");
         assertThat(result.resultOf(FIRST).failure()).isSameAs(failure);
         assertThat(sibling.isCancelled()).isTrue();
@@ -207,7 +207,7 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(FIRST, pending)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
         assertThat(pending.isCancelled()).isTrue();
         assertThat(result.executionExitConfirmed()).isTrue();
     }
@@ -224,14 +224,14 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(SECOND, sibling)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(Verify.verifyNotNull(
                                 Verify.verifyNotNull(result.termination().cause())
                                         .cancellationReason())
                         .kind())
                 .isEqualTo(CancellationReason.Kind.CANCELLED_BY_MEMBER);
-        assertThat(result.resultOf(FIRST).outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
-        assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(result.resultOf(FIRST).outcome()).isEqualTo(TaskClassification.MEMBER_CANCELLED);
+        assertThat(result.resultOf(SECOND).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(sibling.isCancelled()).isTrue();
     }
 
@@ -245,7 +245,7 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(FIRST, pending)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
         assertThat(Verify.verifyNotNull(
                                 Verify.verifyNotNull(result.termination().cause())
                                         .cancellationReason())
@@ -266,7 +266,7 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(key, stubborn)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
         assertThat(stubborn.cancelRequests).hasValue(1);
         assertThat(result.executionExitConfirmed()).isFalse();
         assertThat(result.unexitedExecutions()).containsEntry("first", 1);
@@ -290,7 +290,7 @@ class TaskGroupAdoptedFutureTest {
                 })
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(combineRan).isFalse();
     }
 
@@ -304,7 +304,7 @@ class TaskGroupAdoptedFutureTest {
 
         TaskExitObservation<?> snapshot = Objects.requireNonNull(
                 group.convergenceFuture().get(5, TimeUnit.SECONDS).members().get("first"));
-        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(snapshot.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(snapshot.startTimeNanos()).isNotZero();
         assertThat(snapshot.endTimeNanos()).isNotZero();
     }
@@ -326,7 +326,7 @@ class TaskGroupAdoptedFutureTest {
         failing.fail(new IOException("down"));
 
         TaskGroupResult<Void> result = running.get(5, TimeUnit.SECONDS);
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(result.executionExitConfirmed()).isTrue();
     }
 
@@ -369,7 +369,7 @@ class TaskGroupAdoptedFutureTest {
                 .runAll());
         TaskGroupResult<Void> result = running.get(5, TimeUnit.SECONDS);
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
         assertThat(throwing.isCancelled()).isTrue();
         assertThat(sibling.isCancelled()).isTrue();
         assertThat(result.executionExitConfirmed()).isTrue();
@@ -411,7 +411,7 @@ class TaskGroupAdoptedFutureTest {
 
         TaskExitObservation<?> snapshot = Objects.requireNonNull(
                 group.convergenceFuture().get(5, TimeUnit.SECONDS).members().get("first"));
-        assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(snapshot.outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(snapshot.endTimeNanos()).isNotZero();
     }
 
@@ -505,7 +505,7 @@ class TaskGroupAdoptedFutureTest {
                             () -> convergingThread.set(Thread.currentThread().getName()), directExecutor());
             TaskGroupResult<Void> result = group.finish();
 
-            assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
+            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
             assertThat(convergingThread.get()).startsWith("deadline-deliverer-");
         } finally {
             hold.countDown();
@@ -588,7 +588,7 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(FIRST, Futures.immediateFuture("first"))
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
         runtime.close();
         assertThat(runtime.awaitQuiescence(TIMEOUT)).isTrue();
     }
@@ -625,8 +625,8 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(TaskKey.<String>named("pipeline"), io(runtime), pipeline)
                 .runAll();
 
-        assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
-        assertThat(result.resultOf(chainedKey).outcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+        assertThat(result.resultOf(chainedKey).outcome()).isEqualTo(TaskClassification.SUCCESS);
         assertThat(task.isCancelled()).isTrue();
         assertThat(pipeline.isCancelled()).isTrue();
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilTrue(pipelineResourceClosed);
@@ -688,7 +688,7 @@ class TaskGroupAdoptedFutureTest {
         TaskKey<String> loaded = TaskKey.named("loaded");
         Duration interval = Duration.ofMillis(20);
         ThreadPoolStarvationReport report;
-        TaskBatchResult<TaskOutcome> outer;
+        TaskBatchResult<TaskClassification> outer;
 
         try (ThreadPoolStarvationObservationScope observation = runtime.openThreadPoolStarvationObservation(interval)) {
             ListenableFuture<ThreadPoolStarvationReport> reportFuture = observation.reportFuture();
@@ -708,7 +708,7 @@ class TaskGroupAdoptedFutureTest {
             report = Objects.requireNonNull(Futures.getDone(reportFuture));
         }
 
-        assertThat(outer.valuesOrThrow()).containsExactly(TaskOutcome.TIMEOUT);
+        assertThat(outer.valuesOrThrow()).containsExactly(TaskClassification.TIMEOUT);
         assertThat(Objects.requireNonNull(queued.get()).isCancelled()).isTrue();
         assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION);
         assertThat(runtime.executorWaitReport().cyclicComponents()).hasSize(1);

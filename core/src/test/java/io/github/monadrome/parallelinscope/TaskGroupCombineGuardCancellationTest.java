@@ -43,8 +43,11 @@ class TaskGroupCombineGuardCancellationTest {
      * any of them: a run that started reporting a different member of the set would still be a change
      * worth seeing, and the exact assertion is what would show it.
      */
-    private static final Set<TaskOutcome> LEGITIMATE = EnumSet.of(
-            TaskOutcome.SUBMISSION_FAILURE, TaskOutcome.TIMEOUT, TaskOutcome.FAIL_FAST, TaskOutcome.GROUP_CANCELLED);
+    private static final Set<TaskClassification> LEGITIMATE = EnumSet.of(
+            TaskClassification.SUBMISSION_FAILURE,
+            TaskClassification.TIMEOUT,
+            TaskClassification.FAIL_FAST,
+            TaskClassification.GROUP_CANCELLED);
 
     private static ThreadPoolExecutor saturatingPool(String threadName) {
         return new ThreadPoolExecutor(
@@ -103,7 +106,7 @@ class TaskGroupCombineGuardCancellationTest {
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
+                assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
                 assertThat(executionRan).isFalse();
                 // A stranded slot here would mean the guard's path skipped the exit publish that its
                 // phase claim made it responsible for.
@@ -176,7 +179,7 @@ class TaskGroupCombineGuardCancellationTest {
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
-                assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
+                assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
                 assertThat(executionRan).isFalse();
                 assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             } finally {

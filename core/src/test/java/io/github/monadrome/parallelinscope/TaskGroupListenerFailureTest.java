@@ -61,7 +61,7 @@ class TaskGroupListenerFailureTest {
             // and the group stays pending forever.
             assertThat(group.futureOf(KEY_USER_STRING).get(5, TimeUnit.SECONDS)).isEqualTo("value");
             assertThat(group.convergenceFuture().get(5, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskOutcome.SUCCESS);
+                    .isEqualTo(TaskClassification.SUCCESS);
             assertThat(group.valuesFuture().get(5, TimeUnit.SECONDS).valueAt(0)).isEqualTo("value");
         } finally {
             release.countDown();
