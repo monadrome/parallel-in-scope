@@ -26,6 +26,7 @@ class ImmediateResultTest {
                         .kind())
                 .isEqualTo(FailureCause.Kind.USER_CODE_FAILURE);
         assertThat(result.failure()).isSameAs(cause);
+        assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
     }
 
     @Test
@@ -144,6 +145,22 @@ class ImmediateResultTest {
         assertThatThrownBy(() -> ImmediateResult.fromTask(pending, TaskClassification.RUNNING))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("still-running");
+    }
+
+    @Test
+    void freezingSuccessfulAndFailedTasksUsesCanonicalBranches() throws Exception {
+        CancellationToken token = new CancellationToken();
+        TaskFuture<Integer> success = Task.of("success", token, Futures.immediateFuture(7));
+        ImmediateResult<Integer> frozenSuccess = ImmediateResult.fromTask(success, TaskClassification.SUCCESS);
+        assertThat(frozenSuccess.valueOrThrow()).isEqualTo(7);
+        assertThat(frozenSuccess.termination().kind()).isEqualTo(TaskTermination.Kind.SUCCESS);
+
+        IllegalStateException cause = new IllegalStateException("failed");
+        TaskFuture<Integer> failed = Task.of("failed", token, Futures.immediateFailedFuture(cause));
+        ImmediateResult<Integer> frozenFailure = ImmediateResult.fromTask(failed, TaskClassification.USER_FAILURE);
+        assertThat(frozenFailure.failure()).isSameAs(cause);
+        assertThat(Verify.verifyNotNull(frozenFailure.failureCause()).kind())
+                .isEqualTo(FailureCause.Kind.USER_CODE_FAILURE);
     }
 
     @Test
