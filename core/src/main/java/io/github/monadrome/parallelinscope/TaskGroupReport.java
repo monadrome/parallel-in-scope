@@ -1,12 +1,13 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import org.jspecify.annotations.Nullable;
@@ -35,12 +36,12 @@ final class TaskGroupReport {
             Map<String, TaskExitObservation<?>> members,
             @Nullable TaskExitObservation<?> terminal,
             @Nullable ScopeTermination scopeTermination) {
-        this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
-        this.groupName = Objects.requireNonNull(groupName, "groupName cannot be null");
+        this.groupId = checkNotNull(groupId, "groupId cannot be null");
+        this.groupName = checkNotNull(groupName, "groupName cannot be null");
         this.startTimeNanos = startTimeNanos;
         this.endTimeNanos = endTimeNanos;
         this.deadlineNanos = deadlineNanos;
-        this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
+        this.outcome = checkNotNull(outcome, "outcome cannot be null");
         this.failedTaskName = failedTaskName;
         this.members = ImmutableMap.copyOf(members);
         this.terminal = terminal;

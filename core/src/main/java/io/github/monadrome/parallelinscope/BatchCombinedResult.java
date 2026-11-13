@@ -1,9 +1,10 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Verify;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -38,8 +39,8 @@ public final class BatchCombinedResult<E, C> {
             TaskBatchResult<E> elements,
             ImmediateResult<C> terminal,
             @Nullable TaskExitObservation<C> terminalObservation) {
-        this.elements = Objects.requireNonNull(elements, "elements cannot be null");
-        this.terminal = Objects.requireNonNull(terminal, "terminal cannot be null");
+        this.elements = checkNotNull(elements, "elements cannot be null");
+        this.terminal = checkNotNull(terminal, "terminal cannot be null");
         this.terminalObservation = terminalObservation;
     }
 

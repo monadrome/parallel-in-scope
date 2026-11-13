@@ -49,31 +49,6 @@ public final class TaskExitObservation<T> {
             long endTimeNanos,
             TaskOutcome outcome,
             @Nullable T result,
-            @Nullable Throwable failure) {
-        this(
-                taskName,
-                unitId,
-                groupId,
-                taskIndex,
-                submitTimeNanos,
-                startTimeNanos,
-                endTimeNanos,
-                outcome,
-                result,
-                failure,
-                null);
-    }
-
-    private TaskExitObservation(
-            String taskName,
-            @Nullable TaskId<TaskUnit> unitId,
-            @Nullable TaskId<TaskGroupRun> groupId,
-            int taskIndex,
-            long submitTimeNanos,
-            long startTimeNanos,
-            long endTimeNanos,
-            TaskOutcome outcome,
-            @Nullable T result,
             @Nullable Throwable failure,
             @Nullable TaskTermination<T> termination) {
         this.taskName = checkNotNull(taskName, "taskName cannot be null");
@@ -104,7 +79,17 @@ public final class TaskExitObservation<T> {
             long startTimeNanos,
             long endTimeNanos) {
         return new TaskExitObservation<>(
-                memberName, unitId, null, 0, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, null, failure);
+                memberName,
+                unitId,
+                null,
+                0,
+                submitTimeNanos,
+                startTimeNanos,
+                endTimeNanos,
+                outcome,
+                null,
+                failure,
+                null);
     }
 
     /** Creates a member snapshot with the authoritative claim disposition. */
@@ -156,7 +141,8 @@ public final class TaskExitObservation<T> {
                 endTimeNanos,
                 outcome,
                 result,
-                failure);
+                failure,
+                null);
     }
 
     /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
@@ -202,7 +188,8 @@ public final class TaskExitObservation<T> {
                 result.endTimeNanos(),
                 result.outcome(),
                 result,
-                result.recordedFailure());
+                result.recordedFailure(),
+                null);
     }
 
     /**
@@ -330,17 +317,21 @@ public final class TaskExitObservation<T> {
 
     /** Returns the execution duration, or zero if the task never started. */
     public Duration executionTime() {
-        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - startTimeNanos));
+        return durationOrZero(endTimeNanos, startTimeNanos);
     }
 
     /** Returns the queue wait duration, or zero if the task never started. */
     public Duration waitTime() {
-        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, startTimeNanos - submitTimeNanos));
+        return durationOrZero(startTimeNanos, submitTimeNanos);
     }
 
     /** Returns the duration from submission to execution exit, or zero if the task never started. */
     public Duration totalTime() {
-        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
+        return durationOrZero(endTimeNanos, submitTimeNanos);
+    }
+
+    private Duration durationOrZero(long laterNanos, long earlierNanos) {
+        return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, laterNanos - earlierNanos));
     }
 
     /*
