@@ -74,7 +74,7 @@ class TaskGroupCombineNestedGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).isEqualTo("combine-worker");
@@ -136,7 +136,7 @@ class TaskGroupCombineNestedGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(outerThread.get()).isEqualTo("outer-combine");
@@ -202,14 +202,14 @@ class TaskGroupCombineNestedGuardTest {
                                                     return "inner-done";
                                                 })
                                         .submitAll();
-                                innerOutcome.set(nested.completionFuture()
+                                innerOutcome.set(nested.convergenceFuture()
                                         .get(5, TimeUnit.SECONDS)
                                         .outcome());
                                 return "outer-done";
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(innerOutcome.get()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);

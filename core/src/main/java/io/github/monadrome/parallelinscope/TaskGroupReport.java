@@ -20,8 +20,8 @@ final class TaskGroupReport {
     private final long deadlineNanos;
     private final TaskOutcome outcome;
     private final @Nullable String failedTaskName;
-    private final Map<String, TaskCompletion<?>> members;
-    private final @Nullable TaskCompletion<?> terminal;
+    private final Map<String, TaskExitObservation<?>> members;
+    private final @Nullable TaskExitObservation<?> terminal;
     private final ScopeTermination termination;
 
     TaskGroupReport(
@@ -32,8 +32,8 @@ final class TaskGroupReport {
             long deadlineNanos,
             TaskOutcome outcome,
             @Nullable String failedTaskName,
-            Map<String, TaskCompletion<?>> members,
-            @Nullable TaskCompletion<?> terminal,
+            Map<String, TaskExitObservation<?>> members,
+            @Nullable TaskExitObservation<?> terminal,
             @Nullable ScopeTermination scopeTermination) {
         this.groupId = Objects.requireNonNull(groupId, "groupId cannot be null");
         this.groupName = Objects.requireNonNull(groupName, "groupName cannot be null");
@@ -44,7 +44,7 @@ final class TaskGroupReport {
         this.failedTaskName = failedTaskName;
         this.members = ImmutableMap.copyOf(members);
         this.terminal = terminal;
-        TaskCompletion<?> failed = failedTaskName == null ? null : this.members.get(failedTaskName);
+        TaskExitObservation<?> failed = failedTaskName == null ? null : this.members.get(failedTaskName);
         if (failed == null && terminal != null && terminal.taskName().equals(failedTaskName)) {
             failed = terminal;
         }
@@ -94,7 +94,7 @@ final class TaskGroupReport {
     }
 
     /** Returns each member's terminal snapshot, keyed by registered member name. */
-    Map<String, TaskCompletion<?>> members() {
+    Map<String, TaskExitObservation<?>> members() {
         return members;
     }
 
@@ -104,7 +104,7 @@ final class TaskGroupReport {
      * snapshot convention.
      */
     @Nullable
-    TaskCompletion<?> terminal() {
+    TaskExitObservation<?> terminal() {
         return terminal;
     }
 
@@ -128,7 +128,7 @@ final class TaskGroupReport {
         if (outcome == TaskOutcome.SUCCESS) {
             return this;
         }
-        TaskCompletion<?> failed = failedTaskSnapshot();
+        TaskExitObservation<?> failed = failedTaskSnapshot();
         Throwable failure = failed == null ? null : failed.failure();
         if (failure instanceof RuntimeException) throw (RuntimeException) failure;
         if (failure instanceof Error) throw (Error) failure;
@@ -147,7 +147,7 @@ final class TaskGroupReport {
      */
     Map<TaskOutcome, Integer> outcomeCounts() {
         EnumMap<TaskOutcome, Integer> counts = new EnumMap<>(TaskOutcome.class);
-        for (TaskCompletion<?> member : members.values()) {
+        for (TaskExitObservation<?> member : members.values()) {
             counts.merge(member.outcome(), 1, Integer::sum);
         }
         if (terminal != null) {
@@ -174,11 +174,11 @@ final class TaskGroupReport {
         return sb.toString();
     }
 
-    private @Nullable TaskCompletion<?> failedTaskSnapshot() {
+    private @Nullable TaskExitObservation<?> failedTaskSnapshot() {
         if (failedTaskName == null) {
             return null;
         }
-        TaskCompletion<?> failed = members.get(failedTaskName);
+        TaskExitObservation<?> failed = members.get(failedTaskName);
         return failed != null ? failed : terminal;
     }
 
@@ -188,7 +188,7 @@ final class TaskGroupReport {
      */
     @Nullable
     Throwable recordedFailure() {
-        TaskCompletion<?> failed = failedTaskSnapshot();
+        TaskExitObservation<?> failed = failedTaskSnapshot();
         return failed == null ? null : failed.failure();
     }
 }

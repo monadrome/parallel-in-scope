@@ -67,8 +67,8 @@ public final class ImmediateResult<T> {
 
     private static ExecutionDisposition dispositionFor(TaskOutcome outcome) {
         return outcome == TaskOutcome.SUBMISSION_FAILURE
-                ? ExecutionDisposition.NOT_ENTERED
-                : ExecutionDisposition.ENTERED;
+                ? ExecutionDisposition.NOT_CLAIMED
+                : ExecutionDisposition.CLAIMED;
     }
 
     /** Returns the frozen terminal attribution; never RUNNING. */
@@ -102,7 +102,7 @@ public final class ImmediateResult<T> {
     }
 
     /**
-     * Whether the outcome is {@code SUCCESS}, matching {@link TaskCompletion#successful()}.
+     * Whether the outcome is {@code SUCCESS}, matching {@link TaskExitObservation#successful()}.
      *
      * @return {@code true} exactly when this result holds a value
      * @since 0.4.0
@@ -170,11 +170,12 @@ public final class ImmediateResult<T> {
     }
 
     /**
-     * Returns a completed Guava adapter. Cancellation always returns false, and isCancelled is
-     * always false. Stored failures, including cancellation exceptions, become ExecutionException
-     * causes without conversion. Both get methods read immediately and preserve the calling thread's
-     * interrupt flag. Listeners run through the consumer's executor, outside the completed business
-     * scope.
+     * Returns a read-only, already-completed Guava adapter for this frozen value or failure.
+     * Cancellation always returns false and {@code isCancelled()} is always false. Stored failures,
+     * including cancellation exceptions, become {@link ExecutionException} causes without conversion.
+     * Both {@code get} methods read immediately and preserve the calling thread's interrupt flag.
+     * The adapter represents result transport only; it does not wait for execution exit or runtime
+     * quiescence. Listeners run through the consumer's executor, outside the completed business scope.
      */
     public ListenableFuture<@Nullable T> asFuture() {
         ListenableFuture<@Nullable T> delegate =
@@ -248,7 +249,7 @@ public final class ImmediateResult<T> {
             return new ImmediateResult<>(
                     TaskTermination.failed(
                             failure,
-                            outcome == TaskOutcome.SUBMISSION_FAILURE ? disposition : ExecutionDisposition.ENTERED),
+                            outcome == TaskOutcome.SUBMISSION_FAILURE ? disposition : ExecutionDisposition.CLAIMED),
                     outcome,
                     null,
                     cause);

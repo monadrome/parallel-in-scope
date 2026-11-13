@@ -223,7 +223,7 @@ class DirectExecutorSafetyTest {
                     })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(5, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(5, TimeUnit.SECONDS);
 
             assertThat(Thread.currentThread().isInterrupted()).isFalse();
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);

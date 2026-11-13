@@ -231,7 +231,7 @@ class SynchronousExecutionTest {
             Uninterruptibles.awaitUninterruptibly(propagate);
         });
         // Hold later aggregate callbacks so the member's recorded failure stays readable.
-        group.completionFuture()
+        group.convergenceFuture()
                 .addListener(
                         () -> {
                             published.countDown();
@@ -503,7 +503,7 @@ class SynchronousExecutionTest {
                 assertThat(Verify.verifyNotNull(batch.get()).unexitedExecutions())
                         .containsEntry("stuck", 1);
                 assertThat(Verify.verifyNotNull(batch.get()).completions())
-                        .containsExactly((TaskCompletion<Integer>) null);
+                        .containsExactly((TaskExitObservation<Integer>) null);
                 assertThatThrownBy(Verify.verifyNotNull(batch.get()).results().get(0)::valueOrThrow)
                         .isInstanceOf(ExecutionException.class)
                         .hasCauseInstanceOf(java.util.concurrent.CancellationException.class);
@@ -523,7 +523,8 @@ class SynchronousExecutionTest {
         assertThat(runtime.awaitQuiescence(Duration.ofSeconds(3))).isTrue();
         if (group) assertThat(Verify.verifyNotNull(taskGroup.get()).members()).isEmpty();
         else
-            assertThat(Verify.verifyNotNull(batch.get()).completions()).containsExactly((TaskCompletion<Integer>) null);
+            assertThat(Verify.verifyNotNull(batch.get()).completions())
+                    .containsExactly((TaskExitObservation<Integer>) null);
     }
 
     @Test

@@ -82,8 +82,8 @@ final class TaskExecutionState {
     ExecutionDisposition disposition() {
         State current = Verify.verifyNotNull(state.get());
         return current == State.RUNNING || current == State.EXITED
-                ? ExecutionDisposition.ENTERED
-                : ExecutionDisposition.NOT_ENTERED;
+                ? ExecutionDisposition.CLAIMED
+                : ExecutionDisposition.NOT_CLAIMED;
     }
 
     /** Whether the execution has neither exited nor been determined to never enter. */

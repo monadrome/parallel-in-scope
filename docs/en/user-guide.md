@@ -366,10 +366,24 @@ diagnostics and workload-fit timing do not apply.
 
 `ImmediateResult<T>` is a shallowly immutable value-or-throwable container, not a Future.
 
+The lifecycle terms answer different questions:
+
+| Term | Meaning |
+|---|---|
+| Future completion | The transport future is terminal and can be read without waiting for its execution to exit. |
+| Logical termination | `ImmediateResult.termination()` freezes the success, failure, or cancellation cause and claim disposition. |
+| Execution exit | `executionExitConfirmed()` says direct task code has exited or was atomically prevented from starting. |
+| Exit observation | `TaskExitObservation<T>` publishes final timing and outcome telemetry after the future is terminal and execution exit is known. |
+| Runtime quiescence | `ParRuntime.awaitQuiescence(...)` waits for a closed runtime's admitted executions and observation scopes. |
+
+A completed Future therefore does not by itself authorize releasing resources shared with task code.
+Use `executionExitConfirmed()` for that gate, and use `TaskExitObservation` when you need final
+timing or queue telemetry.
+
 Each frozen result also exposes `termination()`, a three-branch `TaskTermination<T>` value:
 `SUCCESS`, `FAILED`, or `CANCELLED`. A failed termination carries a `FailureCause` that distinguishes
 user-code failure from submission rejection. A cancelled termination carries a `CancellationReason`
-and an `ExecutionDisposition`. `ENTERED` means the execution claim was acquired; `NOT_ENTERED` means
+and an `ExecutionDisposition`. `CLAIMED` means the execution claim was acquired; `NOT_CLAIMED` means
 the claim was not acquired and does not mean that framework preparation had no side effects. The
 legacy `outcome()` method remains an adapter for older callers.
 
@@ -534,7 +548,7 @@ whether `failedTaskName()` is in `results()`.
 
 ## Final observations {#completion-snapshots}
 
-Batch `completions()` is an input-ordered list of available final TaskCompletion snapshots; a null
+Batch `completions()` is an input-ordered list of available final TaskExitObservation snapshots; a null
 entry means final publication was not confirmed. Group `members()` contains available snapshots
 keyed by member name, and `terminal()` is the available combine observation or null.
 All observations contain identity, submit/start/end times, duration, outcome, failure, and actual
@@ -955,7 +969,7 @@ null entry means publication was not confirmed) and `members()` for a group (key
 ```java
 TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
         BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
-for (TaskCompletion<Account> completion : batch.completions()) {
+for (TaskExitObservation<Account> completion : batch.completions()) {
     if (completion == null) continue;         // not confirmed published before return
     metrics.record(
             completion.taskName(),

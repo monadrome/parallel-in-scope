@@ -124,8 +124,8 @@ class TaskFutureTest {
             assertThat(group.findMember("user")).contains(userFuture);
             assertThat(group.members().values())
                     .allSatisfy(future -> assertThat(future).isNotNull());
-            assertThat(group.completionFuture()).isInstanceOf(TaskFuture.class);
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture()).isInstanceOf(TaskFuture.class);
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
@@ -224,7 +224,7 @@ class TaskFutureTest {
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
             assertThat(member.cancel(true)).isTrue();
-            TaskGroupReport snapshot = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport snapshot = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             // The member snapshot records the reason before the group cancels itself for the other
             // members, so it keeps the initiating member distinct from the fall-out.
@@ -266,7 +266,7 @@ class TaskFutureTest {
                     .submitAll();
 
             group.cancel();
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.GROUP_CANCELLED);
 
             assertThat(group.findMember("first").get().outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
@@ -358,7 +358,7 @@ class TaskFutureTest {
                                         .submitAll();
                                 innerGroup.set(group);
                                 innerMember.set(group.futureOf(KEY_SLOW_STRING));
-                                return awaitQuietly(group.completionFuture()) == null ? "cancelled" : "done";
+                                return awaitQuietly(group.convergenceFuture()) == null ? "cancelled" : "done";
                             },
                             BatchOptions.timeout("outer", SCOPE_TIMEOUT));
 
@@ -367,7 +367,7 @@ class TaskFutureTest {
 
             await().atMost(2, TimeUnit.SECONDS)
                     .until(() -> Objects.requireNonNull(innerGroup.get())
-                            .completionFuture()
+                            .convergenceFuture()
                             .isDone());
             // The member token only learned about the cancellation by propagation, so the reported
             // cause is the originating state at the root of the chain, not the propagation link.
@@ -662,11 +662,11 @@ class TaskFutureTest {
 
             TaskFuture<String> inheritedFuture = group.futureOf(KEY_INHERITED_STRING);
             TaskFuture<String> tighterFuture = group.futureOf(KEY_TIGHTER_STRING);
-            long groupDeadline = group.completionFuture().deadlineNanos();
+            long groupDeadline = group.convergenceFuture().deadlineNanos();
 
             assertThat(inheritedFuture.deadlineNanos()).isEqualTo(groupDeadline);
             assertThat(tighterFuture.deadlineNanos()).isLessThan(groupDeadline);
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).deadlineNanos())
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).deadlineNanos())
                     .isEqualTo(groupDeadline);
 
             Duration before = inheritedFuture.remaining();

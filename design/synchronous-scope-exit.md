@@ -115,7 +115,7 @@ par.map(ids, this::fetch,
 | Group.terminalResult | @Nullable ImmediateResult<R>，null 仅表示无 combine |
 | valuesOrThrow / terminalValueOrThrow / orThrow | 即时读取，不等待，不消费标志 |
 | executionExitConfirmed / unexitedExecutions | 返回时直接执行退出状态，浅不可变、不轮询 |
-| Batch.completions | 输入顺序 @Nullable TaskCompletion 列表，缺失项为 null |
+| Batch.completions | 输入顺序 @Nullable TaskExitObservation 列表，缺失项为 null |
 | Group.members / terminal | 可用最终快照，缺失成员省略、缺失 combine 为 null |
 
 TaskGroup、TaskFuture、TaskBatch、TaskGroupReport 均包私有。Par.submit/submitBatch 仅供

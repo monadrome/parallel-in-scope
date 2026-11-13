@@ -30,7 +30,7 @@ class TaskIdentityTest {
             TaskBatchResult<String> batch = global.par(ParId.of("worker"))
                     .map(Arrays.asList("a", "b"), item -> item, BatchOptions.timeout("batch", TIMEOUT));
 
-            List<@Nullable TaskCompletion<String>> completions = batch.completions();
+            List<@Nullable TaskExitObservation<String>> completions = batch.completions();
 
             assertThat(completions).hasSize(2);
             TaskId<TaskUnit> unitId = completions.get(0).unitId();
@@ -55,9 +55,9 @@ class TaskIdentityTest {
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
-            TaskCompletion<TaskGroupReport> summary =
-                    group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<TaskGroupReport> summary =
+                    group.convergenceFuture().completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(summary.groupId()).isEqualTo(group.groupId()).isEqualTo(result.groupId());
             assertThat(summary.unitId()).isNull();
@@ -76,7 +76,7 @@ class TaskIdentityTest {
             TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.members()).isNotEmpty();
             assertThat(result.members().values()).allSatisfy(member -> {
@@ -98,7 +98,7 @@ class TaskIdentityTest {
                 Task.of("base", token, delegate).transform(value -> value + "!", MoreExecutors.directExecutor());
         delegate.set("value");
 
-        TaskCompletion<String> snapshot = derived.completionFuture().get(2, TimeUnit.SECONDS);
+        TaskExitObservation<String> snapshot = derived.completionFuture().get(2, TimeUnit.SECONDS);
 
         assertThat(snapshot.taskName()).isEqualTo("base");
         assertThat(snapshot.unitId()).isNull();
@@ -107,8 +107,8 @@ class TaskIdentityTest {
 
     @Test
     void aSyntheticRecordKeepsTheIdTheCallerSupplied() {
-        TaskCompletion<String> completion =
-                TaskCompletion.snapshot("task", TaskId.unit("1"), 0, 10, 30, 80, TaskOutcome.SUCCESS, "value", null);
+        TaskExitObservation<String> completion = TaskExitObservation.snapshot(
+                "task", TaskId.unit("1"), 0, 10, 30, 80, TaskOutcome.SUCCESS, "value", null);
 
         assertThat(completion.unitId()).isEqualTo(TaskId.unit("1"));
         assertThat(completion.groupId()).isNull();

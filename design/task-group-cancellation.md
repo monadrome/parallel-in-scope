@@ -148,7 +148,7 @@ bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIME
 outcome）与 `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
 
 **每个任务只有一个归因。** MUST：批次与组结果中的任务观测（`completions()`、`members()`、`terminal()`）
-的 outcome 等于该任务冻结的 `ImmediateResult` outcome，由 `TaskCompletion.withResult` 合成。内部观测
+的 outcome 等于该任务冻结的 `ImmediateResult` outcome，由 `TaskExitObservation.withResult` 合成。内部观测
 快照在冻结前按自己的 token 读出的 outcome 只是计时载体，MUST NOT 经公开 API 类型返回，也 MUST NOT 参与
 结果归因；包私有的观测 future（任务自身与批次聚合）仍原样携带它，只供内核与测试使用。内部快照可以与冻结 outcome 不同：
 组成员与 `mapAndCombine` 终端按自己的子 token 读取（例如 fail-fast 兄弟或被级联取消的终端读到

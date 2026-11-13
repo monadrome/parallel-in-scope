@@ -82,7 +82,7 @@ class TaskGroupConvergenceTest {
                 assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
                 fire.countDown();
 
-                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
                 String named = result.failedTaskName();
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(named).isIn("m1", "m3");
@@ -128,10 +128,10 @@ class TaskGroupConvergenceTest {
                 assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
                 release.countDown();
 
-                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
                 assertThat(result.members()).hasSize(MEMBERS);
-                for (TaskCompletion<?> member : result.members().values()) {
+                for (TaskExitObservation<?> member : result.members().values()) {
                     assertThat(member.outcome()).isEqualTo(TaskOutcome.SUCCESS);
                     assertThat(member.submitTimeNanos()).isGreaterThan(0L);
                     assertThat(member.startTimeNanos()).isGreaterThan(0L);
@@ -186,7 +186,7 @@ class TaskGroupConvergenceTest {
             assertThatThrownBy(() -> group.futureOf(KEY_CANCELLED_INTEGER).cancel(true))
                     .isInstanceOf(AssertionError.class);
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
                     .isEqualTo(TaskOutcome.MEMBER_CANCELLED);

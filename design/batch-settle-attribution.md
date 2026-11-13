@@ -2,7 +2,7 @@
 
 `Par.map` / `mapAndCombine` 冻结每个元素（含终端汇总）的 outcome 时，取该元素 future
 **落定那一刻**的分类，与组成员在 `TaskGroup.memberCompleted` 里被分类的时刻一致。本文是这条
-契约的权威出处；用户可见的承诺在 `TaskCompletion.failure()` javadoc 与用户指南
+契约的权威出处；用户可见的承诺在 `TaskExitObservation.failure()` javadoc 与用户指南
 "Final observations"一节。
 
 ## 1. 契约
@@ -50,7 +50,7 @@
 记一条 SEVERE 日志，fan-out 继续执行到钉子与 bind 监听器。
 
 `TaskBatch` 用"等待落定分类"取代"等待元素 future"，冻结时以 `fromTask(view, 钉住的 outcome)`
-构造结果；观测快照经 `TaskCompletion.withResult` 取冻结值，三视图一致。批次冻结的每个任务都
+构造结果；观测快照经 `TaskExitObservation.withResult` 取冻结值，三视图一致。批次冻结的每个任务都
 必须带钉子（`Verify`，缺失即内核缺陷）：生产里批次视图只由上述两处产生，空批次不冻结任何元素。
 包私有的活读 `TaskFuture.outcome()` / `TaskBatch.report()` 不变。
 
@@ -104,7 +104,7 @@ bind 监听器执行，而这种形状下 `FAIL_FAST` 只能由 bind 的聚合�
 
 | 编号 | 级别 | 发现 | 处置 |
 |---|---|---|---|
-| N1-K1 | MINOR | 新的等待由监听器 fan-out 门控：钉子前唯一的监听器（观测落定信号）在 `publish` 的保护之外构建快照，逃出的 `Error` 使钉子永不完成、冻结无限挂起；旧实现等待 delegate 本身不会挂起 | 采纳。快照改在受保护的调用内构建，失败以异常结束观测；回归闩锁 `aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners`（撤掉保护即以 `StackOverflowError` 报错）。评审另指出的第二触发点（用户在 `completionFuture()` 上挂阻塞监听器）不可由用户触达：`TaskFuture`/`TaskBatch` 包私有，公开面只有冻结数据 |
+| N1-K1 | MINOR | 新的等待由监听器 fan-out 门控：钉子前唯一的监听器（观测落定信号）在 `publish` 的保护之外构建快照，逃出的 `Error` 使钉子永不完成、冻结无限挂起；旧实现等待 delegate 本身不会挂起 | 采纳。快照改在受保护的调用内构建，失败以异常结束观测；回归闩锁 `aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners`（撤掉保护即以 `StackOverflowError` 报错）。评审另指出的第二触发点（用户在包私有观测 Future 上挂阻塞监听器）不可由用户触达：`TaskFuture`/`TaskBatch` 包私有，公开面只有冻结数据 |
 | N1-K2 | MINOR | `docs/en/migration-v0.2.md` 仍称触发级联的直接取消元素记 `FAIL_FAST` | 采纳，改法不同：0.2 迁移指南是 0.1→0.2 的记录，对当时成立，不改写；在 `migration-v0.3.md`（en/zh）补写冻结归因的变化 |
 | N1-K3 | NIT | `TaskBatch.of(List)` 仍接受无钉子视图，冻结时抛出 | 采纳：javadoc 写明只有 `attributedOnSettle` 视图可以冻结 |
 | N1-K4 | NIT | 测试类无 `@Timeout`，新的两个等待都不可中断；`SneakyThrow` 与他处重复 | 采纳前半：类级 `@Timeout`（`SEPARATE_THREAD`，不可中断的等待也能失败而非挂住构建）。驳回后半：本仓测试类各自持有私有辅助类 |

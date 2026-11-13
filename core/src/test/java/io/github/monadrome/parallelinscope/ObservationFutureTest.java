@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Contract tests for the observation futures: {@link TaskFuture#completionFuture()} and {@link
- * TaskBatch#completionFuture()} publish the final immutable {@link TaskCompletion} snapshot
+ * TaskBatch#observationsFuture()} publish the final immutable {@link TaskExitObservation} snapshot
  * of every task — including tasks that never started — once the task future is terminal and the
  * task execution has exited.
  */
@@ -63,12 +63,13 @@ class ObservationFutureTest {
                             BatchOptions.timeout("orders", SCOPE_TIMEOUT).parallelism(2));
             batch.results().get(0).addListener(firstSettled::countDown, MoreExecutors.directExecutor());
 
-            List<TaskCompletion<String>> completions = batch.completionFuture().get(2, TimeUnit.SECONDS);
+            List<TaskExitObservation<String>> completions =
+                    batch.observationsFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(completions).hasSize(3);
             // Input order is preserved and every snapshot is final: identity, timings, outcome.
-            assertThat(completions).extracting(TaskCompletion::taskIndex).containsExactly(0, 1, 2);
-            TaskCompletion<String> first = completions.get(0);
+            assertThat(completions).extracting(TaskExitObservation::taskIndex).containsExactly(0, 1, 2);
+            TaskExitObservation<String> first = completions.get(0);
             assertThat(first.taskName()).isEqualTo("orders");
             assertThat(first.successful()).isTrue();
             assertThat(first.result()).isEqualTo("first");
@@ -77,7 +78,7 @@ class ObservationFutureTest {
             assertThat(first.executionTime().isNegative()).isFalse();
             assertThat(first.waitTime().isNegative()).isFalse();
 
-            TaskCompletion<String> second = completions.get(1);
+            TaskExitObservation<String> second = completions.get(1);
             assertThat(second.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(second.failure()).isSameAs(boom);
             assertThat(second.result()).isNull();
@@ -89,7 +90,7 @@ class ObservationFutureTest {
 
             // The list is immutable and the future ignores cancellation.
             assertThatThrownBy(() -> completions.clear()).isInstanceOf(UnsupportedOperationException.class);
-            assertThat(batch.completionFuture().cancel(true)).isFalse();
+            assertThat(batch.observationsFuture().cancel(true)).isFalse();
         } finally {
             global.close();
             pool.shutdownNow();
@@ -119,11 +120,12 @@ class ObservationFutureTest {
             batch.close();
             block.countDown();
 
-            List<TaskCompletion<String>> completions = batch.completionFuture().get(2, TimeUnit.SECONDS);
+            List<TaskExitObservation<String>> completions =
+                    batch.observationsFuture().get(2, TimeUnit.SECONDS);
             assertThat(completions).hasSize(3);
             assertThat(completions.get(0).startTimeNanos()).isGreaterThan(0L);
             for (int index = 1; index < 3; index++) {
-                TaskCompletion<String> abandoned = completions.get(index);
+                TaskExitObservation<String> abandoned = completions.get(index);
                 assertThat(abandoned.taskIndex()).isEqualTo(index);
                 assertThat(abandoned.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
                 assertThat(abandoned.startTimeNanos()).isZero();
@@ -154,7 +156,7 @@ class ObservationFutureTest {
             TaskFuture<String> queued = batch.results().get(1);
             assertThat(queued.cancel(true)).isTrue();
 
-            TaskCompletion<String> snapshot = queued.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<String> snapshot = queued.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.MEMBER_CANCELLED);
             assertThat(snapshot.startTimeNanos()).isZero();
             assertThat(snapshot.endTimeNanos()).isZero();
@@ -179,11 +181,11 @@ class ObservationFutureTest {
                             BatchOptions.timeout("window", SCOPE_TIMEOUT).parallelism(1));
 
             TaskFuture<String> queued = batch.results().get(1);
-            ListenableFuture<TaskCompletion<String>> whileWaiting = queued.completionFuture();
+            ListenableFuture<TaskExitObservation<String>> whileWaiting = queued.completionFuture();
             block.countDown();
 
             assertThat(queued.get(2, TimeUnit.SECONDS)).isEqualTo("queued");
-            TaskCompletion<String> snapshot = whileWaiting.get(2, TimeUnit.SECONDS);
+            TaskExitObservation<String> snapshot = whileWaiting.get(2, TimeUnit.SECONDS);
             // The observation future captured while the element was still waiting for a slot
             // resolves with the real task's final timings once it runs.
             assertThat(snapshot.successful()).isTrue();
@@ -208,7 +210,7 @@ class ObservationFutureTest {
                     .submit("slow", () -> holdQuietly(block, "slow"), TaskOptions.timeout(Duration.ofMillis(50)));
 
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
-            TaskCompletion<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             block.countDown();
@@ -238,7 +240,8 @@ class ObservationFutureTest {
                             },
                             BatchOptions.timeout("fail-fast", SCOPE_TIMEOUT).parallelism(2));
 
-            List<TaskCompletion<String>> completions = batch.completionFuture().get(2, TimeUnit.SECONDS);
+            List<TaskExitObservation<String>> completions =
+                    batch.observationsFuture().get(2, TimeUnit.SECONDS);
             assertThat(completions.get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(completions.get(1).outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
         } finally {
@@ -286,7 +289,7 @@ class ObservationFutureTest {
             assertThat(task.completionFuture().isDone()).isFalse();
 
             releaseExecution.countDown();
-            TaskCompletion<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<String> snapshot = task.completionFuture().get(2, TimeUnit.SECONDS);
             // A direct cancel of a submitted task trips the token's fail-fast binding, exactly as
             // task.outcome() already reads it; the snapshot agrees with that attribution.
             assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.FAIL_FAST);
@@ -311,8 +314,8 @@ class ObservationFutureTest {
 
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             // No polling and no further wait: the observation future is already done.
-            assertThat(batch.completionFuture().isDone()).isTrue();
-            assertThat(batch.completionFuture().get()).hasSize(3);
+            assertThat(batch.observationsFuture().isDone()).isTrue();
+            assertThat(batch.observationsFuture().get()).hasSize(3);
         } finally {
             global.close();
             pool.shutdownNow();
@@ -325,7 +328,7 @@ class ObservationFutureTest {
         ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
-        AtomicReference<TaskCompletion<String>> captured = new AtomicReference<>();
+        AtomicReference<TaskExitObservation<String>> captured = new AtomicReference<>();
         AtomicReference<Thread> callbackThread = new AtomicReference<>();
         try {
             TaskFuture<String> task = global.par(ParId.of("worker"))
@@ -333,9 +336,9 @@ class ObservationFutureTest {
 
             Futures.addCallback(
                     task.completionFuture(),
-                    new FutureCallback<TaskCompletion<String>>() {
+                    new FutureCallback<TaskExitObservation<String>>() {
                         @Override
-                        public void onSuccess(@Nullable TaskCompletion<String> completion) {
+                        public void onSuccess(@Nullable TaskExitObservation<String> completion) {
                             captured.set(completion);
                             callbackThread.set(Thread.currentThread());
                         }
@@ -367,9 +370,9 @@ class ObservationFutureTest {
                     .par(KEY_USER_STRING, global.par(ParId.of("worker")), () -> "alice")
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
-            TaskCompletion<TaskGroupReport> summary =
-                    group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<TaskGroupReport> summary =
+                    group.convergenceFuture().completionFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(summary.taskName()).isEqualTo("page");
             assertThat(summary.unitId()).isNull();
@@ -382,7 +385,7 @@ class ObservationFutureTest {
 
             // The member's own observation keeps its per-task direct attribution, while the group
             // result remains the authority for post-convergence attribution.
-            TaskCompletion<String> member =
+            TaskExitObservation<String> member =
                     group.futureOf(KEY_USER_STRING).completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(member.taskName()).isEqualTo("user");
             assertThat(member.successful()).isTrue();
@@ -407,8 +410,8 @@ class ObservationFutureTest {
                     })
                     .submitAll();
 
-            TaskCompletion<TaskGroupReport> summary =
-                    group.completionFuture().completionFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<TaskGroupReport> summary =
+                    group.convergenceFuture().completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(summary.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(summary.failure()).isSameAs(boom);
             assertThat(summary.result()).isNotNull();

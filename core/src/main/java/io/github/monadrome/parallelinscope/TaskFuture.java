@@ -10,13 +10,13 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Package-private, with {@link Task} as its only implementation: batch elements, group members,
  * the terminal combine, and the group completion summary are all {@code Task} views. No public
- * signature exposes it; callers receive frozen {@link ImmediateResult} and {@link TaskCompletion}
+ * signature exposes it; callers receive frozen {@link ImmediateResult} and {@link TaskExitObservation}
  * data instead. Control handles that do not represent a task execution, such as a batch's
  * submission canceller, stay plain futures.
  *
  * <p>Attribution is per future. {@link #outcome()} reads the cancellation token that owns this one
  * task, so it is available while the enclosing group is still converging. The enclosing scope's
- * frozen classification — {@link TaskGroupResult#outcome()}, each member's {@link TaskCompletion},
+ * frozen classification — {@link TaskGroupResult#outcome()}, each member's {@link TaskExitObservation},
  * a batch element's {@link ImmediateResult} — is the authority; it can carry a finer cause than the
  * token chain of a single future reveals, and a batch element's is pinned when the element settled.
  *
@@ -81,7 +81,7 @@ interface TaskFuture<T> extends ListenableFuture<T> {
 
     /**
      * Returns the observation future of this task: a {@code ListenableFuture} of the task's final
-     * immutable {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
+     * immutable {@link TaskExitObservation} snapshot — identity, submit/start/end times, queue wait,
      * outcome, failure, and on success the result.
      *
      * <p>The snapshot is published only after this future is terminal <em>and</em> the task execution
@@ -100,5 +100,5 @@ interface TaskFuture<T> extends ListenableFuture<T> {
      * immediate reaction; the attribution here is the task's own direct one — a group member's
      * authoritative post-convergence attribution remains {@link TaskGroupResult#members()}.
      */
-    ListenableFuture<TaskCompletion<T>> completionFuture();
+    ListenableFuture<TaskExitObservation<T>> completionFuture();
 }

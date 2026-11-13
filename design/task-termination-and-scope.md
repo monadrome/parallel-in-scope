@@ -8,20 +8,20 @@
 每个任务只发布一次不可变的 `TaskTermination<T>`，它只有三个分支：
 
 ```text
-Success(value, ENTERED)
+Success(value, CLAIMED)
 Failed(FailureCause, disposition)
 Cancelled(CancellationReason, disposition)
 ```
 
-`ExecutionDisposition.ENTERED` 表示任务取得了 execution claim；它不保证用户 callable 已经执行到
-第一行，也不保证线程已经退出。`NOT_ENTERED` 表示 claim 没有成功；上下文安装、入队、观测登记和清理
+`ExecutionDisposition.CLAIMED` 表示任务取得了 execution claim；它不保证用户 callable 已经执行到
+第一行，也不保证线程已经退出。`NOT_CLAIMED` 表示 claim 没有成功；上下文安装、入队、观测登记和清理
 仍可能发生。
 
 公共构造只能通过不可变工厂完成：
 
-- `Success` 只能使用 `ENTERED`；
-- `Failed(UserCodeFailure, NOT_ENTERED)` 非法；
-- `Failed(SubmissionRejected, NOT_ENTERED)` 合法，inline guard 在 claim 后失败时也可以使用 `ENTERED`；
+- `Success` 只能使用 `CLAIMED`；
+- `Failed(UserCodeFailure, NOT_CLAIMED)` 非法；
+- `Failed(SubmissionRejected, NOT_CLAIMED)` 合法，inline guard 在 claim 后失败时也可以使用 `CLAIMED`；
 - `Cancelled` 可以在 claim 前或 claim 后发布。
 
 `FailureCause` 是封闭的 final 类型，至少区分 `USER_CODE_FAILURE` 与 `SUBMISSION_REJECTED`，并保留
@@ -37,11 +37,11 @@ Cancelled(CancellationReason, disposition)
 
 `TaskExecutionState` 的 `PENDING -> RUNNING` CAS 是 execution claim 的唯一线性化点：
 
-- claim CAS 成功后再取消，终止对象必须是 `ENTERED`，即使 callable 尚未调用；
-- claim CAS 失败时，取消或提交拒绝使用 `NOT_ENTERED`，用户 callable 不得执行；
+- claim CAS 成功后再取消，终止对象必须是 `CLAIMED`，即使 callable 尚未调用；
+- claim CAS 失败时，取消或提交拒绝使用 `NOT_CLAIMED`，用户 callable 不得执行；
 - `ExecutionPhaseHintFuture.phase()` 只是非阻塞诊断 hint，不能单独决定 disposition，也不能证明线程退出。
 
-任务的实时状态通过 `TaskStatus` 查询：`PENDING`、`CLAIMED`、`TERMINATED`、`EXITED`。`TERMINATED`
+任务的实时状态通过 `TaskStatus` 查询：`PENDING`、`CLAIMED`、`RESULT_SETTLED`、`EXITED`。`RESULT_SETTLED`
 允许逻辑终止已经发布而用户代码仍在 finally 中展开；`EXITED` 只在执行退出或原子确定不会进入后出现。
 状态查询不改写已经发布的 `TaskTermination`。
 
@@ -51,11 +51,25 @@ Cancelled(CancellationReason, disposition)
 
 1. **逻辑终止**：`TaskTermination`/`ImmediateResult` 已冻结，future 可以已 done；
 2. **执行退出**：用户 callable 的 finally 已结束，或任务已原子确定不会进入；
-3. **观测快照**：`TaskCompletion` 的最终时间、队列等待和退出后数据已发布。
+3. **观测快照**：`TaskExitObservation` 的最终时间、队列等待和退出后数据已发布。
 
-`TaskCompletion` 仍然是退出后观测快照，不得把它的 future 改作逻辑终止入口。Batch/Group 返回值可以
+`TaskExitObservation` 仍然是退出后观测快照，不得把它的 future 改作逻辑终止入口。Batch/Group 返回值可以
 已经包含逻辑终止而 `executionExitConfirmed()` 仍为 false；释放与任务共享的资源前必须确认直接执行已退出，
 嵌套 Batch/Group 还要分别确认自己的退出。
+
+### Terminology table and lifecycle timeline
+
+| Layer | Authoritative signal | Promise |
+|---|---|---|
+| Future completion | `Future.isDone()` | The transport future is terminal; its result can be read. |
+| Logical termination | `ImmediateResult.termination()` / `TaskTermination` | The success, failure, or cancellation cause and `ExecutionDisposition` are frozen. |
+| Execution exit | `executionExitConfirmed()` | Direct user code has exited or was atomically prevented from starting. |
+| Exit observation | `TaskExitObservation` | Final timing and post-exit telemetry have been published. |
+| Runtime quiescence | `ParRuntime.awaitQuiescence(...)` | A closed runtime has drained admitted executions and observation scopes. |
+
+The intended order is `Future.isDone()` → logical termination → execution exit →
+`TaskExitObservation` publication; runtime quiescence is the enclosing scope's drain gate. The first
+two signals may be visible before user code has unwound, so neither replaces the execution-exit gate.
 
 ## 4. scope termination
 
@@ -140,8 +154,8 @@ P0037 的 staged path 消费 `TaskTermination` 的三分支和 `CancellationReas
 ## 7. 验收不变量
 
 - 逻辑终止发布不等待忽略中断的用户线程退出；
-- `NOT_ENTERED` 只表示 claim 未成功，不表示没有框架副作用；
-- `TaskCompletion` 只有在退出后发布，且与对应冻结 `ImmediateResult` 的逻辑终止一致；
+- `NOT_CLAIMED` 只表示 claim 未成功，不表示没有框架副作用；
+- `TaskExitObservation` 只有在退出后发布，且与对应冻结 `ImmediateResult` 的逻辑终止一致；
 - scope primary cause 只通过一次 CAS 发布，成员结果继续保留次级事件；
 - Batch 与 Group 共用 `ScopeTermination`，但保留各自的索引、key、combine 和失败选择规则；
 - 所有 rejection、窗口放弃、inline guard 和取消交错都必须落到 `TaskTermination`，不得留下 pending future。

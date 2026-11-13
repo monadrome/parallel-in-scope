@@ -14,8 +14,8 @@ public enum TaskStatus {
     PENDING,
     /** The task acquired an execution claim and has not yet logically terminated. */
     CLAIMED,
-    /** The logical termination is published but physical execution exit is not confirmed. */
-    TERMINATED,
+    /** The logical result is settled but physical execution exit is not confirmed. */
+    RESULT_SETTLED,
     /** The task's execution exited or was atomically prevented from starting. */
     EXITED
 }

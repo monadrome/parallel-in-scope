@@ -195,8 +195,8 @@ final class TaskGroup<R> implements AutoCloseable {
     /**
      * The aggregated member values of a fully successful group, in declaration order.
      *
-     * <p>Completes exactly when the group converges, and always before {@link #completionFuture()}
-     * does: a done completion future implies a done values future. It never carries partial values
+     * <p>Completes exactly when the group converges, and always before {@link #convergenceFuture()}
+     * does: a done convergence future implies a done values future. It never carries partial values
      * and never stays pending on a failed group —
      *
      * <ul>
@@ -211,14 +211,14 @@ final class TaskGroup<R> implements AutoCloseable {
      * </ul>
      *
      * <p>It is an aggregate, not a task: it has no execution context, no attribution, and no
-     * observation snapshot of its own. Per-member outcomes stay in {@link #completionFuture()}'s
+     * observation snapshot of its own. Per-member outcomes stay in {@link #convergenceFuture()}'s
      * {@link TaskGroupReport}.
      *
      * <p>Listeners run on the thread that converges the group, and that thread publishes {@link
-     * #completionFuture()} only after this future's listeners have returned. A listener that blocks
-     * waiting for the completion future — or for anything else only that thread can produce —
+     * #convergenceFuture()} only after this future's listeners have returned. A listener that blocks
+     * waiting for the convergence future — or for anything else only that thread can produce —
      * therefore deadlocks the group. Register such a listener with an asynchronous executor, or
-     * wait on the completion future from the thread that submitted the group.
+     * wait on the convergence future from the thread that submitted the group.
      */
     public ListenableFuture<GroupValues> valuesFuture() {
         return valuesView;
@@ -233,7 +233,7 @@ final class TaskGroup<R> implements AutoCloseable {
      *
      * @return the report future, which is terminal only when the group has converged
      */
-    public TaskFuture<TaskGroupReport> completionFuture() {
+    public TaskFuture<TaskGroupReport> convergenceFuture() {
         return completionTask;
     }
 
@@ -266,12 +266,12 @@ final class TaskGroup<R> implements AutoCloseable {
         }
         Map<String, ImmediateResult<?>> results = new LinkedHashMap<>();
         Map<TaskKey<?>, ImmediateResult<?>> keyedResults = new LinkedHashMap<>();
-        Map<String, TaskCompletion<?>> observations = new LinkedHashMap<>();
+        Map<String, TaskExitObservation<?>> observations = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             ImmediateResult<Object> immediate = freezeResult(member);
             results.put(member.name, immediate);
             keyedResults.put(member.key, immediate);
-            TaskCompletion<?> observed = finalObservation(member, immediate);
+            TaskExitObservation<?> observed = finalObservation(member, immediate);
             if (observed != null) {
                 observations.put(member.name, observed);
             }
@@ -316,15 +316,15 @@ final class TaskGroup<R> implements AutoCloseable {
         return ImmediateResult.fromTask(member.view, reason);
     }
 
-    private @Nullable TaskCompletion<?> finalObservation(MemberState member, ImmediateResult<?> immediate) {
-        ListenableFuture<TaskCompletion<Object>> observation = member.view.observationView();
+    private @Nullable TaskExitObservation<?> finalObservation(MemberState member, ImmediateResult<?> immediate) {
+        ListenableFuture<TaskExitObservation<Object>> observation = member.view.observationView();
         if (!observation.isDone()) {
             return null;
         }
         try {
-            TaskCompletion<Object> finalTimes =
+            TaskExitObservation<Object> finalTimes =
                     com.google.common.base.Verify.verifyNotNull(Futures.getDone(observation));
-            return TaskCompletion.withResult(finalTimes, immediate);
+            return TaskExitObservation.withResult(finalTimes, immediate);
         } catch (ExecutionException impossible) {
             throw new AssertionError("member observation cannot fail", impossible);
         }
@@ -907,7 +907,7 @@ final class TaskGroup<R> implements AutoCloseable {
         // Classification reads only an already-terminal future and the tokens' own atomic state,
         // so it needs no mutual exclusion. The counted CAS stays: this design depends on counting
         // each member exactly once, and a duplicate increment would step over the barrier total
-        // and strand the completion future.
+        // and strand the convergence future.
         if (!member.counted.compareAndSet(false, true)) {
             return;
         }
@@ -979,7 +979,7 @@ final class TaskGroup<R> implements AutoCloseable {
             // (the combine's executor, member token listeners, and through them a nested group's
             // own convergence), and an Error escaping one of them would otherwise skip the one
             // increment this task owes the barrier. The total is compared for exact equality, so a
-            // lost count strands the completion future forever instead of surfacing the failure.
+            // lost count strands the convergence future forever instead of surfacing the failure.
             if (completedTasks.incrementAndGet() == totalTasks) {
                 converge();
             }
@@ -1037,18 +1037,18 @@ final class TaskGroup<R> implements AutoCloseable {
 
     /**
      * Publishes the final group decision after every task's classification is available. The values
-     * future is terminal before the completion future is published.
+     * future is terminal before the convergence future is published.
      */
     private void converge() {
         /*
          * The final barrier increment is a read-modify-write that acquires every preceding member's
          * classification and timing writes. The winning thread sees a complete immutable view
-         * without a group state lock. Publish values first so a done completion future always
+         * without a group state lock. Publish values first so a done convergence future always
          * implies done values; direct listeners must not block that publication sequence.
          */
 
         /*
-         * The values future is published first, so a done completion future always implies a done
+         * The values future is published first, so a done convergence future always implies a done
          * values future — a caller that reads both never has to consider a converged group whose
          * values are still pending.
          */
@@ -1062,14 +1062,14 @@ final class TaskGroup<R> implements AutoCloseable {
             //
             // First, the sink has to be terminal. A failure raised *before* `values.set(...)` — a
             // member that was somehow not settled, an allocation failure — would otherwise leave the
-            // values future pending forever while the completion future below reports SUCCESS,
+            // values future pending forever while the convergence future below reports SUCCESS,
             // breaking the one-directional implication this class documents. Cancelling it is the
             // right repair: the group has no values to hand out. When the failure instead came from a
             // caller's listener, `values` is already terminal and this is a no-op.
             //
             // Second, nothing below may be skipped. Guava's listener fan-out catches
             // RuntimeException but not Error, so an Error escaping a listener on the values future
-            // would otherwise reach this frame and strand completionFuture() forever for a group
+            // would otherwise reach this frame and strand convergenceFuture() forever for a group
             // whose members have all settled.
             if (!values.isDone()) {
                 values.cancel(false);
@@ -1172,21 +1172,21 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     /**
-     * The group-level observation summary of the settled completion future. The completion future
+     * The group-level observation summary of the settled convergence future. The convergence future
      * is only ever set with a result — convergence never fails or cancels it — so a failure here is
      * an implementation defect.
      */
-    private static TaskCompletion<TaskGroupReport> groupSummary(SettableFuture<TaskGroupReport> completion) {
+    private static TaskExitObservation<TaskGroupReport> groupSummary(SettableFuture<TaskGroupReport> completion) {
         try {
-            return TaskCompletion.groupSummary(Objects.requireNonNull(
+            return TaskExitObservation.groupSummary(com.google.common.base.Verify.verifyNotNull(
                     Futures.getDone(completion), "group result is committed before observation"));
         } catch (ExecutionException impossible) {
-            throw new AssertionError("group completion future cannot fail", impossible);
+            throw new AssertionError("group convergence future cannot fail", impossible);
         }
     }
 
     private TaskGroupReport snapshot(TaskOutcome outcome, @Nullable String failedName) {
-        Map<String, TaskCompletion<?>> snapshots = new LinkedHashMap<>();
+        Map<String, TaskExitObservation<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             snapshots.put(member.name, memberSnapshot(member));
         }
@@ -1222,11 +1222,11 @@ final class TaskGroup<R> implements AutoCloseable {
                     .disposition();
         }
         ExecutionPhaseHintFuture<Object> prepared = member.prepared;
-        return prepared == null ? ExecutionDisposition.ENTERED : prepared.executionDisposition();
+        return prepared == null ? ExecutionDisposition.CLAIMED : prepared.executionDisposition();
     }
 
-    private static TaskCompletion<?> memberSnapshot(MemberState member) {
-        return TaskCompletion.memberSnapshot(
+    private static TaskExitObservation<?> memberSnapshot(MemberState member) {
+        return TaskExitObservation.memberSnapshot(
                 member.name,
                 member.context.multiTaskContext().unitId(),
                 com.google.common.base.Verify.verifyNotNull(

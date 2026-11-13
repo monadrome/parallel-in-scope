@@ -157,7 +157,7 @@ class GroupDraftContractTest {
                             values.valueOf(KEY_USER_STRING), String.valueOf(values.valueOf(KEY_COUNT_INTEGER)));
                 })
                 .submitAll()) {
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(group.terminalFuture()).isPresent();

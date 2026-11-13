@@ -36,10 +36,10 @@ public final class TaskGroupResult<R> {
 
     private final Map<String, ImmediateResult<?>> results;
     private final Map<TaskKey<?>, ImmediateResult<?>> keyedResults;
-    private final Map<String, TaskCompletion<?>> members;
+    private final Map<String, TaskExitObservation<?>> members;
     private final ImmediateResult<GroupValues> values;
     private final @Nullable ImmediateResult<R> terminalResult;
-    private final @Nullable TaskCompletion<?> terminal;
+    private final @Nullable TaskExitObservation<?> terminal;
     private final Map<String, Integer> unexitedExecutions;
 
     TaskGroupResult(
@@ -47,10 +47,10 @@ public final class TaskGroupResult<R> {
             ImmutableList<String> names,
             Map<String, ImmediateResult<?>> results,
             Map<TaskKey<?>, ImmediateResult<?>> keyedResults,
-            Map<String, TaskCompletion<?>> members,
+            Map<String, TaskExitObservation<?>> members,
             ImmediateResult<GroupValues> values,
             @Nullable ImmediateResult<R> terminalResult,
-            @Nullable TaskCompletion<?> terminal,
+            @Nullable TaskExitObservation<?> terminal,
             Map<String, Integer> unexitedExecutions) {
         this.report = report;
         this.names = names;
@@ -169,12 +169,12 @@ public final class TaskGroupResult<R> {
     }
 
     /** Available final member observations; an absent entry was not confirmed before return. */
-    public Map<String, TaskCompletion<?>> members() {
+    public Map<String, TaskExitObservation<?>> members() {
         return members;
     }
 
     /** Final combine observation, or null if absent or not published before return. */
-    public @Nullable TaskCompletion<?> terminal() {
+    public @Nullable TaskExitObservation<?> terminal() {
         return terminal;
     }
 

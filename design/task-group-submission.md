@@ -158,7 +158,7 @@ io.github.monadrome.parallelinscope/
   TaskGroup.java                  // 包私有运行对象
   TaskGroupDefinition.java        // 包私有冻结结构
   TaskGroupResult.java
-  TaskCompletion.java
+  TaskExitObservation.java
   TaskOutcome.java
   TaskSubmissions.java            // package-private prepare / submitScoped 两阶段内核
 ```

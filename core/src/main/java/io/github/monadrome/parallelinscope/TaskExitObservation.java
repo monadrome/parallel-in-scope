@@ -1,14 +1,16 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Verify;
 import java.time.Duration;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Immutable final observation of a task whose result is terminal and execution has exited or can never
- * start. Synchronous batches expose available observations through TaskBatchResult.completions;
- * groups expose them through TaskGroupResult.members and terminal.
+ * Immutable telemetry snapshot published after a task's logical result is terminal and its execution
+ * has exited or can never start. Synchronous batches expose available snapshots through
+ * {@link TaskBatchResult#completions()}; groups expose them through {@link TaskGroupResult#members()}
+ * and {@link TaskGroupResult#terminal()}.
  *
  * <p>Successful unary and batch observations, and successful observations published through {@link
  * TaskGroupResult#members()} and {@link TaskGroupResult#terminal()}, contain the actual value,
@@ -20,7 +22,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since 0.3.0
  */
-public final class TaskCompletion<T> {
+public final class TaskExitObservation<T> {
 
     /** Queue wait beyond this threshold classifies the task as enqueued. */
     private static final long ENQUEUE_THRESHOLD_NANOS = 3_000_000L;
@@ -37,7 +39,7 @@ public final class TaskCompletion<T> {
     private final @Nullable Throwable failure;
     private final @Nullable TaskTermination<T> termination;
 
-    private TaskCompletion(
+    private TaskExitObservation(
             String taskName,
             @Nullable TaskId<TaskUnit> unitId,
             @Nullable TaskId<TaskGroupRun> groupId,
@@ -62,7 +64,7 @@ public final class TaskCompletion<T> {
                 null);
     }
 
-    private TaskCompletion(
+    private TaskExitObservation(
             String taskName,
             @Nullable TaskId<TaskUnit> unitId,
             @Nullable TaskId<TaskGroupRun> groupId,
@@ -74,7 +76,7 @@ public final class TaskCompletion<T> {
             @Nullable T result,
             @Nullable Throwable failure,
             @Nullable TaskTermination<T> termination) {
-        this.taskName = Objects.requireNonNull(taskName, "taskName cannot be null");
+        this.taskName = checkNotNull(taskName, "taskName cannot be null");
         Verify.verify(unitId == null || groupId == null, "a record names at most one identity space");
         this.unitId = unitId;
         this.groupId = groupId;
@@ -83,7 +85,7 @@ public final class TaskCompletion<T> {
         this.submitTimeNanos = submitTimeNanos;
         this.startTimeNanos = startTimeNanos;
         this.endTimeNanos = endTimeNanos;
-        this.outcome = Objects.requireNonNull(outcome, "outcome cannot be null");
+        this.outcome = checkNotNull(outcome, "outcome cannot be null");
         this.result = result;
         this.failure = failure;
         this.termination = termination;
@@ -93,7 +95,7 @@ public final class TaskCompletion<T> {
      * Creates a group member's terminal snapshot: the registered member name stands in for {@code
      * taskName}, the index is zero, and the result stays in the member's future.
      */
-    static TaskCompletion<Object> memberSnapshot(
+    static TaskExitObservation<Object> memberSnapshot(
             String memberName,
             TaskId<TaskUnit> unitId,
             TaskOutcome outcome,
@@ -101,12 +103,12 @@ public final class TaskCompletion<T> {
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos) {
-        return new TaskCompletion<>(
+        return new TaskExitObservation<>(
                 memberName, unitId, null, 0, submitTimeNanos, startTimeNanos, endTimeNanos, outcome, null, failure);
     }
 
     /** Creates a member snapshot with the authoritative claim disposition. */
-    static TaskCompletion<Object> memberSnapshot(
+    static TaskExitObservation<Object> memberSnapshot(
             String memberName,
             TaskId<TaskUnit> unitId,
             TaskOutcome outcome,
@@ -115,7 +117,7 @@ public final class TaskCompletion<T> {
             long startTimeNanos,
             long endTimeNanos,
             TaskTermination<Object> termination) {
-        return new TaskCompletion<>(
+        return new TaskExitObservation<>(
                 memberName,
                 unitId,
                 null,
@@ -134,7 +136,7 @@ public final class TaskCompletion<T> {
      * identity, timings, outcome, and — on success — result. The unit id is null when no unit backs
      * the task, as for a derived fluent view.
      */
-    static <T> TaskCompletion<T> snapshot(
+    static <T> TaskExitObservation<T> snapshot(
             String taskName,
             @Nullable TaskId<TaskUnit> unitId,
             int taskIndex,
@@ -144,7 +146,7 @@ public final class TaskCompletion<T> {
             TaskOutcome outcome,
             @Nullable T result,
             @Nullable Throwable failure) {
-        return new TaskCompletion<>(
+        return new TaskExitObservation<>(
                 taskName,
                 unitId,
                 null,
@@ -158,7 +160,7 @@ public final class TaskCompletion<T> {
     }
 
     /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
-    static <T> TaskCompletion<T> withResult(TaskCompletion<?> timing, ImmediateResult<T> result) {
+    static <T> TaskExitObservation<T> withResult(TaskExitObservation<?> timing, ImmediateResult<T> result) {
         T value = null;
         if (result.outcome() == TaskOutcome.SUCCESS) {
             try {
@@ -167,7 +169,7 @@ public final class TaskCompletion<T> {
                 throw new AssertionError("successful result cannot fail", impossible);
             }
         }
-        return new TaskCompletion<>(
+        return new TaskExitObservation<>(
                 timing.taskName(),
                 timing.unitId(),
                 timing.groupId(),
@@ -183,14 +185,14 @@ public final class TaskCompletion<T> {
 
     /**
      * Creates the single group-level summary carried by the observation of {@link
-     * TaskGroup#completionFuture()}: the group name stands in for the task name, the group's own
+     * TaskGroup#convergenceFuture()}: the group name stands in for the task name, the group's own
      * identity fills {@link #groupId()} while {@link #unitId()} stays null — a group run is not a
      * task unit — the index is zero, submit/start/end are the group-level times, and the result is
      * the {@link TaskGroupReport} itself. The summary describes no additional task execution, so it is
      * not counted among the members or as a task unit.
      */
-    static TaskCompletion<TaskGroupReport> groupSummary(TaskGroupReport result) {
-        return new TaskCompletion<>(
+    static TaskExitObservation<TaskGroupReport> groupSummary(TaskGroupReport result) {
+        return new TaskExitObservation<>(
                 result.groupName(),
                 null,
                 result.groupId(),
@@ -227,7 +229,7 @@ public final class TaskCompletion<T> {
 
     /**
      * Returns the identity of the task-group run this record summarizes, or null on every record
-     * that is not a group's own summary — see {@link TaskGroup#completionFuture()}.
+     * that is not a group's own summary — see {@link TaskGroup#convergenceFuture()}.
      *
      * <p>A group run is not a task unit: it has no execution of its own, so its identity is never
      * returned by {@link #unitId()}.
@@ -251,7 +253,7 @@ public final class TaskCompletion<T> {
         return startTimeNanos;
     }
 
-    /** Returns the ticker reading at completion, or zero if the task never started. */
+    /** Returns the ticker reading at execution exit, or zero if the task never started. */
     public long endTimeNanos() {
         return endTimeNanos;
     }
@@ -272,8 +274,8 @@ public final class TaskCompletion<T> {
             return frozen;
         }
         ExecutionDisposition disposition = outcome == TaskOutcome.SUCCESS || startTimeNanos != 0
-                ? ExecutionDisposition.ENTERED
-                : ExecutionDisposition.NOT_ENTERED;
+                ? ExecutionDisposition.CLAIMED
+                : ExecutionDisposition.NOT_CLAIMED;
         return TaskTermination.fromLegacy(outcome, result, failure, disposition, taskName);
     }
 
@@ -336,7 +338,7 @@ public final class TaskCompletion<T> {
         return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, startTimeNanos - submitTimeNanos));
     }
 
-    /** Returns the duration from submission to completion, or zero if the task never started. */
+    /** Returns the duration from submission to execution exit, or zero if the task never started. */
     public Duration totalTime() {
         return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, endTimeNanos - submitTimeNanos));
     }

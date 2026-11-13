@@ -45,7 +45,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".ParId",
             BASE_PACKAGE + ".SubmissionAwareBlockingQueue",
             BASE_PACKAGE + ".TaskBatchResult",
-            BASE_PACKAGE + ".TaskCompletion",
+            BASE_PACKAGE + ".TaskExitObservation",
             BASE_PACKAGE + ".ThreadPoolStarvationObservationScope",
             BASE_PACKAGE + ".ThreadPoolStarvationReport",
             BASE_PACKAGE + ".TaskGroupResult",

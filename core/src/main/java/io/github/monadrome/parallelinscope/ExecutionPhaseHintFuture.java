@@ -88,15 +88,15 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      */
     ExecutionDisposition executionDisposition() {
         if (submissionFailure != null) {
-            return ExecutionDisposition.NOT_ENTERED;
+            return ExecutionDisposition.NOT_CLAIMED;
         }
         TaskExecutionState taskCode = executionState;
         if (taskCode != null) {
             return taskCode.disposition();
         }
         return submissionFailure != null || phase() == ExecutionPhase.CANCELLED_BEFORE_RUN
-                ? ExecutionDisposition.NOT_ENTERED
-                : ExecutionDisposition.ENTERED;
+                ? ExecutionDisposition.NOT_CLAIMED
+                : ExecutionDisposition.CLAIMED;
     }
 
     /** Returns a live status combining logical future completion with the execution claim state. */
@@ -108,13 +108,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                     : taskCode == null ? TaskStatus.PENDING : taskCode.status();
         }
         if (taskCode != null && taskCode.isOutstanding()) {
-            return TaskStatus.TERMINATED;
+            return TaskStatus.RESULT_SETTLED;
         }
         if (taskCode != null) {
             return TaskStatus.EXITED;
         }
         return phase() == ExecutionPhase.RUNNING || phase() == ExecutionPhase.CANCEL_REQUESTED_RUNNING
-                ? TaskStatus.TERMINATED
+                ? TaskStatus.RESULT_SETTLED
                 : TaskStatus.EXITED;
     }
 

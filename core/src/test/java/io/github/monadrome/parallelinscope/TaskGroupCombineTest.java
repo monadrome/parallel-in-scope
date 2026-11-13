@@ -57,7 +57,7 @@ class TaskGroupCombineTest {
                     .submitAll();
 
             assertThat(declaredTerminal(group).get(2, TimeUnit.SECONDS)).isEqualTo("alice:order-1");
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(combineRuns).hasValue(1);
             assertThat(combineThread.get()).isNotEqualTo(Thread.currentThread().getName());
             assertThat(combineTask.get()).isEqualTo("assemble");
@@ -90,7 +90,7 @@ class TaskGroupCombineTest {
                         return "unreachable";
                     })
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(combineRuns).hasValue(0);
             assertThat(declaredTerminal(group).isCancelled()).isTrue();
@@ -120,7 +120,7 @@ class TaskGroupCombineTest {
                         throw new IOException("assemble failed");
                     })
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
@@ -155,7 +155,7 @@ class TaskGroupCombineTest {
                         return "unreachable";
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(combineRuns).hasValue(0);
@@ -193,7 +193,7 @@ class TaskGroupCombineTest {
                                 return "unreachable";
                             })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(combineRuns).hasValue(0);
@@ -307,7 +307,7 @@ class TaskGroupCombineTest {
                     })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
             assertThat(combineRuns).hasValue(0);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("assemble");
@@ -343,7 +343,7 @@ class TaskGroupCombineTest {
                     .submitAll();
             running.await(2, TimeUnit.SECONDS);
             group.cancel();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(combineRuns).hasValue(0);
             assertThat(declaredTerminal(group).isCancelled()).isTrue();
@@ -372,7 +372,7 @@ class TaskGroupCombineTest {
                                 return "unreachable";
                             })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -465,7 +465,7 @@ class TaskGroupCombineTest {
                     .isInstanceOf(IllegalStateException.class);
             // The rejected declarations left nothing behind: the submitted group holds exactly the
             // one member and the one combine declared above.
-            TaskGroupReport result = combined.submitAll().completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = combined.submitAll().convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.members().keySet()).containsExactly("user");
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(Objects.requireNonNull(result.terminal()).taskName()).isEqualTo("assemble");
@@ -494,7 +494,7 @@ class TaskGroupCombineTest {
             TaskGroupReport result = step.combineValues(
                             TaskKey.<String>named("assemble-page"), worker, values -> "unused")
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(result.members().keySet()).containsExactly("assemble");
             assertThat(Objects.requireNonNull(result.terminal()).taskName()).isEqualTo("assemble-page");
@@ -519,7 +519,7 @@ class TaskGroupCombineTest {
                         return "unreachable";
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);

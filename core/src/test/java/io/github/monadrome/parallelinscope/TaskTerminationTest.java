@@ -19,18 +19,18 @@ class TaskTerminationTest {
 
     @Test
     void factoriesRejectIllegalDispositionCombinations() {
-        assertThatThrownBy(() -> TaskTermination.success("value", ExecutionDisposition.NOT_ENTERED))
+        assertThatThrownBy(() -> TaskTermination.success("value", ExecutionDisposition.NOT_CLAIMED))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> TaskTermination.failed(
                         FailureCause.userCodeFailure(new IllegalStateException("boom")),
-                        ExecutionDisposition.NOT_ENTERED))
+                        ExecutionDisposition.NOT_CLAIMED))
                 .isInstanceOf(IllegalArgumentException.class);
 
         TaskTermination<Object> submission = TaskTermination.failed(
                 FailureCause.submissionRejected(new IllegalStateException("rejected")),
-                ExecutionDisposition.NOT_ENTERED);
+                ExecutionDisposition.NOT_CLAIMED);
         assertThat(submission.kind()).isEqualTo(TaskTermination.Kind.FAILED);
-        assertThat(submission.disposition()).isEqualTo(ExecutionDisposition.NOT_ENTERED);
+        assertThat(submission.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
         assertThat(Verify.verifyNotNull(submission.failureCause()).submissionRejected())
                 .isTrue();
     }
@@ -52,7 +52,7 @@ class TaskTerminationTest {
             assertThat(task.termination().kind()).isEqualTo(TaskTermination.Kind.FAILED);
             assertThat(Verify.verifyNotNull(task.failureCause()).submissionRejected())
                     .isTrue();
-            assertThat(task.disposition()).isEqualTo(ExecutionDisposition.NOT_ENTERED);
+            assertThat(task.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
             assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
             assertThat(Verify.verifyNotNull(
                                     Verify.verifyNotNull(result.termination().cause())
@@ -89,8 +89,8 @@ class TaskTerminationTest {
             await().atMost(Duration.ofSeconds(2)).until(task::isDone);
             TaskTermination<Void> cancelled = Verify.verifyNotNull(task.termination());
             assertThat(cancelled.kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
-            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.ENTERED);
-            assertThat(task.status()).isEqualTo(TaskStatus.TERMINATED);
+            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
+            assertThat(task.status()).isEqualTo(TaskStatus.RESULT_SETTLED);
 
             release.countDown();
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
@@ -123,7 +123,7 @@ class TaskTerminationTest {
             await().atMost(Duration.ofSeconds(2)).until(pending::isDone);
             TaskTermination<Void> cancelled = Verify.verifyNotNull(pending.termination());
             assertThat(cancelled.kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
-            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.NOT_ENTERED);
+            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
         } finally {
             release.countDown();
             runtime.close();

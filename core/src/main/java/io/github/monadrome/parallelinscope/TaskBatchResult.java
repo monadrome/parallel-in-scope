@@ -38,14 +38,14 @@ import org.jspecify.annotations.Nullable;
 public final class TaskBatchResult<T> {
     private final String batchName;
     private final List<ImmediateResult<T>> results;
-    private final List<@Nullable TaskCompletion<T>> completions;
+    private final List<@Nullable TaskExitObservation<T>> completions;
     private final Map<String, Integer> unexitedExecutions;
     private final ScopeTermination termination;
 
     TaskBatchResult(
             String batchName,
             List<ImmediateResult<T>> results,
-            List<@Nullable TaskCompletion<T>> completions,
+            List<@Nullable TaskExitObservation<T>> completions,
             Map<String, Integer> unexitedExecutions) {
         this(batchName, results, completions, unexitedExecutions, null);
     }
@@ -53,7 +53,7 @@ public final class TaskBatchResult<T> {
     TaskBatchResult(
             String batchName,
             List<ImmediateResult<T>> results,
-            List<@Nullable TaskCompletion<T>> completions,
+            List<@Nullable TaskExitObservation<T>> completions,
             Map<String, Integer> unexitedExecutions,
             @Nullable ScopeTermination scopeTermination) {
         this.batchName = batchName;
@@ -83,7 +83,7 @@ public final class TaskBatchResult<T> {
      * Final observations in input order; null means execution exit or observation publication was not
      * confirmed before returning. Missing entries remain missing in this frozen snapshot.
      */
-    public List<@Nullable TaskCompletion<T>> completions() {
+    public List<@Nullable TaskExitObservation<T>> completions() {
         return completions;
     }
 
