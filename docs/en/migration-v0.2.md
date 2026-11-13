@@ -6,16 +6,6 @@
 > Applications on `0.2.x`
 > should continue on to [Migrating to v0.3](migration-v0.3.md).
 
-### v0.5 termination projection
-
-The development line adds a logical termination projection without changing the exit-observation
-meaning of `TaskCompletion`. Read `ImmediateResult.outcome()` for `SUCCESS`/`FAILED`/`CANCELLED`,
-then use `failureCause()`, `cancellationReason()`, and `disposition()` for the closed cause and
-execution-claim facts. `TaskOutcome` and `outcome()` remain migration adapters, so `RUNNING`,
-`GROUP_CANCELLED`, `MEMBER_CANCELLED`, and `FAIL_FAST` must not be used as new stable business reasons.
-Batch and Group results expose the shared `ScopeTermination` through `termination()`/`scopeTermination()`.
-Check `executionExitConfirmed()` before releasing resources shared with direct executions because logical
-termination may precede thread exit.
 
 Version `0.2.0` replaces the mutable configuration-and-resolver API with an immutable execution topology. This is a source-breaking migration.
 
