@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-task-termination-consumption-api",
+  "date": "2026-11-13",
+  "topic": "task-termination-consumption-api",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor: canonicalize task termination consumption"
+    ],
+    "files": 115,
+    "insertions": 835,
+    "deletions": 758
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "mvn-test": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Refactoring review plan generated but detector run unavailable; full suite interrupted at CancellationTokenLincheckTest with exit 143; compile and targeted API test passed."
+}
