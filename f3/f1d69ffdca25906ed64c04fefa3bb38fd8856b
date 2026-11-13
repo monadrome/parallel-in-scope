@@ -1,0 +1,19 @@
+design/proposal/P0041-future-consumption-standard.md
+  s_6ef012108ae407::t_6cb8e0b031e0ab 170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f3f1d69ffdca25906ed64c04fefa3bb38fd8856b",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
