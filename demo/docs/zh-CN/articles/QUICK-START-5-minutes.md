@@ -106,7 +106,7 @@ for (ImmediateResult<Integer> element : result.results()) {
 }
 
 // 方式三：结构化读取
-Map<TaskTermination, Integer> counts = result.terminationKindCounts();                  // {SUCCESS=3}
+Map<TaskTermination.Kind, Integer> counts = result.terminationKindCounts();             // {SUCCESS=3}
 Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult(); // 全部成功时为空
 ```
 

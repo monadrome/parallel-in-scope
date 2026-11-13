@@ -11,14 +11,14 @@
 |---|---|
 | [5 分钟快速上手](quickstart.md) | 在新 Maven 项目中完成首次批量调用 |
 | [完整使用指南](user-guide.md) | 配置、公共 API、执行语义和进阶能力 |
-| [v0.5 迁移指南](migration-v0.5.md) | 队列改名与 TaskGroup 按 key 的成员值 API |
+| [v0.5 迁移指南](migration-v0.5.md) | 终止观测、TaskGroup 按 key 的成员值、上下文执行器及队列/模块调整 |
 | [v0.4 迁移指南](migration-v0.4.md) | 从 `0.3.x` 迁移：类型化 `TaskKey`、聚合结果读取与运行时诊断 |
 | [v0.3 迁移指南](migration-v0.3.md) | 从 `0.2.x` 迁移：任务组一次性链式 API 与运行期契约变化 |
 | [v0.2 迁移指南](migration-v0.2.md) | 从 `0.1.x` 迁移到 `0.2` API |
-| [批量调用入门示例（详细）](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/docs/zh-CN/articles/QUICK-START-5-minutes.md) | 在 Demo 中查看依赖、超时、并发度和结果读取示例 |
-| [批量调用最佳实践](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/docs/zh-CN/articles/BATCH-best-practices.md) | HTTP、数据库和混合 IO 场景 |
-| [Demo 文档索引](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/docs/zh-CN/README.md) | 示例：问题复现、解决方案和可执行测试 |
-| [集成示例](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/integrations/README.md) | Resilience4j、Sentinel、Spring 独立示例工程 |
+| [批量调用入门示例（详细）](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/demo/docs/zh-CN/articles/QUICK-START-5-minutes.md) | 在 Demo 中查看依赖、超时、并发度和结果读取示例 |
+| [批量调用最佳实践](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/demo/docs/zh-CN/articles/BATCH-best-practices.md) | HTTP、数据库和混合 IO 场景 |
+| [Demo 文档索引](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/demo/docs/zh-CN/README.md) | v0.5 示例：问题复现、解决方案和可执行测试 |
+| [集成示例](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/integrations/README.md) | v0.5 的 Resilience4j、Sentinel、Spring 独立示例工程 |
 
 ## API 与契约参考
 

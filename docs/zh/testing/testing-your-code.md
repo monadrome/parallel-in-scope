@@ -26,7 +26,7 @@ final class PriceService {
     String price(String sku) throws ExecutionException {
         ImmediateResult<String> result =
                 par.map(Collections.singletonList(sku), client::fetch, options).results().get(0);
-        return result.termination() == TaskTermination.SUCCESS ? result.valueOrThrow() : UNKNOWN;
+        return result.termination().kind() == TaskTermination.Kind.SUCCESS ? result.valueOrThrow() : UNKNOWN;
     }
 }
 
@@ -49,7 +49,8 @@ void fallsBackWhenTheClientHangs() throws ExecutionException {
 
 - 桩通过 `Checkpoints.checkAwait` 阻塞在 latch 上，它会响应取消中断。不要用 `Thread.sleep` 模拟慢调用，
   也不要用不响应中断的等待：那样执行会在 deadline 之后继续占着 worker。
-- 断言结局（`TaskTermination.TIMEOUT` 或你的回退值），不断言耗时。
+- 断言终止类型（`TaskTermination.Kind.CANCELLED`；需要归因时再断言
+  `CancellationReason.Kind.DEADLINE_EXCEEDED`）或你的回退值，不断言耗时。
 - 测试需要知道执行已经开始时，在执行里释放第二个 latch 并等待它，不靠时序。
 - 执行在取消后失败时库会记一条 warning；那是桩经由中断退出，不是测试失败。
 
@@ -86,8 +87,8 @@ Budget almostExpired = () -> Optional.of(Duration.ofMillis(10));
 固定结果：
 
 ```java
-ImmediateResult<String> timedOut =
-        ImmediateResult.failed(TaskTermination.TIMEOUT, new TimeoutException("stub"));
+ImmediateResult<String> timedOut = ImmediateResult.cancelled(
+        CancellationReason.deadlineExceeded(), new TimeoutException("stub"));
 ```
 
 至少保留一个用真实 `Par` 加注入 timeout 的测试，覆盖你的选项与库之间的接线。

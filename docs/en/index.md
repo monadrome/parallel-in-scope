@@ -12,13 +12,13 @@ workflows. Use the reference pages for exact contracts and the migration guides 
 |---|---|
 | [5-minute quickstart](quickstart.md) | First successful batch in a new Maven project |
 | [Full user guide](user-guide.md) | Configuration, public APIs, runtime behavior, and advanced features |
-| [v0.5 migration guide](migration-v0.5.md) | Queue renames and the keyed TaskGroup value API |
+| [v0.5 migration guide](migration-v0.5.md) | Termination observations, keyed TaskGroup values, context executors, and queue/module changes |
 | [v0.4 migration guide](migration-v0.4.md) | Typed task keys, aggregate result reads, and runtime diagnostics on the release line |
 | [v0.3 migration guide](migration-v0.3.md) | The one-shot task-group chain and runtime contract changes from `0.2.x` |
 | [v0.2 migration guide](migration-v0.2.md) | Breaking changes from the `0.1.x` API |
-| [Demo project](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/README.en.md) | Runnable examples and build commands |
-| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/demo/docs/en/README.md) | Documentation map for the example catalog (the articles themselves are in Chinese) |
-| [Integration samples](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/integrations/README.en.md) | Standalone Resilience4j, Sentinel, and Spring examples |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/demo/README.en.md) | Runnable examples and build commands for the development line |
+| [Demo documentation map](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/demo/docs/en/README.md) | Documentation map for the v0.5 example catalog (the articles themselves are in Chinese) |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/blob/dev/v0.5.0/integrations/README.en.md) | Standalone Resilience4j, Sentinel, and Spring examples for the development line |
 
 ## API and Contracts
 

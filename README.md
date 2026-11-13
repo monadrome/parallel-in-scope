@@ -103,35 +103,36 @@ Three contracts shape that first call:
   or `BatchOptions.inheritTimeout(name)`; there is no third state, so a batch cannot run unbounded
   by omission, and an explicit timeout is capped by any enclosing deadline.
 - **A batch is fail-fast.** The first failure cancels the rest of the batch, including elements that
-  were never submitted. Read `ImmediateResult.outcome()` for the per-element verdict (`USER_FAILURE`,
-  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `executionExitConfirmed()`
+  were never submitted. Read `ImmediateResult.termination()` for the per-element verdict (`SUCCESS`,
+  `FAILED`, or `CANCELLED`) after the synchronous call returns; use its `FailureCause` or
+  `CancellationReason` for attribution. Results need no close; check `executionExitConfirmed()`
   before releasing resources shared by direct executions, and confirm nested exits separately.
 - **Parallelism defaults to no cap.** `BatchOptions` starts at `Integer.MAX_VALUE`, which resolution
   caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
   explicitly to bound the sliding window; zero or negative values are rejected at the entry.
 
 A fixed, heterogeneous set of named operations — fetch the user and the account, then build the
-profile — goes through a one-shot group instead of a batch. On the `0.4.0` release, reuse typed
-keys for declarations and result reads:
+profile — goes through a one-shot group instead of a batch. Reuse typed keys for declarations and
+result reads:
 
 ```java
 TaskKey<User> user = TaskKey.named("user");
 TaskKey<Account> account = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
-TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+TaskGroupResult<Profile> profile = runtime
         .group("profile", Duration.ofSeconds(3))
         .par(user, io, () -> loadUser(userId))
         .par(account, io, () -> loadAccount(userId))
-        .combine(profileKey, io,
-                values -> Profile.of(values.first(), values.second()))
+        .combineValues(profileKey, io,
+                values -> Profile.of(values.valueOf(user), values.valueOf(account)))
         .runAll();
 Profile value = profile.terminalValueOrThrow();
 ```
 
 `runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
 The first member failure cancels its siblings, and a member timeout cancels the group. Batch
-aggregate reads are unchecked in `0.4.0`; group reads were already unchecked. See the
-[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/docs/en/migration-v0.4.md).
+aggregate reads are unchecked; group reads use the same frozen-result model. See the
+[v0.5 migration guide](docs/en/migration-v0.5.md) when upgrading from the v0.4 line.
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
