@@ -1,0 +1,19 @@
+ledger/2026-11-12-termination-naming.json
+  s_1d851725812df4::t_71c0dd2c12a708 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f4c502172462c2bba4d327e099c50cffcf70dabd",
+  "prompts": {},
+  "sessions": {
+    "s_1d851725812df4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d393-f3fa-7751-a395-57305c812ea6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
