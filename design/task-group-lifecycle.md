@@ -76,7 +76,7 @@ member TaskOutcome（可空，成员终态时赋值）
 failure（可空）
 ```
 
-生命周期从 submit 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskCompletion` 观测事件。
+生命周期从 submit 的全量注册阶段开始，到 Group result 不再被引用为止。成员可能在用户函数开始前取消，此时 MemberState 存在，但 `TaskExecutionContext` 从未安装，且不得伪造 `TaskExitObservation` 观测事件。
 
 ### 4.4 MultiTaskContext
 
@@ -256,8 +256,8 @@ null --all success-----------> SUCCESS
 ### 6.1 三种终止状态与执行退出等待
 
 任务逻辑终止由 `TaskTermination` 单独冻结，执行 claim 由 `TaskExecutionState` 的
-`PENDING -> RUNNING` CAS 线性化。取消在 claim 后发生时 disposition 仍为 `ENTERED`；只有 claim
-未成功才是 `NOT_ENTERED`。`ExecutionPhaseHintFuture.phase()` 只能用于诊断，不能替代这个 CAS。
+`PENDING -> RUNNING` CAS 线性化。取消在 claim 后发生时 disposition 仍为 `CLAIMED`；只有 claim
+未成功才是 `NOT_CLAIMED`。`ExecutionPhaseHintFuture.phase()` 只能用于诊断，不能替代这个 CAS。
 
 区分三种终止（关闭语义见
 [取消与归因 §8.5](task-group-cancellation.md#85-close-与任务体退出)）：
@@ -269,7 +269,7 @@ null --all success-----------> SUCCESS
    finally 完成后发布 `EXITED`，外层 future finally 兜底，进入 `EXITED`
    或 `SKIPPED` 各恰好释放一次名额；
 3. **观测快照发布**：成员 observation future 由 future 终态与执行退出两个信号汇合后
-   以终态 `TaskCompletion` 快照完成；它不运行在任务代码 finally 内，也不属于执行退出范围。
+   以终态 `TaskExitObservation` 快照完成；它不运行在任务代码 finally 内，也不属于执行退出范围。
    包私有 `awaitExecutionExit(...) == true` 额外等待观测发布屏障，保证快照已经可得；
    公开侧 `TaskGroupResult.executionExitConfirmed()` 只表达第 2 层（执行退出），
    最终观测仍按 `members()`/`terminal()` 的可得性给出、缺失项省略，两者不是同一事实。

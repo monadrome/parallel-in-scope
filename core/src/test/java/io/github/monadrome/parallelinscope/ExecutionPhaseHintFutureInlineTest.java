@@ -109,7 +109,7 @@ class ExecutionPhaseHintFutureInlineTest {
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class)
                     .hasRootCauseInstanceOf(RejectedExecutionException.class);
-            TaskCompletion<String> snapshot = task.completionFuture().get(5, TimeUnit.SECONDS);
+            TaskExitObservation<String> snapshot = task.completionFuture().get(5, TimeUnit.SECONDS);
             assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(snapshot.startTimeNanos())
                     .as("a task prevented from starting has no start or end reading")

@@ -71,7 +71,7 @@ class ParMapAndCombineTest {
             assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(result.batchResult().valuesOrThrow()).containsExactly(2, 4, 6, 8);
             assertThat(result.executionExitConfirmed()).isTrue();
-            TaskCompletion<Integer> terminal = result.terminal();
+            TaskExitObservation<Integer> terminal = result.terminal();
             assertThat(terminal).isNotNull();
             assertThat(terminal.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(terminal.result()).isEqualTo(20);

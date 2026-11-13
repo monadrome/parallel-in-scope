@@ -34,7 +34,7 @@ combine 不是 completion listener，不是新调度原语，而是一个**全�
 
 - 提交准备阶段（与 member 同步、在提交线程上、在同一个 `ParRuntime.whileOpen()` 内）完成：combine token（group token 的 child）、`TaskExecutionContext`、TTL 快照、结构 parent、observation、terminal future 的创建与注册；
 - join 时（全部 member 成功收敛之后）只做一件事：对已 prepared 的 terminal future 调用目标 executor 的 `execute()`（包 `SubmissionScope`、在 Group lock 外）；
-- 除提交时机外，combine 复用 member 的全部机制：取消级联、deadline 计算与升级、rejection 处理、`TokenOutcomes` 归因、观测快照（`TaskCompletion`）、`retainUntilComplete()`。
+- 除提交时机外，combine 复用 member 的全部机制：取消级联、deadline 计算与升级、rejection 处理、`TokenOutcomes` 归因、观测快照（`TaskExitObservation`）、`retainUntilComplete()`。
 
 直接推论：
 
@@ -167,7 +167,7 @@ direct executor 时允许其 inline 契约。线程池路径的其余候选被�
 | group deadline 先到 | 不执行或中断 | 取消 | `TIMEOUT` |
 | 组取消（祖先取消/直消级联） | 不执行或中断 | 取消 | `GROUP_CANCELLED` |
 
-`TaskGroupResult.terminal()` 返回 `@Nullable TaskCompletion<?>`：无 combine 时为 null；注册即
+`TaskGroupResult.terminal()` 返回 `@Nullable TaskExitObservation<?>`：无 combine 时为 null；注册即
 携带快照，执行前取消时 start/end 为零，与执行前取消的 member 快照惯例一致。`members()`
 保持只含 member。combine 失败或拒绝时 `failedTaskName()` 取 combine 的注册名；
 字段名使用 task 而非 member，避免把 combine failure 伪装成 member failure。
@@ -185,7 +185,7 @@ direct executor 时允许其 inline 契约。线程池路径的其余候选被�
 
 ## 9. 观测与执行器等待
 
-- combine 正常产生 `TaskCompletion` 观测快照；执行前取消的快照 start/end 为零，与 member 一致；组结果在 combine 终态后才由 `runAll()` 返回（见观测契约 §10.2）；
+- combine 正常产生 `TaskExitObservation` 观测快照；执行前取消的快照 start/end 为零，与 member 一致；组结果在 combine 终态后才由 `runAll()` 返回（见观测契约 §10.2）；
 - membership 仍不产生 member-to-member 关系。combine 是真实的 all-to-one 数据依赖：
 
 ```text

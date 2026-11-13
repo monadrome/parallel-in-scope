@@ -12,10 +12,10 @@
 ### 10.1 成员级观测快照
 
 成员有两个独立的可观察值：逻辑终止由 `ImmediateResult.termination()` 在 future 终态时冻结，退出后
-观测由 `TaskCompletion` 在 execution-exit 信号后发布。逻辑终止可能先于用户线程退出；调用方必须用
+观测由 `TaskExitObservation` 在 execution-exit 信号后发布。逻辑终止可能先于用户线程退出；调用方必须用
 `executionExitConfirmed()` 或 `TaskStatus.EXITED` 判断直接执行是否已退出。
 
-成员完成时发布统一的 `TaskCompletion` 终态快照（成员 future 终态与执行退出两个信号汇合），
+成员完成时发布统一的 `TaskExitObservation` 终态快照（成员 future 终态与执行退出两个信号汇合），
 最终经 `TaskGroupResult.members()`/`terminal()` 可见：
 
 - 成功结果、用户异常（`result()`/`failure()`）；
@@ -27,7 +27,7 @@
 
 快照在成员 future 终态**且**任务代码进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 `TaskTermination` 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
 
-Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskCompletion/结果关联，不需要新增 current group context。TaskCompletion 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
+Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskExitObservation/结果关联，不需要新增 current group context。TaskExitObservation 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
 
 ### 10.2 组级完成观测
 
@@ -37,7 +37,7 @@ combine）已终态、不可变结果已发布，不存在组完成回调的注�
 历史归属：`TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除。理由：future 组合是
 Guava 习语，回调 executor 应由调用方选择，框架不再持有并调用用户代码；原 listener 的保证（异常隔离、
 不改结果、只调用一次）由 future 语义接管，「不在组锁内回调」与「回调期间不安装当前任务」随框架不再
-调用 listener 而消亡。其后的 `completionFuture()` + Guava callback 形态随同步出口一并删除——
+调用 listener 而消亡。其后的组级完成 Future 与 Guava callback 形态随同步出口一并删除——
 同步返回使"先观察终态再消费"成为结构保证，不再需要回调语义。
 
 ## 11. 执行器等待规则

@@ -60,7 +60,7 @@ class TaskGroupListenerFailureTest {
             // publication path, the member's observation finishes but the barrier never counts it,
             // and the group stays pending forever.
             assertThat(group.futureOf(KEY_USER_STRING).get(5, TimeUnit.SECONDS)).isEqualTo("value");
-            assertThat(group.completionFuture().get(5, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(5, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             assertThat(group.valuesFuture().get(5, TimeUnit.SECONDS).valueAt(0)).isEqualTo("value");
         } finally {

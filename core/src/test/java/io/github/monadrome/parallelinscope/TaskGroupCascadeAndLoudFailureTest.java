@@ -129,7 +129,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                         throw boom;
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
             assertThatThrownBy(unchecked::orThrow).isSameAs(boom);
 
@@ -138,7 +138,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                         throw fatal;
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
             assertThatThrownBy(errored::orThrow).isSameAs(fatal);
 
@@ -147,7 +147,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                         throw checked;
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
             assertThatThrownBy(wrapped::orThrow)
                     .isInstanceOf(java.util.concurrent.CompletionException.class)
@@ -171,7 +171,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                         return "late";
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
 
             assertThat(timedOut.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -215,7 +215,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 assertThat(group.futureOf("second").isDone()).isTrue();
                 assertThat(group.futureOf("second").isCancelled()).isTrue();
             });
-            TaskGroupReport report = group.completionFuture().get(5, TimeUnit.SECONDS);
+            TaskGroupReport report = group.convergenceFuture().get(5, TimeUnit.SECONDS);
             assertThat(report.outcome()).isNotEqualTo(TaskOutcome.SUCCESS);
         } finally {
             release.countDown();
@@ -267,7 +267,7 @@ class TaskGroupCascadeAndLoudFailureTest {
 
             // Convergence survives the broken listener, and the publication failure leaves a
             // severe diagnostic naming the group.
-            assertThat(group.completionFuture().get(5, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(5, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             assertThat(severe)
                     .anySatisfy(record -> assertThat(record.getMessage()).contains("page"));

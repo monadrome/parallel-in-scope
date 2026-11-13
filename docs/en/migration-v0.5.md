@@ -2,6 +2,53 @@
 
 The queue public type names now describe their observable contracts. This is a source- and binary-breaking rename; no compatibility aliases are retained.
 
+## Termination and exit-observation names
+
+The v0.5 line separates transport completion, logical termination, physical execution exit, and
+post-exit telemetry. The names below are source- and binary-breaking changes; recompile consumers
+and update imports and enum switches.
+
+| Before | v0.5 replacement | Meaning |
+|---|---|---|
+| `TaskCompletion<T>` | `TaskExitObservation<T>` | Immutable telemetry published after the task future is terminal and execution has exited (or was prevented from starting) |
+| `TaskStatus.TERMINATED` | `TaskStatus.RESULT_SETTLED` | The logical result is settled while execution may still be unwinding |
+| `ExecutionDisposition.ENTERED` | `ExecutionDisposition.CLAIMED` | The execution claim was acquired; it does not promise that user code has started or exited |
+| `ExecutionDisposition.NOT_ENTERED` | `ExecutionDisposition.NOT_CLAIMED` | The execution claim was not acquired; framework preparation may still have happened |
+| package-private `TaskGroup.completionFuture()` | `convergenceFuture()` | Internal group convergence/report transport |
+| package-private `TaskBatch.completionFuture()` | `observationsFuture()` | Internal aggregate observation transport |
+
+Before:
+
+```java
+TaskCompletion<Account> snapshot = task.completionFuture().get();
+if (snapshot.disposition() == ExecutionDisposition.ENTERED) {
+    record(snapshot);
+}
+```
+
+After:
+
+```java
+TaskExitObservation<Account> snapshot = task.completionFuture().get();
+if (snapshot.disposition() == ExecutionDisposition.CLAIMED) {
+    record(snapshot);
+}
+```
+
+Use the lifecycle layers for the corresponding question:
+
+1. `Future.isDone()` reports transport completion.
+2. `ImmediateResult.termination()` reports the frozen logical termination.
+3. `executionExitConfirmed()` is the resource-release gate for direct executions.
+4. `TaskExitObservation<T>` carries final timing, outcome, failure, and value telemetry after exit.
+5. `ParRuntime.awaitQuiescence(...)` waits for a closed runtime's admitted executions and observation scopes.
+
+`ImmediateResult.asFuture()` keeps its name and remains a read-only, already-completed Guava adapter;
+it does not represent execution exit or runtime quiescence. `TaskOutcome` also keeps its name as a
+compatibility projection for callers that still consume the legacy outcome enum. New code that needs
+causes or claim attribution should read `TaskTermination`, `FailureCause`, `CancellationReason`, and
+`ExecutionDisposition`.
+
 ## TaskGroup member values
 
 The v0.5 development line also removes the recursive `Tuple2` member shape. `GroupStep` and

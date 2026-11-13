@@ -52,7 +52,7 @@ class ParSubmitTest {
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(task.taskName()).isEqualTo("single");
             assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS);
-            TaskCompletion<String> completion = task.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskExitObservation<String> completion = task.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(completion.taskName()).isEqualTo("single");
             assertThat(completion.result()).isEqualTo("done");
         } finally {

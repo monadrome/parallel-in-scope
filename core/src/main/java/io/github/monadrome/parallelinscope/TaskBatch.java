@@ -50,7 +50,7 @@ final class TaskBatch<T> implements AutoCloseable {
     private final ListenableFuture<?> observationsReady;
 
     /** Shared full-list view, initialized only for internal observation requests. */
-    private final Supplier<ListenableFuture<List<TaskCompletion<T>>>> completionView;
+    private final Supplier<ListenableFuture<List<TaskExitObservation<T>>>> completionView;
 
     private TaskBatch(
             ListenableFuture<?> submitCanceller,
@@ -64,7 +64,7 @@ final class TaskBatch<T> implements AutoCloseable {
         this.token = token;
         this.closeGrace = closeGrace;
         this.scopeTermination = new ScopeTerminationAccumulator();
-        ImmutableList.Builder<ListenableFuture<TaskCompletion<T>>> observations =
+        ImmutableList.Builder<ListenableFuture<TaskExitObservation<T>>> observations =
                 ImmutableList.builderWithExpectedSize(this.results.size());
         for (TaskFuture<T> element : this.results) {
             observations.add(((Task<T>) element).observationView());
@@ -83,7 +83,7 @@ final class TaskBatch<T> implements AutoCloseable {
                             },
                             MoreExecutors.directExecutor());
         }
-        ImmutableList<ListenableFuture<TaskCompletion<T>>> inputs = observations.build();
+        ImmutableList<ListenableFuture<TaskExitObservation<T>>> inputs = observations.build();
         this.observationsReady = Futures.whenAllSucceed(inputs).call(() -> null, MoreExecutors.directExecutor());
         this.completionView = Suppliers.memoize(() -> aggregateObservations(inputs));
     }
@@ -93,20 +93,20 @@ final class TaskBatch<T> implements AutoCloseable {
      * available. A failed aggregate is an implementation defect and fails the sink rather than
      * leaving it pending.
      */
-    private static <T> ListenableFuture<List<TaskCompletion<T>>> aggregateObservations(
-            List<ListenableFuture<TaskCompletion<T>>> observations) {
+    private static <T> ListenableFuture<List<TaskExitObservation<T>>> aggregateObservations(
+            List<ListenableFuture<TaskExitObservation<T>>> observations) {
         /*
          * Each element observation waits for both future settlement and execution exit. The aggregate
          * therefore needs no additional execution-exit check. The element observation futures only fail
          * on a publication defect; ordinary task failure is carried as observation data.
          */
 
-        SettableFuture<List<TaskCompletion<T>>> sink = SettableFuture.create();
+        SettableFuture<List<TaskExitObservation<T>>> sink = SettableFuture.create();
         Futures.addCallback(
                 Futures.allAsList(observations),
-                new FutureCallback<List<TaskCompletion<T>>>() {
+                new FutureCallback<List<TaskExitObservation<T>>>() {
                     @Override
-                    public void onSuccess(@Nullable List<TaskCompletion<T>> completions) {
+                    public void onSuccess(@Nullable List<TaskExitObservation<T>> completions) {
                         sink.set(ImmutableList.copyOf(Verify.verifyNotNull(completions)));
                     }
 
@@ -167,12 +167,12 @@ final class TaskBatch<T> implements AutoCloseable {
                 terminal.observationView(), budget, start, "terminal observation signal");
         TaskBatchResult<T> frozen = freezeResults();
         ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, attributionAtSettle(terminal));
-        TaskCompletion<C> terminalObservation = null;
-        ListenableFuture<TaskCompletion<C>> observation = terminal.observationView();
+        TaskExitObservation<C> terminalObservation = null;
+        ListenableFuture<TaskExitObservation<C>> observation = terminal.observationView();
         if (observation.isDone()) {
             try {
-                terminalObservation =
-                        TaskCompletion.withResult(Verify.verifyNotNull(Futures.getDone(observation)), terminalResult);
+                terminalObservation = TaskExitObservation.withResult(
+                        Verify.verifyNotNull(Futures.getDone(observation)), terminalResult);
             } catch (ExecutionException impossible) {
                 throw new AssertionError("terminal observation cannot fail", impossible);
             }
@@ -240,15 +240,15 @@ final class TaskBatch<T> implements AutoCloseable {
     /** Freezes per-element results and observations; every future is terminal by here. */
     private TaskBatchResult<T> freezeResults() {
         List<ImmediateResult<T>> frozen = new ArrayList<>(results.size());
-        List<@Nullable TaskCompletion<T>> observations = new ArrayList<>(results.size());
+        List<@Nullable TaskExitObservation<T>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> result : results) {
             ImmediateResult<T> immediate = ImmediateResult.fromTask(result, attributionAtSettle(result));
             frozen.add(immediate);
-            ListenableFuture<TaskCompletion<T>> observation = result.completionFuture();
+            ListenableFuture<TaskExitObservation<T>> observation = result.completionFuture();
             try {
                 observations.add(
                         observation.isDone()
-                                ? TaskCompletion.withResult(
+                                ? TaskExitObservation.withResult(
                                         Verify.verifyNotNull(Futures.getDone(observation)), immediate)
                                 : null);
             } catch (ExecutionException impossible) {
@@ -271,7 +271,7 @@ final class TaskBatch<T> implements AutoCloseable {
 
     /**
      * Returns the batch observation future: the input-ordered, immutable list of every element's
-     * final {@link TaskCompletion} snapshot — identity, submit/start/end times, queue wait,
+     * final {@link TaskExitObservation} snapshot — identity, submit/start/end times, queue wait,
      * outcome, failure, and on success the result.
      *
      * <p>Each element snapshot is published only after its future is terminal <em>and</em> its task
@@ -293,7 +293,7 @@ final class TaskBatch<T> implements AutoCloseable {
      *
      * @return the batch observation future
      */
-    public ListenableFuture<List<TaskCompletion<T>>> completionFuture() {
+    public ListenableFuture<List<TaskExitObservation<T>>> observationsFuture() {
         return Verify.verifyNotNull(completionView.get());
     }
 
@@ -432,7 +432,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * #reportString()} called after it read a terminal snapshot — and also covers tasks that will
      * never be entered (cancelled, rejected, or abandoned before execution). It additionally waits
      * out the observation publication barrier, so a {@code true} result also implies {@link
-     * #completionFuture()} is already done with the final snapshots. It establishes a
+     * #observationsFuture()} is already done with the final snapshots. It establishes a
      * happens-before edge from every task execution's writes to this thread; once {@code true}, the
      * result cannot be invalidated by a task starting late. {@code false} means the budget elapsed
      * while at least one execution had not exited or one future had not settled, which may include tasks
@@ -467,9 +467,9 @@ final class TaskBatch<T> implements AutoCloseable {
         // Executions exited and futures settled, so every element observation is published or about to
         // be: the publication barrier fires on the same signals this method just waited out, but a
         // future's get() waiters can wake before its listeners run. Wait out that window too, so a
-        // true result guarantees completionFuture() already carries the final snapshots.
+        // true result guarantees observationsFuture() already carries the final snapshots.
         return ExecutionExitTracker.awaitSettled(
-                completionFuture(), budgetNanos, startNanos, "batch observation signal");
+                observationsFuture(), budgetNanos, startNanos, "batch observation signal");
     }
 
     /**

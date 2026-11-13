@@ -90,7 +90,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             // The violation is now visible instead of silent, and the execution never ran at all.
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -144,7 +144,7 @@ class TaskGroupCombineInlineGuardTest {
                             values -> "combined")
                     .submitAll();
 
-            assertThat(group.completionFuture().get(10, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(10, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             // Zero wait: every execution slot must already be released, not merely releasable.
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
@@ -185,7 +185,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).isEqualTo("combine-worker");
@@ -226,7 +226,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).startsWith("member");
@@ -269,7 +269,7 @@ class TaskGroupCombineInlineGuardTest {
                             })
                     .submitAll();
 
-            TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
             assertThat(combineThread.get()).startsWith("shared");

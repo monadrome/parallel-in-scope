@@ -206,12 +206,12 @@ TTL 捕获集合，不自动覆盖所有外部存储。真实 SDK/agent 接入�
 ### 5.4 指标：优先用观测快照，不要包执行
 
 库已为每个任务计时并归因。同步返回的 `TaskBatchResult.completions()` / `TaskGroupResult.members()`
-直接给出终态快照，不需要再注册 callback；`TaskCompletion` 暴露 `taskName()`、`unitId()`、
+直接给出终态快照，不需要再注册 callback；`TaskExitObservation` 暴露 `taskName()`、`unitId()`、
 `taskIndex()`、`outcome()`、`failure()`、`executionTime()`、`waitTime()`、`totalTime()`、
 `enqueued()`：
 
 ```java
-for (TaskCompletion<T> event : batch.completions()) {
+for (TaskExitObservation<T> event : batch.completions()) {
     if (event == null) {                 // 最终发布未确认；缺失项省略
         continue;
     }

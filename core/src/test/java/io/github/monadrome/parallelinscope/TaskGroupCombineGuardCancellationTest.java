@@ -100,7 +100,7 @@ class TaskGroupCombineGuardCancellationTest {
                                 })
                         .submitAll();
 
-                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -173,7 +173,7 @@ class TaskGroupCombineGuardCancellationTest {
                 group.cancel();
                 memberGate.countDown();
 
-                TaskGroupReport result = group.completionFuture().get(10, TimeUnit.SECONDS);
+                TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(result.outcome()).isIn(LEGITIMATE);
                 assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);

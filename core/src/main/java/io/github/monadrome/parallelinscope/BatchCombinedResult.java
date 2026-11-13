@@ -32,17 +32,21 @@ public final class BatchCombinedResult<E, C> {
 
     private final TaskBatchResult<E> elements;
     private final ImmediateResult<C> terminal;
-    private final @Nullable TaskCompletion<C> terminalObservation;
+    private final @Nullable TaskExitObservation<C> terminalObservation;
 
     private BatchCombinedResult(
-            TaskBatchResult<E> elements, ImmediateResult<C> terminal, @Nullable TaskCompletion<C> terminalObservation) {
+            TaskBatchResult<E> elements,
+            ImmediateResult<C> terminal,
+            @Nullable TaskExitObservation<C> terminalObservation) {
         this.elements = Objects.requireNonNull(elements, "elements cannot be null");
         this.terminal = Objects.requireNonNull(terminal, "terminal cannot be null");
         this.terminalObservation = terminalObservation;
     }
 
     static <E, C> BatchCombinedResult<E, C> of(
-            TaskBatchResult<E> elements, ImmediateResult<C> terminal, @Nullable TaskCompletion<C> terminalObservation) {
+            TaskBatchResult<E> elements,
+            ImmediateResult<C> terminal,
+            @Nullable TaskExitObservation<C> terminalObservation) {
         return new BatchCombinedResult<>(elements, terminal, terminalObservation);
     }
 
@@ -89,7 +93,7 @@ public final class BatchCombinedResult<E, C> {
      *
      * @return the terminal observation, or {@code null} when unavailable
      */
-    public @Nullable TaskCompletion<C> terminal() {
+    public @Nullable TaskExitObservation<C> terminal() {
         return terminalObservation;
     }
 

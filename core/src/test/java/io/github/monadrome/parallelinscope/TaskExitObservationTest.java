@@ -7,11 +7,11 @@ import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
-class TaskCompletionTest {
+class TaskExitObservationTest {
     @Test
     void completionExposesTimingMetadataAndFailure() {
         IllegalStateException failure = new IllegalStateException("failed");
-        TaskCompletion<String> completion =
+        TaskExitObservation<String> completion =
                 failed("task", TaskId.unit("1"), 2, 10, 30, 80, TaskOutcome.USER_FAILURE, failure);
 
         assertThat(completion.taskName()).isEqualTo("task");
@@ -32,20 +32,22 @@ class TaskCompletionTest {
 
     @Test
     void queueWaitBeyondThresholdClassifiesAsEnqueued() {
-        TaskCompletion<String> completion = succeeded("task", TaskId.unit("1"), 0, 0, 5_000_000, 6_000_000, "value");
+        TaskExitObservation<String> completion =
+                succeeded("task", TaskId.unit("1"), 0, 0, 5_000_000, 6_000_000, "value");
         assertThat(completion.enqueued()).isTrue();
     }
 
     @Test
     void queueWaitExactlyAtTheThresholdIsNotEnqueued() {
         // "Exceeded three milliseconds" is strict: a wait of exactly the threshold is not enqueued.
-        TaskCompletion<String> completion = succeeded("task", TaskId.unit("1"), 0, 0, 3_000_000, 4_000_000, "value");
+        TaskExitObservation<String> completion =
+                succeeded("task", TaskId.unit("1"), 0, 0, 3_000_000, 4_000_000, "value");
         assertThat(completion.enqueued()).isFalse();
     }
 
     @Test
     void successfulCompletionCanCarryNoFailure() {
-        TaskCompletion<String> completion = succeeded("task", TaskId.unit("1"), 0, 10, 30, 80, "value");
+        TaskExitObservation<String> completion = succeeded("task", TaskId.unit("1"), 0, 10, 30, 80, "value");
         assertThat(completion.enqueued()).isFalse();
         assertThat(completion.successful()).isTrue();
         assertThat(completion.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -55,7 +57,7 @@ class TaskCompletionTest {
 
     @Test
     void successfulCompletionDistinguishesNullResultFromFailure() {
-        TaskCompletion<Void> completion = succeeded("task", TaskId.unit("1"), 0, 10, 30, 80, null);
+        TaskExitObservation<Void> completion = succeeded("task", TaskId.unit("1"), 0, 10, 30, 80, null);
         assertThat(completion.successful()).isTrue();
         assertThat(completion.result()).isNull();
         assertThat(completion.failure()).isNull();
@@ -69,7 +71,7 @@ class TaskCompletionTest {
 
     @Test
     void neverStartedSnapshotOnNegativeClockReportsZeroDurationsAndNotEnqueued() {
-        TaskCompletion<String> completion = failed(
+        TaskExitObservation<String> completion = failed(
                 "task",
                 TaskId.unit("1"),
                 0,
@@ -87,7 +89,7 @@ class TaskCompletionTest {
 
     @Test
     void startedSnapshotOnNegativeClockComputesRealDurations() {
-        TaskCompletion<String> completion =
+        TaskExitObservation<String> completion =
                 succeeded("task", TaskId.unit("1"), 0, -20_000_000L, -10_000_000L, -5_000_000L, "value");
 
         assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(10));
@@ -98,7 +100,7 @@ class TaskCompletionTest {
 
     @Test
     void shortWaitOnNegativeClockIsNotEnqueued() {
-        TaskCompletion<String> completion =
+        TaskExitObservation<String> completion =
                 succeeded("task", TaskId.unit("1"), 0, -10_000_000L, -9_000_000L, -8_000_000L, "value");
 
         assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(1));
@@ -107,7 +109,7 @@ class TaskCompletionTest {
 
     @Test
     void startReadingAtZeroIsStartedAndComputesDurations() {
-        TaskCompletion<String> completion =
+        TaskExitObservation<String> completion =
                 succeeded("task", TaskId.unit("1"), 0, -10_000_000L, 0L, 5_000_000L, "value");
 
         assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(10));
@@ -118,7 +120,7 @@ class TaskCompletionTest {
 
     @Test
     void endReadingAtZeroWithNonZeroStartIsStartedAndComputesExecution() {
-        TaskCompletion<String> completion =
+        TaskExitObservation<String> completion =
                 succeeded("task", TaskId.unit("1"), 0, -10_000_000L, -5_000_000L, 0L, "value");
 
         assertThat(completion.waitTime()).isEqualTo(Duration.ofMillis(5));
@@ -128,7 +130,7 @@ class TaskCompletionTest {
 
     @Test
     void coincidingNonZeroStartAndEndReadingsAreStartedWithZeroExecution() {
-        TaskCompletion<String> completion = succeeded("task", TaskId.unit("1"), 0, 0L, 100L, 100L, "value");
+        TaskExitObservation<String> completion = succeeded("task", TaskId.unit("1"), 0, 0L, 100L, 100L, "value");
 
         assertThat(completion.executionTime()).isEqualTo(Duration.ZERO);
         assertThat(completion.waitTime()).isEqualTo(Duration.ofNanos(100L));
@@ -138,7 +140,7 @@ class TaskCompletionTest {
 
     @Test
     void memberSnapshotUsesMemberNameAndReportsZeroDurationsWhenNeverStarted() {
-        TaskCompletion<Object> snapshot = TaskCompletion.memberSnapshot(
+        TaskExitObservation<Object> snapshot = TaskExitObservation.memberSnapshot(
                 "member", TaskId.unit("1"), TaskOutcome.MEMBER_CANCELLED, null, 100, 0, 0);
 
         assertThat(snapshot.taskName()).isEqualTo("member");
@@ -152,12 +154,12 @@ class TaskCompletionTest {
         assertThat(snapshot.enqueued()).isFalse();
     }
 
-    private static <T> TaskCompletion<T> succeeded(
+    private static <T> TaskExitObservation<T> succeeded(
             String name, TaskId<TaskUnit> unitId, int index, long submit, long start, long end, @Nullable T result) {
-        return TaskCompletion.snapshot(name, unitId, index, submit, start, end, TaskOutcome.SUCCESS, result, null);
+        return TaskExitObservation.snapshot(name, unitId, index, submit, start, end, TaskOutcome.SUCCESS, result, null);
     }
 
-    private static <T> TaskCompletion<T> failed(
+    private static <T> TaskExitObservation<T> failed(
             String name,
             TaskId<TaskUnit> unitId,
             int index,
@@ -166,6 +168,6 @@ class TaskCompletionTest {
             long end,
             TaskOutcome outcome,
             Throwable failure) {
-        return TaskCompletion.snapshot(name, unitId, index, submit, start, end, outcome, null, failure);
+        return TaskExitObservation.snapshot(name, unitId, index, submit, start, end, outcome, null, failure);
     }
 }

@@ -33,7 +33,7 @@ Future<String> future = pool.submit(() -> {
 返回的 `TaskBatchResult.completions()` 按输入顺序提供可用的终态快照。
 可以直接读取，或交给自己的监控 executor 消费，无需侵入业务代码。
 
-`TaskCompletion` 包含完整的任务生命周期信息：
+`TaskExitObservation` 包含完整的任务生命周期信息：
 - `taskName()` / `unitId()` / `taskIndex()` — 任务名称（来自传给 `Par.map` 的 `BatchOptions` 名称）、批次标识和输入下标
 - `successful()` / `result()` — 成功状态和任务返回值
 - `executionTime()` — 实际执行耗时，返回 `Duration`
@@ -63,7 +63,7 @@ TaskBatchResult<Order> result = par.map(orderIds, id -> {
 
 // 结果已冻结；监控线程、并发度和异常策略由消费者选择
 callbackExecutor.execute(() -> {
-    for (TaskCompletion<Order> event : result.completions()) {
+    for (TaskExitObservation<Order> event : result.completions()) {
         if (event == null) {
             continue; // 清理预算内未拿到最终观测
         }

@@ -320,10 +320,23 @@ TaskGroupResult<Page> result = global
 
 `ImmediateResult<T>` 类似 Either<Throwable,T>，浅不可变，不实现 Future。
 
+这些术语回答不同问题：
+
+| 术语 | 含义 |
+|---|---|
+| Future 完成 | 传输 Future 已进入终态，可以读取；不表示执行已经退出。 |
+| 逻辑终止 | `ImmediateResult.termination()` 冻结成功、失败或取消原因以及 claim 归因。 |
+| 执行退出 | `executionExitConfirmed()` 表示直接任务代码已经退出，或已原子确定不会启动。 |
+| 退出观测 | `TaskExitObservation<T>` 在 Future 终态且确认执行退出后发布最终计时和 outcome 遥测。 |
+| runtime 静止 | `ParRuntime.awaitQuiescence(...)` 等待已关闭 runtime 的已准入执行和观测作用域排空。 |
+
+因此 Future 完成本身不能授权释放与任务代码共享的资源；释放前使用
+`executionExitConfirmed()`，需要最终计时或队列遥测时读取 `TaskExitObservation`。
+
 每个冻结结果还通过 `termination()` 暴露三分支 `TaskTermination<T>`：`SUCCESS`、`FAILED` 和
 `CANCELLED`。失败携带区分用户代码失败与提交拒绝的 `FailureCause`；取消携带
-`CancellationReason` 与 `ExecutionDisposition`。`ENTERED` 表示取得 execution claim，
-`NOT_ENTERED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。旧的 `outcome()` 继续作为
+`CancellationReason` 与 `ExecutionDisposition`。`CLAIMED` 表示取得 execution claim，
+`NOT_CLAIMED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。旧的 `outcome()` 继续作为
 迁移适配读取。
 
 逻辑终止与执行退出分开。取消可以先落定结果，而用户代码仍在响应中断并展开 finally。释放与直接任务
@@ -464,7 +477,7 @@ future 级跟踪加诊断作用域，不是仍在用户代码里的执行。运�
 
 ## 完成观测 {#completion-snapshots}
 
-Batch.completions 是输入顺序的最终 TaskCompletion 列表；null 表示返回前未确认发布。
+Batch.completions 是输入顺序的最终 TaskExitObservation 列表；null 表示返回前未确认发布。
 Group.members 按名称包含可用最终快照，terminal 是可用 combine 快照或 null。
 快照含身份、submit/start/end、耗时、outcome、failure、真实成功值；未启动任务的
 start/end 为零。不完整项在冻结结果中始终缺失，不返回 pending 业务 future。
@@ -843,7 +856,7 @@ read timeout 不是读取整个响应的总 deadline。忽略中断的执行或�
 ```java
 TaskBatchResult<Account> batch = httpPar.map(accountIds, this::fetchAccount,
         BatchOptions.timeout("accounts", Duration.ofSeconds(3)));
-for (TaskCompletion<Account> completion : batch.completions()) {
+for (TaskExitObservation<Account> completion : batch.completions()) {
     if (completion == null) continue;         // 返回前未确认发布
     metrics.record(
             completion.taskName(),

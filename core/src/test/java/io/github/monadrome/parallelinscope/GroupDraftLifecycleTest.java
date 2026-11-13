@@ -218,7 +218,7 @@ class GroupDraftLifecycleTest {
             assertThat(group.callableReleased("victim")).isTrue();
 
             release.countDown();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
 
             // The entered members released theirs through run()'s finally.
@@ -246,7 +246,7 @@ class GroupDraftLifecycleTest {
                     .par(TaskKey.<Integer>named("one"), global.par(ParId.of("worker")), () -> 1)
                     .par(TaskKey.<Integer>named("two"), global.par(ParId.of("worker")), () -> 2)
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(group.callableReleased("one")).isTrue();
@@ -280,7 +280,7 @@ class GroupDraftLifecycleTest {
             assertThat(group.callableReleased("user")).isFalse();
 
             release.countDown();
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             // The execution exits after the future settles, so the release is awaited rather than assumed.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -309,7 +309,7 @@ class GroupDraftLifecycleTest {
                     .submitAll();
 
             assertThat(executionOrder).containsExactly("a", "b", "c");
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();

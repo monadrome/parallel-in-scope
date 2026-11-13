@@ -8,6 +8,13 @@
 
 ### Breaking changes
 
+- Rename the termination and exit-observation vocabulary without compatibility aliases: public
+  `TaskCompletion<T>` becomes `TaskExitObservation<T>`, `TaskStatus.TERMINATED` becomes
+  `TaskStatus.RESULT_SETTLED`, and `ExecutionDisposition.ENTERED` / `NOT_ENTERED` become
+  `CLAIMED` / `NOT_CLAIMED`. The package-private group and batch aggregate futures are now
+  `convergenceFuture()` and `observationsFuture()`. `ImmediateResult.asFuture()` and the legacy
+  `TaskOutcome` projection keep their names; use `executionExitConfirmed()` before releasing
+  resources shared with direct executions. See the [v0.5 migration guide](docs/en/migration-v0.5.md).
 - Change `ContextExecutors.directContextExecutor()` to capture Alibaba TransmittableThreadLocal (TTL)
   context at each `execute` call so the
   default direct executor follows the calling context when reused. Replace the former creation-time

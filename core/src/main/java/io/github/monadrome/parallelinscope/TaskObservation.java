@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
  * Per-task observation sink backing {@link TaskFuture#completionFuture()}.
  *
  * <p>The sink is a {@link SettableFuture} that is set exactly once with the task's final immutable
- * {@link TaskCompletion} snapshot. Publication waits out the window in which the task future is
+ * {@link TaskExitObservation} snapshot. Publication waits out the window in which the task future is
  * already terminal but the user task code's {@code finally} has not run yet: an instrumented task
  * publishes only after its future has settled <em>and</em> its {@link TaskExecutionState} slot reached
  * {@code EXITED} or {@code SKIPPED}, so the recorded end time is always final. A submission-failure
@@ -42,9 +42,9 @@ final class TaskObservation<T> {
 
     private static final Logger LOGGER = Logger.getLogger(TaskObservation.class.getName());
 
-    private final SettableFuture<TaskCompletion<T>> sink = SettableFuture.create();
-    private final ListenableFuture<TaskCompletion<T>> view;
-    private final Supplier<TaskCompletion<T>> settledSnapshot;
+    private final SettableFuture<TaskExitObservation<T>> sink = SettableFuture.create();
+    private final ListenableFuture<TaskExitObservation<T>> view;
+    private final Supplier<TaskExitObservation<T>> settledSnapshot;
     private final AtomicInteger pendingSignals;
 
     /** Identity for {@link #publishSkipped}; null on the shapes no unit backs. */
@@ -55,7 +55,7 @@ final class TaskObservation<T> {
     private final long submitTimeNanos;
 
     private TaskObservation(
-            Supplier<TaskCompletion<T>> settledSnapshot,
+            Supplier<TaskExitObservation<T>> settledSnapshot,
             int pendingSignals,
             @Nullable String taskName,
             @Nullable TaskId<TaskUnit> unitId,
@@ -108,7 +108,7 @@ final class TaskObservation<T> {
      * {@code settle} terminates. This shape carries no per-task identity and cannot be published
      * through {@link #publishSkipped}.
      */
-    static <T> TaskObservation<T> of(Supplier<TaskCompletion<T>> snapshot, ListenableFuture<?> settle) {
+    static <T> TaskObservation<T> of(Supplier<TaskExitObservation<T>> snapshot, ListenableFuture<?> settle) {
         TaskObservation<T> observation = new TaskObservation<>(snapshot, 1, null, null, 0, 0);
         settle.addListener(observation::signal, directExecutor());
         return observation;
@@ -120,12 +120,12 @@ final class TaskObservation<T> {
      */
     void publishSkipped(TaskOutcome outcome, @Nullable Throwable failure) {
         Verify.verify(unitId != null, "an observation with no unit cannot publish a skipped snapshot");
-        publish(TaskCompletion.snapshot(
+        publish(TaskExitObservation.snapshot(
                 Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, outcome, null, failure));
     }
 
     /** The read-only observation view handed to callers; {@code cancel(...)} returns {@code false}. */
-    ListenableFuture<TaskCompletion<T>> view() {
+    ListenableFuture<TaskExitObservation<T>> view() {
         return view;
     }
 
@@ -143,7 +143,7 @@ final class TaskObservation<T> {
          */
 
         if (pendingSignals.decrementAndGet() == 0) {
-            TaskCompletion<T> snapshot;
+            TaskExitObservation<T> snapshot;
             try {
                 snapshot = settledSnapshot.get();
             } catch (Throwable snapshotFailure) {
@@ -177,7 +177,7 @@ final class TaskObservation<T> {
      * Publishes the finalized snapshot without letting a caller's listener escape into the path
      * that runs this.
      */
-    private void publish(TaskCompletion<T> snapshot) {
+    private void publish(TaskExitObservation<T> snapshot) {
         /*
          * The sink is caller-reachable through TaskFuture.completionFuture(), and a listener
          * registered with a direct executor runs inline here, on whichever thread completed the
@@ -224,10 +224,11 @@ final class TaskObservation<T> {
      * outcome, and — on success — result read straight from the terminal future. Cancellation is
      * attributed through the token chain, never guessed from {@code isCancelled()} alone; the
      * token's committed state is read only after the future is terminal. A batch or group result
-     * replaces this outcome with the frozen attribution through {@code TaskCompletion.withResult};
+     * replaces this outcome with the frozen attribution through {@code TaskExitObservation.withResult};
      * only package-private observation futures (a task's own and the batch aggregate) publish it unchanged.
      */
-    private static <T> TaskCompletion<T> settledSnapshot(TaskExecutionContext context, ListenableFuture<T> settle) {
+    private static <T> TaskExitObservation<T> settledSnapshot(
+            TaskExecutionContext context, ListenableFuture<T> settle) {
         MultiTaskContext unit = context.multiTaskContext();
         return settledSnapshot(
                 unit.name(),
@@ -240,7 +241,7 @@ final class TaskObservation<T> {
                 settle);
     }
 
-    private static <T> TaskCompletion<T> settledSnapshot(
+    private static <T> TaskExitObservation<T> settledSnapshot(
             String taskName,
             @Nullable TaskId<TaskUnit> unitId,
             int taskIndex,
@@ -250,7 +251,7 @@ final class TaskObservation<T> {
             CancellationToken token,
             ListenableFuture<T> settle) {
         if (settle.isCancelled()) {
-            return TaskCompletion.snapshot(
+            return TaskExitObservation.snapshot(
                     taskName,
                     unitId,
                     taskIndex,
@@ -264,7 +265,7 @@ final class TaskObservation<T> {
         try {
             // The future is terminal here, so read it with Futures.getDone: unlike get(), it never
             // throws InterruptedException on a thread that happens to carry the interrupt flag.
-            return TaskCompletion.snapshot(
+            return TaskExitObservation.snapshot(
                     taskName,
                     unitId,
                     taskIndex,
@@ -276,7 +277,7 @@ final class TaskObservation<T> {
                     null);
         } catch (ExecutionException failure) {
             Throwable cause = failure.getCause();
-            return TaskCompletion.snapshot(
+            return TaskExitObservation.snapshot(
                     taskName,
                     unitId,
                     taskIndex,

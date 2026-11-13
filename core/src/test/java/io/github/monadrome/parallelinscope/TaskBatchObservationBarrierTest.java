@@ -59,24 +59,24 @@ class TaskBatchObservationBarrierTest {
     @Test
     void concurrentReadersShareOneReadOnlyObservationFuture() throws Exception {
         SettableFuture<@Nullable Void> publication = SettableFuture.create();
-        TaskCompletion<Integer> snapshot = snapshot();
+        TaskExitObservation<Integer> snapshot = snapshot();
         TaskBatch<Integer> batch = batch(publication, Duration.ofSeconds(5), snapshot);
         ExecutorService callers = Executors.newFixedThreadPool(2);
         try {
-            List<Future<ListenableFuture<List<TaskCompletion<Integer>>>>> requests = new ArrayList<>();
+            List<Future<ListenableFuture<List<TaskExitObservation<Integer>>>>> requests = new ArrayList<>();
             for (int reader = 0; reader < 12; reader++) {
-                requests.add(callers.submit(batch::completionFuture));
+                requests.add(callers.submit(batch::observationsFuture));
             }
-            ListenableFuture<List<TaskCompletion<Integer>>> view =
+            ListenableFuture<List<TaskExitObservation<Integer>>> view =
                     requests.get(0).get(2, TimeUnit.SECONDS);
-            for (Future<ListenableFuture<List<TaskCompletion<Integer>>>> request : requests) {
+            for (Future<ListenableFuture<List<TaskExitObservation<Integer>>>> request : requests) {
                 assertThat(request.get(2, TimeUnit.SECONDS)).isSameAs(view);
             }
             assertThat(view.cancel(true)).isFalse();
             publication.set(null);
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(view.isDone()).isTrue();
-            List<TaskCompletion<Integer>> observations = view.get(2, TimeUnit.SECONDS);
+            List<TaskExitObservation<Integer>> observations = view.get(2, TimeUnit.SECONDS);
             assertThat(observations.get(0)).isSameAs(snapshot);
             assertThatThrownBy(observations::clear).isInstanceOf(UnsupportedOperationException.class);
         } finally {
@@ -91,10 +91,10 @@ class TaskBatchObservationBarrierTest {
         SettableFuture<@Nullable Void> publication = SettableFuture.create();
         TaskBatch<Integer> batch = batch(publication, Duration.ZERO, snapshot());
         TaskBatchResult<Integer> result = batch.finish();
-        assertThat(result.completions()).containsExactly((TaskCompletion<Integer>) null);
+        assertThat(result.completions()).containsExactly((TaskExitObservation<Integer>) null);
         publication.set(null);
-        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS)).hasSize(1);
-        assertThat(result.completions()).containsExactly((TaskCompletion<Integer>) null);
+        assertThat(batch.observationsFuture().get(2, TimeUnit.SECONDS)).hasSize(1);
+        assertThat(result.completions()).containsExactly((TaskExitObservation<Integer>) null);
     }
 
     /** Observation construction failures remain visible even when the barrier was already terminal. */
@@ -111,7 +111,7 @@ class TaskBatchObservationBarrierTest {
 
     /** Creates an observation controlled independently from the already-successful execution future. */
     private static TaskBatch<Integer> batch(
-            ListenableFuture<?> publication, Duration grace, TaskCompletion<Integer> snapshot) {
+            ListenableFuture<?> publication, Duration grace, TaskExitObservation<Integer> snapshot) {
         return batch(TaskObservation.of(() -> snapshot, publication), grace);
     }
 
@@ -131,7 +131,7 @@ class TaskBatchObservationBarrierTest {
     }
 
     /** A successful record with distinct times makes publication and freezing assertions concrete. */
-    private static TaskCompletion<Integer> snapshot() {
-        return TaskCompletion.snapshot("observed", null, 0, 1, 2, 3, TaskOutcome.SUCCESS, 7, null);
+    private static TaskExitObservation<Integer> snapshot() {
+        return TaskExitObservation.snapshot("observed", null, 0, 1, 2, 3, TaskOutcome.SUCCESS, 7, null);
     }
 }

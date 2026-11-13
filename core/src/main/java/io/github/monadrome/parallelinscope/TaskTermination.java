@@ -52,13 +52,13 @@ public final class TaskTermination<T> {
 
     /** Creates a successful termination; success always requires an acquired execution claim. */
     public static <T> TaskTermination<T> success(@Nullable T value) {
-        return success(value, ExecutionDisposition.ENTERED);
+        return success(value, ExecutionDisposition.CLAIMED);
     }
 
     /** Creates a successful termination with the supplied execution disposition. */
     public static <T> TaskTermination<T> success(@Nullable T value, ExecutionDisposition disposition) {
         checkArgument(
-                disposition == ExecutionDisposition.ENTERED,
+                disposition == ExecutionDisposition.CLAIMED,
                 "successful termination requires an entered execution claim");
         return new TaskTermination<>(Kind.SUCCESS, value, null, null, disposition);
     }
@@ -72,14 +72,14 @@ public final class TaskTermination<T> {
     public static <T> TaskTermination<T> failed(FailureCause failureCause, ExecutionDisposition disposition) {
         checkNotNull(failureCause, "failureCause cannot be null");
         checkArgument(
-                failureCause.submissionRejected() || disposition == ExecutionDisposition.ENTERED,
+                failureCause.submissionRejected() || disposition == ExecutionDisposition.CLAIMED,
                 "a user-code failure requires an entered execution claim");
         return new TaskTermination<>(Kind.FAILED, null, failureCause, null, disposition);
     }
 
     /** Creates a cancelled termination; cancellation may happen before or after the claim. */
     public static <T> TaskTermination<T> cancelled(CancellationReason reason) {
-        return cancelled(reason, ExecutionDisposition.ENTERED);
+        return cancelled(reason, ExecutionDisposition.CLAIMED);
     }
 
     /** Creates a cancelled termination with the supplied execution disposition. */
@@ -89,7 +89,7 @@ public final class TaskTermination<T> {
     }
 
     private static ExecutionDisposition defaultFailureDisposition(FailureCause cause) {
-        return cause.submissionRejected() ? ExecutionDisposition.NOT_ENTERED : ExecutionDisposition.ENTERED;
+        return cause.submissionRejected() ? ExecutionDisposition.NOT_CLAIMED : ExecutionDisposition.CLAIMED;
     }
 
     /** Builds the new model from a legacy outcome while retaining the migration projection. */
@@ -105,7 +105,7 @@ public final class TaskTermination<T> {
             case SUCCESS:
                 return success(value, disposition);
             case USER_FAILURE:
-                return failed(failureCauseFor(outcome, failure), ExecutionDisposition.ENTERED);
+                return failed(failureCauseFor(outcome, failure), ExecutionDisposition.CLAIMED);
             case SUBMISSION_FAILURE:
                 return failed(failureCauseFor(outcome, failure), disposition);
             case TIMEOUT:

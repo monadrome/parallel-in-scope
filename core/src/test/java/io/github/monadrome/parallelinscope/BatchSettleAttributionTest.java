@@ -76,7 +76,7 @@ class BatchSettleAttributionTest {
 
         assertThat(result.results().get(0).outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.results().get(0).failure()).isSameAs(own);
-        TaskCompletion<String> completion = result.completions().get(0);
+        TaskExitObservation<String> completion = result.completions().get(0);
         assertThat(completion).isNotNull();
         assertThat(completion.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(completion.failure()).isSameAs(own);
@@ -144,7 +144,7 @@ class BatchSettleAttributionTest {
                 .containsExactly(TaskOutcome.SUCCESS, TaskOutcome.SUCCESS);
         assertThat(result.terminalResult().outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThat(result.terminalResult().failure()).isSameAs(own);
-        TaskCompletion<Integer> terminal = result.terminal();
+        TaskExitObservation<Integer> terminal = result.terminal();
         assertThat(terminal).isNotNull();
         assertThat(terminal.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
         assertThatThrownBy(result::terminalValueOrThrow).isSameAs(own);

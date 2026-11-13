@@ -71,7 +71,7 @@ class TaskGroupTest {
             assertThat(group.futureOf(KEY_TEXT_STRING).get(2, TimeUnit.SECONDS)).startsWith("value-");
             assertThat(group.futureOf(KEY_NUMBER_INTEGER).get(2, TimeUnit.SECONDS))
                     .isBetween(41, 42);
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(executions).hasValue(2);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -127,7 +127,7 @@ class TaskGroupTest {
                     })
                     .submitAll();
             assertThat(group.futureOf(KEY_USER_STRING).get(2, TimeUnit.SECONDS)).isEqualTo("alice");
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.futureOf(KEY_USER_STRING)
                             .completionFuture()
@@ -189,7 +189,7 @@ class TaskGroupTest {
                         throw new IllegalStateException("boom");
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
@@ -222,7 +222,7 @@ class TaskGroupTest {
                         throw new IllegalStateException("boom-late");
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
@@ -251,7 +251,7 @@ class TaskGroupTest {
                             TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING),
                             () -> 1)
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("rejected");
@@ -286,7 +286,7 @@ class TaskGroupTest {
 
             assertThat(group.futureOf(KEY_INLINE_THREAD).get(2, TimeUnit.SECONDS))
                     .isSameAs(submitter);
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
@@ -314,7 +314,7 @@ class TaskGroupTest {
                                 return 1;
                             })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -347,7 +347,7 @@ class TaskGroupTest {
                     .par(KEY_FAILED_INTEGER, global.par(ParId.of("broken")), () -> 1)
                     .par(KEY_FINE_INTEGER, global.par(ParId.of("healthy")), () -> 2)
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(result.failedTaskName()).isEqualTo("failed");
@@ -452,7 +452,7 @@ class TaskGroupTest {
             TaskGroupReport result = global.groupDraft("expired", Duration.ofNanos(1))
                     .par(KEY_MEMBER_INTEGER, global.par(ParId.of("worker")), calls::incrementAndGet)
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(calls).hasValue(0);
@@ -481,7 +481,7 @@ class TaskGroupTest {
                                 return 1;
                             })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(first.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(Objects.requireNonNull(first.members().get("slow")).outcome())
@@ -497,7 +497,7 @@ class TaskGroupTest {
                                 return 1;
                             })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(second.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
             assertThat(Objects.requireNonNull(second.members().get("slow")).outcome())
@@ -527,7 +527,7 @@ class TaskGroupTest {
                     .submitAll();
             group.futureOf(KEY_CANCELLED_INTEGER).cancel(true);
 
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("cancelled")).outcome())
                     .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
@@ -560,7 +560,7 @@ class TaskGroupTest {
                         return 2;
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -600,7 +600,7 @@ class TaskGroupTest {
                                 return 2;
                             })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -659,7 +659,7 @@ class TaskGroupTest {
                     })
                     .submitAll();
             assertThat(nestedRunning.await(2, TimeUnit.SECONDS)).isTrue();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             // Two timers share the group deadline: the group token's own and the nested batch's
             // (both inherit the same instant). If the group timer wins, the group converges as
@@ -710,11 +710,11 @@ class TaskGroupTest {
 
             group.cancel();
             group.cancel();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(result.members().values())
-                    .extracting(TaskCompletion::outcome)
+                    .extracting(TaskExitObservation::outcome)
                     .containsOnly(TaskOutcome.GROUP_CANCELLED);
         } finally {
             global.close();
@@ -742,7 +742,7 @@ class TaskGroupTest {
             assertThat(group.members().keySet()).containsExactly("first", "second");
             assertThat(group.futureOf(KEY_FIRST_INTEGER).get()).isEqualTo(1);
             assertThat(group.futureOf(KEY_SECOND_INTEGER).get()).isEqualTo(2);
-            assertThat(group.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(group.convergenceFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             global.close();
             direct.shutdownNow();
@@ -767,7 +767,7 @@ class TaskGroupTest {
                             () -> 1)
                     .par(TaskKey.<Integer>named("later"), global.par(ParId.of("normal")), calls::incrementAndGet)
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
@@ -798,7 +798,7 @@ class TaskGroupTest {
                     .par(KEY_ONE_INTEGER, global.par(ParId.of("direct")), () -> 1)
                     .submitAll();
             Futures.addCallback(
-                    group.completionFuture(),
+                    group.convergenceFuture(),
                     new FutureCallback<TaskGroupReport>() {
                         @Override
                         public void onSuccess(@Nullable TaskGroupReport result) {
@@ -811,7 +811,7 @@ class TaskGroupTest {
                     },
                     MoreExecutors.directExecutor());
 
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(observed.get()).isSameAs(result);
             assertThat(current.get()).isNull();
@@ -863,9 +863,9 @@ class TaskGroupTest {
                     .submitAll();
             assertThat(first.groupId()).isNotEqualTo(second.groupId());
             assertThat(first.futureOf(KEY_ONE_INTEGER)).isNotSameAs(second.futureOf(KEY_ONE_INTEGER));
-            assertThat(first.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(first.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
-            assertThat(second.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(second.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
             assertThat(second.futureOf(KEY_ONE_INTEGER).get(2, TimeUnit.SECONDS))
                     .isEqualTo(2);
@@ -934,7 +934,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
-            assertThat(group.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(group.convergenceFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
 
             global.close();
             assertThatThrownBy(() -> global.groupDraft("closed", TIMEOUT).submitAll())
@@ -959,7 +959,7 @@ class TaskGroupTest {
                                     .multiTaskContext()
                                     .deadlineNanos())
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.futureOf(KEY_MEMBER_LONG).get(2, TimeUnit.SECONDS)).isEqualTo(result.deadlineNanos());
         } finally {
@@ -994,7 +994,7 @@ class TaskGroupTest {
                         return 1L;
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -1023,7 +1023,7 @@ class TaskGroupTest {
                                     .multiTaskContext()
                                     .deadlineNanos())
                     .submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.futureOf(KEY_MEMBER_LONG).get(2, TimeUnit.SECONDS)).isLessThan(result.deadlineNanos());
         } finally {
@@ -1066,7 +1066,8 @@ class TaskGroupTest {
 
             assertThat(deadlines[1]).isEqualTo(deadlines[0]);
             assertThat(deadlines[0])
-                    .isEqualTo(group.completionFuture().get(2, TimeUnit.SECONDS).deadlineNanos());
+                    .isEqualTo(
+                            group.convergenceFuture().get(2, TimeUnit.SECONDS).deadlineNanos());
         } finally {
             global.close();
             outer.shutdownNow();
@@ -1103,7 +1104,7 @@ class TaskGroupTest {
                                                     global.par(ParId.of("inner")),
                                                     () -> 1)
                                             .submitAll()
-                                            .completionFuture()
+                                            .convergenceFuture()
                                             .get(2, TimeUnit.SECONDS);
                                     assertThat(result.deadlineNanos()).isEqualTo(outerDeadline);
                                     return result.deadlineNanos();
@@ -1196,8 +1197,9 @@ class TaskGroupTest {
             Awaitility.await()
                     .atMost(2, TimeUnit.SECONDS)
                     .until(() -> Objects.requireNonNull(nestedGroup.get()) != null);
-            TaskGroupReport nested =
-                    Objects.requireNonNull(nestedGroup.get()).completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport nested = Objects.requireNonNull(nestedGroup.get())
+                    .convergenceFuture()
+                    .get(2, TimeUnit.SECONDS);
 
             assertThat(result.results().get(0)).isCancelled();
             assertThat(nested.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
@@ -1217,7 +1219,7 @@ class TaskGroupTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         try {
             TaskGroup<Void> group = global.groupDraft("named", TIMEOUT).submitAll();
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
             assertThat(group.groupName()).isEqualTo("named");
             assertThat(result.groupName()).isEqualTo("named");
@@ -1237,9 +1239,9 @@ class TaskGroupTest {
         CountDownLatch started = new CountDownLatch(1);
         try {
             TaskGroup<Void> completed = global.groupDraft("done", TIMEOUT).submitAll();
-            completed.completionFuture().get(2, TimeUnit.SECONDS);
+            completed.convergenceFuture().get(2, TimeUnit.SECONDS);
             completed.close(); // must not disturb the recorded result
-            assertThat(completed.completionFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
+            assertThat(completed.convergenceFuture().get().outcome()).isEqualTo(TaskOutcome.SUCCESS);
 
             TaskGroup<Void> unfinished = global.groupDraft("close-cancel", TIMEOUT)
                     .par(TaskKey.<Integer>named("slow"), global.par(ParId.of("worker")), () -> {
@@ -1250,7 +1252,7 @@ class TaskGroupTest {
                     .submitAll();
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             unfinished.close();
-            TaskGroupReport result = unfinished.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = unfinished.convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
                     .isEqualTo(TaskOutcome.GROUP_CANCELLED);
@@ -1292,7 +1294,7 @@ class TaskGroupTest {
                                 // outer batch token is still RUNNING when the test cancels it.
                                 while (true) {
                                     try {
-                                        String reason = group.completionFuture()
+                                        String reason = group.convergenceFuture()
                                                 .get()
                                                 .outcome()
                                                 .name();
@@ -1316,7 +1318,7 @@ class TaskGroupTest {
             Objects.requireNonNull(outerToken.get()).cancel();
             TaskGroup<Void> group = Objects.requireNonNull(publishedGroup.get());
 
-            TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.GROUP_CANCELLED);
             assertThat(Objects.requireNonNull(result.members().get("slow")).outcome())
                     .isEqualTo(TaskOutcome.GROUP_CANCELLED);
@@ -1350,7 +1352,7 @@ class TaskGroupTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
             global.close();
             release.countDown();
-            assertThat(group.completionFuture().get(2, TimeUnit.SECONDS).outcome())
+            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
                     .isEqualTo(TaskOutcome.SUCCESS);
         } finally {
             release.countDown();
@@ -1371,7 +1373,7 @@ class TaskGroupTest {
                         throw boom;
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(result.outcome()).isEqualTo(TaskOutcome.USER_FAILURE);
@@ -1393,7 +1395,7 @@ class TaskGroupTest {
             TaskGroupReport success = global.groupDraft("ok-page", TIMEOUT)
                     .par(KEY_TEXT_STRING, global.par(ParId.of("worker")), () -> "value")
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(success.orThrow()).isSameAs(success);
             assertThat(success.reportString()).contains("SUCCESS:1", "outcome=SUCCESS");
@@ -1408,7 +1410,7 @@ class TaskGroupTest {
                         return "unreached";
                     })
                     .submitAll()
-                    .completionFuture()
+                    .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThatThrownBy(cancelled::orThrow).isInstanceOf(CancellationException.class);
         } finally {

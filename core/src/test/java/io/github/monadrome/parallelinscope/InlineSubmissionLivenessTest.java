@@ -196,7 +196,7 @@ class InlineSubmissionLivenessTest {
                     .as("the submitting thread must be handed back clean")
                     .isFalse();
 
-            TaskGroupReport result = group.completionFuture().get(WATCHDOG.toMillis(), TimeUnit.MILLISECONDS);
+            TaskGroupReport result = group.convergenceFuture().get(WATCHDOG.toMillis(), TimeUnit.MILLISECONDS);
             assertThat(result.outcome()).isEqualTo(TaskOutcome.TIMEOUT);
         } finally {
             secondStarted.countDown();

@@ -226,9 +226,9 @@ requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求�
 `termination()` 投影暴露同一值：
 
 ```text
-Success(value, ENTERED)
-Failed(FailureCause, ENTERED | NOT_ENTERED)
-Cancelled(CancellationReason, ENTERED | NOT_ENTERED)
+Success(value, CLAIMED)
+Failed(FailureCause, CLAIMED | NOT_CLAIMED)
+Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
 ```
 
 `FailureCause` 区分 `USER_CODE_FAILURE` 与 `SUBMISSION_REJECTED` 并保留原始异常；
@@ -258,7 +258,7 @@ public enum TaskOutcome {
 `valuesResult`/`terminalResult`、`valuesOrThrow()`/`terminalValueOrThrow()`、
 `executionExitConfirmed()`/`unexitedExecutions()` 与 `members()`/`terminal()` 快照）。
 
-成员完成快照统一为 `TaskCompletion`（batch 元素与 group 成员共用），字段为
+成员完成快照统一为 `TaskExitObservation`（batch 元素与 group 成员共用），字段为
 `taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/`result()`/`failure()`。组结果中的
 成员快照从完成信号重建，保留真实成功值与最终时间；`taskIndex()` 对组成员恒为 0；
 `taskName()` 取成员声明名。
@@ -273,4 +273,4 @@ public enum TaskOutcome {
 - `runAll()` 正常返回 `TaskGroupResult`：组的非 `SUCCESS` outcome 是结果数据，不通过异常
   表达（聚合读取的异常规则见同步出口契约 §3）；
 - 内部成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为
-  cancelled；公开侧只见冻结后的 `ImmediateResult` 与独立的 `TaskCompletion` 退出快照。
+  cancelled；公开侧只见冻结后的 `ImmediateResult` 与独立的 `TaskExitObservation` 退出快照。

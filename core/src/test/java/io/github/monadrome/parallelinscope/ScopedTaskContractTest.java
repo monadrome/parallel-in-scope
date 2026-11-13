@@ -60,7 +60,7 @@ class ScopedTaskContractTest {
 
             assertThat(future.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(executions).hasValue(1);
-            TaskCompletion<Object> event = observation(future);
+            TaskExitObservation<Object> event = observation(future);
             assertThat(event.successful()).isTrue();
             assertThat(event.result()).isEqualTo("done");
         } finally {
@@ -94,7 +94,7 @@ class ScopedTaskContractTest {
                         .isEqualTo(TaskOutcome.USER_FAILURE);
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
             }
-            TaskCompletion<Object> event = observation(future);
+            TaskExitObservation<Object> event = observation(future);
             assertThat(event.successful()).isFalse();
             assertThat(event.failure()).isSameAs(boom);
         } finally {
@@ -174,7 +174,7 @@ class ScopedTaskContractTest {
 
             assertThatThrownBy(() -> future.get(2, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
             assertThat(executions).hasValue(0);
-            TaskCompletion<Object> event = observation(future);
+            TaskExitObservation<Object> event = observation(future);
             assertThat(event.outcome()).isEqualTo(TaskOutcome.SUBMISSION_FAILURE);
             assertThat(event.failure()).isInstanceOf(SubmissionException.class);
             assertThat(event.startTimeNanos()).isZero();
@@ -223,7 +223,7 @@ class ScopedTaskContractTest {
                                 () -> runUnlessQueued("queued", release, queuedRuns))
                         .submitAll();
                 assertThat(group.futureOf("queued").cancel(true)).isTrue();
-                TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
+                TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
                 assertThat(Objects.requireNonNull(result.members().get("queued"))
                                 .outcome())
                         .isEqualTo(TaskOutcome.MEMBER_CANCELLED);
@@ -338,10 +338,10 @@ class ScopedTaskContractTest {
             throw new IllegalStateException("no group was built");
         }
         LAST_GROUP.remove();
-        return group.completionFuture().get(2, TimeUnit.SECONDS);
+        return group.convergenceFuture().get(2, TimeUnit.SECONDS);
     }
 
-    private static TaskCompletion<Object> observation(ListenableFuture<Object> future) throws Exception {
+    private static TaskExitObservation<Object> observation(ListenableFuture<Object> future) throws Exception {
         return ((TaskFuture<Object>) future).completionFuture().get(2, TimeUnit.SECONDS);
     }
 

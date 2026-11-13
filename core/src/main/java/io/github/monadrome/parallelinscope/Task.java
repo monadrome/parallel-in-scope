@@ -289,7 +289,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     private TaskTermination<T> freezeTermination(TaskOutcome settled) {
         ExecutionDisposition disposition =
-                recordedSubmissionFailure() != null ? ExecutionDisposition.NOT_ENTERED : executionDisposition();
+                recordedSubmissionFailure() != null ? ExecutionDisposition.NOT_CLAIMED : executionDisposition();
         if (settled == TaskOutcome.SUCCESS) {
             try {
                 return TaskTermination.success(Futures.getDone(delegate), disposition);
@@ -320,7 +320,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         if (delegate instanceof ExecutionPhaseHintFuture) {
             return ((ExecutionPhaseHintFuture<?>) delegate).executionDisposition();
         }
-        return delegate.isCancelled() ? ExecutionDisposition.NOT_ENTERED : ExecutionDisposition.ENTERED;
+        return delegate.isCancelled() ? ExecutionDisposition.NOT_CLAIMED : ExecutionDisposition.CLAIMED;
     }
 
     /**
@@ -334,12 +334,12 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     @Override
-    public ListenableFuture<TaskCompletion<T>> completionFuture() {
+    public ListenableFuture<TaskExitObservation<T>> completionFuture() {
         return observation.view();
     }
 
     /** The observation view, for the batch and group observation aggregates. */
-    ListenableFuture<TaskCompletion<T>> observationView() {
+    ListenableFuture<TaskExitObservation<T>> observationView() {
         return observation.view();
     }
 

@@ -131,7 +131,8 @@ class TaskGroupAdoptedFutureTest {
         assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("first");
         assertThat(result.valuesOrThrow().valueOf(SECOND)).isEqualTo("second");
         assertThat(result.executionExitConfirmed()).isTrue();
-        TaskCompletion<?> observed = Objects.requireNonNull(result.members().get("second"));
+        TaskExitObservation<?> observed =
+                Objects.requireNonNull(result.members().get("second"));
         assertThat(observed.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(observed.result()).isEqualTo("second");
     }
@@ -301,8 +302,8 @@ class TaskGroupAdoptedFutureTest {
                 .adopt(FIRST, Futures.immediateFuture("first"))
                 .submitAll();
 
-        TaskCompletion<?> snapshot = Objects.requireNonNull(
-                group.completionFuture().get(5, TimeUnit.SECONDS).members().get("first"));
+        TaskExitObservation<?> snapshot = Objects.requireNonNull(
+                group.convergenceFuture().get(5, TimeUnit.SECONDS).members().get("first"));
         assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(snapshot.startTimeNanos()).isNotZero();
         assertThat(snapshot.endTimeNanos()).isNotZero();
@@ -408,8 +409,8 @@ class TaskGroupAdoptedFutureTest {
                 runtime.groupDraft("window", TIMEOUT).adopt(FIRST, source).submitAll();
         source.releaseBlocker.countDown();
 
-        TaskCompletion<?> snapshot = Objects.requireNonNull(
-                group.completionFuture().get(5, TimeUnit.SECONDS).members().get("first"));
+        TaskExitObservation<?> snapshot = Objects.requireNonNull(
+                group.convergenceFuture().get(5, TimeUnit.SECONDS).members().get("first"));
         assertThat(snapshot.outcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(snapshot.endTimeNanos()).isNotZero();
     }
@@ -499,7 +500,7 @@ class TaskGroupAdoptedFutureTest {
                         return "late";
                     })
                     .submitAll();
-            group.completionFuture()
+            group.convergenceFuture()
                     .addListener(
                             () -> convergingThread.set(Thread.currentThread().getName()), directExecutor());
             TaskGroupResult<Void> result = group.finish();

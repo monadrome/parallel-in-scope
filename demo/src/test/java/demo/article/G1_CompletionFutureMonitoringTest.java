@@ -7,7 +7,7 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskCompletion;
+import io.github.monadrome.parallelinscope.TaskExitObservation;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,13 +93,13 @@ public class G1_CompletionFutureMonitoringTest {
     /**
      * 解决方法：batch.completions() 读取终态观测，零侵入监控。
      *
-     * <p>批次观测 future 以输入顺序交付每个任务的终态快照 TaskCompletion，包含 taskName、
+     * <p>批次观测 future 以输入顺序交付每个任务的终态快照 TaskExitObservation，包含 taskName、
      * executionTime()、waitTime()、totalTime()、failure 等完整信息。业务 lambda 无需任何监控代码；
      * 返回后处理观测，监控 executor 的生命周期归应用。
      */
     @Test
     void parMap_withFinalObservations_capturesSuccessfulTaskSnapshots() throws Exception {
-        List<TaskCompletion<String>> snapshots = Collections.synchronizedList(new ArrayList<>());
+        List<TaskExitObservation<String>> snapshots = Collections.synchronizedList(new ArrayList<>());
         java.util.concurrent.CountDownLatch callbackDone = new java.util.concurrent.CountDownLatch(1);
 
         ParRuntime config = ParRuntime.builder()
@@ -128,7 +128,7 @@ public class G1_CompletionFutureMonitoringTest {
                 opts);
 
         // map 已同步返回；观测是冻结数据，监控 executor 的生命周期归应用。
-        List<TaskCompletion<String>> completions = result.completions();
+        List<TaskExitObservation<String>> completions = result.completions();
         callbackExecutor.execute(() -> {
             snapshots.addAll(completions);
             callbackDone.countDown();
@@ -138,29 +138,29 @@ public class G1_CompletionFutureMonitoringTest {
 
         // 验证：捕获了所有 5 个任务的快照，按输入顺序
         assertThat(completions).hasSize(5);
-        assertThat(completions).extracting(TaskCompletion::taskIndex).containsExactly(0, 1, 2, 3, 4);
+        assertThat(completions).extracting(TaskExitObservation::taskIndex).containsExactly(0, 1, 2, 3, 4);
 
         // 验证：每个快照都有正确的 taskName
-        for (TaskCompletion<String> event : completions) {
+        for (TaskExitObservation<String> event : completions) {
             assertThat(event.taskName()).isEqualTo("monitor-demo");
         }
 
         // 验证：执行耗时 >= 40ms（因为我们忙等了 50ms）
-        for (TaskCompletion<String> event : completions) {
+        for (TaskExitObservation<String> event : completions) {
             assertThat(event.executionTime().toMillis())
                     .as("Task %s execution time", event.taskName())
                     .isGreaterThanOrEqualTo(40);
         }
 
         // 验证：总耗时 >= 执行耗时（total = wait + execution）
-        for (TaskCompletion<String> event : completions) {
+        for (TaskExitObservation<String> event : completions) {
             assertThat(event.totalTime().toNanos())
                     .as("Task %s total time >= execution time", event.taskName())
                     .isGreaterThanOrEqualTo(event.executionTime().toNanos());
         }
 
         // 验证：所有任务成功，没有异常
-        for (TaskCompletion<String> event : completions) {
+        for (TaskExitObservation<String> event : completions) {
             assertThat(event.failure())
                     .as("Task %s should not have exception", event.taskName())
                     .isNull();
@@ -175,7 +175,7 @@ public class G1_CompletionFutureMonitoringTest {
     /**
      * completions() 的快照同样携带失败任务的异常信息。
      *
-     * <p>当任务抛出异常时，TaskCompletion.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch；
+     * <p>当任务抛出异常时，TaskExitObservation.failure() 返回对应的 Throwable， 无需在业务代码中手动 try-catch；
      * 任务失败不会让观测 future 失败——它以成功完成携带真实 outcome。
      */
     @Test
@@ -207,11 +207,11 @@ public class G1_CompletionFutureMonitoringTest {
                 opts);
 
         // 观测 future 不因元素失败而失败：列表里带着每个元素的真实 outcome
-        List<TaskCompletion<String>> completions = result.completions();
+        List<TaskExitObservation<String>> completions = result.completions();
         assertThat(completions).hasSize(2);
 
         // 验证：捕获到了失败任务的异常
-        TaskCompletion<String> failedEvent = completions.stream()
+        TaskExitObservation<String> failedEvent = completions.stream()
                 .filter(e -> e.outcome() == io.github.monadrome.parallelinscope.TaskOutcome.USER_FAILURE)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("No failed event found"));

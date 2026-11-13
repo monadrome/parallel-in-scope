@@ -226,7 +226,7 @@ class TaskBatchResultExecutionExitTest {
         SettableFuture<String> observationSignal = SettableFuture.create();
         CancellationToken token = new CancellationToken();
         TaskObservation<String> observation = TaskObservation.of(
-                () -> TaskCompletion.snapshot(
+                () -> TaskExitObservation.snapshot(
                         "element", TaskId.unit("batch"), 0, 0, 0, 0, TaskOutcome.SUCCESS, "done", null),
                 observationSignal);
         TaskBatch<String> batch =
@@ -238,15 +238,15 @@ class TaskBatchResultExecutionExitTest {
 
         // Only the observation is outstanding, and that alone must keep the answer false.
         assertThat(batch.awaitExecutionExit(Duration.ofMillis(50))).isFalse();
-        assertThat(batch.completionFuture().isDone()).isFalse();
+        assertThat(batch.observationsFuture().isDone()).isFalse();
 
         observationSignal.set("published");
 
         assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         // The promise the true answer carries: the snapshots are readable now, not merely imminent.
-        assertThat(batch.completionFuture().isDone()).isTrue();
-        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS))
-                .extracting(TaskCompletion::taskName)
+        assertThat(batch.observationsFuture().isDone()).isTrue();
+        assertThat(batch.observationsFuture().get(2, TimeUnit.SECONDS))
+                .extracting(TaskExitObservation::taskName)
                 .containsExactly("element");
     }
 
@@ -799,7 +799,7 @@ class TaskBatchResultExecutionExitTest {
         settle.set(1);
         assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         assertThat(batch.report().stateCounts()).containsExactly(entry(TaskOutcome.SUCCESS, 1));
-        assertThat(batch.completionFuture().get(2, TimeUnit.SECONDS))
+        assertThat(batch.observationsFuture().get(2, TimeUnit.SECONDS))
                 .allSatisfy(completion -> assertThat(completion.successful()).isTrue());
     }
 
