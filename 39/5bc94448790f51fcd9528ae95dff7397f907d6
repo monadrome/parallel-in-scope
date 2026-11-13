@@ -1,0 +1,33 @@
+.agents/skills/contract-first-assurance/adapters/vformation.yaml
+  s_e4d21f1619e9d6::t_9d5f38df279021 2,34-41,43-49,51-60
+  s_e4d21f1619e9d6::t_bf671c6f714d3b 42
+  s_e4d21f1619e9d6::t_dfcb6b6c377d3b 50
+.agents/skills/contract-first-assurance/references/host-adapter.md
+  s_e4d21f1619e9d6::t_c5311abce372b0 55-59
+  s_e4d21f1619e9d6::t_bf671c6f714d3b 60-65
+.agents/skills/contract-first-assurance/scripts/verify_run.py
+  s_e4d21f1619e9d6::t_88b500b7c736d2 147
+  s_e4d21f1619e9d6::t_bf671c6f714d3b 71-73,76-79,82-83
+  s_e4d21f1619e9d6::t_d89d0433301d7d 74-75,80-81,84-90
+  s_e4d21f1619e9d6::t_9d5f38df279021 21,62-70,91,146,148
+.agents/skills/contract-first-assurance/package.yaml
+  s_e4d21f1619e9d6::t_c5311abce372b0 31
+.agents/skills/contract-first-assurance/references/reproducible-runs.md
+  s_e4d21f1619e9d6::t_c5311abce372b0 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "395bc94448790f51fcd9528ae95dff7397f907d6",
+  "prompts": {},
+  "sessions": {
+    "s_e4d21f1619e9d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d4cf-8357-7f12-bafd-ea99a749cad8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
