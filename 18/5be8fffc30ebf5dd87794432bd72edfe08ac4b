@@ -1,0 +1,21 @@
+scripts/check-worktree-skills.py
+  s_5ad4597eb7d0f3::t_9446a816d5b830 25,53
+scripts/check-project-baseline.py
+  s_5ad4597eb7d0f3::t_9446a816d5b830 28,35-36,38,46-47,56-57,69-71,77-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "185be8fffc30ebf5dd87794432bd72edfe08ac4b",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
