@@ -29,6 +29,22 @@ class ImmediateResultTest {
     }
 
     @Test
+    void canonicalFactoriesAndFoldExposeTypedBranches() {
+        RuntimeException cause = new RuntimeException("cancelled");
+        ImmediateResult<Integer> cancelled =
+                ImmediateResult.cancelled(CancellationReason.cancelledByCaller("test"), cause);
+        assertThat(cancelled.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
+        String cancelledBranch = cancelled.fold(
+                v -> "success", f -> "failure", (r, d) -> r.kind().name());
+        assertThat(cancelledBranch).isEqualTo("CANCELLED_BY_CALLER");
+
+        ImmediateResult<Integer> failed = ImmediateResult.failed(FailureCause.submissionRejected(cause));
+        assertThat(failed.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+        String failedBranch = failed.fold(v -> "success", f -> f.kind().name(), (r, d) -> "cancelled");
+        assertThat(failedBranch).isEqualTo("SUBMISSION_REJECTED");
+    }
+
+    @Test
     void successIncludesNullAndReadsPreserveInterruption() throws Exception {
         Thread.currentThread().interrupt();
         try {
@@ -64,6 +80,11 @@ class ImmediateResultTest {
                 }) {
                     ImmediateResult<String> result = ImmediateResult.failed(outcome, cause);
                     assertThat(result.outcome()).isEqualTo(outcome);
+                    if (outcome == TaskClassification.SUBMISSION_FAILURE) {
+                        assertThat(result.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+                    } else {
+                        assertThat(result.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
+                    }
                     assertThat(result.failure()).isSameAs(cause);
                     assertThatThrownBy(result::valueOrThrow)
                             .isInstanceOf(ExecutionException.class)
