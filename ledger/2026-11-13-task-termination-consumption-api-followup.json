@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-task-termination-consumption-api-followup",
+  "date": "2026-11-13",
+  "topic": "task-termination-consumption-api-followup",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "fix: correct canonical termination consumers",
+      "fix: align scope termination verification"
+    ],
+    "files": 8,
+    "insertions": 46,
+    "deletions": 339
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "pit-survivors=5,no-coverage": 4
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Independent review runs: initial run codex+kimi completed, claude exit 143, ocr/kiro failed; follow-up codex+kimi completed. Fixed typed FailureCause classification, consumer ScopeTermination assertions, historical docs, and added regression test. Final focused PIT: KILLED=40, SURVIVED=5, NO_COVERAGE=4, no timeout."
+}
