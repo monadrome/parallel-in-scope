@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-termination-naming",
+  "date": "2026-11-13",
+  "topic": "termination-naming",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor: rename termination and exit observations",
+      "chore: record delivery termination-naming",
+      "refactor: simplify renamed observation internals"
+    ],
+    "files": 66,
+    "insertions": 654,
+    "deletions": 454
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-a2ca763d7f3c-2026-11-13",
+        "head": "a2ca763d7f3c3b419d12d8e768e374a39e9db616",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M06"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "D04"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "review"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S06"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "V01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "V01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R8",
+            "rules": [
+              "T05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "check-java-conventions.py": 1,
+      "demo test-compile": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Kimi OAuth was refreshed and refactoring-review completed: 6 detectors, 8 findings, 5 behavior-preserving refactors applied in 718d8683; full tests and race-claims passed."
+}
