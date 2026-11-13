@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-12-termination-naming",
+  "date": "2026-11-12",
+  "topic": "termination-naming",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor: rename termination and exit observations"
+    ],
+    "files": 65,
+    "insertions": 573,
+    "deletions": 416
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-termination-naming-2026-11-12",
+        "head": "a2ca763d7f3c3b419d12d8e768e374a39e9db616",
+        "incompleteAgents": 6,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "check-java-conventions.py": 1,
+      "demo test-compile": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Public termination/observation rename; refactoring detectors blocked after two Kimi credential failures; full Maven tests passed."
+}
