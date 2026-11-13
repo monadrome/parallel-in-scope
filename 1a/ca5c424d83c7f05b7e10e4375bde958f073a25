@@ -1,0 +1,33 @@
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  s_300fc739e78067::t_f29587030143d5 56
+docs/en/index.md
+  s_300fc739e78067::t_f29587030143d5 15,19-21
+docs/zh/index.md
+  s_300fc739e78067::t_f29587030143d5 14,18-21
+docs/en/testing/testing-your-code.md
+  s_300fc739e78067::t_f29587030143d5 31,53-54,96-97
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_300fc739e78067::t_f29587030143d5 109
+docs/zh/testing/testing-your-code.md
+  s_300fc739e78067::t_f29587030143d5 29,52-53,90-91
+README.md
+  s_300fc739e78067::t_f29587030143d5 106-108,115-116,122,126-127,134-135
+README.zh-CN.md
+  s_300fc739e78067::t_f29587030143d5 89-90,96,102,106-107,113-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1aca5c424d83c7f05b7e10e4375bde958f073a25",
+  "prompts": {},
+  "sessions": {
+    "s_300fc739e78067": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d5a9-4125-7650-b52a-d6010a423a9d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
