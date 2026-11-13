@@ -151,12 +151,6 @@ public final class TaskBatchResult<T> {
         return this;
     }
 
-    /**
-     * Counts terminal outcomes of every element.
-     *
-     * @return an immutable count per outcome; outcomes that did not occur are absent
-     * @since 0.4.0
-     */
     /** Counts task-level termination branches without conflating cancellation causes. */
     public Map<TaskTermination.Kind, Integer> terminationKindCounts() {
         EnumMap<TaskTermination.Kind, Integer> counts = new EnumMap<>(TaskTermination.Kind.class);

@@ -8,9 +8,9 @@
 ### v0.5 任务终止投影
 
 开发线新增逻辑终止投影，但 `TaskCompletion` 仍然表示退出后的观测快照。通过
-`ImmediateResult.termination()` 读取 `SUCCESS`/`FAILED`/`CANCELLED` 三个分支，再通过
+`ImmediateResult.outcome()` 读取 `SUCCESS`/`FAILED`/`CANCELLED` 三个分支，再通过
 `failureCause()`、`cancellationReason()` 和 `disposition()` 读取封闭原因与 execution claim 事实。
-`TaskTermination`/`outcome()` 继续作为迁移适配，`RUNNING`、`GROUP_CANCELLED`、`MEMBER_CANCELLED` 和
+`TaskOutcome`/`outcome()` 继续作为迁移适配，`RUNNING`、`GROUP_CANCELLED`、`MEMBER_CANCELLED` 和
 `FAIL_FAST` 不应作为新的稳定业务原因。Batch/Group 结果通过 `termination()`/`scopeTermination()`
 暴露共享的 `ScopeTermination`。逻辑终止可能早于线程退出，释放与直接执行共享的资源前仍需检查
 `executionExitConfirmed()`。
@@ -97,14 +97,14 @@ future 中——`taskIndex()` 对组成员恒为 0。成功任务也可能返回
 null，因此不要用 result 是否为 null 判断成败。监听器回调不属于已完成任务的动态执行作用域，
 应把 event 作为观测边界。
 
-任务终态分类已统一为单个枚举 `TaskTermination`，取代原先的
-早期内部的 `FutureState` 与 `TaskGroupMemberReason`。`TaskTermination` 在原成员原因值
+任务终态分类已统一为单个枚举 `TaskOutcome`，取代原先的
+早期内部的 `FutureState` 与 `TaskGroupMemberReason`。`TaskOutcome` 在原成员原因值
 之上补充了 `RUNNING`，因此可同时服务批量报告与组成员结果。映射关系：`FutureState.FAILED` →
-`TaskTermination.USER_FAILURE`，`FutureState.CANCELLED` → `TaskTermination.MEMBER_CANCELLED`，
-`TaskGroupMemberReason.X` → `TaskTermination.X`（同名）。相应地，
-`TaskBatchResult.BatchReport.stateCounts()` 现在以 `TaskTermination` 为键，
+`TaskOutcome.USER_FAILURE`，`FutureState.CANCELLED` → `TaskOutcome.MEMBER_CANCELLED`，
+`TaskGroupMemberReason.X` → `TaskOutcome.X`（同名）。相应地，
+`TaskBatchResult.BatchReport.stateCounts()` 现在以 `TaskOutcome` 为键，
 组成员的终端快照（`TaskGroupResult.members()` 的值，统一为 `TaskCompletion` 类型）的成员终态
-由 `outcome()` 暴露并返回 `TaskTermination`（由早期的
+由 `outcome()` 暴露并返回 `TaskOutcome`（由早期的
 `completionReason()` 改名而来）。
 
 访问器统一收敛为裸 `x()` 风格；公共 API 与内部都不再保留 `getX()`/`isX()` 形式。早期的
@@ -120,7 +120,7 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
 | `GlobalPar.isClosed()` | `GlobalPar.closed()` |
 | `CancellationToken.getState()` / `State.getCode()` | `state()`；`code()` 已删除——中断语义由枚举值本身表达 |
-| `TaskGroupMemberResult.completionReason()` | `TaskCompletion.termination()`（成员快照现在是 `TaskGroupResult.members()` 的值，类型为 `TaskCompletion`） |
+| `TaskGroupMemberResult.completionReason()` | `TaskCompletion.outcome()`（成员快照现在是 `TaskGroupResult.members()` 的值，类型为 `TaskCompletion`） |
 | `TaskGroupMemberResult.taskContext()` | 已删除；计时扁平化为 `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
 | `TaskEvent.getTaskContext()/getTaskName()` | `TaskListener` 现在投递 `TaskCompletion`；`taskContext()` 已删除（扁平化为 `taskName()` / `unitId()` / `taskIndex()` 加计时纳秒） |
 | `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
@@ -148,9 +148,9 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 
 ## 终态词汇统一
 
-`TaskGroupCompletionReason` 已删除，组级结果复用 `TaskTermination`：
-`TaskGroupResult.completionReason()` 改名为 `outcome()`，返回 `TaskTermination`。映射关系：
-`SUCCESS` → `TaskTermination.SUCCESS`；`TIMEOUT` → `TaskTermination.TIMEOUT`；`FAILED` → 失败任务
+`TaskGroupCompletionReason` 已删除，组级结果复用 `TaskOutcome`：
+`TaskGroupResult.completionReason()` 改名为 `outcome()`，返回 `TaskOutcome`。映射关系：
+`SUCCESS` → `TaskOutcome.SUCCESS`；`TIMEOUT` → `TaskOutcome.TIMEOUT`；`FAILED` → 失败任务
 自己的 outcome（`USER_FAILURE` 或 `SUBMISSION_FAILURE`，见 `failedTaskName()`）；
 `CANCELLED` → 组被整体取消或取消自上传播时为 `GROUP_CANCELLED`，取消源自组员时为
 `MEMBER_CANCELLED`。
@@ -219,7 +219,7 @@ null，因此不要用 result 是否为 null 判断成败。监听器回调不�
 
 ```java
 for (TaskFuture<Account> future : result.results()) {
-    if (future.termination() == TaskTermination.TIMEOUT) {
+    if (future.outcome() == TaskOutcome.TIMEOUT) {
         log.warn("{} timed out with {} left", future.taskName(), future.remaining());
     }
 }
@@ -246,7 +246,7 @@ try {
 ```
 
 `SubmissionException` 本身是内部类型：它只会出现在 `getCause()` 链和堆栈里，无法在 `catch`
-子句中指名。请通过 `TaskTermination.SUBMISSION_FAILURE` 区分这类终态。
+子句中指名。请通过 `TaskOutcome.SUBMISSION_FAILURE` 区分这类终态。
 
 ## `TaskGroup.close()` 与 `TaskBatchResult.close()` 在 close grace 内等待（0.2.0 之后的变更）
 

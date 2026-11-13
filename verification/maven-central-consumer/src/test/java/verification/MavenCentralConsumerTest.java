@@ -12,7 +12,7 @@ import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.ImmediateResult;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
 import io.github.monadrome.parallelinscope.TaskKey;
-import io.github.monadrome.parallelinscope.TaskClassification;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskType;
 import io.github.monadrome.parallelinscope.WorkloadFitReport;
@@ -90,7 +90,7 @@ class MavenCentralConsumerTest {
                         throw new IllegalStateException("boom");
                     })
                     .runAll();
-            assertEquals(LegacyTaskTermination.Kind.FAILED, failed.termination().kind());
+            assertEquals(TaskTermination.Kind.FAILED, failed.termination().kind());
             assertTrue(never.isCancelled());
             assertTrue(failed.executionExitConfirmed());
         } finally {
@@ -115,7 +115,7 @@ class MavenCentralConsumerTest {
             assertEquals(2, results.get(0).valueOrThrow());
             assertEquals(4, results.get(1).valueOrThrow());
             assertEquals("consumer-smoke", result.completions().get(0).taskName());
-            assertEquals(LegacyTaskTermination.Kind.SUCCESS, results.get(0).termination().kind());
+            assertEquals(TaskTermination.Kind.SUCCESS, results.get(0).termination().kind());
 
             assertEquals("consumer-smoke", options.name());
             assertEquals(2, options.parallelism());
@@ -204,7 +204,7 @@ class MavenCentralConsumerTest {
                 assertEquals(
                         "alice:2:2:true",
                         group.terminalValueOrThrow());
-                assertEquals(LegacyTaskTermination.Kind.SUCCESS, group.termination().kind());
+                assertEquals(TaskTermination.Kind.SUCCESS, group.termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -230,7 +230,7 @@ class MavenCentralConsumerTest {
             assertEquals("alice", result.valuesOrThrow().valueOf(user));
             assertEquals(Integer.valueOf(2), result.valuesOrThrow().valueOf(count));
             assertEquals("alice:2", result.terminalValueOrThrow());
-            assertEquals(LegacyTaskTermination.Kind.SUCCESS, result.termination().kind());
+            assertEquals(TaskTermination.Kind.SUCCESS, result.termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -280,7 +280,7 @@ class MavenCentralConsumerTest {
                             });
 
             assertEquals(Integer.valueOf(12), combined.terminalValueOrThrow());
-            assertEquals(LegacyTaskTermination.Kind.SUCCESS, combined.terminalResult().termination().kind());
+            assertEquals(TaskTermination.Kind.SUCCESS, combined.terminalResult().termination().kind());
             assertEquals(3, combined.batchResult().results().size());
             assertTrue(combined.executionExitConfirmed());
 
@@ -300,8 +300,8 @@ class MavenCentralConsumerTest {
                             values -> {
                                 throw new AssertionError("the combine must not run after an element failure");
                             });
-            assertEquals(LegacyTaskTermination.Kind.CANCELLED, failed.terminalResult().termination().kind());
-            assertEquals(LegacyTaskTermination.Kind.FAILED, failed.batchResult().results().get(1).termination().kind());
+            assertEquals(TaskTermination.Kind.CANCELLED, failed.terminalResult().termination().kind());
+            assertEquals(TaskTermination.Kind.FAILED, failed.batchResult().results().get(1).termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -333,9 +333,9 @@ class MavenCentralConsumerTest {
                             });
 
             assertEquals(Integer.valueOf(2), combined.terminalValueOrThrow());
-            assertEquals(LegacyTaskTermination.Kind.SUCCESS, combined.terminalResult().termination().kind());
+            assertEquals(TaskTermination.Kind.SUCCESS, combined.terminalResult().termination().kind());
             assertEquals(3, combined.batchResult().results().size());
-            assertEquals(LegacyTaskTermination.Kind.SUCCESS, combined.batchResult().results().get(1).termination().kind());
+            assertEquals(TaskTermination.Kind.SUCCESS, combined.batchResult().results().get(1).termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -361,7 +361,7 @@ class MavenCentralConsumerTest {
             assertThrows(
                     ExecutionException.class, () -> result.results().get(0).valueOrThrow());
             assertTrue(interrupted.await(5, TimeUnit.SECONDS), "timeout did not interrupt running tasks");
-            assertTrue(result.results().stream().allMatch(element -> element.termination().kind() != LegacyTaskTermination.Kind.SUCCESS));
+            assertTrue(result.results().stream().allMatch(element -> element.termination().kind() != TaskTermination.Kind.SUCCESS));
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -394,8 +394,8 @@ class MavenCentralConsumerTest {
             assertThrows(
                     ExecutionException.class, () -> result.results().get(0).valueOrThrow());
             assertTrue(siblingsInterrupted.await(5, TimeUnit.SECONDS), "failure did not interrupt sibling tasks");
-            assertTrue(result.results().get(1).termination().kind() == LegacyTaskTermination.Kind.CANCELLED);
-            assertTrue(result.results().get(2).termination().kind() == LegacyTaskTermination.Kind.CANCELLED);
+            assertTrue(result.results().get(1).termination().kind() == TaskTermination.Kind.CANCELLED);
+            assertTrue(result.results().get(2).termination().kind() == TaskTermination.Kind.CANCELLED);
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -439,7 +439,7 @@ class MavenCentralConsumerTest {
                     ExecutionException.class, () -> outerResult.results().get(0).valueOrThrow());
             assertTrue(innerInterrupted.await(5, TimeUnit.SECONDS), "outer timeout did not interrupt nested tasks");
             assertTrue(innerReturned.await(5, TimeUnit.SECONDS), "nested call did not return");
-            assertTrue(innerResult.get().results().stream().allMatch(result -> result.termination().kind() != LegacyTaskTermination.Kind.SUCCESS));
+            assertTrue(innerResult.get().results().stream().allMatch(result -> result.termination().kind() != TaskTermination.Kind.SUCCESS));
         } finally {
             releaseOuter.countDown();
             runtime.close();

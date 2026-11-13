@@ -76,7 +76,7 @@ String report = result.reportString();
 // "SUCCESS:8,USER_FAILURE:1,FAIL_FAST:1 | firstException=..."
 
 // 结构化访问
-Map<TaskTermination, Integer> counts = result.terminationKindCounts();
+Map<TaskTermination.Kind, Integer> counts = result.terminationKindCounts();
 Optional<ImmediateResult<Integer>> firstFailed = result.failedTaskResult();
 ```
 

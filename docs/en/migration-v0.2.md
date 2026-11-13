@@ -9,9 +9,9 @@
 ### v0.5 termination projection
 
 The development line adds a logical termination projection without changing the exit-observation
-meaning of `TaskCompletion`. Read `ImmediateResult.termination()` for `SUCCESS`/`FAILED`/`CANCELLED`,
+meaning of `TaskCompletion`. Read `ImmediateResult.outcome()` for `SUCCESS`/`FAILED`/`CANCELLED`,
 then use `failureCause()`, `cancellationReason()`, and `disposition()` for the closed cause and
-execution-claim facts. `TaskTermination` and `outcome()` remain migration adapters, so `RUNNING`,
+execution-claim facts. `TaskOutcome` and `outcome()` remain migration adapters, so `RUNNING`,
 `GROUP_CANCELLED`, `MEMBER_CANCELLED`, and `FAIL_FAST` must not be used as new stable business reasons.
 Batch and Group results expose the shared `ScopeTermination` through `termination()`/`scopeTermination()`.
 Check `executionExitConfirmed()` before releasing resources shared with direct executions because logical
@@ -112,14 +112,14 @@ result stays in its future — and `taskIndex()` is always zero for group member
 return null, so use `successful()` rather than testing the result for null. Listener callbacks run
 outside the completed task's dynamic execution scope; use the event as the observation boundary.
 
-Task outcome classification is unified into a single enum, `TaskTermination`, replacing both
-the earlier internal `FutureState` and `TaskGroupMemberReason`. `TaskTermination` adds `RUNNING` to the
+Task outcome classification is unified into a single enum, `TaskOutcome`, replacing both
+the earlier internal `FutureState` and `TaskGroupMemberReason`. `TaskOutcome` adds `RUNNING` to the
 former member-reason values so it serves both batch reports and group member results. Mapping from
-the removed enums: `FutureState.FAILED` → `TaskTermination.USER_FAILURE`, `FutureState.CANCELLED` →
-`TaskTermination.MEMBER_CANCELLED`, and `TaskGroupMemberReason.X` → `TaskTermination.X` (same names).
-Consequently `TaskBatchResult.BatchReport.stateCounts()` is now keyed by `TaskTermination`, and
+the removed enums: `FutureState.FAILED` → `TaskOutcome.USER_FAILURE`, `FutureState.CANCELLED` →
+`TaskOutcome.MEMBER_CANCELLED`, and `TaskGroupMemberReason.X` → `TaskOutcome.X` (same names).
+Consequently `TaskBatchResult.BatchReport.stateCounts()` is now keyed by `TaskOutcome`, and
 each group member's terminal snapshot (`TaskGroupResult.members()` values, of the unified
-`TaskCompletion` type) exposes its member outcome as `outcome()` returning `TaskTermination` (renamed
+`TaskCompletion` type) exposes its member outcome as `outcome()` returning `TaskOutcome` (renamed
 from the earlier `completionReason()`).
 
 Accessors converge on the bare `x()` style; no `getX()`/`isX()` forms remain in the public API or
@@ -135,7 +135,7 @@ internals. Earlier `0.2.0-SNAPSHOT` builds used bean-style names; rename call si
 | `AsyncBatchResult.BatchReport.getFirstException()` | `BatchReport.firstException()` |
 | `GlobalPar.isClosed()` | `GlobalPar.closed()` |
 | `CancellationToken.getState()` / `State.getCode()` | `state()`; `code()` is removed — interruption semantics are expressed by the enum values themselves |
-| `TaskGroupMemberResult.completionReason()` | `TaskCompletion.termination()` (member snapshots are now `TaskGroupResult.members()` values of type `TaskCompletion`) |
+| `TaskGroupMemberResult.completionReason()` | `TaskCompletion.outcome()` (member snapshots are now `TaskGroupResult.members()` values of type `TaskCompletion`) |
 | `TaskGroupMemberResult.taskContext()` | removed; timing flattened to `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
 | `TaskEvent.getTaskContext()/getTaskName()` | `TaskListener` now delivers `TaskCompletion`; `taskContext()` removed (flattened to `taskName()` / `unitId()` / `taskIndex()` + timing nanos) |
 | `TaskEvent.getSubmitTimeNanos()/getStartTimeNanos()/getEndTimeNanos()` | `TaskCompletion.submitTimeNanos()` / `startTimeNanos()` / `endTimeNanos()` |
@@ -180,9 +180,9 @@ on `GROUP_CANCELLED`.
 
 ## Terminal vocabulary unification
 
-`TaskGroupCompletionReason` is removed; the group-level result reuses `TaskTermination`.
-`TaskGroupResult.completionReason()` is renamed to `outcome()` and now returns `TaskTermination`.
-Mapping from the removed enum: `SUCCESS` → `TaskTermination.SUCCESS`; `TIMEOUT` → `TaskTermination.TIMEOUT`;
+`TaskGroupCompletionReason` is removed; the group-level result reuses `TaskOutcome`.
+`TaskGroupResult.completionReason()` is renamed to `outcome()` and now returns `TaskOutcome`.
+Mapping from the removed enum: `SUCCESS` → `TaskOutcome.SUCCESS`; `TIMEOUT` → `TaskOutcome.TIMEOUT`;
 `FAILED` → the failed task's own outcome (`USER_FAILURE` or `SUBMISSION_FAILURE`, see
 `failedTaskName()`); `CANCELLED` → `GROUP_CANCELLED` when the group was cancelled as a whole or the
 cancellation propagated from an enclosing scope, and `MEMBER_CANCELLED` when the cancellation
@@ -248,7 +248,7 @@ Two types are new, and one of them is not meant to be named:
 
 ```java
 for (TaskFuture<Account> future : result.results()) {
-    if (future.termination() == TaskTermination.TIMEOUT) {
+    if (future.outcome() == TaskOutcome.TIMEOUT) {
         log.warn("{} timed out with {} left", future.taskName(), future.remaining());
     }
 }
@@ -277,7 +277,7 @@ try {
 
 `SubmissionException` itself is an internal type: it surfaces only through `getCause()` chains and
 stack traces and cannot be named in a `catch` clause. Classify the outcome through
-`TaskTermination.SUBMISSION_FAILURE` instead.
+`TaskOutcome.SUBMISSION_FAILURE` instead.
 
 ## `TaskGroup.close()` and `TaskBatchResult.close()` wait within a close grace (post-0.2.0)
 

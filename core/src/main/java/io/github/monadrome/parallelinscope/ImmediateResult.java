@@ -72,7 +72,10 @@ public final class ImmediateResult<T> {
     public static <T> ImmediateResult<T> failed(FailureCause cause) {
         checkNotNull(cause, "cause cannot be null");
         return new ImmediateResult<>(
-                TaskTermination.failed(cause), TaskClassification.SUBMISSION_FAILURE, null, cause.cause());
+                TaskTermination.failed(cause),
+                cause.submissionRejected() ? TaskClassification.SUBMISSION_FAILURE : TaskClassification.USER_FAILURE,
+                null,
+                cause.cause());
     }
 
     /** Creates a cancelled result preserving the supplied throwable for transport reads. */
@@ -131,24 +134,6 @@ public final class ImmediateResult<T> {
         return outcome == TaskClassification.SUCCESS;
     }
 
-    /**
-     * Consumes this result by its four public terminal shapes. {@code SUCCESS} applies {@code
-     * onValue} to the possibly-null value; {@code USER_FAILURE} applies {@code onUserFailure};
-     * {@code SUBMISSION_FAILURE} applies {@code onSubmissionFailure}; and every cancellation
-     * outcome applies {@code onCancelled} to the outcome and stored throwable. The cancellation
-     * throwable is not guaranteed to be a {@link CancellationException}: a group's {@code
-     * valuesResult()} carries a recorded business failure even when the group's outcome is a
-     * cancellation, and {@link #failed} keeps the given throwable.
-     *
-     * @param <R> the result type
-     * @param onValue applied to the value on success
-     * @param onUserFailure applied to the stored failure thrown by user code
-     * @param onSubmissionFailure applied to the stored failure recorded before user code ran
-     * @param onCancelled applied to the outcome and stored throwable of any other outcome
-     * @return the value the applied function returns
-     * @throws NullPointerException if any function is null
-     * @since 0.4.0
-     */
     /** Consumes the three canonical task termination branches. */
     public <R> R fold(
             Function<? super @Nullable T, ? extends R> onSuccess,
