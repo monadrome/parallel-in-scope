@@ -17,6 +17,18 @@ import org.junit.jupiter.api.Test;
 
 class ImmediateResultTest {
     @Test
+    void typedFailureFactoryPreservesFailureCauseClassification() {
+        IllegalStateException cause = new IllegalStateException("boom");
+        ImmediateResult<Integer> result = ImmediateResult.failed(FailureCause.userCodeFailure(cause));
+        assertThat(result.termination().kind()).isEqualTo(TaskTermination.Kind.FAILED);
+        assertThat(com.google.common.base.Verify.verifyNotNull(
+                                result.termination().failureCause())
+                        .kind())
+                .isEqualTo(FailureCause.Kind.USER_CODE_FAILURE);
+        assertThat(result.failure()).isSameAs(cause);
+    }
+
+    @Test
     void successIncludesNullAndReadsPreserveInterruption() throws Exception {
         Thread.currentThread().interrupt();
         try {

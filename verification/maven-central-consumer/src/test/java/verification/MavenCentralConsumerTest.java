@@ -13,6 +13,7 @@ import io.github.monadrome.parallelinscope.ImmediateResult;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
 import io.github.monadrome.parallelinscope.TaskKey;
 import io.github.monadrome.parallelinscope.TaskTermination;
+import io.github.monadrome.parallelinscope.ScopeTermination;
 import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskType;
 import io.github.monadrome.parallelinscope.WorkloadFitReport;
@@ -90,7 +91,7 @@ class MavenCentralConsumerTest {
                         throw new IllegalStateException("boom");
                     })
                     .runAll();
-            assertEquals(TaskTermination.Kind.FAILED, failed.termination().kind());
+            assertEquals(ScopeTermination.Kind.FAILED, failed.termination().kind());
             assertTrue(never.isCancelled());
             assertTrue(failed.executionExitConfirmed());
         } finally {
@@ -204,7 +205,7 @@ class MavenCentralConsumerTest {
                 assertEquals(
                         "alice:2:2:true",
                         group.terminalValueOrThrow());
-                assertEquals(TaskTermination.Kind.SUCCESS, group.termination().kind());
+                assertEquals(ScopeTermination.Kind.SUCCEEDED, group.termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -230,7 +231,7 @@ class MavenCentralConsumerTest {
             assertEquals("alice", result.valuesOrThrow().valueOf(user));
             assertEquals(Integer.valueOf(2), result.valuesOrThrow().valueOf(count));
             assertEquals("alice:2", result.terminalValueOrThrow());
-            assertEquals(TaskTermination.Kind.SUCCESS, result.termination().kind());
+            assertEquals(ScopeTermination.Kind.SUCCEEDED, result.termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
