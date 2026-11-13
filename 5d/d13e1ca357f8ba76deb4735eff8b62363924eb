@@ -1,0 +1,19 @@
+design/core-safety-route-current.html
+  s_13e7288b410768::t_f20d5ae90c6f06 1-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "5dd13e1ca357f8ba76deb4735eff8b62363924eb",
+  "prompts": {},
+  "sessions": {
+    "s_13e7288b410768": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9c5-7f4a-79d3-8e87-f3ec8322946b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
