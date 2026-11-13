@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-12-skill-reproducibility",
+  "date": "2026-11-12",
+  "topic": "skill-reproducibility",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "fix: prevent skill and baseline drift",
+      "refactor: clarify skill and baseline checks"
+    ],
+    "files": 16,
+    "insertions": 475,
+    "deletions": 10
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "skill-reproducibility",
+        "head": "e4536525744e920255880c8032e7a50e201ad779",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "S01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "unknown"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "unknown"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Updated the current development-line baseline, made tracked skills worktree-reproducible, and added hashed assurance run manifests."
+}
