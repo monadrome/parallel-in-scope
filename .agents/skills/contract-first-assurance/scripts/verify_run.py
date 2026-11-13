@@ -18,6 +18,7 @@ REQUIRED_FILES = (
     "report.md",
 )
 REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
+VALID_STATUSES = {"pass", "fail", "blocked", "inconclusive", "skipped"}
 
 
 def safe_path(run_dir: Path, relative: str) -> Path:
@@ -57,6 +58,36 @@ def verify(run_dir: Path) -> list[str]:
     for key in ("base", "head", "dirty"):
         if key not in workspace:
             errors.append(f"workspace metadata is missing {key}")
+
+    final_head = manifest.get("finalHead")
+    if final_head is not None and final_head != workspace.get("head"):
+        errors.append("finalHead does not match workspace.head")
+
+    status = manifest.get("status")
+    if status is not None and status not in VALID_STATUSES:
+        errors.append(f"unsupported run status: {status}")
+    required_gates = manifest.get("requiredGates", [])
+    checks = manifest.get("checks", {})
+    if not isinstance(required_gates, list) or not isinstance(checks, dict):
+        errors.append("requiredGates must be a list and checks must be an object")
+    else:
+        if any(not isinstance(gate, str) for gate in required_gates):
+            errors.append("requiredGates entries must be strings")
+        for gate, gate_status in checks.items():
+            if gate_status not in VALID_STATUSES:
+                errors.append(f"unsupported gate status for {gate}: {gate_status}")
+        for gate in required_gates:
+            if not isinstance(gate, str):
+                continue
+            if checks.get(gate) != "pass":
+                errors.append(f"required gate is not pass: {gate} ({checks.get(gate, 'missing')})")
+        if status is not None and checks:
+            precedence = {"skipped": 0, "pass": 1, "inconclusive": 2, "blocked": 3, "fail": 4}
+            known = [value for value in checks.values() if value in precedence]
+            if known:
+                expected = max(known, key=precedence.get)
+                if status != expected:
+                    errors.append(f"run status {status} does not match checks status {expected}")
 
     for relative in REQUIRED_FILES:
         try:
@@ -112,6 +143,9 @@ def verify(run_dir: Path) -> list[str]:
                             errors.append(f"command {index} {key} log is missing: {command[key]}")
                     except (TypeError, ValueError) as error:
                         errors.append(f"command {index} {key}: {error}")
+            exit_code = command.get("exitCode")
+            if exit_code is not None and (isinstance(exit_code, bool) or not isinstance(exit_code, int)):
+                errors.append(f"command {index} exitCode must be an integer or null")
     return errors
 
 

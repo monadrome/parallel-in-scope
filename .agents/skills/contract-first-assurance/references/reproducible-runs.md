@@ -14,7 +14,7 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
   "package": {"name": "contract-first-assurance", "version": "1.1.0"},
-  "adapter": {"name": "vformation", "version": "1.0.0"},
+  "adapter": {"name": "vformation", "version": "1.1.0"},
   "workspace": {
     "base": "<resolved commit>",
     "head": "<resolved commit>",
