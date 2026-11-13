@@ -1,0 +1,269 @@
+docs/zh/design/philosophy.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 189,191
+docs/zh/reference/cooperative-cancellation.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 177,196
+design/proposal/P0020-deadline-attribution-policy.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 20
+integrations/src/test/java/integrations/resilience4j/ResilientCallTest.java
+  s_e4d21f1619e9d6::t_fb7c97e1af7e78 12,61-63,125,159
+demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java
+  s_e4d21f1619e9d6::t_7f3fc0e4de328f 215,225
+core/src/main/java/io/github/monadrome/parallelinscope/TaskFuture.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 27,30-31,42,44-47,49,53,65
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupListenerFailureTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 64
+core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 71,76,109,112,114,145-146,170,172,199,201,237,287,346,397,612,614
+docs/zh/migration-v0.2.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 13,100-101,103-105,107,123,151-153,222,249
+integrations/src/test/java/integrations/sentinel/SentinelGuardTest.java
+  s_e4d21f1619e9d6::t_fb7c97e1af7e78 18,88,124-126
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCascadeAndLoudFailureTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 43,107,177,219,271
+core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 38
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultFoldTest.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 88-89
+  s_e4d21f1619e9d6::t_45a8cf73144f51 34-36,39,67-74,123-124
+core/src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 229
+core/src/test/java/io/github/monadrome/parallelinscope/TaskKeyTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 142,169,222,225,259,337,350,435,456-457,481-482,503-504,530,566,568
+core/src/test/java/io/github/monadrome/parallelinscope/TaskIdentityTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 111
+design/extension-and-wrapping.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 39,142,218,334
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultToStringTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 22,24
+docs/zh/testing/task-batch-result-report-test-design.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 6,75,88,94
+docs/zh/user-guide.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 79,484,864
+core/src/test/java/io/github/monadrome/parallelinscope/InheritedDeadlineAttributionTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 54-55,58-59
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 945-946,964-965
+  s_e4d21f1619e9d6::t_45a8cf73144f51 205-206,280,315,924,930,942,953,997,999,1001,1004,1006,1013,1020,1023,1025,1030-1031,1034,1058,1102-1103,1129,1133,1139,1151-1152,1154,1173,1190,1285
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 109,114
+design/AGENTS.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 86
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 71,79,102
+docs/en/migration-v0.5.md
+  s_e4d21f1619e9d6::t_5707f296e6f867 47
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 128-130
+docs/zh/design/idea-graveyard.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 83
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitAdmissionTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 219
+core/src/test/java/io/github/monadrome/parallelinscope/AggregateReadRuleTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 68,142-143,161,224-225,234,258-260,262-263,279-280,292,294,297-298
+core/src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 121,261,275
+demo/docs/zh-CN/articles/G1-completion-future-monitoring.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 46
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 37,45,104-105,119,126,164,170,173,176,183,195,197,200,202,223-224,290,293,351
+design/task-group-lifecycle.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 75
+core/src/test/java/io/github/monadrome/parallelinscope/ScopedCallableContextRestoreTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 50
+core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 66,96,102,181,187,262,265-266,361,401,412,500-501,578,583,600,634,644,747-748,805
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 267-269,271-274
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 41-43,62-63,65-66,92,115-116,119,124,227-228,243-244,280-281,299,304,315-316,331-332,344-345
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 121-123
+core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 222,251,284,313
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 25,46-47,80,82,86,111,125-126,140
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 56,84,95,112
+core/src/test/java/io/github/monadrome/parallelinscope/BusinessFailureAttributionTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 17-18,54,58,61,82,86
+demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 87
+  s_e4d21f1619e9d6::t_7f3fc0e4de328f 88,103
+docs/en/migration-v0.2.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 14,115-116,118-120,122,138,183-185,251,280
+core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 37,77,81,99,118,121,144-145,149,172,188,211,221,252-253,259,288,355,362-363,371,377
+docs/en/migration-v0.4.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 64,153,171,246,402
+design/task-group-submission.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 162
+core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 33-36,74-75,83-85,280-282
+  s_e4d21f1619e9d6::t_f0f3cd6d6e250e 80
+  s_e4d21f1619e9d6::t_ef223a63a4f561 71-73,76-79,81-82,86-87,152,154-160
+  s_e4d21f1619e9d6::t_45a8cf73144f51 28,45,57,60,88-89,95,131,164,239-240,248,250,272-274
+docs/en/testing/task-batch-result-report-test-design.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 18
+core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 7,16-18,22,38,40,43,45,48-49,51
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_e4d21f1619e9d6::t_f3b61504ca984e 212,223-224
+  s_e4d21f1619e9d6::t_45a8cf73144f51 220,233,496,525,534,544
+core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 73-74
+docs/en/testing/testing-your-code.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 31,53,96
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineTest.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 164-165,203-204,316-317,354-355
+  s_e4d21f1619e9d6::t_45a8cf73144f51 64,68,97,99,125,128-129,162,201,314,353,382-383,385,435,474,529-530,532
+core/src/main/java/io/github/monadrome/parallelinscope/TaskTermination.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 97,123,155
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 135-136
+design/task-group-api-and-options.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 240,252
+design/task-group-observability-and-verification.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 26
+design/task-termination-and-scope.md
+  s_e4d21f1619e9d6::t_5707f296e6f867 32
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 33,113,118,121-122,146
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 15
+  s_e4d21f1619e9d6::t_fb7c97e1af7e78 93,118,207,233,283,303-304,336,338,364,397-398,442
+design/cancellation-propagation.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 203
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 114,116,297,323-324
+  s_e4d21f1619e9d6::t_d124e91cb51675 311-322
+design/cancellation-model.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 19,22
+design/proposal/P0002-api-surface-reduction.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 86,126-127,150,191,207
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 47-50
+  s_e4d21f1619e9d6::t_45a8cf73144f51 46,109,182
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineInlineGuardTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 96,148,190,231,274
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 207
+core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 307,336
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  s_e4d21f1619e9d6::t_7f3fc0e4de328f 79
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 169-170
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 213-214
+  s_e4d21f1619e9d6::t_d124e91cb51675 160-168
+core/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 287,342,458,496,563,633,668,726,842,844,911,914
+design/decision-log.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 269,293
+docs/en/user-guide.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 95,557,977
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureInlineTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 113
+docs/zh/migration-v0.4.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 60,142,158,224,363
+core/src/main/java/io/github/monadrome/parallelinscope/TaskExitObservation.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 37,50,76,99,131,151,249,253,263,276,293,295-296
+design/synchronous-scope-exit.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 171,237,251
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupExecutionExitTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 81,263,354,486,574,631,655
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchObservationBarrierTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 135
+core/src/test/java/io/github/monadrome/parallelinscope/InterruptedResultFreezingTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 95,125,127,129,131
+core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 93-96
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultExecutionExitTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 230,476-477,517,801,827
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 87,90,132,135,190,192,194
+core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 77,200,280
+core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 82,130,160,214,245-246,295,382,393,415
+core/src/test/java/io/github/monadrome/parallelinscope/GroupClassOptionsOverloadTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 57-58,74-75,92-93
+core/src/main/java/io/github/monadrome/parallelinscope/Combiner.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 16,29,44
+demo/src/test/java/demo/article/QuickStartTest.java
+  s_e4d21f1619e9d6::t_7f3fc0e4de328f 83
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 82
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 117
+  s_e4d21f1619e9d6::t_7f3fc0e4de328f 123
+core/src/test/java/io/github/monadrome/parallelinscope/VirtualDeadlineTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 125-126,261,263,347-348
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 199-200
+demo/src/main/java/demo/basic/CancellationDemo.java
+  s_e4d21f1619e9d6::t_7f3fc0e4de328f 68
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 22,34,82,129,149-150
+core/src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 91,94,178,185,229
+core/src/test/java/io/github/monadrome/parallelinscope/TaskExitObservationTest.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 159-160
+  s_e4d21f1619e9d6::t_45a8cf73144f51 15,23,53,81,144,150,170
+core/src/test/java/io/github/monadrome/parallelinscope/LateFailureLoggingTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 104,118,144,161,184
+design/proposal/P0027-result-projection-measurement.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 14,25
+design/interruption-contract.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 182,273
+core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 93,113,148,162,167,181,186,209,242,253,255,281,287,307,391,396,423,429,438-440,451,512,517
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 445-446
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupValuesFutureTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 50,72,136,196,217,291
+design/batch-settle-attribution.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 45,55
+core/src/main/java/io/github/monadrome/parallelinscope/TaskClassification.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 29
+docs/en/reference/cooperative-cancellation.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 135,156
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 47
+docs/zh/testing/testing-your-code.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 29,52,90
+core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 54,93,124,166,334
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 130,136,154,156,174,178,194,210,227,233-234,248,269,293,307,329,372,414,508,591,628-629,691,711
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 79,141,176,214-215
+core/src/test/java/io/github/monadrome/parallelinscope/ExplicitDeadlineSaturationTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 122
+core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_e4d21f1619e9d6::t_a78260fc1a35b4 374-375
+  s_e4d21f1619e9d6::t_45a8cf73144f51 61,93,97-98,129,172,197,232,235,239,270,272-273,296-297,321,411,436-437,459,463-464,474,496,501,520,536,541,557,702,730
+core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 906-907
+design/proposal/P0037-future-path-staged-outcome-api.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 9,111,156
+integrations/src/test/java/integrations/app/QuoteServiceTest.java
+  s_e4d21f1619e9d6::t_fb7c97e1af7e78 8,118
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 77,195,198,200,228,231,233,256,259,290,320,322,352,354,396,398,402,459,461,486,488,502,504,531,533,535,566,568,570,606,608,610,670,715,718,745,773,775,777,867,869,937,1000,1002,1205,1207,1244,1256,1258,1322,1324,1356,1379,1382
+design/task-group-cancellation.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 13,118,135
+docs/zh/migration-v0.5.md
+  s_e4d21f1619e9d6::t_7e54c67d3662e7 47,130-132
+core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 162
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupFailedTaskResultTest.java
+  s_e4d21f1619e9d6::t_45a8cf73144f51 60,83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1fde9493f9f6cb7809be11d09bcda7d75acb9652",
+  "prompts": {},
+  "sessions": {
+    "s_e4d21f1619e9d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d4cf-8357-7f12-bafd-ea99a749cad8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
