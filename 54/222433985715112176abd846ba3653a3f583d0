@@ -1,0 +1,34 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_d1bea004599e62::t_aa04aa5068d691 388,414
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
+  s_d1bea004599e62::t_43a52b6a7d80ce 77
+  s_d1bea004599e62::t_5858a4d0b77b9a 82
+  s_d1bea004599e62::t_d252fc7010cf40 88
+  s_d1bea004599e62::t_f9974e8e1dee38 91-92,94-95,105-106
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_d1bea004599e62::t_aa04aa5068d691 247-248,443
+  s_d1bea004599e62::t_43a52b6a7d80ce 421-422
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionExitTracker.java
+  s_d1bea004599e62::t_aa04aa5068d691 111,188-189
+  s_d1bea004599e62::t_5858a4d0b77b9a 194
+  s_d1bea004599e62::t_d252fc7010cf40 204
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupExecutionExitTest.java
+  s_d1bea004599e62::t_f9974e8e1dee38 270,289-290
+  s_d1bea004599e62::t_d252fc7010cf40 277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "54222433985715112176abd846ba3653a3f583d0",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

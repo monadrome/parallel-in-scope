@@ -1,0 +1,19 @@
+ledger/2026-11-14-pit-timeout-disposition.json
+  s_d1bea004599e62::t_806518ec2bd798 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f46e2acc25505835e596769ea416119f40a63644",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
