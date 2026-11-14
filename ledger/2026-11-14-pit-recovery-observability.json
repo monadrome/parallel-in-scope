@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-pit-recovery-observability",
+  "date": "2026-11-14",
+  "topic": "pit-recovery-observability",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1"
+  },
+  "change": {
+    "commits": [
+      "test: improve PIT recovery observability"
+    ],
+    "files": 2,
+    "insertions": 49,
+    "deletions": 11
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-core-diagnostic-logs-20261114/resume-par-runtime-observable/mutations.xml",
+      "statuses": {
+        "KILLED": 99,
+        "NO_COVERAGE": 17,
+        "SURVIVED": 9,
+        "TIMED_OUT": 3
+      },
+      "total": 128,
+      "inconclusive": 3,
+      "inconclusiveRate": 0.0234
+    },
+    {
+      "source": "tmp/pit-core-diagnostic-logs-20261114/resume-task-group-observable/mutations.xml",
+      "statuses": {
+        "KILLED": 156,
+        "NO_COVERAGE": 28,
+        "SURVIVED": 33,
+        "TIMED_OUT": 2
+      },
+      "total": 219,
+      "inconclusive": 2,
+      "inconclusiveRate": 0.0091
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Made PIT worker/timeout settings overridable, fixed the core module report path, and added PID/CPU/RSS heartbeats. Recovery reruns removed RUN_ERROR and reduced timed out mutants, but remaining mutation-induced hangs keep PIT inconclusive."
+}
