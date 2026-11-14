@@ -1,0 +1,22 @@
+verification/pit-audit/2026-11-14-core-diagnostic-logs.md
+  s_d1bea004599e62::t_4c6e0ca66bd108 1-4,7-9,15-30
+verification/pit.md
+  s_d1bea004599e62::t_d6fe9a373a1054 115-120
+  s_d1bea004599e62::t_4c6e0ca66bd108 138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "fce59e0a432f7a2ba69eb32eee11c0a84035b910",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+verification/pit-audit/2026-11-14-core-diagnostic-logs.md
+  s_d1bea004599e62::t_4c6e0ca66bd108 1-4,9-11,17-29,50-52,31,37,42,49
+  s_d1bea004599e62::t_807f2fb7e3d76e 6-8,12-16,30,38-41,43-48,53-58
+  s_d1bea004599e62::t_1a3a7de5ee4b8e 5,32-36
+verification/pit-audit/2026-11-14-core-diagnostic-logs/SHA256SUMS
+  s_d1bea004599e62::t_e0e6383a2311d9 2-9
+  s_d1bea004599e62::t_fc944b85c3133d 1
+verification/pit-audit/2026-11-14-core-diagnostic-logs/README.md
+  s_d1bea004599e62::t_807f2fb7e3d76e 1-2,10-33
+  s_d1bea004599e62::t_1a3a7de5ee4b8e 3-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f8aeed3fb3f35487c915913442ba2b222c0c2dd5",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
