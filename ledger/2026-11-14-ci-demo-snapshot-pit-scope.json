@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-ci-demo-snapshot-pit-scope",
+  "date": "2026-11-14",
+  "topic": "ci-demo-snapshot-pit-scope",
+  "routes": [
+    "docs",
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "fix: repair snapshot reactor publishing",
+      "docs: scope PIT to core library"
+    ],
+    "files": 4,
+    "insertions": 31,
+    "deletions": 1
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-fix-ci-demo-snapshot-20261114-2026-11-14",
+        "head": "fae62971dea34c4350a55e01da05e81f21d09957",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn-test": 1,
+      "demo-spotless": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Moved Central Publishing extension to the reactor parent; formatted QuickStartTest; scoped PIT to core by default. Local deploy dry-run without GPG failed on missing pinentry, then passed with -Dgpg.skip=true -DskipUpload=true."
+}
