@@ -1,0 +1,7 @@
+commit: f46e2acc25505835e596769ea416119f40a63644
+started: 2026-11-14T13:20:06Z
+command: mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage -DtargetClasses=io.github.monadrome.parallelinscope.TaskGroup,io.github.monadrome.parallelinscope.TaskGroup\$\* -DtargetTests=io.github.monadrome.parallelinscope.TaskGroupExecutionExitTest\*,io.github.monadrome.parallelinscope.TaskGroupAdoptedFutureTest\*,io.github.monadrome.parallelinscope.TaskGroupValuesFutureTest\*,io.github.monadrome.parallelinscope.TaskGroupListenerFailureTest\*,io.github.monadrome.parallelinscope.SynchronousExecutionTest\* -Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS -Dpitest.threads=1 -Dpitest.timeoutConstant=120000 -Dpitest.timeoutFactor=1.5
+scope: TaskGroup focused current-head refresh
+finished: 2026-11-14T13:26:44Z
+exit-status: 0
+mutations-xml-archived: true
