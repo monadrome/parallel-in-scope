@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-core-diagnostic-docs",
+  "date": "2026-11-14",
+  "topic": "core-diagnostic-docs",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1"
+  },
+  "change": {
+    "commits": [
+      "docs: align exit diagnostics guidance"
+    ],
+    "files": 3,
+    "insertions": 8,
+    "deletions": 6
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Updated English user guide and migration guide plus Chinese user guide so removed exit-warning side channels are described through result and runtime diagnostic APIs."
+}
