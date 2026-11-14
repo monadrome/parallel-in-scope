@@ -1,13 +1,13 @@
 # 协作式取消（Cooperative Cancellation）
 
 
-## 为什么需要"协作式"取消？
+## 为什么需要“协作式”取消？
 
 Java 的 `Thread.interrupt()` 只能中断**阻塞操作**（如 `Thread.sleep()`、`Object.wait()`、`BlockingQueue.take()` 等）。对于正在执行纯计算的 CPU 密集型代码，interrupt 信号不会产生任何效果——线程会一直运行直到计算结束。
 
-parallel-in-scope 采用**协作式取消**模型：框架负责发出取消信号（通过库内部取消 token 的状态变更），但**任务代码需要主动检查这个信号**。这个检查动作称为 **checkpoint**。
+parallel-in-scope 采用**协作式取消**模型：框架发出取消信号，任务代码在指定位置检查这个信号。这个检查动作称为 **checkpoint**。
 
-> 类比：协作式取消就像公路上的收费站——车辆（任务）在经过收费站（checkpoint）时才会被拦截。如果一段公路上没有收费站，车辆就会一路畅行不受控制。
+如果任务一直执行纯计算，不经过 checkpoint，框架就无法让它提前结束。
 
 ## 框架自动做了什么
 
@@ -28,7 +28,7 @@ parallel-in-scope 在以下位置**自动插入**了 checkpoint 和取消响应�
 `Par.map` 等待所有结果确定并尝试有界清理，返回冻结的 `ImmediateResult` 数据。
 `unexitedExecutions()` 报告尚未确认退出的直接任务代码；取消终态不代表任务代码已经停止。
 
-这意味着：
+取消到来时，行为如下：
 - **尚未开始的任务**会被自动跳过（预执行 checkpoint 拦截）。
 - **正在运行的任务**收到中断请求；这不保证阻塞 I/O 会停止。
 - **正在排队等待提交的任务**不会被提交。
@@ -54,7 +54,7 @@ global.par(ParId.of("myExecutor")).map(dataList, item -> {
 }, options);
 ```
 
-关键规则：
+使用 checkpoint 时记住两点：
 - **使用无参 `Checkpoints.checkpoint()`**：无条件检查当前 scope，不需要任务名，也不会因改名而失效。
 
 两种 checkpoint 在**任务作用域之外**的行为不同：
