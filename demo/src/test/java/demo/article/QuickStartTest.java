@@ -80,7 +80,8 @@ class QuickStartTest {
         assertThat(report).contains("SUCCESS:8");
 
         // terminationKindCounts() / failedTaskResult() 结构化读取
-        assertThat(result3.terminationKindCounts()).containsEntry(io.github.monadrome.parallelinscope.TaskTermination.Kind.SUCCESS, 8);
+        assertThat(result3.terminationKindCounts())
+                .containsEntry(io.github.monadrome.parallelinscope.TaskTermination.Kind.SUCCESS, 8);
         assertThat(result3.failedTaskResult()).isEmpty();
     }
 }

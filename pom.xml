@@ -62,6 +62,21 @@
                     </java>
                 </configuration>
             </plugin>
+            <!-- The Central Publishing extension must be present on the reactor parent.
+                 Maven executes the parent module before its children; declaring the
+                 extension only in core and blocking-queues lets the parent's default
+                 deploy goal fail before Central Publishing can intercept the reactor. -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.12.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                </configuration>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
