@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-core-diagnostic-pit-evidence",
+  "date": "2026-11-14",
+  "topic": "core-diagnostic-pit-evidence",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor: remove redundant core exit warnings",
+      "chore: record delivery core-diagnostic-logs",
+      "docs: align exit diagnostics guidance",
+      "chore: record delivery core-diagnostic-docs",
+      "test: improve PIT recovery observability",
+      "chore: record delivery PIT recovery observability",
+      "docs: document PIT recovery controls",
+      "chore: record delivery PIT recovery docs",
+      "docs: label expected PIT liveness timeouts",
+      "chore: record delivery PIT timeout disposition",
+      "docs: archive current-head core PIT evidence",
+      "docs: clarify PIT evidence freshness"
+    ],
+    "files": 29,
+    "insertions": 914,
+    "deletions": 179
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [
+    {
+      "source": "verification/pit-audit/2026-11-14-core-diagnostic-logs/reports/current-head-par-runtime.xml",
+      "statuses": {
+        "KILLED": 99,
+        "NO_COVERAGE": 17,
+        "SURVIVED": 9,
+        "TIMED_OUT": 3
+      },
+      "total": 128,
+      "inconclusive": 3,
+      "inconclusiveRate": 0.0234
+    },
+    {
+      "source": "verification/pit-audit/2026-11-14-core-diagnostic-logs/reports/current-head-task-group.xml",
+      "statuses": {
+        "KILLED": 157,
+        "NO_COVERAGE": 28,
+        "SURVIVED": 33,
+        "TIMED_OUT": 1
+      },
+      "total": 219,
+      "inconclusive": 1,
+      "inconclusiveRate": 0.0046
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Read-only handoff review found stale pre-rebase PIT evidence; reran only affected core ParRuntime and TaskGroup partitions on f46e2acc, archived XML/logs/heartbeats/checksums, then rebased onto docs-only upstream commits. PIT remains inconclusive with raw timeouts and no full-suite or auxiliary-module rerun by user scope."
+}
