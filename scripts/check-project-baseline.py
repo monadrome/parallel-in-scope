@@ -16,6 +16,7 @@ CONFIG = ROOT / "refactoring-review" / "config.json"
 JAVA_GATE = ROOT / "scripts" / "check-java-conventions.py"
 COMPLEXITY_SKILL = ROOT / ".agents" / "skills" / "complexity-review-eval" / "SKILL.md"
 DOC = ROOT / "verification" / "java-conventions.md"
+ADAPTER = ROOT / ".agents" / "skills" / "contract-first-assurance" / "adapters" / "vformation.yaml"
 DEVELOPMENT_REF = re.compile(r"origin/dev/v\d+\.\d+\.\d+")
 
 
@@ -70,11 +71,18 @@ def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
     if upstream_ref not in doc_text:
         errors.append(f"verification/java-conventions.md does not document {upstream_ref}")
 
+    adapter_text = ADAPTER.read_text(encoding="utf-8")
+    adapter_base = re.search(r"(?m)^base_ref:\s*(\S+)\s*$", adapter_text)
+    if not adapter_base:
+        errors.append("contract-first-assurance adapter does not declare base_ref")
+    elif adapter_base.group(1) != upstream_ref:
+        errors.append(f"contract-first-assurance adapter declares {adapter_base.group(1)!r}, expected {upstream_ref!r}")
+
 
 def validate_stale_references(upstream_ref: object, errors: list[str]) -> None:
     if not isinstance(upstream_ref, str):
         return
-    live_files = (AGENTS, CONFIG, JAVA_GATE, COMPLEXITY_SKILL, DOC)
+    live_files = (AGENTS, CONFIG, JAVA_GATE, COMPLEXITY_SKILL, DOC, ADAPTER)
     seen: set[tuple[Path, str]] = set()
     for path in live_files:
         text = path.read_text(encoding="utf-8")

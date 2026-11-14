@@ -27,7 +27,7 @@ class ProjectBaselineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             files = []
-            for index in range(5):
+            for index in range(6):
                 path = root / f"live-{index}.md"
                 path.write_text("origin/dev/v0.6.0\n", encoding="utf-8")
                 files.append(path)
@@ -38,10 +38,11 @@ class ProjectBaselineTest(unittest.TestCase):
                     mock.patch.object(baseline, "CONFIG", files[1]), \
                     mock.patch.object(baseline, "JAVA_GATE", files[2]), \
                     mock.patch.object(baseline, "COMPLEXITY_SKILL", files[3]), \
-                    mock.patch.object(baseline, "DOC", files[4]):
+                    mock.patch.object(baseline, "DOC", files[4]), \
+                    mock.patch.object(baseline, "ADAPTER", files[5]):
                 baseline.validate_stale_references("origin/dev/v0.5.0", errors)
 
-            self.assertEqual(len(errors), 5)
+            self.assertEqual(len(errors), 6)
             self.assertTrue(all("origin/dev/v0.6.0" in error for error in errors))
 
 
