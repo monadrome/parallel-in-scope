@@ -4,7 +4,7 @@
   "date": "2026-11-14",
   "topic": "mutation-disposition-workflow",
   "routes": [
-    "docs"
+    "other"
   ],
   "implementer": {
     "agent": "codex",
@@ -12,36 +12,16 @@
   },
   "change": {
     "commits": [
-      "refactor: remove redundant core exit warnings",
-      "chore: record delivery core-diagnostic-logs",
-      "docs: align exit diagnostics guidance",
-      "chore: record delivery core-diagnostic-docs",
-      "test: improve PIT recovery observability",
-      "chore: record delivery PIT recovery observability",
-      "docs: document PIT recovery controls",
-      "chore: record delivery PIT recovery docs",
-      "docs: label expected PIT liveness timeouts",
-      "chore: record delivery PIT timeout disposition",
-      "docs: archive current-head core PIT evidence",
-      "docs: clarify PIT evidence freshness",
-      "chore: record delivery core PIT evidence",
-      "fix: accept evidenced mutation liveness exceptions",
-      "docs: record mutation disposition workflow"
+      "docs: tighten review coverage workflow",
+      "fix: enforce adapter mutation dispositions"
     ],
-    "files": 44,
-    "insertions": 1138,
-    "deletions": 199
+    "files": 4,
+    "insertions": 119,
+    "deletions": 3
   },
   "reviews": {
     "adversarial": [],
-    "refactoring": [
-      {
-        "run": "refactoring-mutation-disposition-2026-11-14",
-        "head": "9737a2b3ba6f20c4db02e024a20e5b3f8c9579be",
-        "incompleteAgents": 0,
-        "findings": []
-      }
-    ]
+    "refactoring": []
   },
   "gates": {
     "failures": {}
@@ -56,5 +36,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Added adapter-controlled accepted mutation dispositions: preserve raw TIMED_OUT statuses, require evidence and approval, and allow the assurance gate to pass with accepted exceptions. Rebased onto the latest dev line; skill, workflow, docs, and refactoring-review checks passed."
+  "notes": "Verification workflow and skill bundle change: accepted mutation dispositions are adapter-controlled and enforced from the immutable run manifest; raw TIMED_OUT statuses remain unchanged. Added verifier tests and expanded review-scope/commit-contract guidance. Existing PIT XML remains raw and no new PIT run was required."
 }
