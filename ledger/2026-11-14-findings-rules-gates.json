@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-findings-rules-gates",
+  "date": "2026-11-14",
+  "topic": "findings-rules-gates",
+  "routes": [
+    "docs",
+    "other"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "fix: align findings rules and documentation gates"
+    ],
+    "files": 11,
+    "insertions": 74,
+    "deletions": 11
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-findings-rules-20261114-2026-11-14",
+        "head": "a0f112c26d38b53b600e2c2ebfc88716650808a4",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Renumbered ADR 0014, clarified integrations and NullMarked scope, expanded documentation scans, added duplicate ADR and deleted-document checks, and added route-aware context loading. PIT was not applicable because no core production code changed."
+}
