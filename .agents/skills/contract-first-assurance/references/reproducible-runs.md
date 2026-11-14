@@ -14,7 +14,11 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
   "package": {"name": "contract-first-assurance", "version": "1.2.0"},
-  "adapter": {"name": "vformation", "version": "1.2.0"},
+  "adapter": {
+    "name": "vformation",
+    "version": "1.2.0",
+    "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
+  },
   "workspace": {
     "base": "<resolved commit>",
     "head": "<resolved commit>",
@@ -36,6 +40,7 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
       "phase": "pit",
       "rawStatus": "TIMED_OUT",
       "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
       "evidence": ["logs/pit.stdout.log", "inputs/pit-audit.md"],
       "approvedBy": "maintainer"
     }
@@ -54,7 +59,9 @@ Rules:
   `INCONCLUSIVE`, never successful;
 - an accepted exception may make the final gate `pass`, but only when its raw
   status, disposition, evidence paths, and approver are recorded and the
-  disposition is allowed by the resolved host adapter;
+  disposition is allowed by the resolved host adapter; copy the adapter's
+  `acceptedDispositions` policy into the manifest so `verify_run.py` can enforce
+  the same allowlist without reading a mutable parent checkout;
 - the manifest and input snapshots are written before tests run and are not
   rewritten after a failure to make a green result appear reproducible.
 

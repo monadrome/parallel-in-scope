@@ -68,6 +68,8 @@ def verify(run_dir: Path) -> list[str]:
     if status is not None and status not in VALID_STATUSES:
         errors.append(f"unsupported run status: {status}")
 
+    adapter = manifest.get("adapter", {})
+    accepted_policy = adapter.get("acceptedDispositions") if isinstance(adapter, dict) else None
     accepted_exceptions = manifest.get("acceptedExceptions", [])
     if not isinstance(accepted_exceptions, list):
         errors.append("acceptedExceptions must be a list")
@@ -79,6 +81,9 @@ def verify(run_dir: Path) -> list[str]:
         for field in ACCEPTED_EXCEPTION_FIELDS:
             if field not in exception:
                 errors.append(f"accepted exception {index} is missing {field}")
+        phase = exception.get("phase")
+        if not isinstance(phase, str) or not phase:
+            errors.append(f"accepted exception {index} phase must be non-empty")
         raw_status = exception.get("rawStatus")
         if not isinstance(raw_status, str) or not raw_status:
             errors.append(f"accepted exception {index} rawStatus must be a non-empty string")
@@ -87,6 +92,14 @@ def verify(run_dir: Path) -> list[str]:
             errors.append(f"accepted exception {index} disposition must be a non-empty string")
         if exception.get("accepted") is not True:
             errors.append(f"accepted exception {index} accepted must be true")
+        if not isinstance(accepted_policy, dict):
+            errors.append("adapter.acceptedDispositions is required when acceptedExceptions are present")
+        elif isinstance(disposition, str):
+            allowed_statuses = accepted_policy.get(disposition)
+            if not isinstance(allowed_statuses, list) or any(not isinstance(value, str) for value in allowed_statuses):
+                errors.append(f"accepted exception {index} disposition is not allowed by adapter: {disposition}")
+            elif raw_status not in allowed_statuses:
+                errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
         evidence = exception.get("evidence")
         if not isinstance(evidence, list) or not evidence or any(not isinstance(path, str) for path in evidence):
             errors.append(f"accepted exception {index} evidence must contain relative paths")
