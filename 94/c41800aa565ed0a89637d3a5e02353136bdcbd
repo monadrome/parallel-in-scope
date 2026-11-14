@@ -1,0 +1,21 @@
+pom.xml
+  s_afd4e372de42bd::t_d29f6d7becf2a8 65-79
+demo/src/test/java/demo/article/QuickStartTest.java
+  s_afd4e372de42bd::t_075e4242277d4c 83-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "94c41800aa565ed0a89637d3a5e02353136bdcbd",
+  "prompts": {},
+  "sessions": {
+    "s_afd4e372de42bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d995-0a50-7b63-81d3-5f40bcdd1a3d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
