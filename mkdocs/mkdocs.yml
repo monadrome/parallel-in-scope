@@ -163,6 +163,7 @@ plugins:
             - API 与契约:
                 - 协作式取消: reference/cooperative-cancellation.md
                 - 空值注解: reference/nullability-annotations.md
+                - 有界准入调度: reference/bounded-admission-scheduling.md
             - 实现与设计:
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md

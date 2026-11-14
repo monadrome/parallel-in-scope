@@ -11,7 +11,7 @@
 > 最新稳定版：`0.4.1`。本版本新增类型化任务 key、请求级取消、在途 future 收养和运行时诊断。
 > 从 `0.3.x` 升级请先阅读 [v0.4 迁移指南](docs/zh/migration-v0.4.md)。
 
-`parallel-in-scope` 不另起炉灶：它建立在应用已有的线程池和异步任务之上，帮助你以更清晰、更安全的方式管理任务生命周期。
+`parallel-in-scope` 建立在应用已有的线程池和异步任务之上，用来管理任务的提交、取消和结束。
 它提供结构化任务组、协作式取消、快速失败、上下文传播、有界调度，以及线程池死锁与饥饿诊断。
 
 ## 环境要求
@@ -80,7 +80,7 @@ public final class QuickStart {
 `Par.map` 接收 `Function`，受检异常必须包一层，例如使用 `java.io.UncheckedIOException`。在 `0.3.x` 中，
 `valuesOrThrow()` 抛受检的 `ExecutionException`；`0.4.0` 改为非受检失败。
 
-第一次调用前，有三条契约值得知道：
+第一次调用前，先记住三条契约：
 
 - **超时必须显式二选一。** 批次声明 `BatchOptions.timeout(name, duration)` 或
   `BatchOptions.inheritTimeout(name)`，不存在第三种状态：批次不会因为漏写超时而无界运行，显式超时会被外层
