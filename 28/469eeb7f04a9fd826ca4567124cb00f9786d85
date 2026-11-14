@@ -1,0 +1,19 @@
+ledger/2026-11-13-queue-documentation-alignment.json
+  s_300fc739e78067::t_deaa4bd197ef56 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "28469eeb7f04a9fd826ca4567124cb00f9786d85",
+  "prompts": {},
+  "sessions": {
+    "s_300fc739e78067": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d5a9-4125-7650-b52a-d6010a423a9d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
