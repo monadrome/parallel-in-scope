@@ -508,6 +508,14 @@ fixes can continue in later sessions:
   explicitly requests a broader scope; validate those standalone consumers
   through their own tests and the runtime-consumer matrix, and record PIT as
   `skipped` for a consumer-only change.
+- When `contract-first-assurance` is used, keep mutation-runner evidence and
+  assurance acceptance separate. Preserve every raw status, including
+  `TIMED_OUT`, in XML and reports. A timeout may contribute to a `pass` assurance
+  gate only when the adapter permits an accepted disposition and the run records
+  repeatable focused evidence, passing unmutated tests, complete logs, a
+  source-level liveness explanation, and maintainer or independent-review
+  approval. Report this as `PASS WITH ACCEPTED EXCEPTIONS`; unresolved,
+  environment-related, or incomplete timeouts remain `inconclusive`.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 9; consult them when
