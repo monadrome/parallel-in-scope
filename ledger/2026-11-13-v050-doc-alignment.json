@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-v050-doc-alignment",
+  "date": "2026-11-13",
+  "topic": "v050-doc-alignment",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: align v0.5 documentation with current APIs"
+    ],
+    "files": 8,
+    "insertions": 39,
+    "deletions": 36
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Aligned README, v0.5 index, testing guidance, and demo result types with current APIs; docs checks passed."
+}
