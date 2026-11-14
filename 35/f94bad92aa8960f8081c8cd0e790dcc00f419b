@@ -1,0 +1,19 @@
+ledger/2026-11-13-kimi-review-findings.json
+  s_5ad4597eb7d0f3::t_a5be1efa383512 1-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "35f94bad92aa8960f8081c8cd0e790dcc00f419b",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
