@@ -279,7 +279,7 @@ close time, so a close triggered by an expired deadline returns right after canc
 that ignores interruption can hold `close()` at most until the deadline.
 `closeGrace(Duration.ZERO)` makes `close()`
 cancel-only; an interrupted wait restores the interrupt flag and returns; a grace elapsed with
-bodies still running is logged at WARN level with the outstanding task names. Callers that only
+bodies still running remains visible through the frozen `unexitedExecutions()` map. Callers that only
 want to issue the cancellation request must use `cancel()` instead of relying on `close()` being
 non-blocking.
 

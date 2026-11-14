@@ -411,7 +411,7 @@ executor handoff 可使墙钟耗时超过 deadline。
 
 executionExitConfirmed 只确认直接 batch 元素、group 成员及 combine 已退出 finally，
 或被原子阻止永远不启动；它是返回时冻结的事实，不是轮询。unexitedExecutions 列出未确认
-退出的任务并发出 WARN。结果终态不等于资源已经释放。
+退出的任务，是该事实的可靠诊断来源，不再额外发出 WARN。结果终态不等于资源已经释放。
 
 任务局部资源写在执行内：
 
@@ -455,7 +455,8 @@ try {
 ```
 
 `close()` 幂等，且绝不关闭已注册的执行器。只要有打开的线程池饥饿观测，框架的 timer、
-timeout-action 和采样 scheduler 会保留到报告发布，并用 WARNING 记录数量；观测全部关闭后才
+timeout-action 和采样 scheduler 会保留到报告发布；`snapshot().activeObservations()` 与
+`inFlight()` 提供打开数量；观测全部关闭后才
 释放服务，也不等待在途执行。`awaitQuiescence(Duration)` 会同时等待这些观测、future 排空和
 执行退出，但它必须先 `close()`：不先关闭就只是把超时等满，超时返回 false。非正的超时只做一次
 检查、不等待，直接报告当前状态。它可被中断，被中断时恢复标志并继续停机。中断检查先于状态答复，

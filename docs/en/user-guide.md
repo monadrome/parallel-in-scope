@@ -472,8 +472,9 @@ are never shut down by an execution. Java cannot force an arbitrary execution or
 
 `executionExitConfirmed()` confirms only direct batch elements or group members plus combine:
 they exited, including finally, or were atomically prevented from ever starting. The check is a
-frozen fact at return, not a poll. `unexitedExecutions()` names/counts unconfirmed executions and a
-warning is emitted. A terminal result is not proof that resources were released.
+frozen fact at return, not a poll. `unexitedExecutions()` names/counts unconfirmed executions and is
+the reliable diagnostic source for that fact; no additional warning is emitted. A terminal result is
+not proof that resources were released.
 
 Place task-local resources inside the execution:
 
@@ -522,7 +523,7 @@ try {
 
 `close()` is idempotent and never shuts down a registered executor. Open starvation observations
 keep the timer, timeout-action, and starvation-sampling services alive until their reports publish;
-the runtime logs a warning with the open count. `awaitQuiescence(Duration)` waits for those
+`snapshot().activeObservations()` and `inFlight()` expose the open count. `awaitQuiescence(Duration)` waits for those
 observations as well as admitted executions, but only after `close()`: without it the call simply waits
 out its timeout, and it returns false on timeout. A non-positive timeout performs a single check
 without waiting and reports the current state. It is interruptible, so restore the flag and continue shutdown. The
