@@ -476,6 +476,11 @@ later sessions:
   before selecting scope or reporting completion. It owns applicability,
   commands, scope expansion, freshness, dispositions, and acceptance criteria.
   PIT needs no permission and writes build outputs under `target/`.
+- PIT is a core-library gate by default. Do not include `demo/`, `integrations/`,
+  or `verification/maven-central-consumer/` in a mutation run unless the user
+  explicitly requests a broader scope; validate those standalone consumers
+  through their own tests and the runtime-consumer matrix, and record PIT as
+  `skipped` for a consumer-only change.
 
 Historical examples and results already live in
 `design/group-one-shot-api-refactor-codex.md` section 9; consult them when
