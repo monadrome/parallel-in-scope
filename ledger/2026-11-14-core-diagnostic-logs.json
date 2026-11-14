@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-core-diagnostic-logs",
+  "date": "2026-11-14",
+  "topic": "core-diagnostic-logs",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1"
+  },
+  "change": {
+    "commits": [
+      "refactor: remove redundant core exit warnings"
+    ],
+    "files": 7,
+    "insertions": 25,
+    "deletions": 159
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "core-diagnostic-logs-1dd1df15-20261114-101645-9e7cb6",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 1967,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "core-diagnostic-logs-1dd1df15-20261114-101727-e58e7d",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 151396,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 79614,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 79614,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-core-diagnostic-logs-2026-11-14",
+        "head": "1dd1df151566a988554e9bfd02f3c122d0b74e74",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-core-diagnostic-logs-20261114/partition-execution-exit-tracker/mutations.xml",
+      "statuses": {
+        "KILLED": 54,
+        "SURVIVED": 7
+      },
+      "total": 61,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "tmp/pit-core-diagnostic-logs-20261114/partition-par-runtime-retry/mutations.xml",
+      "statuses": {
+        "KILLED": 97,
+        "NO_COVERAGE": 17,
+        "SURVIVED": 9,
+        "TIMED_OUT": 5
+      },
+      "total": 128,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0391
+    },
+    {
+      "source": "tmp/pit-core-diagnostic-logs-20261114/partition-task-batch/mutations.xml",
+      "statuses": {
+        "KILLED": 70,
+        "NO_COVERAGE": 5,
+        "SURVIVED": 8
+      },
+      "total": 83,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "tmp/pit-core-diagnostic-logs-20261114/partition-task-group-retry/mutations.xml",
+      "statuses": {
+        "KILLED": 153,
+        "NO_COVERAGE": 28,
+        "SURVIVED": 33,
+        "TIMED_OUT": 5
+      },
+      "total": 219,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0228
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Core-only JUL simplification. Codex review confirmed three auxiliary documentation drifts deferred by scope. PIT partitions retain complete XML; ParRuntime and TaskGroup include timeout/no-coverage statuses, so aggregate PIT is inconclusive."
+}
