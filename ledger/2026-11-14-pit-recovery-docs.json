@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-pit-recovery-docs",
+  "date": "2026-11-14",
+  "topic": "pit-recovery-docs",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1"
+  },
+  "change": {
+    "commits": [
+      "docs: document PIT recovery controls"
+    ],
+    "files": 1,
+    "insertions": 6,
+    "deletions": 2
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Documented core PIT report location, overridable worker/timeout properties, and required process heartbeats for recovery runs."
+}
