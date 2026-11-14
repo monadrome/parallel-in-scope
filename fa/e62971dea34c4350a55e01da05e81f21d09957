@@ -1,0 +1,21 @@
+AGENTS.md
+  s_afd4e372de42bd::t_672890ebe97f33 479-483
+verification/pit.md
+  s_afd4e372de42bd::t_672890ebe97f33 9-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "fae62971dea34c4350a55e01da05e81f21d09957",
+  "prompts": {},
+  "sessions": {
+    "s_afd4e372de42bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d995-0a50-7b63-81d3-5f40bcdd1a3d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
