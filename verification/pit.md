@@ -6,6 +6,15 @@ or helper changes, toolchain or build/PIT configuration changes, and investigati
 of PIT results. Build configuration remains in [pom.xml](../pom.xml);
 review and delivery rules remain in [AGENTS.md](../AGENTS.md#adversarial-review).
 
+The default mutation scope is the core library in `core/`. Standalone consumer
+and example modules (`demo/`, `integrations/`, and
+`verification/maven-central-consumer/`) are outside PIT unless the user
+explicitly requests a broader scope. Validate those modules through their own
+tests and the runtime-consumer matrix; for a consumer-only change, record PIT as
+`skipped` with this scope rule as the reason. The independent
+`blocking-queues` artifact follows its scoped instructions and is not pulled
+into a core PIT run automatically.
+
 ## Decide applicability and scope
 
 Record the affected contract or failure mode, production classes to mutate, tests
