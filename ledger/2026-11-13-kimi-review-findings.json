@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-kimi-review-findings",
+  "date": "2026-11-13",
+  "topic": "kimi-review-findings",
+  "routes": [
+    "defect"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-terra"
+  },
+  "change": {
+    "commits": [
+      "fix: make assurance checks adapter-driven",
+      "fix: include assurance adapter in baseline checks",
+      "fix: accept valid adapter base ref syntax"
+    ],
+    "files": 3,
+    "insertions": 106,
+    "deletions": 7
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "kimi-review-findings-8a417bb8-20261114-024835-99b5c9",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 149743,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "kimi-review-findings-50aead71-20261114-025458-f61836",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 119798,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "kimi-review-findings-13f2b8c6-20261114-030019-e88ff7",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 154604,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-fix-kimi-review-findings-2026-11-13",
+        "head": "8a417bb851f7548bbeff827245904d3cafba7b4b",
+        "incompleteAgents": 0,
+        "findings": []
+      },
+      {
+        "run": "refactoring-fix-kimi-review-findings-followup-2026-11-13",
+        "head": "50aead71f107e6ac30aea5a2942b697340d16e66",
+        "incompleteAgents": 0,
+        "findings": []
+      },
+      {
+        "run": "refactoring-fix-kimi-review-findings-yaml-2026-11-13",
+        "head": "13f2b8c68edfc7fd71e39010feffb39dfa29f985",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "scripts.tests.test_check_project_baseline": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Kimi K3 found 1+2 confirmed P3 findings across two follow-up rounds; all fixes landed and the final round reported no findings. One Kiro transient invalid-model log occurred, but the run completed."
+}
