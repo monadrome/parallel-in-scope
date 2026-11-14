@@ -23,6 +23,35 @@ baseline = load_script()
 
 
 class ProjectBaselineTest(unittest.TestCase):
+    def validate_script_and_docs(self, adapter_text):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {
+                "JAVA_GATE": root / "java-conventions.py",
+                "COMPLEXITY_SKILL": root / "complexity.md",
+                "DOC": root / "java-conventions.md",
+                "ADAPTER": root / "vformation.yaml",
+            }
+            paths["JAVA_GATE"].write_text('DEFAULT_UPSTREAM = "origin/dev/v0.5.0"\n', encoding="utf-8")
+            paths["COMPLEXITY_SKILL"].write_text("origin/dev/v0.5.0\n", encoding="utf-8")
+            paths["DOC"].write_text("check-java-conventions.py\norigin/dev/v0.5.0\n", encoding="utf-8")
+            paths["ADAPTER"].write_text(adapter_text, encoding="utf-8")
+            errors = []
+            with mock.patch.multiple(baseline, **paths):
+                baseline.validate_script_and_docs("origin/dev/v0.5.0", errors)
+            return errors
+
+    def test_adapter_base_ref_accepts_quoted_scalar_and_inline_comment(self):
+        self.assertEqual(self.validate_script_and_docs('base_ref: "origin/dev/v0.5.0"  # current line\n'), [])
+
+    def test_adapter_base_ref_reports_mismatch(self):
+        errors = self.validate_script_and_docs("base_ref: origin/dev/v0.4.0\n")
+        self.assertIn("adapter declares 'origin/dev/v0.4.0'", " ".join(errors))
+
+    def test_adapter_base_ref_reports_missing_declaration(self):
+        errors = self.validate_script_and_docs("name: vformation\n")
+        self.assertTrue(any("adapter does not declare base_ref" in error for error in errors))
+
     def test_stale_reference_check_catches_any_other_development_line(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
