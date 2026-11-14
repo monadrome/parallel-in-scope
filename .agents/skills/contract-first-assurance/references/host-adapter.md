@@ -58,6 +58,15 @@ An adapter may also provide `route_gates`, `status_policy`, and
 repository workflow; they do not create a second run manifest or replace the
 portable `contract-assurance-run/v1` schema.
 
+For mutation-enabled repositories, `mutation_policy` may define
+`accepted_dispositions`. Each disposition names the evidence required before a
+raw mutation status may be accepted as an exception. The orchestrator must
+retain the raw status and record the disposition, evidence references, and
+approver in the run manifest. An accepted exception affects the gate result;
+it never changes the mutation XML or raw status. An unresolved timeout,
+memory error, worker failure, missing XML, or incomplete log remains
+`INCONCLUSIVE`.
+
 The current gate names are `narrow-checks`, `docs`, `regression-tests`,
 `related-tests`, `full-suite`, `consumer`, `pit`, `independent-review`,
 `race-claims`, `refactoring-review`, `dependency-audit`, and `maven`.

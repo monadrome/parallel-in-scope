@@ -1,5 +1,5 @@
 name: vformation
-version: 1.1.0
+version: 1.2.0
 workspace_root: repository-root
 base_ref: origin/dev/v0.5.0
 artifact_root: .contract-first-assurance
@@ -30,6 +30,15 @@ mutation_policy:
   applies: true
   instructions: verification/pit.md
   runner: PIT scope is selected and reported according to verification/pit.md
+  accepted_dispositions:
+    EXPECTED_MUTATION_LIVENESS:
+      allowed_raw_statuses: [TIMED_OUT]
+      required_evidence:
+        - repeatable-focused-rerun
+        - unmutated-tests-pass
+        - complete-xml-and-logs
+        - source-level-liveness-invariant
+        - maintainer-or-independent-review
 
 route_gates:
   mechanical:

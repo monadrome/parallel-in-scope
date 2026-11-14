@@ -2,7 +2,7 @@
 name: contract-first-assurance
 description: 契约优先的独立验证工作流。用户要求独立验证 PR、从契约生成测试、检查实现与需求的行为缺口、复核取消/并发/生命周期语义或生成可审计验证报告时使用；也可通过 /contract-first-assurance 手动调用。先冻结契约，再在隔离上下文中生成候选测试，并在真实实现上分类验证结果。
 compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
-version: "1.1.0"
+version: "1.2.0"
 ---
 
 # Contract-First Independent Assurance
@@ -20,6 +20,9 @@ version: "1.1.0"
 宿主 adapter 负责工作区、变更范围、基线、构建命令、格式检查、mutation
 策略和输出目录；本 skill 不假定 Java、Maven、Gradle、npm 或 PIT。缺少必需
 的 adapter 输入时，保留 `BLOCKED` 或 `INCONCLUSIVE` 证据，不用猜测命令。
+mutation 的原始状态与验证结论必须分开记录。读取
+[references/mutation-dispositions.md](references/mutation-dispositions.md) 了解
+如何在保留 `TIMED_OUT` 原始状态的同时接受证据充分的变异诱导活性失败。
 
 本轮的 `RUN_DIR` 是 adapter 解析出的 run 目录，默认是仓库根目录下的
 `.contract-first-assurance/<run-id>`。所有阶段必须使用同一个 `RUN_DIR`，并在
@@ -255,7 +258,7 @@ ${RUN_DIR}/candidate-status.csv
 ${RUN_DIR}/reverse-verification/
 ```
 
-不要把临时突变留在工作树。突变测试必须遵守已解析 adapter 的 `mutation_policy` 及其 instructions，并保留原始 mutation 状态；如果 adapter 未提供适用策略，将该阶段标记为 `BLOCKED` 或 `INCONCLUSIVE`。超时、内存错误、无 XML 或部分运行不得报告为通过。
+不要把临时突变留在工作树。突变测试必须遵守已解析 adapter 的 `mutation_policy` 及其 instructions，并保留原始 mutation 状态；如果 adapter 未提供适用策略，将该阶段标记为 `BLOCKED` 或 `INCONCLUSIVE`。超时、内存错误、无 XML 或部分运行不得直接报告为通过；只有满足 disposition 规则且被明确接受的例外，才能在 gate 层进入 `PASS`，同时保留原始状态和例外记录。
 
 ## 阶段七：输出改进建议
 
@@ -324,7 +327,7 @@ ${RUN_DIR}/
 └── report.md
 ```
 
-如果某一步未执行，必须保留对应的 `SKIPPED`、`BLOCKED` 或 `INCONCLUSIVE` 状态和原因。
+如果某一步未执行，必须保留对应的 `SKIPPED`、`BLOCKED` 或 `INCONCLUSIVE` 状态和原因。报告应分别列出 raw status、disposition、例外是否已接受和最终 gate 状态；`PASS` 可以包含已接受例外，但不得把原始 `TIMED_OUT` 改写成 `KILLED`。
 最终报告前运行：
 
 ```bash

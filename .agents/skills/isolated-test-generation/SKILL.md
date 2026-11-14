@@ -1,7 +1,7 @@
 ---
 name: isolated-test-generation
 description: 隔离测试生成：只根据冻结 contract 和脱敏 API 生成候选测试。仅由 contract-first-assurance 主入口或用户显式调用。
-version: "1.1.0"
+version: "1.2.0"
 disable-model-invocation: true
 ---
 # Isolated Test Generation
