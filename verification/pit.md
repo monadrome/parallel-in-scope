@@ -112,8 +112,12 @@ History-based reuse is optional iteration feedback, not final evidence: a final
 verification run MUST use no history input. This avoids relying on incomplete
 dependency invalidation.
 
-PIT writes `target/pit-reports/mutations.xml` and HTML reports. Preserve the XML
-and logs for each batch before another run overwrites them. Record the source
+For this multi-module build, a core PIT run writes `core/target/pit-reports/mutations.xml`
+and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
+The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
+may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
+Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside
+the PIT log. Record the source
 revision and any uncommitted input changes, command, JDK, scope, mutators, and
 exclusions beside the results; report timestamps alone do not prove freshness.
 The repeatable core runner is [scripts/run-pit-core.sh](../scripts/run-pit-core.sh);
