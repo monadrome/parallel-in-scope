@@ -34,8 +34,10 @@ SCAN_FILES = {
 SCAN_PREFIXES = (
     ".github/",
     "adr/",
+    "demo/",
     "design/",
     "docs/",
+    "integrations/",
     "mkdocs/",
     "refactoring-review/",
 )
@@ -87,7 +89,11 @@ def markdown_files(root: Path) -> list[str]:
         capture_output=True,
         text=True,
     )
-    return sorted(path for path in result.stdout.splitlines() if path and is_scanned(path))
+    return sorted(
+        path
+        for path in result.stdout.splitlines()
+        if path and is_scanned(path) and (root / path).is_file()
+    )
 
 
 def violations(root: Path) -> list[str]:

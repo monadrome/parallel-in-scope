@@ -110,6 +110,20 @@ class CheckDocRefsTest(unittest.TestCase):
         self.write("refactoring-review/lenses/structure.md", "# Lens\nSee Foo.java:9.\n")
         self.assertEqual(len(docs.violations(self.root)), 1)
 
+    def test_consumer_module_documents_are_scanned(self):
+        self.write("demo/README.en.md", "# Demo\nRemoved in `abc1234`.\n")
+        self.write("integrations/README.en.md", "# Integrations\nSee Foo.java:9.\n")
+        errors = docs.violations(self.root)
+        self.assertEqual(len(errors), 2)
+        self.assertIn("demo/README.en.md:2: commit-hash reference", errors[0])
+        self.assertIn("integrations/README.en.md:2: line-number reference", errors[1])
+
+    def test_deleted_documents_are_not_read_from_the_index(self):
+        path = self.write("adr/0013-old.md", "# Old\nRemoved in `abc1234`.\n")
+        subprocess.run(["git", "add", str(path)], cwd=self.root, check=True)
+        path.unlink()
+        self.assertEqual(docs.violations(self.root), [])
+
     def test_repository_documents_are_clean(self):
         result = subprocess.run(
             [sys.executable, str(SCRIPTS / "check-doc-refs.py")],

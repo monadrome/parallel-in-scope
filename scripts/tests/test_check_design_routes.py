@@ -104,6 +104,13 @@ class DesignRoutesTest(unittest.TestCase):
         self.assertIn("duplicate proposal id: P0001", errors)
         self.assertIn("missing or empty distillation summary", errors)
 
+    def test_duplicate_adr_ids_fail(self):
+        self.write("adr/0013-first.md", "# ADR 0013: First\n")
+        self.write("adr/0013-second.md", "# ADR 0013: Second\n")
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("duplicate ADR id 0013", result.stderr)
+
     def test_reference_ids_are_exact(self):
         self.proposal()
         self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")

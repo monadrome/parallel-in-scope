@@ -10,8 +10,10 @@ parallel-in-scope 使用 JSpecify 注解，并通过 NullAway（Error Prone 插�
 泛型实参，因此公开 API、回调接口与内部实现共用一套注解，不再需要 JSR-305 与 Checker
 Framework 混合策略。
 
-每个包的 `package-info.java` 声明 `@NullMarked`：参数、返回值、字段与泛型实参默认全部
-非空，只有例外需要显式标注 `@Nullable`。
+`core/src/main/java` 与 `blocking-queues/src/main/java` 下的每个库包都由
+`package-info.java` 声明 `@NullMarked`：参数、返回值、字段与泛型实参默认全部非空，只有
+例外需要显式标注 `@Nullable`。独立的 demo、integrations 和 verification consumer 是各自的
+Java 8 消费者模块，不继承这个包级规则。
 
 ## 编译期强制
 
