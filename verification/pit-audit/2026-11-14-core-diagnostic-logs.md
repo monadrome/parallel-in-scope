@@ -2,7 +2,7 @@
 
 This audit covers the core-only JUL simplification and its focused mutation
 partitions. The ordinary build and test suite passed before the mutation runs.
-The durable current-HEAD evidence is archived under
+The durable evidence for the current production and PIT inputs is archived under
 [`verification/pit-audit/2026-11-14-core-diagnostic-logs/`](2026-11-14-core-diagnostic-logs/);
 the matching `tmp/pit-core-diagnostic-logs-20261114/` files are local working
 copies.
@@ -29,9 +29,11 @@ mutation run with any timeout is not a complete pass.
 
 ## Current HEAD refresh
 
-After rebasing to `f46e2acc`, the two affected partitions were rerun with one
-worker, `timeoutConstant=120000`, and `timeoutFactor=1.5`. The raw XML is fresh
-for that commit:
+The two affected partitions were rerun at `f46e2acc` with one worker,
+`timeoutConstant=120000`, and `timeoutFactor=1.5`. The branch was later rebased
+to `075c4a4e`; that rebase changed documentation, scripts, and delivery records
+only. It did not change production sources, tests, the POM, or the PIT runner,
+so these reports remain fresh for the mutated inputs:
 
 | Partition | KILLED | SURVIVED | TIMED_OUT | NO_COVERAGE | Total |
 | --- | ---: | ---: | ---: | ---: | ---: |
