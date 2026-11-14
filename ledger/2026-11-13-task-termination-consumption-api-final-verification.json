@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-task-termination-consumption-api-final-verification",
+  "date": "2026-11-13",
+  "topic": "task-termination-consumption-api-final-verification",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": null,
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: strengthen termination mutation coverage",
+      "test: cover immediate result freezing branches",
+      "refactor: name termination behavior test",
+      "test: cover submission freezing disposition"
+    ],
+    "files": 1,
+    "insertions": 97,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "full-mvn-test-wrapper": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Final PIT 49/49 killed. Final independent review Codex/Kimi completed with no findings. Refactoring review plan/detect/merge/verify completed. Full mvn test produced complete surefire reports with no failing test reports, but the outer shell did not emit RC before environment termination; record as inconclusive."
+}
