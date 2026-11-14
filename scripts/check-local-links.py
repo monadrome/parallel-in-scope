@@ -16,6 +16,7 @@ SCAN_ROOTS = (
     ROOT / "CHANGELOG.md",
     ROOT / "docs",
     ROOT / "demo",
+    ROOT / "integrations",
     ROOT / "design",
     ROOT / "adr",
     ROOT / "refactoring-review",

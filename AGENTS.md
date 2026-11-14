@@ -102,6 +102,15 @@ If the request crosses into a gated route mid-task, stop and reclassify instead
 of finishing under the old route. A request for analysis authorizes the analysis,
 not implementation.
 
+## Context Loading
+
+The root file is a routing index as well as a rule source. After selecting a route,
+load only the sections and nearest scoped `AGENTS.md` files that the route names:
+release, PIT, adversarial review, issue automation, and historical rationale are
+conditional sections, not default reading. Specialized documents own their detailed
+procedures; this file keeps the cross-route invariants and the pointers that select
+those procedures.
+
 ## Architecture
 
 Base package: `io.github.monadrome.parallelinscope`.
@@ -221,7 +230,9 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
   `Monitor.Guard.isSatisfied()`).
-- Every package has `package-info.java` with JSpecify `@NullMarked`;
+- Every library package under `core/src/main/java` and
+  `blocking-queues/src/main/java` has `package-info.java` with JSpecify
+  `@NullMarked`; consumer modules keep their own nullability policy.
   annotate only exceptions with `org.jspecify.annotations.Nullable`
   (TYPE_USE position, compile scope). NullAway enforces the annotations at
   compile time via Error Prone; the build requires JDK 25 (LTS) while the

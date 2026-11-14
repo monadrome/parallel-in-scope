@@ -10,9 +10,11 @@ All annotations come from a single source: `org.jspecify.annotations` (JSpecify)
 `TYPE_USE` semantics also cover generic type arguments, so one annotation set serves public API,
 callbacks, and internal implementation alike.
 
-Every package declares `@NullMarked` in `package-info.java`: parameters, return values, fields,
-and generic type arguments are non-null unless marked `@Nullable`. Only the exceptions need
-explicit `@Nullable`.
+Every library package under `core/src/main/java` and `blocking-queues/src/main/java` declares
+`@NullMarked` in `package-info.java`: parameters, return values, fields, and generic type
+arguments are non-null unless marked `@Nullable`. The standalone demo, integrations, and
+verification consumer modules are separate Java 8 consumers and do not inherit this package-level
+rule. Only the exceptions inside the annotated library packages need explicit `@Nullable`.
 
 ## Compile-time enforcement
 

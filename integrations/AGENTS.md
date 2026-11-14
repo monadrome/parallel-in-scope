@@ -44,8 +44,8 @@ needs maintainer approval, like every workflow edit.
 
 - Depend on the published library artifact; never reference the root project's
   source tree. Use only public API from `io.github.monadrome.parallelinscope`
-  and its `queue` package. Do not use the `io.github.monadrome.parallelinscope`
-  package name here.
+  and `io.github.monadrome.queues`. Do not declare integration classes in either
+  library package or use package-private core types.
 - Keep integration dependencies on their newest Java 8 release lines:
   Resilience4j 1.7.x, Sentinel 1.8.x, Spring Framework 5.3.x. Resilience4j 2.x
   and Spring 6.x need Java 17. Moving to them changes this module's Java

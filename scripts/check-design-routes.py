@@ -85,6 +85,25 @@ def check_routes(documents: set[PurePosixPath], targets: dict[PurePosixPath, str
     return errors
 
 
+def check_adr_ids() -> list[str]:
+    adr_root = ROOT / "adr"
+    if not adr_root.is_dir():
+        return []
+    seen: dict[str, Path] = {}
+    errors = []
+    for document in sorted(adr_root.glob("[0-9][0-9][0-9][0-9]-*.md")):
+        adr_id = document.name[:4]
+        previous = seen.get(adr_id)
+        if previous is not None:
+            errors.append(
+                f"adr/{document.name}: duplicate ADR id {adr_id}; "
+                f"already used by adr/{previous.name}"
+            )
+        else:
+            seen[adr_id] = document
+    return errors
+
+
 def main() -> int:
     text = ROUTE_DOC.read_text(encoding="utf-8")
     targets = route_targets(text)
@@ -95,6 +114,7 @@ def main() -> int:
         for path in (ROOT / "design" / "proposal").rglob("*.md")
     }
     errors = []
+    errors.extend(check_adr_ids())
     for target, raw in sorted(targets.items()):
         if not (ROUTE_DOC.parent / Path(*target.parts)).exists():
             errors.append(f"design/AGENTS.md: missing target: {raw}")
