@@ -13,8 +13,8 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
   "schemaVersion": "contract-assurance-run/v1",
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
-  "package": {"name": "contract-first-assurance", "version": "1.1.0"},
-  "adapter": {"name": "vformation", "version": "1.1.0"},
+  "package": {"name": "contract-first-assurance", "version": "1.2.0"},
+  "adapter": {"name": "vformation", "version": "1.2.0"},
   "workspace": {
     "base": "<resolved commit>",
     "head": "<resolved commit>",
@@ -30,7 +30,16 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
       "stderr": "logs/full-suite.stderr.log"
     }
   ],
-  "artifacts": {"report.md": "<sha256>"}
+  "artifacts": {"report.md": "<sha256>"},
+  "acceptedExceptions": [
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "evidence": ["logs/pit.stdout.log", "inputs/pit-audit.md"],
+      "approvedBy": "maintainer"
+    }
+  ]
 }
 ```
 
@@ -43,6 +52,9 @@ Rules:
 - paths in the manifest are relative to `${RUN_DIR}` and must not contain `..`;
 - a timeout, missing log, missing hash, or hash mismatch makes the run
   `INCONCLUSIVE`, never successful;
+- an accepted exception may make the final gate `pass`, but only when its raw
+  status, disposition, evidence paths, and approver are recorded and the
+  disposition is allowed by the resolved host adapter;
 - the manifest and input snapshots are written before tests run and are not
   rewritten after a failure to make a green result appear reproducible.
 

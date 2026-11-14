@@ -1,7 +1,7 @@
 ---
 name: contract-diff
 description: 契约差异归并：比较候选测试、现有测试和真实实现结果，识别契约缺口与行为证据差异。仅由 contract-first-assurance 主入口或用户显式调用。
-version: "1.1.0"
+version: "1.2.0"
 disable-model-invocation: true
 ---
 # Contract Diff

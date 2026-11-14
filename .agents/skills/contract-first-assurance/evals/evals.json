@@ -1,6 +1,6 @@
 {
   "skill_name": "contract-first-assurance",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "evals": [
     {
       "id": 1,
@@ -8,7 +8,7 @@
       "prompt": "独立检查一个包含取消、deadline 和 execution exit 语义的 PR。请冻结可执行 contract，使用 fresh context 生成候选测试，在真实实现上分类验证结果，并给出反向验证和未决契约缺口。",
       "expected_output": "A report with stable contract IDs, isolated candidate tests, explicit result classifications, reverse-verification status, and contract gaps.",
       "assertions": [
-        "Does not treat a timeout or partial PIT run as passing",
+        "Does not treat an unresolved timeout or partial PIT run as passing, while allowing a fully evidenced and approved mutation exception to pass the gate without changing the raw status",
         "Separates implementation defects from test assumptions and missing oracle details",
         "Records the same run directory and adapter inputs across phases"
       ]
@@ -31,6 +31,17 @@
       "assertions": [
         "Names the missing adapter values",
         "Does not infer a build ecosystem from the repository name"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "accepted-mutation-liveness-exception",
+      "prompt": "PIT 报告中某个变异体稳定触发 TIMED_OUT，已有完整 XML、进程心跳、未变异测试通过记录和源码级活性证明，并得到维护者批准。请生成 assurance 报告和 run manifest。",
+      "expected_output": "A report that keeps TIMED_OUT as the raw status, records EXPECTED_MUTATION_LIVENESS as an accepted exception, and reports the normalized PIT gate as pass with accepted exceptions.",
+      "assertions": [
+        "Preserves TIMED_OUT in raw mutation evidence",
+        "Requires evidence paths and approver for the accepted exception",
+        "Reports unresolved or weakly evidenced timeouts as inconclusive"
       ]
     }
   ]

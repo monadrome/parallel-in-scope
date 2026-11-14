@@ -109,6 +109,7 @@ def verify(root: Path) -> List[str]:
         "references/invocation-modes.md",
         "references/host-adapter.md",
         "references/reproducible-runs.md",
+        "references/mutation-dispositions.md",
     ):
         if not (root / reference).is_file():
             errors.append(f"missing package reference: {root / reference}")

@@ -19,6 +19,7 @@ REQUIRED_FILES = (
 )
 REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
 VALID_STATUSES = {"pass", "fail", "blocked", "inconclusive", "skipped"}
+ACCEPTED_EXCEPTION_FIELDS = ("phase", "rawStatus", "disposition", "accepted", "evidence", "approvedBy")
 
 
 def safe_path(run_dir: Path, relative: str) -> Path:
@@ -66,6 +67,41 @@ def verify(run_dir: Path) -> list[str]:
     status = manifest.get("status")
     if status is not None and status not in VALID_STATUSES:
         errors.append(f"unsupported run status: {status}")
+
+    accepted_exceptions = manifest.get("acceptedExceptions", [])
+    if not isinstance(accepted_exceptions, list):
+        errors.append("acceptedExceptions must be a list")
+        accepted_exceptions = []
+    for index, exception in enumerate(accepted_exceptions):
+        if not isinstance(exception, dict):
+            errors.append(f"accepted exception {index} is not an object")
+            continue
+        for field in ACCEPTED_EXCEPTION_FIELDS:
+            if field not in exception:
+                errors.append(f"accepted exception {index} is missing {field}")
+        raw_status = exception.get("rawStatus")
+        if not isinstance(raw_status, str) or not raw_status:
+            errors.append(f"accepted exception {index} rawStatus must be a non-empty string")
+        disposition = exception.get("disposition")
+        if not isinstance(disposition, str) or not disposition:
+            errors.append(f"accepted exception {index} disposition must be a non-empty string")
+        if exception.get("accepted") is not True:
+            errors.append(f"accepted exception {index} accepted must be true")
+        evidence = exception.get("evidence")
+        if not isinstance(evidence, list) or not evidence or any(not isinstance(path, str) for path in evidence):
+            errors.append(f"accepted exception {index} evidence must contain relative paths")
+        else:
+            for path in evidence:
+                try:
+                    exists = safe_path(run_dir, path).is_file()
+                except (TypeError, ValueError) as error:
+                    errors.append(f"accepted exception {index} evidence path is invalid: {error}")
+                    continue
+                if not exists:
+                    errors.append(f"accepted exception {index} references missing evidence: {path}")
+        approved_by = exception.get("approvedBy")
+        if not isinstance(approved_by, str) or not approved_by:
+            errors.append(f"accepted exception {index} approvedBy must be non-empty")
     required_gates = manifest.get("requiredGates", [])
     checks = manifest.get("checks", {})
     if not isinstance(required_gates, list) or not isinstance(checks, dict):

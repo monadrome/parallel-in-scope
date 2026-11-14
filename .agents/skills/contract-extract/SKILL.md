@@ -1,7 +1,7 @@
 ---
 name: contract-extract
 description: 契约提取：从 PR 或工作区改动整理冻结、可执行的行为契约。仅由 contract-first-assurance 主入口或用户显式调用。
-version: "1.1.0"
+version: "1.2.0"
 disable-model-invocation: true
 ---
 # Contract Extract

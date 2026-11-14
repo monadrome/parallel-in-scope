@@ -1,6 +1,6 @@
 package:
   name: contract-first-assurance
-  version: 1.1.0
+  version: 1.2.0
   schema: 1
   entrypoint: SKILL.md
   layout: sibling-skills
@@ -9,26 +9,27 @@ package:
 components:
   - path: ../contract-extract
     kind: phase
-    version: 1.1.0
+    version: 1.2.0
   - path: ../isolated-test-generation
     kind: phase
-    version: 1.1.0
+    version: 1.2.0
   - path: ../contract-diff
     kind: phase
-    version: 1.1.0
+    version: 1.2.0
   - path: ../assurance-report
     kind: phase
-    version: 1.1.0
+    version: 1.2.0
 
 references:
   invocation: references/invocation-modes.md
   host_adapter: references/host-adapter.md
   reproducible_runs: references/reproducible-runs.md
+  mutation_dispositions: references/mutation-dispositions.md
 
 host_adapters:
   - path: adapters/vformation.yaml
     applies_to: parallel-in-scope
-    version: 1.1.0
+    version: 1.2.0
 
 runtime:
   required:
