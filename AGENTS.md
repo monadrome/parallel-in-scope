@@ -126,6 +126,11 @@ must read the changed files from the commit diff and remain read-only.
 - A reviewer that cannot read the changed files, times out, or fails is `blocked`,
   not clean. Rerun it once after addressing the cause, then record the final status
   and evidence in the delivery record.
+- Before accepting a review, compare its input manifest with `git diff --name-only`
+  for the reviewed range. A review that omits documentation, scripts, skills,
+  instruction files, tests, or ledger metadata requires a separate lightweight
+  read-only review for those paths; a Java-only refactoring pass is supplementary,
+  not coverage for omitted files.
 
 ## Architecture
 
@@ -376,7 +381,8 @@ Documentation must stay readable and correct without the Git object database:
 
 - Behavior-changing commits list the contract MUST/MUST NOT items they add or
   change in the commit message or PR description, so no contract section is
-  silently left behind.
+  silently left behind. Verification and workflow contract commits use explicit
+  `MUST:` and `MUST NOT:` body lines so the rule remains visible after delivery.
 - Add or update tests when changing cancellation, context propagation, executor
   binding, or queue behavior.
 - For code changes, use targeted tests while iterating, run `mvn spotless:apply`,
