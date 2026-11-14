@@ -5,14 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
-import java.util.List;
-import java.util.Vector;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -80,48 +74,36 @@ class ExecutionExitTrackerTest {
     }
 
     @Test
-    void zeroGraceCloseCancelsWithoutWaitingAndWithoutAWarning() {
+    void zeroGraceCloseCancelsWithoutWaiting() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         tracker.register(context("task"));
         AtomicBoolean cancelled = new AtomicBoolean(false);
-        List<String> warnings = new Vector<>();
 
-        runWithLogCapture(
-                warnings::add,
-                () -> ExecutionExitTracker.cancelAndAwaitExecutionExit(
-                        () -> cancelled.set(true), tracker, 0L, "scope 'x'", logger()));
+        ExecutionExitTracker.cancelAndAwaitExecutionExit(() -> cancelled.set(true), tracker, 0L);
 
         assertThat(cancelled).isTrue();
-        assertThat(warnings).isEmpty();
     }
 
     @Test
-    void closeGraceWaitReportsOutstandingExecutionsWhenItElapses() {
+    void closeGraceWaitLeavesOutstandingExecutionsWhenItElapses() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         tracker.register(context("stuck"));
-        List<String> warnings = new Vector<>();
+        ExecutionExitTracker.cancelAndAwaitExecutionExit(
+                () -> {}, tracker, Duration.ofMillis(20).toNanos());
 
-        runWithLogCapture(
-                warnings::add,
-                () -> ExecutionExitTracker.cancelAndAwaitExecutionExit(
-                        () -> {}, tracker, Duration.ofMillis(20).toNanos(), "scope 'x'", logger()));
-
-        assertThat(warnings).hasSize(1);
-        assertThat(warnings.get(0)).contains("stuck");
+        assertThat(tracker.isDone()).isFalse();
+        assertThat(tracker.unexitedExecutionSummary()).containsEntry("stuck", 1);
     }
 
     @Test
     void interruptionDuringACloseWaitRestoresTheFlagAndStopsQuietly() throws Exception {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         tracker.register(context("task"));
-        List<String> warnings = new Vector<>();
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread waiter = new Thread(() -> {
             try {
-                runWithLogCapture(
-                        warnings::add,
-                        () -> ExecutionExitTracker.cancelAndAwaitExecutionExit(
-                                () -> {}, tracker, Duration.ofSeconds(10).toNanos(), "scope 'x'", logger()));
+                ExecutionExitTracker.cancelAndAwaitExecutionExit(
+                        () -> {}, tracker, Duration.ofSeconds(10).toNanos());
             } catch (Throwable thrown) {
                 failure.set(thrown);
             }
@@ -135,7 +117,6 @@ class ExecutionExitTrackerTest {
         assertThat(waiter.isInterrupted())
                 .as("the interrupt flag is restored, not swallowed, by the close wait")
                 .isTrue();
-        assertThat(warnings).isEmpty();
     }
 
     @Test
@@ -249,34 +230,5 @@ class ExecutionExitTrackerTest {
     private static MultiTaskContext context(String taskName) {
         return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout(taskName, Duration.ofSeconds(30)).spec(), 1));
-    }
-
-    private static Logger logger() {
-        return Logger.getLogger(ExecutionExitTrackerTest.class.getName());
-    }
-
-    /** Captures WARNING records published while {@code action} runs on this thread's logger. */
-    private static void runWithLogCapture(java.util.function.Consumer<String> sink, Runnable action) {
-        Logger logger = logger();
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                if (record.getLevel() == Level.WARNING) {
-                    sink.accept(record.getMessage());
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        logger.addHandler(capture);
-        try {
-            action.run();
-        } finally {
-            logger.removeHandler(capture);
-        }
     }
 }

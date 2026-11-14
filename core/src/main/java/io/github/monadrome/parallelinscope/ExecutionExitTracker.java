@@ -15,7 +15,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -109,8 +108,7 @@ final class ExecutionExitTracker {
 
     /**
      * Counts the executions that have neither exited nor been determined to never enter, keyed by task
-     * name. Used to make a close-grace timeout visible: the outstanding members are named in the
-     * warning instead of the wait failing silently.
+     * name. The owning result exposes this snapshot when a cleanup budget elapses.
      */
     Map<String, Integer> unexitedExecutionSummary() {
         Map<String, Integer> counts = new LinkedHashMap<>();
@@ -187,15 +185,13 @@ final class ExecutionExitTracker {
     /**
      * Shared close sequence for {@code TaskGroup} and {@code TaskBatch} (the {@code Par.map}
      * convergence path): reject self-awaits, run the scope's cancellation entry, then wait up to
-     * the close grace for task executions to exit. A grace elapsed with executions still running is
-     * reported with the outstanding task names — a leaked execution is data, not silence.
+     * the close grace for task executions to exit. A grace that elapses leaves the outstanding
+     * execution state available through the owning scope's exit query.
      *
      * @param cancel the scope's idempotent cancellation entry
      * @param graceNanos the close grace in nanoseconds; non-positive means cancel without waiting
-     * @param scopeLabel identifies the scope in the elapsed-grace warning
      */
-    static void cancelAndAwaitExecutionExit(
-            Runnable cancel, ExecutionExitTracker tracker, long graceNanos, String scopeLabel, Logger logger) {
+    static void cancelAndAwaitExecutionExit(Runnable cancel, ExecutionExitTracker tracker, long graceNanos) {
         tracker.checkNotSelfAwait();
         cancel.run();
         if (graceNanos <= 0 || tracker.isDone()) {
@@ -204,19 +200,11 @@ final class ExecutionExitTracker {
         if (Thread.currentThread().isInterrupted()) {
             return;
         }
-        boolean exited;
         try {
-            exited = tracker.awaitBounded(graceNanos);
+            tracker.awaitBounded(graceNanos);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             return;
-        }
-        if (!exited) {
-            logger.warning(scopeLabel
-                    + " closed with task executions still running after its close grace: "
-                    + tracker.unexitedExecutionSummary()
-                    + ". Confirm execution exit with awaitExecutionExit before releasing resources the"
-                    + " executions use.");
         }
     }
 
@@ -328,15 +316,6 @@ final class ExecutionExitTracker {
             return true;
         } catch (TimeoutException elapsed) {
             return false;
-        }
-    }
-
-    static void warnUnfinished(String label, Map<String, Integer> unfinished, Logger logger) {
-        if (unfinished.isEmpty()) return;
-        try {
-            logger.warning(label + " returned with task executions still running: " + unfinished);
-        } catch (Throwable ignored) {
-            // A user-installed log handler must not change a completed execution's result.
         }
     }
 }

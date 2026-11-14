@@ -445,25 +445,6 @@ class SynchronousExecutionTest {
         CountDownLatch release = new CountDownLatch(1);
         AtomicReference<TaskBatchResult<Integer>> batch = new AtomicReference<>();
         AtomicReference<TaskGroupResult<Void>> taskGroup = new AtomicReference<>();
-        java.util.logging.Logger logger =
-                java.util.logging.Logger.getLogger((group ? TaskGroup.class : TaskBatch.class).getName());
-        AtomicReference<java.util.logging.LogRecord> warning = new AtomicReference<>();
-        java.util.logging.Handler handler = new java.util.logging.Handler() {
-            @Override
-            public void publish(java.util.logging.LogRecord record) {
-                if (record.getMessage().contains("returned with task executions still running")) {
-                    warning.set(record);
-                    throw new AssertionError("broken warning handler");
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        logger.addHandler(handler);
         Thread caller = new Thread(() -> {
             if (group) {
                 taskGroup.set(runtime.group("stuck", Duration.ofMillis(150))
@@ -490,8 +471,6 @@ class SynchronousExecutionTest {
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
             caller.join(3000);
             assertThat(caller.isAlive()).isFalse();
-            assertThat(Verify.verifyNotNull(warning.get()).getLevel()).isEqualTo(java.util.logging.Level.WARNING);
-            assertThat(Verify.verifyNotNull(warning.get()).getMessage()).contains(group ? "execution=1" : "stuck=1");
             if (group) {
                 TaskGroupResult<Void> result = Verify.verifyNotNull(taskGroup.get());
                 assertThat(result.executionExitConfirmed()).isFalse();
@@ -522,7 +501,6 @@ class SynchronousExecutionTest {
         } finally {
             release.countDown();
             caller.join(3000);
-            logger.removeHandler(handler);
         }
         runtime.close();
         assertThat(runtime.awaitQuiescence(Duration.ofSeconds(3))).isTrue();
