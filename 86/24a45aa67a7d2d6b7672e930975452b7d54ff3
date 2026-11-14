@@ -1,0 +1,30 @@
+demo/docs/en/README.md
+  s_afd4e372de42bd::t_ba65265390321a 22
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  s_afd4e372de42bd::t_0cb522d90d0c67 1,5,7,22,27,31-33,39,55,66
+demo/docs/zh-CN/README.md
+  s_afd4e372de42bd::t_ba65265390321a 29
+demo/README.md
+  s_afd4e372de42bd::t_ba65265390321a 51
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  s_afd4e372de42bd::t_5d52de2752f5bf 8,86
+  s_afd4e372de42bd::t_46d2d1927f70c1 17,23,29,37,44,46,60,79-81,83,85,87,89,96,107,127
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  s_afd4e372de42bd::t_41fd4118302ea0 1,5,7,9,16,27,29,44,46-47,52,59,73,84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "8624a45aa67a7d2d6b7672e930975452b7d54ff3",
+  "prompts": {},
+  "sessions": {
+    "s_afd4e372de42bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d995-0a50-7b63-81d3-5f40bcdd1a3d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
