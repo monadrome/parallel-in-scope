@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-pit-timeout-disposition",
+  "date": "2026-11-14",
+  "topic": "pit-timeout-disposition",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1"
+  },
+  "change": {
+    "commits": [
+      "docs: label expected PIT liveness timeouts"
+    ],
+    "files": 2,
+    "insertions": 35,
+    "deletions": 1
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Explicitly label the five reproducible PIT timeout mutants as expected mutation-induced liveness failures while retaining raw TIMED_OUT statuses and the overall inconclusive result."
+}
