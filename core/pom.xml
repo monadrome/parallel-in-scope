@@ -77,6 +77,11 @@
         <targetClasses>io.github.monadrome.parallelinscope.*</targetClasses>
         <targetTests>io.github.monadrome.parallelinscope.*</targetTests>
         <mutators>CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS</mutators>
+        <!-- PIT recovery runs can lower worker concurrency or extend the per-mutant budget
+             without editing the profile. The defaults preserve the normal audit settings. -->
+        <pitest.threads>8</pitest.threads>
+        <pitest.timeoutConstant>60000</pitest.timeoutConstant>
+        <pitest.timeoutFactor>1.25</pitest.timeoutFactor>
     </properties>
 
     <dependencyManagement>
@@ -392,7 +397,7 @@
                                 <param>HTML</param>
                                 <param>XML</param>
                             </outputFormats>
-                            <threads>8</threads>
+                            <threads>${pitest.threads}</threads>
                             <!-- The default mutator set is the `mutators` project property.
                                  It replaces PIT's default set, omitting VOID_METHOD_CALLS
                                  (VoidMethodCallMutator mostly produces equivalent mutants on
@@ -402,8 +407,8 @@
                                  AGENTS.md "Adversarial Review". -->
                             <!-- Shutdown-contract mutants can release several independent waiters;
                                  keep the per-mutation timeout above their combined bounded waits. -->
-                            <timeoutConstant>60000</timeoutConstant>
-                            <timeoutFactor>1.25</timeoutFactor>
+                            <timeoutConstant>${pitest.timeoutConstant}</timeoutConstant>
+                            <timeoutFactor>${pitest.timeoutFactor}</timeoutFactor>
                             <!-- Coverage-phase timeout is not configurable in pitest-maven 1.30.1;
                                  the parameter this once set (coverageTimeout) no longer exists and
                                  was silently ignored. -->

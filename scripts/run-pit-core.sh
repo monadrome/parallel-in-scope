@@ -12,6 +12,7 @@ the mutator set. Results are archived per batch under OUT/batch-<name>/:
 
   mutations.xml  PIT's raw mutation report
   pit.log        complete Maven/PIT console log
+  process-monitor.log  parent/minion PID, CPU, RSS, and state heartbeats
   run-meta.txt   revision, working-tree status, JDK, command, and timestamps
 
 Options:
@@ -19,6 +20,11 @@ Options:
   --out DIR              Archive directory. Default: tmp/pit-audit-<UTC-date>.
   --force                Replace existing artifacts for the selected batches.
   --help                 Show this help and exit.
+
+Environment overrides:
+  PIT_THREADS             PIT worker count (default: 8)
+  PIT_TIMEOUT_CONSTANT    Per-mutant timeout in milliseconds (default: 60000)
+  PIT_TIMEOUT_FACTOR      Per-test timeout multiplier (default: 1.25)
 
 The command is offline (mvn -o) and runs from the repository root. It does not
 run a release build or use PIT history input.
@@ -76,6 +82,11 @@ fi
 package="io.github.monadrome.parallelinscope"
 pitest_version="1.30.1"
 mutators="CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS"
+pit_reports_dir="$repo_root/core/target/pit-reports"
+monitor_interval_seconds=5
+pit_threads="${PIT_THREADS:-8}"
+pit_timeout_constant="${PIT_TIMEOUT_CONSTANT:-60000}"
+pit_timeout_factor="${PIT_TIMEOUT_FACTOR:-1.25}"
 
 # Keep these patterns aligned with verification/pit-audit/2026-10-31/inventory.md.
 # Nested classes are included with *, while exact entries prevent a wildcard from
@@ -118,7 +129,7 @@ fi
 # conflict never leaves a partial multi-batch result.
 for name in "${selected[@]}"; do
   batch_dir="$out_dir/batch-$name"
-  for artifact in mutations.xml pit.log run-meta.txt; do
+  for artifact in mutations.xml pit.log process-monitor.log run-meta.txt; do
     if [[ -e "$batch_dir/$artifact" && "$force" -eq 0 ]]; then
       die "refusing to overwrite $batch_dir/$artifact; pass --force to replace selected batch artifacts"
     fi
@@ -140,13 +151,16 @@ run_batch() {
   command=(mvn -o -Ppitest -pl core test-compile "org.pitest:pitest-maven:${pitest_version}:mutationCoverage"
     "-DtargetClasses=$classes"
     "-DtargetTests=$package.*"
-    "-Dmutators=$mutators")
+    "-Dmutators=$mutators"
+    "-Dpitest.threads=$pit_threads"
+    "-Dpitest.timeoutConstant=$pit_timeout_constant"
+    "-Dpitest.timeoutFactor=$pit_timeout_factor")
   command_text="$(printf '%q ' "${command[@]}")"
   command_text="${command_text% }"
 
   mkdir -p "$batch_dir"
   if [[ "$force" -eq 1 ]]; then
-    rm -f "$batch_dir/mutations.xml" "$batch_dir/pit.log" "$batch_dir/run-meta.txt"
+    rm -f "$batch_dir/mutations.xml" "$batch_dir/pit.log" "$batch_dir/process-monitor.log" "$batch_dir/run-meta.txt"
   fi
 
   started="$(utc_now)"
@@ -168,22 +182,41 @@ run_batch() {
     mvn -version 2>&1 | sed -n '1,4p'
     printf 'scope: root package only; queue subpackage excluded\n'
     printf 'mutators: %s\n' "$mutators"
+    printf 'pit-reports-dir: %s\n' "$pit_reports_dir"
+    printf 'monitor-interval-seconds: %s\n' "$monitor_interval_seconds"
+    printf 'pit-threads: %s\n' "$pit_threads"
+    printf 'pit-timeout-constant: %s\n' "$pit_timeout_constant"
+    printf 'pit-timeout-factor: %s\n' "$pit_timeout_factor"
     printf 'no-history-input: true\n'
     printf 'command: %s\n' "$command_text"
   } > "$batch_dir/run-meta.txt"
 
   # A failed compile or PIT startup must not archive the previous batch's report.
-  rm -f target/pit-reports/mutations.xml
+  rm -f "$pit_reports_dir/mutations.xml"
 
   set +e
-  "${command[@]}" > "$batch_dir/pit.log" 2>&1
+  "${command[@]}" > "$batch_dir/pit.log" 2>&1 &
+  local maven_pid=$!
+  {
+    printf 'monitor-start pid=%s interval-seconds=%s\n' "$maven_pid" "$monitor_interval_seconds"
+    while kill -0 "$maven_pid" 2>/dev/null; do
+      printf '%s\n' "--- $(utc_now) ---"
+      ps -axo pid,ppid,etime,%cpu,%mem,rss,stat,command \
+        | awk -v root="$repo_root" 'index($0, root) || index($0, "pitest-args") || index($0, "MutationTestMinion")'
+      sleep "$monitor_interval_seconds"
+    done
+    printf 'monitor-end pid=%s at=%s\n' "$maven_pid" "$(utc_now)"
+  } > "$batch_dir/process-monitor.log" 2>&1 &
+  local monitor_pid=$!
+  wait "$maven_pid"
   rc=$?
+  wait "$monitor_pid" 2>/dev/null || true
   set -e
 
   finished="$(utc_now)"
   xml_archived=false
-  if [[ -f target/pit-reports/mutations.xml ]]; then
-    cp target/pit-reports/mutations.xml "$batch_dir/mutations.xml"
+  if [[ -f "$pit_reports_dir/mutations.xml" ]]; then
+    cp "$pit_reports_dir/mutations.xml" "$batch_dir/mutations.xml"
     xml_archived=true
   fi
   {
@@ -193,7 +226,7 @@ run_batch() {
   } >> "$batch_dir/run-meta.txt"
 
   if [[ "$xml_archived" != true ]]; then
-    printf 'run-pit-core: batch %s produced no target/pit-reports/mutations.xml\n' "$name" >&2
+    printf 'run-pit-core: batch %s produced no %s/mutations.xml\n' "$name" "$pit_reports_dir" >&2
     return 1
   fi
   if [[ "$rc" -ne 0 ]]; then
