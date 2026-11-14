@@ -37,8 +37,8 @@ class RunPitCoreTest(unittest.TestCase):
             "  exit 0\n"
             "fi\n"
             "if [[ \"${FAKE_MVN_WRITE_REPORT:-0}\" == 1 ]]; then\n"
-            "  mkdir -p target/pit-reports\n"
-            "  printf '<mutations current=\"true\"/>\\n' > target/pit-reports/mutations.xml\n"
+            "  mkdir -p core/target/pit-reports\n"
+            "  printf '<mutations current=\"true\"/>\\n' > core/target/pit-reports/mutations.xml\n"
             "fi\n"
             "exit \"${FAKE_MVN_EXIT:-0}\"\n",
             encoding="utf-8",
@@ -69,7 +69,7 @@ class RunPitCoreTest(unittest.TestCase):
 
     def test_failed_run_does_not_archive_a_pre_existing_xml(self):
         """A compile failure must not preserve an earlier run's report as current."""
-        stale = self.root / "target" / "pit-reports" / "mutations.xml"
+        stale = self.root / "core" / "target" / "pit-reports" / "mutations.xml"
         stale.parent.mkdir(parents=True)
         stale.write_text('<mutations stale="true"/>\n', encoding="utf-8")
 
