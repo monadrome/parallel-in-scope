@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,8 +36,6 @@ import org.jspecify.annotations.Nullable;
  * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class TaskBatch<T> implements AutoCloseable {
-
-    private static final Logger LOGGER = Logger.getLogger(TaskBatch.class.getName());
 
     private final ListenableFuture<?> submitCanceller;
     private final List<TaskFuture<T>> results;
@@ -256,7 +253,6 @@ final class TaskBatch<T> implements AutoCloseable {
             }
         }
         Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
-        ExecutionExitTracker.warnUnfinished("batch", unfinished, LOGGER);
         String batchName = results.isEmpty() ? "" : results.get(0).taskName();
         ScopeTerminationCause primary = scopeTermination.cause();
         if (token != null
@@ -389,8 +385,7 @@ final class TaskBatch<T> implements AutoCloseable {
      * cancelled with the usual attribution. The close grace is a cleanup budget configured on
      * {@link BatchOptions#closeGrace(Duration)}, independent of the batch's execution timeout. When
      * never configured, the wait budget is derived from the batch's remaining deadline at close
-     * time; {@link Duration#ZERO} makes this method cancel-only. When the grace elapses with executions
-     * still running, the outstanding task names are logged at WARN level. The executor is never
+     * time; {@link Duration#ZERO} makes this method cancel-only. The executor is never
      * shut down, and user code that ignores interruption may keep running after this method
      * returns.
      *
@@ -416,9 +411,7 @@ final class TaskBatch<T> implements AutoCloseable {
                     }
                 },
                 executionExit,
-                ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, token),
-                "batch '" + (results.isEmpty() ? "?" : results.get(0).taskName()) + "'",
-                LOGGER);
+                ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, token));
     }
 
     /**

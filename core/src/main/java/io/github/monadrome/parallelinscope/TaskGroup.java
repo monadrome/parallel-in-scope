@@ -244,8 +244,8 @@ final class TaskGroup<R> implements AutoCloseable {
      * <p>Waits uninterruptibly for the completion report, then for the execution-exit signal and
      * every member and combine observation under one shared close-grace budget; an interrupt
      * arriving during either wait is restored on return and does not cancel the group. Members whose
-     * bodies have not exited when the budget elapses are logged and reported as unfinished rather
-     * than awaited further.
+     * bodies have not exited when the budget elapses are reported as unfinished rather than awaited
+     * further.
      *
      * @return the frozen result
      */
@@ -292,7 +292,6 @@ final class TaskGroup<R> implements AutoCloseable {
             frozenValues = ImmediateResult.failed(report.outcome(), failure);
         }
         Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
-        ExecutionExitTracker.warnUnfinished("TaskGroup '" + groupName + "'", unfinished, LOGGER);
         ImmediateResult<R> terminalResult = terminal == null ? null : castResult(freezeResult(terminal));
         if (terminal != null) {
             keyedResults.put(terminal.key, com.google.common.base.Verify.verifyNotNull(terminalResult));
@@ -419,9 +418,8 @@ final class TaskGroup<R> implements AutoCloseable {
      *
      * <p>Cancellation is idempotent; every call may wait for executions that have not exited yet, but
      * the grace never extends the group's execution deadline and does not revive cancelled tasks.
-     * When the grace elapses with executions still running, the outstanding member names are logged at
-     * WARN level: a leaked execution is visible data, not silence. The group's executors are never shut
-     * down, and user code that ignores interruption may keep running after this method returns.
+     * The group's executors are never shut down, and user code that ignores interruption may keep
+     * running after this method returns.
      *
      * <p>If the calling thread is interrupted on entry, the cancellation still runs and the wait is
      * skipped with the interrupt flag preserved; an interruption during the wait likewise restores
@@ -442,9 +440,7 @@ final class TaskGroup<R> implements AutoCloseable {
                     }
                 },
                 executionExit,
-                ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, groupToken),
-                "TaskGroup '" + groupName + "'",
-                LOGGER);
+                ExecutionExitTracker.closeGraceBudgetNanos(closeGrace, groupToken));
     }
 
     /**

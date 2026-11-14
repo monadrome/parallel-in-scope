@@ -476,11 +476,6 @@ public final class ParRuntime implements AutoCloseable {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             INSTALLED.compareAndSet(this, null);
-            int observations = activeObservations.get();
-            if (observations > 0) {
-                LOGGER.warning("ParRuntime.close() is retaining framework services for " + observations
-                        + " open starvation observations; close them to release the services");
-            }
             shutdownServicesWhenAdmissionsComplete();
         }
     }

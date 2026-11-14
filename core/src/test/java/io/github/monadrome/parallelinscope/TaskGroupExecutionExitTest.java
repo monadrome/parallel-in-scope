@@ -7,9 +7,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -17,10 +14,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.awaitility.Awaitility;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -274,29 +267,14 @@ class TaskGroupExecutionExitTest {
     }
 
     @Test
-    void closeGraceElapseLogsTheOutstandingMemberNames() throws Exception {
+    void closeGraceElapseLeavesExecutionUnconfirmed() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        Logger groupLogger = Logger.getLogger(TaskGroup.class.getName());
-        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                records.add(record);
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        groupLogger.addHandler(capture);
         try {
-            TaskGroup<Void> group = global.groupDraft("warn-visible", TIMEOUT)
+            TaskGroup<Void> group = global.groupDraft("close-grace", TIMEOUT)
                     .closeGrace(Duration.ofMillis(200))
                     .par(TaskKey.<Integer>named("blocked"), global.par(ParId.of("worker")), () -> {
                         entered.countDown();
@@ -308,17 +286,12 @@ class TaskGroupExecutionExitTest {
 
             group.close();
 
-            // The grace elapsed with the execution still running: the leak is visible data, naming the
-            // group and the outstanding member.
-            assertThat(records).anySatisfy(record -> {
-                assertThat(record.getLevel()).isEqualTo(Level.WARNING);
-                assertThat(record.getMessage()).contains("warn-visible").contains("blocked");
-            });
+            // The grace elapsed with the execution still running; the exit query remains authoritative.
+            assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
             release.countDown();
             assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
         } finally {
-            groupLogger.removeHandler(capture);
             release.countDown();
             global.close();
             executor.shutdownNow();
