@@ -135,7 +135,7 @@ as `KILLED`, or infer a pass from Maven's exit status or a headline mutation sco
 | `KILLED` | A test detected the mutation. Inspect the assertion or failure when using it as evidence for a particular contract; an incidental failure may not protect that contract. |
 | `SURVIVED` | A test ran but did not detect the mutation. Classify it using the dispositions below. |
 | `NO_COVERAGE` | No selected test exercised the site. Check test selection first, then add a missing scenario or justify unreachable behavior. It is a gap until resolved. |
-| `TIMED_OUT` | Inconclusive until logs and a focused reproduction attribute the timeout. A reproducible mutation-induced hang can support a liveness finding; retain the raw status and explain the evidence. |
+| `TIMED_OUT` | Inconclusive until logs and a focused reproduction attribute the timeout. Label a reproducible hang caused by the mutant itself as **expected mutation-induced liveness failure**; retain the raw status and explain the evidence. This label describes the mutant, not the unmutated production code, and never converts the entry to `KILLED` or a passing result. |
 | `MEMORY_ERROR` | Inconclusive until investigated. Distinguish mutation-induced resource growth from a worker or environment limit; retain the raw status. |
 | `NON_VIABLE` | The mutant could not load or execute as valid bytecode. Report separately; it supplies no test-strength evidence. Investigate if it affects the claimed scope. |
 | `RUN_ERROR`, unknown, or other incomplete status | Investigate the worker/tool failure; affected evidence remains inconclusive. |
