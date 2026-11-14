@@ -19,7 +19,7 @@ The runnable demo classes and tests are language-neutral. The long-form problem 
 | Package | Purpose |
 |---|---|
 | `demo.basic` | Basic mapping and cooperative cancellation |
-| `demo.advanced` | Thread-pool deadlock detection |
+| `demo.advanced` | Thread-pool wait-risk diagnostics |
 | `demo.integration` | Batch-processing workflow |
 | `demo.article` | Executable tests paired with the Chinese article catalog |
 

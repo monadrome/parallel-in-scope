@@ -48,7 +48,7 @@ chmod +x scripts/run-demos.sh
 |------|-----|------|
 | BasicParDemo | basic | Par.map() 基本用法 |
 | CancellationDemo | basic | 任务超时取消机制 |
-| DeadlockDetectionDemo | advanced | 死锁检测功能 |
+| DeadlockDetectionDemo | advanced | 线程池等待风险诊断 |
 | BatchProcessingDemo | integration | 批量数据处理 |
 
 ## 架构约束

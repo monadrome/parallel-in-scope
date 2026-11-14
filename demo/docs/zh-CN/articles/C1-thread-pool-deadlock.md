@@ -1,10 +1,10 @@
-# C1. 线程池死锁
+# C1. 线程池等待环风险
 
 ## 问题
 
-在使用固定大小线程池（`Executors.newFixedThreadPool`）进行嵌套并行调用时，极易产生一种"隐形死锁"。假设外层有 N 个任务提交到线程池，每个外层任务在执行过程中又向**同一个线程池**提交 M 个内层子任务。当 N 等于线程池大小时，所有线程都被外层任务占满，内层子任务只能排队等待；而外层任务又在阻塞等待内层子任务完成——经典的循环等待死锁就发生了。
+在使用固定大小线程池（`Executors.newFixedThreadPool`）进行嵌套并行调用时，可能形成线程池等待环。假设外层有 N 个任务提交到线程池，每个外层任务在执行过程中又向**同一个线程池**提交 M 个内层子任务。当 N 等于线程池大小时，所有线程都被外层任务占满，内层子任务只能排队等待；而外层任务又在阻塞等待内层子任务完成——这个具体构造会持续等待，调用通常会以超时结束。
 
-这种死锁之所以难以诊断，是因为线程转储（thread dump）中看不到任何 `BLOCKED` 或 `WAITING` 状态的线程。所有线程都表现为 `RUNNABLE`（在 `ThreadPoolExecutor.getTask()` 中等待队列取任务），没有传统的 monitor 锁竞争痕迹。运维人员看到线程全忙、CPU 空闲、请求超时，却找不到任何死锁证据，排查极为困难。在微服务架构中，这种问题尤为隐蔽——上游服务超时，下游服务线程池满载，但所有指标都显示"正常运行中"。
+这种等待风险之所以难以诊断，是因为它不一定表现为传统的 monitor 死锁。线程可能停在 `Future.get()` 等待，而不是处于 `BLOCKED`；运维人员看到线程全忙、CPU 空闲、请求超时，却很难知道等待的工作排在同一个池的忙碌 worker 后面。在微服务架构中，这种问题尤为隐蔽——上游服务超时，下游服务线程池满载，但所有指标都显示"正常运行中"。
 
 ## 问题复现
 
@@ -19,24 +19,24 @@ for (int i = 0; i < 2; i++) {
         inner.get(3, TimeUnit.SECONDS);  // 永远等不到——线程已被占满
     });
 }
-// 结果：TimeoutException，死锁！
+// 结果：TimeoutException；这个构造形成了等待环，单凭一次超时不能推断其他场景也存在死锁
 ```
 
 ## 解决方法
 
-解决线程池嵌套死锁的核心原则是**打破循环等待**。最直接的方案是为不同层级的任务使用独立的线程池——外层用 `FixedThreadPool` 控制并发度，内层用 `CachedThreadPool` 保证线程供给充足。
+解决这类线程池等待风险的核心原则是**打破循环等待**。最直接的方案是为不同层级的任务使用独立的线程池——外层用 `FixedThreadPool` 控制并发度，内层用 `CachedThreadPool` 保证线程供给充足。
 
 `parallel-in-scope` 不公开一个可调用的 `TaskGraph` 或 `Graphs.hasCycle()` API。实际排查应观察 `executorWaitReport()` 提供的等待关系和 starvation 诊断，并为嵌套调用配置明确的超时。
 
-此外，`parallel-in-scope` 通过滑动窗口调度（`SlidingWindowSubmitter`）和超时控制双管齐下：
-- 滑动窗口确保不会一次性向池中灌入过多任务，降低死锁概率
-- `BatchOptions.timeout()` 提供任务级超时，即使发生死锁也能快速失败，避免线程被永久占用
+此外，`parallel-in-scope` 通过滑动窗口调度（`SlidingWindowSubmitter`）和超时控制限制影响面：
+- 滑动窗口限制在途提交规模，但不消除等待环
+- `BatchOptions.timeout()` 为未收敛运行设置上界；它不会把超时本身变成死锁证明
 
 ## 代码
 
 ```java
 
-// 方案：内层使用独立的 CachedThreadPool，避免嵌套死锁
+// 方案：内层使用独立的 CachedThreadPool，避免共享有界池的等待环
 ExecutorService outerPool = Executors.newFixedThreadPool(2);
 ExecutorService innerPool = Executors.newCachedThreadPool();
 
@@ -52,7 +52,7 @@ BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.o
 
 List<Integer> items = Arrays.asList(1, 2, 3, 4);
 TaskBatchResult<String> result = par.map( items, item -> {
-    // 内层任务使用不同线程池，不会死锁
+    // 内层任务使用不同线程池，不再和外层争抢同一个有界池
     BatchOptions innerOpts = BatchOptions.timeout("inner-task", java.time.Duration.ofMillis(5_000)).parallelism(2);
 
     List<String> subItems = Arrays.asList("a", "b");
@@ -63,7 +63,7 @@ TaskBatchResult<String> result = par.map( items, item -> {
     return "outer-" + item;
 }, outerOpts);
 
-// 所有任务正常完成，无死锁
+// 所有任务正常完成，未观察到共享线程池等待环
 ```
 
 ---
