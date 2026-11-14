@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-13-queue-documentation-alignment",
+  "date": "2026-11-13",
+  "topic": "queue-documentation-alignment",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.1-sol"
+  },
+  "change": {
+    "commits": [
+      "docs: align queue guidance with v0.5 APIs"
+    ],
+    "files": 3,
+    "insertions": 47,
+    "deletions": 32
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Updated current v0.5 queue semantics and standalone blocking-queues dependency guidance; documentation references check passed."
+}
