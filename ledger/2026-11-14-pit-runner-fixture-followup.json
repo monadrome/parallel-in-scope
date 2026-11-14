@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-pit-runner-fixture-followup",
+  "date": "2026-11-14",
+  "topic": "pit-runner-fixture-followup",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: align PIT runner fixture with core report path"
+    ],
+    "files": 1,
+    "insertions": 3,
+    "deletions": 3
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Fixed the repository-script test fixture to emit and seed PIT XML under core/target/pit-reports, matching run-pit-core.sh and the CI path. Full repository script tests pass."
+}
