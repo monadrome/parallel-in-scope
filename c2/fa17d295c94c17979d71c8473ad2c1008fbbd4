@@ -1,0 +1,19 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupMemberObservationTerminationContractTest.java
+  s_e3a5e9dbc9ca9d::t_e0408081d867d2 27-28,43-44,60-61,79-80,159-163,183-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c2fa17d295c94c17979d71c8473ad2c1008fbbd4",
+  "prompts": {},
+  "sessions": {
+    "s_e3a5e9dbc9ca9d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bf24-c989-77e3-8aad-0dde54827dfc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
