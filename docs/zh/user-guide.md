@@ -678,7 +678,21 @@ ioThreadPool.purge(); // 执行器所有者的维护流程
 
 ## 生命周期队列
 
-`DrainingBlockingQueue` 是一个有界 `BlockingQueue` 实现，提供单向排干式关闭：`close()` 永久拒绝新生产（写操作抛 `IllegalStateException` 或返回 `false`），消费端继续取走存量，直到排空进入终态后暴露终结信号（配置的 poison 对象，或 `NoSuchElementException` / `null`）。
+`DrainingBlockingQueue` 和 `ResizableBlockingQueue` 由独立的
+`io.github.monadrome:blocking-queues` 构件发布。使用这些队列时，除
+`parallel-in-scope` 外还要增加以下依赖，并从 `io.github.monadrome.queues` 导入类型：
+
+```xml
+<dependency>
+    <groupId>io.github.monadrome</groupId>
+    <artifactId>blocking-queues</artifactId>
+    <version>0.5.0-SNAPSHOT</version>
+</dependency>
+```
+
+`DrainingBlockingQueue` 是一个有界 `BlockingQueue` 实现，提供单向排干式关闭：`close()` 永久拒绝新生产
+（写操作抛 `IllegalStateException` 或返回 `false`），消费端继续取走存量，直到排空进入终态后暴露终结信号
+（配置的 poison 对象，或 `NoSuchElementException` / `null`）。
 
 ```java
 DrainingBlockingQueue<Job> queue = new DrainingBlockingQueue<>(100, poison);
