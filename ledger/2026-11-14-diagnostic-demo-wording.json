@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-14-diagnostic-demo-wording",
+  "date": "2026-11-14",
+  "topic": "diagnostic-demo-wording",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: align demo with wait-risk diagnostics"
+    ],
+    "files": 6,
+    "insertions": 47,
+    "deletions": 44
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-docs-fix-diagnostic-demo-2026-11-14",
+        "head": "8624a45aa67a7d2d6b7672e930975452b7d54ff3",
+        "incompleteAgents": 1,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "demo-test": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Updated demo and C1/C2 articles to distinguish observed executor wait-cycle risk from proof of a deadlock; refactoring detector blocked after two stalled attempts; full Spotless remains blocked by pre-existing QuickStartTest formatting."
+}
