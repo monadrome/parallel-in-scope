@@ -1,0 +1,19 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
+  s_e3a5e9dbc9ca9d::t_3ea5b665d9a3df 60-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "5d0a1d4a19e5752355cc846d44f7039f6f09477f",
+  "prompts": {},
+  "sessions": {
+    "s_e3a5e9dbc9ca9d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bf24-c989-77e3-8aad-0dde54827dfc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
