@@ -57,6 +57,20 @@ class ExecutionExitTrackerTest {
     }
 
     @Test
+    void awaitBoundedZeroBudgetDoesNotConsumeAnInterrupt() throws Exception {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        tracker.register(context("task"));
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThat(tracker.awaitBounded(0L)).isFalse();
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
     void awaitBoundedPositiveBudgetWaitsForAndReportsCompletion() throws Exception {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         TaskExecutionState slot = tracker.register(context("task"));
