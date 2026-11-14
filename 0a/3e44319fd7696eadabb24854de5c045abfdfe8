@@ -1,0 +1,32 @@
+verification/pit-audit/2026-11-14-core-diagnostic-logs.md
+  s_d1bea004599e62::t_807f2fb7e3d76e 5-8,12-16,30-47,51-56
+verification/pit-audit/2026-11-14-core-diagnostic-logs/reports/current-head-task-group.xml
+  s_d1bea004599e62::t_e0e6383a2311d9 1-222
+verification/pit-audit/2026-11-14-core-diagnostic-logs/run-meta/current-head-task-group.txt
+  s_d1bea004599e62::t_e0e6383a2311d9 1-7
+verification/pit-audit/2026-11-14-core-diagnostic-logs/README.md
+  s_d1bea004599e62::t_807f2fb7e3d76e 1-29
+verification/pit-audit/2026-11-14-core-diagnostic-logs/run-meta/current-head-par-runtime.txt
+  s_d1bea004599e62::t_e0e6383a2311d9 1-7
+verification/pit-audit/2026-11-14-core-diagnostic-logs/reports/current-head-par-runtime.xml
+  s_d1bea004599e62::t_e0e6383a2311d9 1-131
+verification/pit-audit/2026-11-14-core-diagnostic-logs/SHA256SUMS
+  s_d1bea004599e62::t_871bddf0acd96f 1
+  s_d1bea004599e62::t_e0e6383a2311d9 2-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "0a3e44319fd7696eadabb24854de5c045abfdfe8",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
