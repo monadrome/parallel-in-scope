@@ -90,7 +90,7 @@ largest scope it could grow into.
 
 | Request shape | Route | Do not |
 |---|---|---|
-| Mechanical, non-behavioral edit in one file: typo, comment, local rename, link | Make the edit, run the narrowest relevant check, obtain a lightweight independent review, commit | Write a proposal or run the full adversarial review |
+| Mechanical, non-behavioral edit in one file: typo, comment, local rename, link | Make the edit, run the narrowest relevant check, commit, obtain a lightweight independent review | Write a proposal or run the full adversarial review |
 | Reproducible behavior defect | Reproduce the failure first; fix the root cause; add a regression test and reverse-verify it | Fix by inspection, or claim completion without a failing case |
 | Public API, documented contract, or new mechanism | Read `design/first-principles.md` and the owning contract; write or update the `design/proposal/` entry; stop for the maintainer's direction | Implement before the direction is settled |
 | Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State the invariants and interleavings first; add targeted tests; run `python3 scripts/check-race-claims.py` for registered ordering claims; run the full suite and adversarial review | Treat compilation, one green test, or a timeout-free run as proof |
