@@ -18,6 +18,7 @@ COMPLEXITY_SKILL = ROOT / ".agents" / "skills" / "complexity-review-eval" / "SKI
 DOC = ROOT / "verification" / "java-conventions.md"
 ADAPTER = ROOT / ".agents" / "skills" / "contract-first-assurance" / "adapters" / "vformation.yaml"
 DEVELOPMENT_REF = re.compile(r"origin/dev/v\d+\.\d+\.\d+")
+ADAPTER_BASE = re.compile(r'''(?m)^base_ref:\s*(?:(['"])(.*?)\1|([^#\s]+))(?:\s+#.*)?\s*$''')
 
 
 def read_json(path: Path) -> dict:
@@ -72,11 +73,13 @@ def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
         errors.append(f"verification/java-conventions.md does not document {upstream_ref}")
 
     adapter_text = ADAPTER.read_text(encoding="utf-8")
-    adapter_base = re.search(r"(?m)^base_ref:\s*(\S+)\s*$", adapter_text)
+    adapter_base = ADAPTER_BASE.search(adapter_text)
     if not adapter_base:
         errors.append("contract-first-assurance adapter does not declare base_ref")
-    elif adapter_base.group(1) != upstream_ref:
-        errors.append(f"contract-first-assurance adapter declares {adapter_base.group(1)!r}, expected {upstream_ref!r}")
+    else:
+        declared_base = adapter_base.group(2) if adapter_base.group(1) else adapter_base.group(3)
+        if declared_base != upstream_ref:
+            errors.append(f"contract-first-assurance adapter declares {declared_base!r}, expected {upstream_ref!r}")
 
 
 def validate_stale_references(upstream_ref: object, errors: list[str]) -> None:
