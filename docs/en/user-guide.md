@@ -786,7 +786,22 @@ For a physical `ThreadPoolExecutor`, the prepared future is also the queued Runn
 
 ## Lifecycle-aware queues
 
-`DrainingBlockingQueue` is a bounded `BlockingQueue` implementation with a one-way draining close: `close()` permanently rejects new production (write operations throw `IllegalStateException` or return `false`), while consumers keep taking existing elements until the queue is empty and reaches its terminal state, after which they observe the configured poison object, `null`, or `NoSuchElementException`.
+`DrainingBlockingQueue` and `ResizableBlockingQueue` are published by the standalone
+`io.github.monadrome:blocking-queues` artifact. Add it alongside `parallel-in-scope` when using
+these queues, and import them from `io.github.monadrome.queues`:
+
+```xml
+<dependency>
+    <groupId>io.github.monadrome</groupId>
+    <artifactId>blocking-queues</artifactId>
+    <version>0.5.0-SNAPSHOT</version>
+</dependency>
+```
+
+`DrainingBlockingQueue` is a bounded `BlockingQueue` implementation with a one-way draining close:
+`close()` permanently rejects new production (write operations throw `IllegalStateException` or return
+`false`), while consumers keep taking existing elements until the queue is empty and reaches its
+terminal state, after which they observe the configured poison object, `null`, or `NoSuchElementException`.
 
 ```java
 DrainingBlockingQueue<Job> queue = new DrainingBlockingQueue<>(100, poison);

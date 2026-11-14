@@ -202,53 +202,39 @@ token 本身是包私有的内核类型：用户既拿不到也不需要它，�
 
 ---
 
-## 五、SmartBlockingQueue：CPU 密集型任务的"反队列"策略
+## 五、SubmissionAwareBlockingQueue：显式控制入队
 
-> 2026-10-30 注记：本节记录 0.2/0.3 的设计。0.4 起 `TaskType` 不再影响入队（[ADR 0008](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/adr/0008-tasktype-as-workload-fit-diagnostic.md)）：`SmartBlockingQueue` 只在 `rejectEnqueue` 时拒绝入队，`TaskType` 改为发现"阻塞任务进了计算池"的诊断声明，取值为 `COMPUTE`/`BLOCKING`/`UNKNOWN`。下文的 `CPU_BOUND`/`IO_BOUND` 与 `offer()` 代码是当时的实现。
+解决了取消和超时之后，还需要控制有界线程池的排队行为。提交所有任务会淹没队列，也会让嵌套调用更容易形成线程池死锁；滑动窗口负责限制同时提交的任务数，而队列适配器负责把一次提交是否允许入队交给调用方明确决定。
 
-解决了取消和超时之后，还有两个横切关注点需要处理：任务怎么排队（CPU 任务和 IO 任务的策略不同），以及上下文怎么跨线程传播。先说排队。
+`SubmissionAwareBlockingQueue` 只在提交单元设置 `rejectEnqueue(true)` 时拒绝入队。`TaskType` 不再是调度开关，而是诊断声明：
 
-**传统做法的问题：** 任务来了就入队，一视同仁。但想象一个场景：线程池有 10 个线程，队列容量 100。提交了 50 个 CPU 密集型任务，全部入队。接下来提交 20 个 IO 密集型任务——排在 CPU 任务后面。IO 任务本应很快完成（只是等网络响应），CPU 任务要算很久。结果 IO 任务被堵住，延迟飙升。
+- `COMPUTE` 表示任务主要消耗 CPU；
+- `BLOCKING` 表示任务会等待 I/O、锁、sleep、join 或其他任务；
+- `UNKNOWN` 表示未声明类型。
 
-CPU 任务排队只增加延迟，不增加吞吐。
-
-parallel-in-scope 的做法：CPU 密集型任务不进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
+类型用于提交时的任务/执行器类型比对和工作负载适配诊断，不改变入队、拒绝、取消、deadline 或任务结果。需要让队列拒绝任务时，必须显式打开 `rejectEnqueue`：
 
 ```java
-// CPU 密集型
-BatchOptions cpuOpts = BatchOptions.timeout("compute", Duration.ofSeconds(30))
-    .parallelism(Runtime.getRuntime().availableProcessors())
-    .taskType(TaskType.CPU_BOUND);
-
-// IO 密集型
-BatchOptions ioOpts = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
-    .parallelism(20)
-    .taskType(TaskType.IO_BOUND);
+BatchOptions options = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
+        .parallelism(20)
+        .taskType(TaskType.BLOCKING)
+        .rejectEnqueue(true);
 ```
 
-`SmartBlockingQueue` 继承 Guava 的 `ForwardingBlockingQueue`，覆写 `offer()` 方法。核心逻辑：
+队列的 `offer()` 在提交作用域发现 `rejectEnqueue` 后返回 `false`，之后由 `ThreadPoolExecutor` 的线程增长和拒绝策略决定任务如何处理。`CallerRunsPolicy` 可能让任务在调用 `execute()` 的线程上同步执行；队列本身不选择执行线程。
 
 ```java
 @Override
-public boolean offer(E e) {
+public boolean offer(E element) {
     MultiTaskContext unit = SubmissionScope.current();
-    // CPU 密集型任务：拒绝入队；后续行为由 executor 的拒绝策略决定
-    if (unit != null && unit.taskType() == TaskType.CPU_BOUND) {
-        return false;
-    }
-    // 显式拒绝入队的场景
     if (unit != null && unit.rejectEnqueue()) {
         return false;
     }
-    return delegate.offer(e);  // 组合模式，委托给内部队列
+    return delegate.offer(element);
 }
 ```
 
-`offer()` 返回 `false` 会触发 `ThreadPoolExecutor` 的 `RejectedExecutionHandler`（通常配置为 `CallerRunsPolicy`），让调用方线程同步执行该任务。
-
-`SmartBlockingQueue` 的策略是：CPU 任务不入队；其他任务是否入队还取决于 `rejectEnqueue`。返回 `false` 后的实际行为由线程池配置的拒绝策略决定，使用 `CallerRunsPolicy` 时才会在调用方线程执行。
-
-> **CPU 任务排队只增加延迟，不增加吞吐。** 不让计算密集型任务进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
+因此，队列策略和工作负载诊断各自只有一个来源：`rejectEnqueue` 控制准入，`TaskType` 提供诊断。两者不会因为一个任务标签而隐式改变执行位置。
 
 > 并发控制不是"限制同时执行的任务数"，而是"让正确的任务在正确的时间执行"。
 
@@ -371,7 +357,7 @@ par.map("io-pool", urls, url -> {
 2. **一个 scope，要么全成功，要么第一个失败时停止。** Fail-fast 是唯一语义。
 3. **提交是提交，绑定是绑定。** 不要在上菜之前开酒。
 4. **取消不只是中断线程，还要告诉它为什么。** 双异常策略。
-5. **CPU 任务排队只增加延迟，不增加吞吐。** 不让它进入 `SubmissionAwareBlockingQueue`，后续行为由线程池拒绝策略决定。
+5. **入队策略必须显式。** `rejectEnqueue(true)` 才会让 `SubmissionAwareBlockingQueue` 拒绝入队；`TaskType` 只用于诊断，不隐式改变调度。
 
 这些不是最佳实践，是设计约束。一旦在某条上让步，整个设计就会像多米诺骨牌一样坍塌。
 
