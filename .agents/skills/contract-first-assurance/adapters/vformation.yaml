@@ -1,5 +1,5 @@
 name: vformation
-version: 1.0.0
+version: 1.1.0
 workspace_root: repository-root
 base_ref: origin/dev/v0.5.0
 artifact_root: .contract-first-assurance
@@ -30,6 +30,34 @@ mutation_policy:
   applies: true
   instructions: verification/pit.md
   runner: PIT scope is selected and reported according to verification/pit.md
+
+route_gates:
+  mechanical:
+    required: [narrow-checks, docs]
+  defect:
+    required: [regression-tests, related-tests]
+  contract:
+    required: [full-suite, consumer, pit, independent-review, docs]
+  concurrency:
+    required: [full-suite, race-claims, pit, independent-review, refactoring-review, docs]
+  docs:
+    required: [docs]
+  dependency:
+    required: [dependency-audit, maven, consumer]
+
+status_policy:
+  values: [pass, fail, blocked, inconclusive, skipped]
+  precedence: [fail, blocked, inconclusive, pass, skipped]
+  spawn_errors: blocked
+  interrupted_process: inconclusive
+  skipped_requires_route_reason: true
+
+execution_policy:
+  freeze_final_head: true
+  record_worktree_snapshot: true
+  retry_transient_failures: 1
+  retry_timeout_or_interrupt: false
+  terminate_process_group: true
 
 isolation:
   source_paths:

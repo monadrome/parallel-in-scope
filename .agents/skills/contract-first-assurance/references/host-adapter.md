@@ -52,3 +52,14 @@ existing tests, prior reports, parent worktrees, or agent conversation history.
 The package version and artifact schema are independent of the host adapter.
 Changing a repository command or path is an adapter change; changing candidate
 status values, required artifacts, or phase hand-off rules is a package change.
+
+An adapter may also provide `route_gates`, `status_policy`, and
+`execution_policy` for a host orchestrator. These values configure the
+repository workflow; they do not create a second run manifest or replace the
+portable `contract-assurance-run/v1` schema.
+
+The current gate names are `narrow-checks`, `docs`, `regression-tests`,
+`related-tests`, `full-suite`, `consumer`, `pit`, `independent-review`,
+`race-claims`, `refactoring-review`, `dependency-audit`, and `maven`.
+`workspace.head` and `finalHead` identify the same frozen final commit for one
+run; a later fix starts a new run instead of mutating an existing manifest.
