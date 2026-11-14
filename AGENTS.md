@@ -90,11 +90,11 @@ largest scope it could grow into.
 
 | Request shape | Route | Do not |
 |---|---|---|
-| Mechanical, non-behavioral edit in one file: typo, comment, local rename, link | Make the edit, run the narrowest relevant check, commit | Write a proposal or run adversarial review |
+| Mechanical, non-behavioral edit in one file: typo, comment, local rename, link | Make the edit, run the narrowest relevant check, obtain a lightweight independent review, commit | Write a proposal or run the full adversarial review |
 | Reproducible behavior defect | Reproduce the failure first; fix the root cause; add a regression test and reverse-verify it | Fix by inspection, or claim completion without a failing case |
 | Public API, documented contract, or new mechanism | Read `design/first-principles.md` and the owning contract; write or update the `design/proposal/` entry; stop for the maintainer's direction | Implement before the direction is settled |
 | Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State the invariants and interleavings first; add targeted tests; run `python3 scripts/check-race-claims.py` for registered ordering claims; run the full suite and adversarial review | Treat compilation, one green test, or a timeout-free run as proof |
-| Documentation or site change only | Check the diff, referenced paths, and cited commands; run `python3 scripts/check-doc-refs.py` | Run Java tests or `spotless` |
+| Documentation or site change only | Check the diff, referenced paths, and cited commands; run `python3 scripts/check-doc-refs.py`; obtain a lightweight independent review | Run Java tests or `spotless` |
 | Dependency or build change | Patch/minor upgrade: run the `dependency-audit` skill, `mvn test`, and the `runtime-consumer` matrix locally; ask before adding a dependency or taking a major upgrade | Skip the audit or the runtime compatibility check |
 | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action per Current Development Line, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |
 
@@ -110,6 +110,22 @@ release, PIT, adversarial review, issue automation, and historical rationale are
 conditional sections, not default reading. Specialized documents own their detailed
 procedures; this file keeps the cross-route invariants and the pointers that select
 those procedures.
+
+## Independent Review
+
+Every non-empty change requires an independent review by someone other than the
+implementer before delivery. This includes documentation, tests, scripts, build
+configuration, instruction files, and generated or checked-in metadata. The review
+must read the changed files from the commit diff and remain read-only.
+
+- A mechanical or documentation-only change uses a lightweight review of the diff,
+  referenced paths, cited commands, and route classification. It does not require
+  the full adversarial review unless another route also applies.
+- A public API, documented contract, concurrency-sensitive, security-sensitive, or
+  otherwise high-risk change uses the full independent review below.
+- A reviewer that cannot read the changed files, times out, or fails is `blocked`,
+  not clean. Rerun it once after addressing the cause, then record the final status
+  and evidence in the delivery record.
 
 ## Architecture
 
@@ -446,10 +462,10 @@ Documentation must stay readable and correct without the Git object database:
 
 ## Adversarial Review
 
-After the initial commit of public API, documented-contract, or
-concurrency-sensitive changes, run an independent review with its own budget.
-Use the commit diff as the review baseline so review and fixes can continue in
-later sessions:
+For public API, documented-contract, concurrency-sensitive, security-sensitive, or
+otherwise high-risk changes, run the full independent review with its own budget
+after the initial commit. Use the commit diff as the review baseline so review and
+fixes can continue in later sessions:
 
 - Use a different model or harness than the implementer. Run it through
   `/multi-review` (`.agents/skills/multi-review/SKILL.md`) on the commit range,
