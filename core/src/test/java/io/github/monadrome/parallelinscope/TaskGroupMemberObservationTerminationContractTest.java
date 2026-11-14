@@ -24,8 +24,8 @@ class TaskGroupMemberObservationTerminationContractTest {
 
     @Test
     void successObservationKeepsItsClaimedTermination() throws Exception {
-        ExecutorService executor = MoreExecutors.newDirectExecutorService();
-        try (ParRuntime runtime = runtime(ParId.of("direct"), executor)) {
+        try (RuntimeScope scope = directScope()) {
+            ParRuntime runtime = scope.runtime;
             TaskGroup<Void> group = runtime.groupDraft("success-scope", TIMEOUT)
                     .par(MEMBER, runtime.par(ParId.of("direct")), () -> "value")
                     .submitAll();
@@ -35,15 +35,13 @@ class TaskGroupMemberObservationTerminationContractTest {
             assertThat(termination.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
             assertThat(termination.failureCause()).isNull();
             assertThat(termination.cancellationReason()).isNull();
-        } finally {
-            executor.shutdownNow();
         }
     }
 
     @Test
     void propagatedCallerCancellationKeepsTheParentReason() throws Exception {
-        ExecutorService executor = MoreExecutors.newDirectExecutorService();
-        try (ParRuntime runtime = runtime(ParId.of("direct"), executor)) {
+        try (RuntimeScope scope = directScope()) {
+            ParRuntime runtime = scope.runtime;
             TaskGroup<Void> group = runtime.groupDraft("caller-scope", TIMEOUT)
                     .cancelOn(Futures.immediateFuture("request done"))
                     .adopt(MEMBER, SettableFuture.create())
@@ -54,15 +52,13 @@ class TaskGroupMemberObservationTerminationContractTest {
                     CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE,
                     "member",
                     ExecutionDisposition.NOT_CLAIMED);
-        } finally {
-            executor.shutdownNow();
         }
     }
 
     @Test
     void preCancelledMemberKeepsItsCallerReason() throws Exception {
-        ExecutorService executor = MoreExecutors.newDirectExecutorService();
-        try (ParRuntime runtime = runtime(ParId.of("direct"), executor)) {
+        try (RuntimeScope scope = directScope()) {
+            ParRuntime runtime = scope.runtime;
             SettableFuture<String> cancelled = SettableFuture.create();
             cancelled.cancel(false);
             TaskGroup<Void> group = runtime.groupDraft("member-scope", TIMEOUT)
@@ -74,16 +70,14 @@ class TaskGroupMemberObservationTerminationContractTest {
                     CancellationReason.Kind.CANCELLED_BY_CALLER,
                     "member",
                     ExecutionDisposition.NOT_CLAIMED);
-        } finally {
-            executor.shutdownNow();
         }
     }
 
     @Test
     void userFailureKeepsItsFailureAndClaim() throws Exception {
-        ExecutorService executor = MoreExecutors.newDirectExecutorService();
         IllegalStateException boom = new IllegalStateException("boom");
-        try (ParRuntime runtime = runtime(ParId.of("direct"), executor)) {
+        try (RuntimeScope scope = directScope()) {
+            ParRuntime runtime = scope.runtime;
             TaskGroup<Void> group = runtime.groupDraft("failure-scope", TIMEOUT)
                     .par(MEMBER, runtime.par(ParId.of("direct")), () -> {
                         throw boom;
@@ -96,8 +90,6 @@ class TaskGroupMemberObservationTerminationContractTest {
             assertThat(failure.kind()).isEqualTo(FailureCause.Kind.USER_CODE_FAILURE);
             assertThat(failure.cause()).isSameAs(boom);
             assertThat(termination.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
-        } finally {
-            executor.shutdownNow();
         }
     }
 
@@ -164,6 +156,11 @@ class TaskGroupMemberObservationTerminationContractTest {
         return ParRuntime.builder().register(id, executor).build();
     }
 
+    private static RuntimeScope directScope() {
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        return new RuntimeScope(executor, runtime(ParId.of("direct"), executor));
+    }
+
     private static TaskExitObservation<?> observation(TaskGroup<?> group) throws Exception {
         return Verify.verifyNotNull(
                 group.convergenceFuture().get(2, TimeUnit.SECONDS).members().get("member"));
@@ -181,6 +178,22 @@ class TaskGroupMemberObservationTerminationContractTest {
         assertThat(reason.source()).isEqualTo(source);
         assertThat(termination.disposition()).isEqualTo(disposition);
         assertThat(termination.failureCause()).isNull();
+    }
+
+    private static final class RuntimeScope implements AutoCloseable {
+        private final ExecutorService executor;
+        private final ParRuntime runtime;
+
+        private RuntimeScope(ExecutorService executor, ParRuntime runtime) {
+            this.executor = executor;
+            this.runtime = runtime;
+        }
+
+        @Override
+        public void close() {
+            runtime.close();
+            executor.shutdownNow();
+        }
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {
