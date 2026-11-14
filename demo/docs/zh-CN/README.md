@@ -26,7 +26,7 @@
 
 ## 线程池与调度
 
-- [C1. 固定线程池嵌套死锁](articles/C1-thread-pool-deadlock.md)
+- [C1. 固定线程池嵌套等待风险](articles/C1-thread-pool-deadlock.md)
 - [C2. Cached 与 Fixed 线程池](articles/C2-cached-vs-fixed-pool.md)
 - [E1. 一次提交导致队列洪峰](articles/E1-queue-flooding.md)
 - [E2. 提交循环与业务线程隔离](articles/E2-submitter-pool-offloading.md)
