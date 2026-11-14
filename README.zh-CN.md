@@ -86,32 +86,32 @@ public final class QuickStart {
   `BatchOptions.inheritTimeout(name)`，不存在第三种状态：批次不会因为漏写超时而无界运行，显式超时会被外层
   deadline 封顶。
 - **批次默认快速失败。** 第一个元素失败会取消同批其余元素，包括尚未提交的元素。逐元素的结论读
-  `ImmediateResult.outcome()`（`USER_FAILURE`、`TIMEOUT`、`FAIL_FAST` …），执行同步返回，结果无需 close；释放直接任务共享的资源前检查
+  `ImmediateResult.termination()`（`SUCCESS`、`FAILED` 或 `CANCELLED`），需要归因时继续读取其中的
+  `FailureCause` 或 `CancellationReason`。执行同步返回，结果无需 close；释放直接任务共享的资源前检查
   `executionExitConfirmed()`，嵌套任务须分别确认退出。
 - **parallelism 默认不设额外上限。** `BatchOptions` 缺省即 `Integer.MAX_VALUE`，解析时被任务总数
   封顶——不写 `.parallelism(...)` 等于整批一次性提交。需要有界窗口就显式设置；0 或负数在入口
   被拒绝。
 
-固定的一组异构命名操作——取用户、取账户，再组装档案——改用一次性任务组而不是批次。`0.4.0`
-发布版使用可复用的类型化 key：
+固定的一组异构命名操作——取用户、取账户，再组装档案——改用一次性任务组而不是批次。使用可复用的类型化 key：
 
 ```java
 TaskKey<User> user = TaskKey.named("user");
 TaskKey<Account> account = TaskKey.named("account");
 TaskKey<Profile> profileKey = TaskKey.named("profile");
-TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+TaskGroupResult<Profile> profile = runtime
         .group("profile", Duration.ofSeconds(3))
         .par(user, io, () -> loadUser(userId))
         .par(account, io, () -> loadAccount(userId))
-        .combine(profileKey, io,
-                values -> Profile.of(values.first(), values.second()))
+        .combineValues(profileKey, io,
+                values -> Profile.of(values.valueOf(user), values.valueOf(account)))
         .runAll();
 Profile value = profile.terminalValueOrThrow();
 ```
 
 `runAll()` 一次性消费声明并返回冻结结果，没有需要关闭的句柄。首个成员失败会取消其余成员，
-成员超时则取消整个组。批次的聚合读取在 0.4.0 中改为非受检，组的聚合读取在 0.3.x 本就是非受检；参见
-[v0.4 迁移指南](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/docs/zh/migration-v0.4.md)。
+成员超时则取消整个组。聚合读取使用冻结结果模型；从 v0.4 升级请参见
+[v0.5 迁移指南](docs/zh/migration-v0.5.md)。
 
 仍在使用稳定版 `0.2.0`？它的 API 不同（`GlobalPar` / `ParName`），请参阅
 [v0.2.0 使用指南](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/zh/user-guide.md)。

@@ -53,7 +53,7 @@ SUCCESS:6
 ```
 
 如果需要结构化数据，直接读结果本身（与 `TaskGroupResult` 同名）：
-- `terminationKindCounts()` — 返回 `Map<TaskTermination, Integer>`，按状态分组计数
+- `terminationKindCounts()` — 返回 `Map<TaskTermination.Kind, Integer>`，按状态分组计数
 - `failedTaskResult()` — 返回输入顺序第一个失败元素的 `ImmediateResult`（无失败时为空 `Optional`）
 
 还可以自定义格式拼接，比如用于日志或监控上报。
