@@ -255,7 +255,7 @@ ${RUN_DIR}/candidate-status.csv
 ${RUN_DIR}/reverse-verification/
 ```
 
-不要把临时突变留在工作树。PIT 必须遵守项目的 `verification/pit.md`，保留原始 mutation 状态；超时、内存错误、无 XML 或部分运行不得报告为通过。
+不要把临时突变留在工作树。突变测试必须遵守已解析 adapter 的 `mutation_policy` 及其 instructions，并保留原始 mutation 状态；如果 adapter 未提供适用策略，将该阶段标记为 `BLOCKED` 或 `INCONCLUSIVE`。超时、内存错误、无 XML 或部分运行不得报告为通过。
 
 ## 阶段七：输出改进建议
 

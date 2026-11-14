@@ -16,6 +16,7 @@ CONFIG = ROOT / "refactoring-review" / "config.json"
 JAVA_GATE = ROOT / "scripts" / "check-java-conventions.py"
 COMPLEXITY_SKILL = ROOT / ".agents" / "skills" / "complexity-review-eval" / "SKILL.md"
 DOC = ROOT / "verification" / "java-conventions.md"
+DEVELOPMENT_REF = re.compile(r"origin/dev/v\d+\.\d+\.\d+")
 
 
 def read_json(path: Path) -> dict:
@@ -66,13 +67,21 @@ def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
     doc_text = DOC.read_text(encoding="utf-8")
     if "check-java-conventions.py" not in doc_text:
         errors.append("verification/java-conventions.md does not document the Java convention gate")
+    if upstream_ref not in doc_text:
+        errors.append(f"verification/java-conventions.md does not document {upstream_ref}")
 
 
-def validate_stale_references(errors: list[str]) -> None:
+def validate_stale_references(upstream_ref: object, errors: list[str]) -> None:
+    if not isinstance(upstream_ref, str):
+        return
     live_files = (AGENTS, CONFIG, JAVA_GATE, COMPLEXITY_SKILL, DOC)
-    live_text = "\n".join(path.read_text(encoding="utf-8") for path in live_files)
-    if "origin/dev/v0.4.0" in live_text:
-        errors.append("a live baseline file still contains origin/dev/v0.4.0")
+    seen: set[tuple[Path, str]] = set()
+    for path in live_files:
+        text = path.read_text(encoding="utf-8")
+        for found in DEVELOPMENT_REF.findall(text):
+            if found != upstream_ref and (path, found) not in seen:
+                seen.add((path, found))
+                errors.append(f"{path.relative_to(ROOT)} contains stale development ref {found}")
 
 
 def main() -> int:
@@ -87,7 +96,7 @@ def main() -> int:
     validate_agents(development_line, errors)
     validate_review_config(upstream_ref, errors)
     validate_script_and_docs(upstream_ref, errors)
-    validate_stale_references(errors)
+    validate_stale_references(upstream_ref, errors)
 
     if errors:
         for error in errors:
