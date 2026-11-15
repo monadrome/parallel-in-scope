@@ -1,0 +1,51 @@
+design/task-type-semantics-v0.3-proposal.md
+  s_527ee058754c0f::t_9892e2067c9c91 52
+README.md
+  s_527ee058754c0f::t_76a2f348545a53 10-12,14-15,19-21,23-29,33,37-38,40,44-46,48,50-53,56-70,85-86
+scripts/check-local-links.py
+  s_527ee058754c0f::t_80383d105c3fa2 13
+docs/zh/user-guide.md
+  s_527ee058754c0f::t_942305ad9d29b5 3
+docs/zh/migration-v0.3.md
+  s_527ee058754c0f::t_942305ad9d29b5 11,14
+  s_527ee058754c0f::t_bfe5afc6ad2d9c 12-13
+demo/README.md
+  s_527ee058754c0f::t_942305ad9d29b5 5,55
+demo/README.en.md
+  s_527ee058754c0f::t_942305ad9d29b5 7
+docs/en/user-guide.md
+  s_527ee058754c0f::t_942305ad9d29b5 3
+demo/docs/en/README.md
+  s_527ee058754c0f::t_942305ad9d29b5 7
+docs/en/migration-v0.3.md
+  s_527ee058754c0f::t_942305ad9d29b5 14,17
+  s_527ee058754c0f::t_bfe5afc6ad2d9c 15-16
+design/axiom-drift-decisions-2026-09-14.md
+  s_527ee058754c0f::t_9892e2067c9c91 3-4
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_527ee058754c0f::t_2cdcf0c3d44c07 4,8,11-17,21,25-27,30,33,35,37,39,41-42,46,54-55,59,62-68,70-72,77-79,86,90,100,118-122,127
+demo/docs/zh-CN/README.md
+  s_527ee058754c0f::t_942305ad9d29b5 5
+CHANGELOG.md
+  s_527ee058754c0f::t_a0c735533eaac7 61-67
+  s_527ee058754c0f::t_cc10d8bce07748 16
+  s_527ee058754c0f::t_a8f3932b920b17 17
+README.zh-CN.md
+  s_527ee058754c0f::t_0fd4e4d0369a7a 10-12,14,18-19,21-27,31,35,38-39,46,49-52,54,56-61,63,65-66,70-76,82-88,92,94-95,100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5b3a8e7ca96daf5acdd1f6544940e5b80817c7a7",
+  "prompts": {},
+  "sessions": {
+    "s_527ee058754c0f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bdc4-af38-7123-ba87-0755cb6501f8",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
