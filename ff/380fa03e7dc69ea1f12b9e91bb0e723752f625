@@ -1,0 +1,114 @@
+scripts/refactoring-review.py
+  s_e2c8cce2466ed4::t_216759d3d05e72 452
+  s_e2c8cce2466ed4::t_b46fad50478431 450
+CHANGELOG.md
+  s_e2c8cce2466ed4::t_46af49e2f1a338 11
+core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_e2c8cce2466ed4::t_1e48927296db3e 58
+adr/0013-standalone-blocking-queues-artifact.md
+  s_e2c8cce2466ed4::t_49431e0411098b 1-55
+blocking-queues/src/main/java/io/github/monadrome/queues/DrainingBlockingQueue.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+core/pom.xml
+  s_e2c8cce2466ed4::t_ef5ad33fd10d53 84,102-106
+  s_e2c8cce2466ed4::t_8658b6804aebf6 383
+  s_e2c8cce2466ed4::t_a52ef162af4630 1-83,85-101,107-382,384-444
+demo/architecture-constraints.md
+  s_e2c8cce2466ed4::t_8658b6804aebf6 26
+blocking-queues/src/test/java/io/github/monadrome/queues/ResizableBlockingQueueSignalTest.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+pom.xml
+  s_e2c8cce2466ed4::t_a52ef162af4630 8,10,12-13,16-19,33,66-82
+  s_e2c8cce2466ed4::t_9276f71051c021 61
+scripts/complexity_metrics.py
+  s_e2c8cce2466ed4::t_901a4f65dec5b8 303
+blocking-queues/src/test/java/io/github/monadrome/queues/ResizableBlockingQueueCartesianTest.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+core/src/test/java/io/github/monadrome/parallelinscope/PackageBoundaryTest.java
+  s_e2c8cce2466ed4::t_39da53bc085ae0 5-13,16-18,21-25,29-30,32,35,37-40
+  s_e2c8cce2466ed4::t_9276f71051c021 26-28
+  s_e2c8cce2466ed4::t_e6eaa5fac4fb29 36
+docs/en/migration-v0.5.md
+  s_e2c8cce2466ed4::t_46af49e2f1a338 8,30-40
+design/proposal/P0005-subtree-completion.md
+  s_e2c8cce2466ed4::t_8080bfbfc1440d 13-14
+scripts/check-java-conventions.py
+  s_e2c8cce2466ed4::t_6bfb5e06c33d8b 551
+  s_e2c8cce2466ed4::t_062afdf5dff940 47,454-455,480-490,518
+  s_e2c8cce2466ed4::t_0915e6ad4b27ef 439-440,445,452-453
+  s_e2c8cce2466ed4::t_901a4f65dec5b8 44,438,441-444,448-451,456,523-524,538,559
+  s_e2c8cce2466ed4::t_eb99a0f0964aba 446,552
+demo/README.md
+  s_e2c8cce2466ed4::t_8658b6804aebf6 68
+blocking-queues/src/test/java/io/github/monadrome/queues/PackageBoundaryTest.java
+  s_e2c8cce2466ed4::t_9276f71051c021 33-35
+  s_e2c8cce2466ed4::t_39da53bc085ae0 1,19,21-22,25,36-37,39
+  s_e2c8cce2466ed4::t_e6eaa5fac4fb29 43
+scripts/tests/test_refactoring_review.py
+  ai_agent 24-25
+  s_e2c8cce2466ed4::t_901a4f65dec5b8 190,196
+  s_e2c8cce2466ed4::t_0f1653a329ae41 195
+blocking-queues/src/test/java/io/github/monadrome/queues/DrainingBlockingQueueTest.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+blocking-queues/AGENTS.md
+  s_e2c8cce2466ed4::t_6f230f024d1fdd 1-25
+.github/workflows/ci.yml
+  s_e2c8cce2466ed4::t_46af49e2f1a338 96,131
+blocking-queues/src/main/java/io/github/monadrome/queues/ResizableBlockingQueue.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+AGENTS.md
+  s_e2c8cce2466ed4::t_8658b6804aebf6 80,86-90,92-94,493-494
+  s_e2c8cce2466ed4::t_b46fad50478431 152,172-173
+refactoring-review/config.json
+  s_e2c8cce2466ed4::t_0915e6ad4b27ef 85
+  s_e2c8cce2466ed4::t_216759d3d05e72 37,86,100
+  s_e2c8cce2466ed4::t_6bfb5e06c33d8b 17-18
+blocking-queues/src/main/java/io/github/monadrome/queues/package-info.java
+  s_e2c8cce2466ed4::t_6f230f024d1fdd 2
+  s_e2c8cce2466ed4::t_a52ef162af4630 4,8,10,16
+core/src/main/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueue.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 4
+blocking-queues/src/test/java/io/github/monadrome/queues/DrainingBlockingQueueContractTest.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+design/proposal/P0004-shared-root-budget.md
+  s_e2c8cce2466ed4::t_8080bfbfc1440d 13
+design/proposal/P0006-execution-protocol-consolidation.md
+  s_e2c8cce2466ed4::t_8080bfbfc1440d 13-15
+adr/0006-queues-ship-with-core.md
+  s_e2c8cce2466ed4::t_49431e0411098b 3-4,28
+scripts/tests/test_check_java_conventions.py
+  s_e2c8cce2466ed4::t_216759d3d05e72 270
+docs/zh/migration-v0.5.md
+  s_e2c8cce2466ed4::t_46af49e2f1a338 9,33-43
+verification/pit.md
+  s_e2c8cce2466ed4::t_216759d3d05e72 33
+design/proposal/P0027-result-projection-measurement.md
+  s_e2c8cce2466ed4::t_8080bfbfc1440d 13
+core/src/test/java/io/github/monadrome/parallelinscope/FutureInspectorTest.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 8
+blocking-queues/src/test/java/io/github/monadrome/queues/ResizableBlockingQueueTest.java
+  s_e2c8cce2466ed4::t_a52ef162af4630 1
+blocking-queues/pom.xml
+  s_e2c8cce2466ed4::t_9276f71051c021 19-40
+  s_e2c8cce2466ed4::t_437be088b0898d 1-18,41-155
+design/AGENTS.md
+  s_e2c8cce2466ed4::t_49431e0411098b 126-127
+verification/java-conventions.md
+  s_e2c8cce2466ed4::t_216759d3d05e72 13,15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "797386a4404178c1f76aa14527252547e955a9f0",
+  "prompts": {},
+  "sessions": {
+    "s_e2c8cce2466ed4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b925-0237-76a0-b6c1-3a2e7acb4886",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
