@@ -1,0 +1,39 @@
+verification/refactoring-bench-report.md
+  s_3139623fe9811e::t_e6be74f25d0061 1-15,22-29,31-45
+  s_3139623fe9811e::t_71018ae541b9ab 30
+  s_3139623fe9811e::t_4f8aa888dbe122 16-21
+design/refactoring-benchmark.md
+  s_3139623fe9811e::t_b95dd3e3dcb3bd 1-107
+tools/refactoring-bench/refactoring_bench.py
+  s_3139623fe9811e::t_b95dd3e3dcb3bd 1-80,89-127,131-216,221,226-279,291-294,297-461
+  s_3139623fe9811e::t_73aa4bdd4cee8a 81-88,217-220,222-225,280-282,284-289,295-296
+  s_3139623fe9811e::t_804ed619858d62 283,290
+  s_3139623fe9811e::t_1a51239897709e 128-130
+tools/refactoring-bench/README.md
+  s_3139623fe9811e::t_b95dd3e3dcb3bd 1-36
+tools/refactoring-bench/examples/manifest.json
+  s_3139623fe9811e::t_b95dd3e3dcb3bd 1-4,6-16,18-21
+  s_3139623fe9811e::t_630c391d14e5e9 5,17
+tools/refactoring-bench/tests/test_refactoring_bench.py
+  s_3139623fe9811e::t_8c1c0cb6e857c7 53,64
+  s_3139623fe9811e::t_115fa69442bd76 19
+  s_3139623fe9811e::t_b95dd3e3dcb3bd 1,3-18,20-33,37-52,54-63,66-103
+  s_3139623fe9811e::t_89b100617f838a 2,34-36
+  s_3139623fe9811e::t_804ed619858d62 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9dc52f0cd4d4bf9a3b156cb5c0e2ce0e958875fd",
+  "prompts": {},
+  "sessions": {
+    "s_3139623fe9811e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c103-d092-7822-a2f2-73911443e0ff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
