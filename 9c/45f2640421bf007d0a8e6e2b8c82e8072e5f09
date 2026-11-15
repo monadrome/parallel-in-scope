@@ -1,0 +1,9 @@
+.github/workflows/ci.yml
+  ai_agent 130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9c45f2640421bf007d0a8e6e2b8c82e8072e5f09",
+  "prompts": {}
+}
