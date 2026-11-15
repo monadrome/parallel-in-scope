@@ -1,0 +1,19 @@
+ledger/2026-11-08-context-propagating-direct-executor.json
+  s_ddd0e3efd84a7c::t_f796c002e41d7a 1-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "78608c1e02315402b993bbc16a5013b1f00abd6c",
+  "prompts": {},
+  "sessions": {
+    "s_ddd0e3efd84a7c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bab2-2f6c-7ca1-a9d7-2237ebb1c19b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
