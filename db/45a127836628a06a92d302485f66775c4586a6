@@ -1,0 +1,23 @@
+historical-eval/README.md
+  ai_agent 31-42
+historical-eval/tools/dedupe-fixes.py
+  s_490d18c85ab19e::t_29fdc742cc61e6 1-60
+historical-eval/catalog/fix-groups.jsonl
+  ai_agent 1-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "db45a127836628a06a92d302485f66775c4586a6",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
