@@ -1,0 +1,19 @@
+src/main/java/io/github/monadrome/parallelinscope/ExecutorGraph.java
+  ai_agent 1-151
+src/main/java/io/github/monadrome/parallelinscope/TaskNode.java
+  ai_agent 1-132
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphTest.java
+  ai_agent 1-190
+src/test/java/io/github/monadrome/parallelinscope/ExecutorGraphTest.java
+  ai_agent 1-204
+src/main/java/io/github/monadrome/parallelinscope/TaskGraph.java
+  ai_agent 1-168
+src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java
+  ai_agent 1-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d20be16527bab32df6fa9c0acdae1ae02fd62a7c",
+  "prompts": {}
+}
