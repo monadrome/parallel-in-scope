@@ -1,0 +1,26 @@
+historical-eval/catalog/rescue-report.md
+  s_490d18c85ab19e::t_3b4d3d977bb7f1 26-27,29
+  s_490d18c85ab19e::t_38a19201dee679 1-9,11-22,24-25,28,30-39
+  s_490d18c85ab19e::t_ab47ac4b6af28d 10
+  s_490d18c85ab19e::t_3f2eec7dde53db 23
+historical-eval/catalog/rescue-results.jsonl
+  s_490d18c85ab19e::t_3f2eec7dde53db 7
+  s_490d18c85ab19e::t_38a19201dee679 1-6,8-9,12,14-15
+  s_490d18c85ab19e::t_ab47ac4b6af28d 10-11,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "44a978ed78308168c60f942f761fca02c9c8d54d",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
