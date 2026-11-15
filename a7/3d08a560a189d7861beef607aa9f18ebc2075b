@@ -1,0 +1,31 @@
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  ai_agent 361
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerConcurrencyTest.java
+  ai_agent 128-129,153-154
+src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionOptionsMatrixTest.java
+  ai_agent 28
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParPoliciesTest.java
+  ai_agent 18-19,40-41,66-67,70-71
+src/test/java/io/github/huatalk/parallelinscope/scope/ScopePrimitivesTest.java
+  ai_agent 41-43,58-59,129-130,152,173-174,185-186,207-208,243-244
+src/test/java/io/github/huatalk/parallelinscope/control/ActionGateBoundaryTest.java
+  ai_agent 51
+src/main/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContext.java
+  ai_agent 102-104
+src/test/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueueContractTest.java
+  ai_agent 41-42,56-61,64-66,70,244-245,268-271,298-299
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerBoundaryTest.java
+  ai_agent 64,69-70,80,96
+src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContextTest.java
+  ai_agent 17-19,24-26
+src/test/java/io/github/huatalk/parallelinscope/cancel/CheckpointsOutcomeTest.java
+  ai_agent 38-39,50-51,57-58,65-66,68-69,78-81,83-86,104-107,110-111,124
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerQueueCompatibilityTest.java
+  ai_agent 43-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a73d08a560a189d7861beef607aa9f18ebc2075b",
+  "prompts": {}
+}
