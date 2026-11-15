@@ -1,0 +1,6 @@
+revision: b834d550 (tree identical to the original run revision; a later author-only rewrite changed the hash)
+working-tree: clean at run start (at the elapsed-budget test commit)
+jdk: openjdk version "21.0.5" 2024-10-15 LTS openjdk 25.0.4.1
+command: mvn -o -pl core -Ppitest test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=CancellationToken,TaskExecutionState,ExecutionExitTracker -DtargetTests=io.github.monadrome.parallelinscope.*
+started: 2026-11-15T11:09:48Z
+result: 114 mutants, 111 killed, 3 survived (equivalent ConditionalsBoundary, see the elapsed-budget test commit message)
