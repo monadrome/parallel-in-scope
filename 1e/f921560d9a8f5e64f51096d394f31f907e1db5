@@ -1,0 +1,52 @@
+scripts/check-worktree-skills.py
+  s_5ad4597eb7d0f3::t_39160a1a92eedc 1-71
+.agents/skills/contract-first-assurance/references/reproducible-runs.md
+  s_5ad4597eb7d0f3::t_2e21d733828a3a 1-67
+.agents/skills/contract-first-assurance/scripts/verify_run.py
+  s_5ad4597eb7d0f3::t_2e21d733828a3a 1-132
+.agents/skills/contract-first-assurance/references/host-adapter.md
+  s_5ad4597eb7d0f3::t_2e21d733828a3a 15,39-42
+.worktreeinclude.yaml
+  s_5ad4597eb7d0f3::t_39160a1a92eedc 1-16
+.agents/skills/contract-first-assurance/scripts/verify_package.py
+  s_5ad4597eb7d0f3::t_2c31da09501953 55-70,95-99,108-112
+.agents/skills/contract-first-assurance/adapters/vformation.yaml
+  s_5ad4597eb7d0f3::t_2e21d733828a3a 2
+.agents/skills/contract-first-assurance/SKILL.md
+  s_5ad4597eb7d0f3::t_0a66ad4b7e3e52 26-35,328-334
+  s_5ad4597eb7d0f3::t_d2a33154ac1ef3 315-317
+verification/java-conventions.md
+  s_5ad4597eb7d0f3::t_fba6f981d60eb6 101
+.agents/project-baseline.json
+  s_5ad4597eb7d0f3::t_fba6f981d60eb6 1-5
+scripts/check-java-conventions.py
+  s_5ad4597eb7d0f3::t_fba6f981d60eb6 22,45
+.agents/skills/contract-first-assurance/package.yaml
+  s_5ad4597eb7d0f3::t_2e21d733828a3a 31,44-46
+  s_5ad4597eb7d0f3::t_0a66ad4b7e3e52 26
+refactoring-review/config.json
+  s_5ad4597eb7d0f3::t_fba6f981d60eb6 3
+AGENTS.md
+  s_5ad4597eb7d0f3::t_7e0edd124891d7 50-52,66-81
+scripts/check-project-baseline.py
+  s_5ad4597eb7d0f3::t_91fd34a77d5dd0 1-68,72-83
+  s_5ad4597eb7d0f3::t_23960c4aea9a0d 69-71
+.agents/skills/complexity-review-eval/SKILL.md
+  s_5ad4597eb7d0f3::t_fba6f981d60eb6 30,36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e4536525744e920255880c8032e7a50e201ad779",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
