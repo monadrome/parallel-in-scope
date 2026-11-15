@@ -1,0 +1,51 @@
+README.md
+  s_ce4d39d2513261::t_8bc0262d942cd4 120,124-125
+design/proposal/P0004-shared-root-budget.md
+  s_ce4d39d2513261::t_753bfa0bf02238 19,21,27
+design/proposal/P0020-deadline-attribution-policy.md
+  s_ce4d39d2513261::t_753bfa0bf02238 17
+core/src/main/java/io/github/monadrome/parallelinscope/CombinedGroupStep.java
+  s_ce4d39d2513261::t_794d063e8d7225 21-22
+docs/zh/index.md
+  s_ce4d39d2513261::t_4c490acd98227e 14
+design/synchronous-scope-exit.md
+  s_ce4d39d2513261::t_794d063e8d7225 48,50-56,62-64,66-69
+docs/zh/migration-v0.4.md
+  s_ce4d39d2513261::t_935d38473d9781 25
+design/task-group-terminal-combine.md
+  s_ce4d39d2513261::t_794d063e8d7225 67,73
+CHANGELOG.md
+  s_ce4d39d2513261::t_4c490acd98227e 12
+docs/en/migration-v0.4.md
+  s_ce4d39d2513261::t_935d38473d9781 25
+docs/zh/migration-v0.5.md
+  s_ce4d39d2513261::t_4c490acd98227e 6-37
+README.zh-CN.md
+  s_ce4d39d2513261::t_8bc0262d942cd4 101,105-106
+docs/en/index.md
+  s_ce4d39d2513261::t_4c490acd98227e 15
+design/proposal/P0009-named-terminal-input.md
+  s_ce4d39d2513261::t_2be7a53eae7964 17
+  s_ce4d39d2513261::t_950078fb463f6b 20-23,39
+  s_ce4d39d2513261::t_753bfa0bf02238 24-25
+docs/en/migration-v0.5.md
+  s_ce4d39d2513261::t_4c490acd98227e 5-37
+core/src/main/java/io/github/monadrome/parallelinscope/GroupStep.java
+  s_ce4d39d2513261::t_6635c73d1abdea 147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3823a2e13c77cd912391118d52e6f5dc54249293",
+  "prompts": {},
+  "sessions": {
+    "s_ce4d39d2513261": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9bf-a944-70a1-83e6-f3a2b124c789",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
