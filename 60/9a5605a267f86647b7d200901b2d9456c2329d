@@ -1,0 +1,28 @@
+src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_1503957580b8e1::t_0324218d70fc93 135-136,150-156
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_1503957580b8e1::t_0324218d70fc93 526-540,542,544-554,556-564,567-584
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java
+  s_1503957580b8e1::t_e10cf3895ddf81 4,6-8,140-150,154-158,163,165-189
+  s_1503957580b8e1::t_10ade427453684 151-152
+  s_1503957580b8e1::t_3f9ebfd920dd28 32-37
+  s_1503957580b8e1::t_08841464e49542 153,159-162,164,190
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineTest.java
+  s_1503957580b8e1::t_7cc097d3cf1a1b 259-341
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "609a5605a267f86647b7d200901b2d9456c2329d",
+  "prompts": {},
+  "sessions": {
+    "s_1503957580b8e1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd97-dc3b-7a53-aa99-7cd0a70d4636",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
