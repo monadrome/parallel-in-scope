@@ -1,0 +1,36 @@
+historical-eval/tools/run-codex-group.py
+  s_490d18c85ab19e::t_49080b5bf79a46 2,23-24,51,66
+  s_490d18c85ab19e::t_0d9a314a3a8b87 22
+historical-eval/catalog/model-runs/luna-max-run-meta.json
+  s_490d18c85ab19e::t_8b914a2d56545e 1-9,28
+  s_490d18c85ab19e::t_bee6c7afa35c64 10-27
+historical-eval/catalog/model-runs/luna-max-report.md
+  s_490d18c85ab19e::t_8b914a2d56545e 1-133
+historical-eval/catalog/model-runs/luna-max-report.json
+  s_490d18c85ab19e::t_8b914a2d56545e 1-41
+historical-eval/tools/summarize-model-runs.py
+  s_490d18c85ab19e::t_e69d3cab1b5f10 62-63,66,68,89-90
+historical-eval/tools/run-ranked-models.py
+  s_490d18c85ab19e::t_49080b5bf79a46 19-20,43,50
+  s_490d18c85ab19e::t_0d9a314a3a8b87 21,56,58-61,67
+historical-eval/catalog/model-runs/luna-max-report.jsonl
+  s_490d18c85ab19e::t_8b914a2d56545e 1-103
+historical-eval/README.md
+  s_490d18c85ab19e::t_e7075294669006 191-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d136c7de5055094f869d9d5198a2c4086bf601d9",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
