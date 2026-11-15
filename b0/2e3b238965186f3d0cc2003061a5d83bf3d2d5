@@ -1,0 +1,41 @@
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_8029e92a443aa7::t_efa37b3f6d13e1 3,66,190
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_8029e92a443aa7::t_efa37b3f6d13e1 1388
+src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java
+  s_8029e92a443aa7::t_efa37b3f6d13e1 3,51
+  s_44e518d835c1aa::t_1c6e1e2ba913a7 4
+src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_8029e92a443aa7::t_efa37b3f6d13e1 3,340
+verification/race-claims/claims.json
+  s_8029e92a443aa7::t_cd31e3e31e0cb1 91,95-96,102,106-107
+src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_8029e92a443aa7::t_efa37b3f6d13e1 3,63
+src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_8029e92a443aa7::t_efa37b3f6d13e1 62
+  s_44e518d835c1aa::t_aa63fa29d19ede 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a98a74f94853e321bfe50a556f77f3780f9a982b",
+  "prompts": {},
+  "sessions": {
+    "s_44e518d835c1aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b5f4-3092-7953-9a4c-c21b448c3d3c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
