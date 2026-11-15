@@ -372,6 +372,29 @@ Rejected alternatives are in [ADR 0008](../adr/0008-tasktype-as-workload-fit-dia
 [workload-fit-screening.md](workload-fit-screening.md), and
 [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md).
 
+### Task progress reporting rejected (2026-11-15, user decision)
+
+A task/batch progress API (live counts, percentage, an event stream, or heartbeats) is not added.
+The user-facing record is in the [idea graveyard](../docs/en/design/idea-graveyard.md); the
+supporting primary-source research draft (2026-11-12, committed under `design/analysis/` at user
+request) is harvested into this entry and the graveyard.
+
+- A synchronous scope has no outside observer: `map`/`runAll` return on the calling thread at
+  settlement, so frozen terminal observations already answer "what happened", and a live stream
+  only serves the asynchronous-watcher shape the library removes by design.
+- Existing observation layers cover the real needs: terminal snapshots, starvation observation as
+  a bounded no-progress risk signal, workload-fit screening, and checkpoint cancellation
+  acknowledgement. A progress stream would be a third mechanism needing subscription, replay,
+  overflow, and observer-executor contracts.
+- Progress is business semantics (what the total means, whether skips or retries count); the task
+  code is the only user extension point, and publishing counters from inside it is strictly more
+  accurate.
+- The research also confirmed what the API would inherit: snapshot versus event stream versus
+  liveness-evidence layering, retry attempt identity, and delivery-policy contracts — a surface
+  disproportionate to a need self-served by wrapping.
+
+Reopen only by explicit user decision.
+
 ## Queues
 
 - The queue package ships with the core artifact; the boundary is closed by
@@ -491,6 +514,24 @@ semantics and leave the recursive shape in the public API that this change is in
   public capability.
 
 ## Harvested analysis inputs
+
+### Commit-date rewrite not pursued (2026-11-15)
+
+The `design/analysis/date-rewrite/` drafts proposed re-dating the reachable commit history onto a
+spread-out calendar (more active days, no daytime commits, holiday weighting), with a
+development-history statistics report as background. The direction is closed as not needed; no
+ref was ever modified.
+
+- Rewriting dates invalidates every downstream hash: published branches would need force-pushing,
+  tags re-creating, and published artifacts would desynchronize from source; the snapshot
+  publishing gate reads the branch tip's UTC date.
+- Independent review of the draft mapping returned a blocking verdict: ref/tag scope undefined
+  (HEAD-only versus repository-wide), release commits not anchored to their calendar dates, and
+  the recommended narrow scope already stale against the remote.
+- The simulated pattern (bounded working windows, doubled holiday load) never occurred; the
+  repository records delivery evidence as it happened.
+- The mapping files are not kept: the scope drifts with every new commit, so any revisit
+  regenerates them.
 
 ### Release-tree cleanup (2026-11-07)
 
