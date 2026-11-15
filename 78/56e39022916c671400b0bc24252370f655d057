@@ -1,0 +1,19 @@
+refactoring-bench-spec.md
+  s_3139623fe9811e::t_c67b605523694a 1-416
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7856e39022916c671400b0bc24252370f655d057",
+  "prompts": {},
+  "sessions": {
+    "s_3139623fe9811e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c103-d092-7822-a2f2-73911443e0ff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
