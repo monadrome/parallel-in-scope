@@ -52,6 +52,9 @@ class TaskExecutionStateTest {
         TaskExecutionState slot = tracker.register(context());
 
         assertThat(slot.skipIfPending()).isTrue();
+        assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.SKIPPED);
+        assertThat(slot.status()).isEqualTo(TaskStatus.EXITED);
+        assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
         assertThat(slot.terminal().isDone()).isTrue();
         assertThat(tracker.isDone()).isTrue();
         assertThat(slot.skipIfPending()).isFalse();
@@ -64,6 +67,7 @@ class TaskExecutionStateTest {
 
         assertThat(slot.claimRunning()).isTrue();
         assertThat(slot.skipIfPending()).isFalse();
+        assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
         assertThat(slot.terminal().isDone()).isFalse();
         assertThat(tracker.isDone()).isFalse();
     }
