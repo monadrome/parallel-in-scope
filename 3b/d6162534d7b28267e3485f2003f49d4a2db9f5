@@ -1,0 +1,19 @@
+design/proposal/P0036-complexity-review-signals.md
+  s_ce73de3a0acc3d::t_422dc9a289e58c 42-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a1cd09c4866b6881de2d81cef4728740d0298f93",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
