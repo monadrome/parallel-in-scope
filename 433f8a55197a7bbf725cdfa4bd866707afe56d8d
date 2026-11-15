@@ -1,0 +1,19 @@
+historical-eval/tools/run-continuation-repair.py
+  s_fcaade8c4507a4::t_e3b736f0f81cbe 1-215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "433f8a55197a7bbf725cdfa4bd866707afe56d8d",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
