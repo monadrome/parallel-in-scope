@@ -1,0 +1,84 @@
+src/test/java/io/github/monadrome/parallelinscope/queue/ResizableBlockingQueueTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 26,34,47-48,53,66,71,83,101,111,126,146,165,178,190,206,226,250,276,293,309,328,347,353,360,367,374,382,390,398,406,414,422,430,438,446,455,464,474,482,490,497,504,510,516,522,532,543,556,566,574,586,595,605,619,627,637,654,674,695,714,747,756,769,777,792,811,822,834,845
+docs/zh/design/idea-graveyard.md
+  s_e6ced41c75086c::t_9068bba1244626 105
+src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java
+  s_e6ced41c75086c::t_140be427d4a5c2 215-216
+  s_e6ced41c75086c::t_a50e001077a6bc 273
+design/AGENTS.md
+  s_e6ced41c75086c::t_fbde3a17e65e0f 168
+src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java
+  s_e6ced41c75086c::t_a50e001077a6bc 128,211
+src/test/java/io/github/monadrome/parallelinscope/ExecutorRuntimeTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 62,133
+  s_e6ced41c75086c::t_140be427d4a5c2 63-64
+src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 36,52
+src/test/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueueTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 12,28,40
+  s_e6ced41c75086c::t_140be427d4a5c2 20-23,52-53
+design/proposal/P0038-queue-public-api-renames.md
+  s_e6ced41c75086c::t_fbde3a17e65e0f 1-49
+docs/en/user-guide.md
+  s_e6ced41c75086c::t_b75fedf36824e7 3,102,108,743
+src/main/java/io/github/monadrome/parallelinscope/SubmissionScope.java
+  s_e6ced41c75086c::t_a50e001077a6bc 9
+docs/en/index.md
+  s_e6ced41c75086c::t_b75fedf36824e7 15
+docs/zh/index.md
+  s_e6ced41c75086c::t_b75fedf36824e7 14
+src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_e6ced41c75086c::t_a50e001077a6bc 480,498,501
+src/main/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueue.java
+  s_e6ced41c75086c::t_a50e001077a6bc 4,32,34,42,46
+src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 14,16,31
+src/test/java/io/github/monadrome/parallelinscope/queue/ResizableBlockingQueueCartesianTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 18,50,93,126,152,182
+docs/zh/user-guide.md
+  s_e6ced41c75086c::t_b75fedf36824e7 3,85-86,91,638
+CHANGELOG.md
+  s_e6ced41c75086c::t_b75fedf36824e7 9-13
+mkdocs/mkdocs.yml
+  s_e6ced41c75086c::t_b75fedf36824e7 18,159
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 55
+docs/en/migration-v0.5.md
+  s_e6ced41c75086c::t_fbde3a17e65e0f 1-30
+src/main/java/io/github/monadrome/parallelinscope/queue/ResizableBlockingQueue.java
+  s_e6ced41c75086c::t_a50e001077a6bc 36,75,84,95
+src/main/java/io/github/monadrome/parallelinscope/ExecutorRuntime.java
+  s_e6ced41c75086c::t_a50e001077a6bc 88,92,141
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 34
+docs/zh/migration-v0.5.md
+  s_e6ced41c75086c::t_fbde3a17e65e0f 1-33
+src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 27,59,103
+src/main/java/io/github/monadrome/parallelinscope/queue/package-info.java
+  s_e6ced41c75086c::t_a50e001077a6bc 10
+src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineInlineGuardTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 40
+src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java
+  s_e6ced41c75086c::t_a50e001077a6bc 80,96
+src/test/java/io/github/monadrome/parallelinscope/queue/ResizableBlockingQueueSignalTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 23,27,31,52,81,113,141-143,155,168
+src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java
+  s_e6ced41c75086c::t_a50e001077a6bc 110,243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "229d6b9d58fd00e05b80d33b9c894d6fd8247dc2",
+  "prompts": {},
+  "sessions": {
+    "s_e6ced41c75086c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b8f0-0a9f-76d2-a194-e2bf1f8bce96",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
