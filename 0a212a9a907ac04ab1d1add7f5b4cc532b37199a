@@ -1,0 +1,22 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_e4d21f1619e9d6::t_ef1e751411904e 20-23,28-30
+  s_e4d21f1619e9d6::t_75478dd931ab36 24-27
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_e4d21f1619e9d6::t_ef1e751411904e 16,94,208,234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "226f6c05890d6f1bd42f9fbebb5aa2f79cc7387a",
+  "prompts": {},
+  "sessions": {
+    "s_e4d21f1619e9d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d4cf-8357-7f12-bafd-ea99a749cad8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
