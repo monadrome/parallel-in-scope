@@ -1,0 +1,50 @@
+tools/llm-review-bench/src/case/context.ts
+  s_ff29b4a4147d3d::t_ed32e48e11794c 1-112,114-152
+  s_ff29b4a4147d3d::t_afcb439a1dad6e 113
+tools/llm-review-bench/docs/adapters.md
+  s_bd7e817aee800e::t_f313f1c2f4f6ce 1-11,14-131
+tools/llm-review-bench/src/evaluation/report.ts
+  s_bd7e817aee800e::t_559ddaa75e0e30 252-264
+tools/llm-review-bench/test/findings.test.ts
+  s_bd7e817aee800e::t_656b0d334fffbe 4-106
+tools/llm-review-bench/test/storage.test.ts
+  s_bd7e817aee800e::t_d05f283f518abe 1-154
+tools/llm-review-bench/src/case/prepare.ts
+  s_ff29b4a4147d3d::t_afcb439a1dad6e 1,16-64,100-101,116-144,184-251
+  s_ff29b4a4147d3d::t_ed32e48e11794c 2-4
+  s_bd7e817aee800e::t_602a9dfd9a52cd 73-86,104-105,160
+tools/llm-review-bench/src/protocol/config.ts
+  s_ff29b4a4147d3d::t_0a33885c3f93b6 1-182
+tools/llm-review-bench/docs/protocol.md
+  s_bd7e817aee800e::t_f313f1c2f4f6ce 1-450,453-498,501-522,525-579
+tools/llm-review-bench/src/protocol/types.ts
+  s_ff29b4a4147d3d::t_afcb439a1dad6e 169-175
+tools/llm-review-bench/README.md
+  s_bd7e817aee800e::t_f313f1c2f4f6ce 1-144,146-368,371-390
+tools/llm-review-bench/src/adapters/common.ts
+  s_bd7e817aee800e::t_656b0d334fffbe 146-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "11d2897801c3177536b0615491229b1fcde10937",
+  "prompts": {},
+  "sessions": {
+    "s_bd7e817aee800e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1877c-8b8b-7a80-bbd3-6b329d562fac",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_ff29b4a4147d3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18785-3e51-7f21-b829-3eee5a02e805",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
