@@ -1,0 +1,22 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java
+  s_ddd0e3efd84a7c::t_dbaddf542dd8f7 60-64
+core/src/test/java/io/github/monadrome/parallelinscope/ContextExecutorsTest.java
+  s_ddd0e3efd84a7c::t_dbaddf542dd8f7 88,90-91
+  s_ddd0e3efd84a7c::t_4b5661e8c000fc 89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "77a12bc236485cea9f7c58404e24182f6381adba",
+  "prompts": {},
+  "sessions": {
+    "s_ddd0e3efd84a7c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bab2-2f6c-7ca1-a9d7-2237ebb1c19b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
