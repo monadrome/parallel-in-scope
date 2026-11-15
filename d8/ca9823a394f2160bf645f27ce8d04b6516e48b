@@ -1,0 +1,19 @@
+ledger/2026-11-13-task-termination-consumption-api-followup.json
+  s_e4d21f1619e9d6::t_4955bd3f84c0e0 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "aba1a799ffd236966ada6271f6074c7c4b2318b0",
+  "prompts": {},
+  "sessions": {
+    "s_e4d21f1619e9d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d4cf-8357-7f12-bafd-ea99a749cad8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
