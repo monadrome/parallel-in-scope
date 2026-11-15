@@ -1,0 +1,43 @@
+src/test/java/io/github/monadrome/parallelinscope/TaskGraphSnapshotConsistencyTest.java
+  s_1503957580b8e1::t_82540c6cdb3d5c 153-158
+design/task-group-lifecycle.md
+  s_1503957580b8e1::t_2676cf516d1dc3 276-285
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  s_1503957580b8e1::t_04178322d6b10f 14-15,58,107,132,135
+CHANGELOG.md
+  s_1503957580b8e1::t_dbb01ce29b0da7 56-59
+  s_1503957580b8e1::t_c0d832fcf4e698 30-31
+docs/en/user-guide.md
+  s_1503957580b8e1::t_21ef31f307fad0 35-36
+docs/zh/migration-v0.3.md
+  s_1503957580b8e1::t_ac0f10b3762f92 393
+  s_1503957580b8e1::t_4047c61e9cd2a6 284-292
+design/task-group-observability-and-verification.md
+  s_1503957580b8e1::t_dd84e10ae74df4 82-84,94-97,106-108
+design/extension-and-wrapping.md
+  s_1503957580b8e1::t_ff9a1f8de3385c 289-290
+  s_1503957580b8e1::t_7bb8933a101798 136
+docs/en/migration-v0.3.md
+  s_1503957580b8e1::t_e099c96556696d 318-328
+  s_1503957580b8e1::t_d846c903f2bba3 437
+docs/zh/user-guide.md
+  s_1503957580b8e1::t_6a38cc4410ac0d 27-28
+demo/articles/E3-closable-blocking-queue.md
+  s_1503957580b8e1::t_04178322d6b10f 14-15,58,107,132,135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "e6ee136fd64ceeb18bf3f349147d784c531a3688",
+  "prompts": {},
+  "sessions": {
+    "s_1503957580b8e1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd97-dc3b-7a53-aa99-7cd0a70d4636",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
