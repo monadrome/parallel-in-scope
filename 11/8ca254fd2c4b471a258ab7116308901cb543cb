@@ -1,0 +1,19 @@
+src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java
+  s_7ca202ecb5bbfd::t_f9da9ec05bfa58 28-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8d77ad52dd38691bc76c9ba135b133029fefab4c",
+  "prompts": {},
+  "sessions": {
+    "s_7ca202ecb5bbfd": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_0827bf18-ab8f-4103-8f5d-b227af4fe9df",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "EricLin <linqinghua4@gmail.com>"
+    }
+  }
+}
