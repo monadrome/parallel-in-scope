@@ -1,0 +1,44 @@
+historical-eval/catalog/model-runs/final-report.json
+  s_490d18c85ab19e::t_991f69fcc423cf 2,5-34
+historical-eval/tools/prepare-sample.py
+  s_490d18c85ab19e::t_e74e6c35337f03 44
+historical-eval/tools/summarize-model-runs.py
+  s_490d18c85ab19e::t_e3981529a9e1a0 1-114
+historical-eval/README.md
+  s_490d18c85ab19e::t_c6b8b712a476b4 56,61
+  s_490d18c85ab19e::t_b79a2720368a79 161-164,188-189
+  s_490d18c85ab19e::t_7f7ac27022b017 3,7,15,19,50,105
+  s_490d18c85ab19e::t_d42956d1d304e6 16
+  s_490d18c85ab19e::t_d015347d1306c1 74,187
+  s_490d18c85ab19e::t_03fd5ae88ee89a 76-80
+historical-eval/catalog/model-runs/final-report.md
+  s_490d18c85ab19e::t_991f69fcc423cf 1-131
+.gitignore
+  s_490d18c85ab19e::t_e407d3806643b3 54-62
+historical-eval/tools/verify-sample.sh
+  s_490d18c85ab19e::t_e74e6c35337f03 45-49,61-62
+  s_490d18c85ab19e::t_d42956d1d304e6 6,51-54,60
+  s_490d18c85ab19e::t_85363253dd26c5 18-23,40-41,44
+  s_490d18c85ab19e::t_799b327831e6e7 31,33-36
+historical-eval/catalog/model-runs/final-report.jsonl
+  s_490d18c85ab19e::t_991f69fcc423cf 1-103
+historical-eval/tools/verify-all-gold.py
+  s_490d18c85ab19e::t_d42956d1d304e6 8,32
+  s_490d18c85ab19e::t_e74e6c35337f03 27,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c1e892e2100ef3279bdb557a1601044f809ddd06",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
