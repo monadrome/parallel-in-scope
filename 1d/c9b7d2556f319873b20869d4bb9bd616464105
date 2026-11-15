@@ -1,0 +1,19 @@
+ledger/2026-11-12-portable-agent-skills.json
+  s_5ad4597eb7d0f3::t_6c1de24cb2a3a6 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a2b6d1718759199b15c7e9c56d12d05d9b4ca243",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
