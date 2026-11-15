@@ -1,0 +1,45 @@
+design/analysis/flagship-review-2026-10-29/03-adversarial-review.md
+  ai_agent 1-284
+design/analysis/flagship-review-2026-10-29/01-portfolio-review.md
+  ai_agent 1-332
+design/analysis/ssot-audit-2026-10-29.md
+  ai_agent 1-80
+design/analysis/unbounded-timeout-factory-proposal.md
+  ai_agent 1-215
+design/analysis/llm-usage-selection-guide-2026-10-27.md
+  ai_agent 1-312
+design/proposal/P0037-future-path-staged-outcome-api.md
+  ai_agent 1-164
+design/analysis/flagship-review-2026-10-29/05-github-about-copy.md
+  ai_agent 1-94
+design/analysis/test-only-kernel-surface-retirement-proposal.md
+  ai_agent 1-413
+design/analysis/flagship-review-2026-10-29/06-verified-facts.md
+  ai_agent 1-55
+design/analysis/llm-model-selection-blog-kimi-2026-10-27.md
+  ai_agent 1-92
+design/analysis/ai-native-2026-research-2026-10-30.md
+  ai_agent 1-763
+design/analysis/interruption-cancellation-review-2026-11-04.md
+  ai_agent 1-118
+design/analysis/llm-model-selection-blog-2026-10-27.md
+  ai_agent 1-86
+design/analysis/checkpoints-convergence-proposal.md
+  ai_agent 1-374
+design/analysis/flagship-review-2026-10-29/02-engineering-review.md
+  ai_agent 1-278
+design/analysis/flagship-review-2026-10-29/README.md
+  ai_agent 1-91
+design/analysis/code-quality-metrics-2026-11-06.md
+  ai_agent 1-320
+design/analysis/flagship-review-2026-10-29/04-first-use-p0-p1-plan.md
+  ai_agent 1-803
+design/analysis/graph-detection-queries-and-cancellation-token-proposal.md
+  ai_agent 1-325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "692ff7e4c88f02209765d8665196ab19ac1fa1b5",
+  "prompts": {}
+}
