@@ -11,7 +11,7 @@ final class TaskExecutionContext {
     private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
     private final long submitTimeNanos;
-    private final @Nullable TaskBodyState bodyState;
+    private final @Nullable TaskExecutionState executionState;
 
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
@@ -21,17 +21,19 @@ final class TaskExecutionContext {
     }
 
     /**
-     * Creates a context carrying the task-body slot registered with the submission's shared
-     * completion tracker; {@code null} only for a task prepared outside any tracked submission,
-     * which production entry points no longer do.
+     * Creates a context carrying the task execution slot registered with the submission's shared
+     * completion tracker; {@code null} denotes a task prepared outside a tracked submission.
      */
     TaskExecutionContext(
-            MultiTaskContext multiTaskContext, int taskIndex, long submitTimeNanos, @Nullable TaskBodyState bodyState) {
+            MultiTaskContext multiTaskContext,
+            int taskIndex,
+            long submitTimeNanos,
+            @Nullable TaskExecutionState executionState) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
         Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
-        this.bodyState = bodyState;
+        this.executionState = executionState;
     }
 
     MultiTaskContext multiTaskContext() {
@@ -47,10 +49,10 @@ final class TaskExecutionContext {
         return submitTimeNanos;
     }
 
-    /** The body-completion slot of this task, or null when the submission is not tracked. */
+    /** The execution exit slot of this task, or null when the submission is not tracked. */
     @Nullable
-    TaskBodyState bodyState() {
-        return bodyState;
+    TaskExecutionState executionState() {
+        return executionState;
     }
 
     long startTimeNanos() {

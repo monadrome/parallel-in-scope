@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
-import com.google.common.reflect.TypeToken;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
@@ -130,7 +130,7 @@ class ScopedTaskContractTest {
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void aDirectExecutorRunsTheBodyOnTheSubmittingThreadAndObservesItNormally(Entry entry) throws Exception {
+    void aDirectExecutorRunsTheExecutionOnTheSubmittingThreadAndObservesItNormally(Entry entry) throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime global = global(direct);
         try {
@@ -138,7 +138,7 @@ class ScopedTaskContractTest {
             AtomicReference<String> ranOn = new AtomicReference<>();
             String caller = Thread.currentThread().getName();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.CPU_BOUND, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.COMPUTE, () -> {
                 executions.incrementAndGet();
                 ranOn.set(Thread.currentThread().getName());
                 return "inline";
@@ -155,9 +155,9 @@ class ScopedTaskContractTest {
     }
 
     /**
-     * A rejected task fails without entering user code, for every task type including {@code
-     * CPU_BOUND}. Nothing selects otherwise: the library has no option that elects the submitting
-     * thread, so what a rejection means is decided entirely by the executor's own handler.
+     * A rejected task fails without entering user code, whatever its task type. Nothing selects
+     * otherwise: the library has no option that elects the submitting thread, so what a rejection
+     * means is decided entirely by the executor's own handler.
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
@@ -210,22 +210,19 @@ class ScopedTaskContractTest {
                         .get(1);
                 assertThat(queued.cancel(true)).isTrue();
             } else {
-                TypeToken<Object> memberType = TypeToken.of(Object.class);
                 TaskGroup<Tuple2<Object, Object>, Void> group = global.groupDraft("cancel", Duration.ofSeconds(30))
                         .par(
-                                "blocker",
+                                TaskKey.<Object>named("blocker"),
                                 global.par(ParId.of("worker")),
                                 TaskOptions.timeout(Duration.ofSeconds(30)),
-                                memberType,
                                 () -> runUnlessQueued("blocker", release, queuedRuns))
                         .par(
-                                "queued",
+                                TaskKey.<Object>named("queued"),
                                 global.par(ParId.of("worker")),
                                 TaskOptions.timeout(Duration.ofSeconds(30)),
-                                memberType,
                                 () -> runUnlessQueued("queued", release, queuedRuns))
                         .submitAll();
-                assertThat(group.futureOf("queued", memberType).cancel(true)).isTrue();
+                assertThat(group.futureOf("queued").cancel(true)).isTrue();
                 TaskGroupReport result = group.completionFuture().get(2, TimeUnit.SECONDS);
                 assertThat(Objects.requireNonNull(result.members().get("queued"))
                                 .outcome())
@@ -241,11 +238,11 @@ class ScopedTaskContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
-    void nestedSubmissionRecordsTaskGraphEdge(Entry entry) throws Exception {
+    void nestedSubmissionOnTheSamePoolRecordsAnExecutorSelfLoop(Entry entry) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime global = global(executor);
         try {
-            try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
+            {
                 Object value = global.par(ParId.of("worker"))
                         .submitBatch(
                                 Collections.singletonList("outer"),
@@ -266,8 +263,10 @@ class ScopedTaskContractTest {
                         .get(2, TimeUnit.SECONDS);
 
                 assertThat(value).isEqualTo("inner-value");
-                assertThat(observation.graph().asValueGraph().nodes()).hasSize(2);
-                assertThat(observation.graph().asValueGraph().edges()).hasSize(1);
+                List<ExecutorWaitReport.Component> cycles =
+                        global.executorWaitReport().cyclicComponents();
+                assertThat(cycles).hasSize(1);
+                assertThat(cycles.get(0).cycle()).containsExactly(ImmutableSet.of(ParId.of("worker")));
             }
         } finally {
             global.close();
@@ -292,7 +291,7 @@ class ScopedTaskContractTest {
      */
     private static ListenableFuture<Object> submitSingle(
             ParRuntime global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(global, entry, name, TaskType.CPU_BOUND, task);
+        return submitSingle(global, entry, name, TaskType.COMPUTE, task);
     }
 
     private static ListenableFuture<Object> submitSingle(
@@ -306,17 +305,16 @@ class ScopedTaskContractTest {
                     .results()
                     .get(0);
         }
-        TypeToken<Object> memberType = TypeToken.of(Object.class);
+        TaskKey<Object> member = TaskKey.named(name);
         TaskGroup<Object, Void> group = global.groupDraft("contract", Duration.ofSeconds(30))
                 .par(
-                        name,
+                        member,
                         global.par(ParId.of("worker")),
                         TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType),
-                        memberType,
                         task)
                 .submitAll();
         LAST_GROUP.set(group);
-        return group.futureOf(name, memberType);
+        return group.futureOf(member);
     }
 
     private static Object callUnchecked(Callable<Object> task) {

@@ -1,4 +1,4 @@
-# F1. CPU 密集任务兜底成功执行
+# F1. CPU 密集任务避免排队
 
 ## 问题
 
@@ -33,12 +33,14 @@ for (int i = 0; i < 20; i++) {
 
 ## 解决方法
 
-`parallel-in-scope` 提供了 `BatchOptions` 的 `taskType(TaskType.CPU_BOUND)` 来标记 CPU 密集任务。其核心机制是 `SmartBlockingQueue`：当检测到任务类型为 `CPU_BOUND` 时，`offer()` 方法直接返回 `false`，触发线程池的 `CallerRunsPolicy`。被拒绝的任务不会排队，而是在提交线程上立即执行——零队列延迟。
+`Par.map()` 用滑动窗口控制提交量：同时在途的任务最多为 `parallelism` 个，其余任务在提交窗口里等待，
+不进入线程池队列。`taskType(TaskType.COMPUTE)` 声明这是一批 CPU 密集任务，注册时的
+`TaskType.COMPUTE` 声明这个池用于计算；两者都只用于诊断，不改变入队、拒绝或调度。
 
-这意味着 CPU 任务总是尽可能快地得到执行：
-- 线程池有空闲线程？立即在池线程上执行
-- 线程池已满？立即在提交线程上执行（CallerRunsPolicy）
-- 绝不会在队列中干等
+这样做的效果：
+- 线程池队列只保留很少的任务，未开始的任务在提交窗口里等待
+- 如果某个声明为计算型的任务实际在阻塞，runtime 会记一条 `WARNING`，测量值见 `ParRuntime.workloadFitReport()`
+- 需要让 `SmartBlockingQueue` 拒绝入队时，显式写 `rejectEnqueue(true)`；被拒任务由 executor 自己的拒绝策略处理
 
 ## 代码
 
@@ -46,12 +48,13 @@ for (int i = 0; i < 20; i++) {
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
-        .register(ParId.of("cpu-pool"), pool)
+        .register(ParId.of("cpu-pool"), pool, TaskType.COMPUTE)
+        .defaultPar(ParId.of("cpu-pool"))
         .build();
 Par par = config.defaultPar();
 
-// taskType(CPU_BOUND) 标记 CPU 密集任务，触发 CallerRunsPolicy
-BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.CPU_BOUND);
+// 滑动窗口限制在途任务数；taskType 只是诊断声明
+BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.COMPUTE);
 
 List<Data> items = loadDataset();
 TaskBatchResult<Result> result = par.map( items, item -> {
@@ -64,13 +67,13 @@ System.out.println(result.reportString());
 
 对比两种方式：
 
-| 维度 | 原生 FixedThreadPool | Par.map() + taskType(CPU_BOUND) |
+| 维度 | 原生 FixedThreadPool | Par.map() + 滑动窗口 |
 |------|---------------------|----------------------|
-| CPU 任务排队 | 必须排队等待 | 零队列延迟 |
-| 最后一个任务延迟 | O(n) 排队时间 | O(1) 立即执行 |
-| 线程利用率 | 队列中的任务不消耗 CPU | 所有线程持续计算 |
-| 适用场景 | IO 任务合适 | CPU 任务专用 |
+| 队列深度 | 所有任务一次性入队 | 最多 `parallelism` 个任务在途 |
+| 入队与拒绝 | 由队列和拒绝策略决定 | 同样由 executor 决定，`TaskType` 不参与 |
+| 计算池里的阻塞任务 | 没有信号 | runtime 记 `WARNING`，`workloadFitReport()` 给出测量值 |
+| 调度策略 | 由 executor 配置 | `TaskType` 不选 executor、不改调度 |
 
 ---
 
-> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)
+> 📁 完整测试代码：[F1_CpuTaskQueuingTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java)

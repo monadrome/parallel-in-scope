@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,16 +23,16 @@ import org.junit.jupiter.api.Test;
  * makes every task borrow the submitting thread, so the thread state that crosses that boundary is no
  * longer an edge case reachable only under pool saturation: it is the whole behavior of the executor.
  *
- * <p>Two things used to cross it. A task body that restores its interrupt flag — the textbook response
+ * <p>Two things used to cross it. A task execution that restores its interrupt flag — the textbook response
  * to {@code InterruptedException} — left that flag on the caller, and the caller's next library call
  * then failed: {@code valuesOrThrow()} threw {@code LeanCancellationException: interrupted while
  * awaiting batch values} for a batch in which every element had succeeded. And {@code
- * SubmissionScope}, which wraps the submission action, stayed installed while the body ran, so a
- * submission the body made on its own behalf inherited the enclosing unit's enqueue policy.
+ * SubmissionScope}, which wraps the submission action, stayed installed while the execution ran, so a
+ * submission the execution made on its own behalf inherited the enclosing unit's enqueue policy.
  *
  * <p>What must not change is the TTL contract. The snapshot is captured at prepare and replayed around
- * the body, which on a borrowed thread degenerates to swap-in, run, swap-back. The body therefore sees
- * submit-time values and the caller's own values survive the body mutating them. That already held and
+ * the execution, which on a borrowed thread degenerates to swap-in, run, swap-back. The execution therefore sees
+ * submit-time values and the caller's own values survive the execution mutating them. That already held and
  * is locked here so the isolation above cannot regress it.
  */
 class DirectExecutorSafetyTest {
@@ -41,7 +40,7 @@ class DirectExecutorSafetyTest {
     private static final TransmittableThreadLocal<String> TTL = new TransmittableThreadLocal<>();
 
     @Test
-    void aBodyThatRestoresItsInterruptFlagDoesNotBreakTheCallersNextCall() throws Exception {
+    void anExecutionThatRestoresItsInterruptFlagDoesNotBreakTheCallersNextCall() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
@@ -49,7 +48,7 @@ class DirectExecutorSafetyTest {
             TaskBatch<String> batch = runtime.par(ParId.of("d"))
                     .submitBatch(
                             Arrays.asList(1, 2, 3),
-                            // Every element restores the flag, which is what a correct body does after
+                            // Every element restores the flag, which is what a correct execution does after
                             // catching InterruptedException. Every element matters: if only an earlier
                             // one dirtied the flag, the next task's clear-on-entry would hide a missing
                             // restore-on-exit, and the last element is the one whose exit the caller
@@ -60,7 +59,7 @@ class DirectExecutorSafetyTest {
                             },
                             BatchOptions.timeout("b", Duration.ofSeconds(5)));
 
-            // The flag must not have followed the body out onto this thread.
+            // The flag must not have followed the execution out onto this thread.
             assertThat(Thread.currentThread().isInterrupted()).isFalse();
             // And the consequence that made it a bug rather than untidiness: reading the result.
             assertThatCode(batch::report).doesNotThrowAnyException();
@@ -73,7 +72,7 @@ class DirectExecutorSafetyTest {
     }
 
     @Test
-    void aBodyRunningOnTheSubmittingThreadSeesNoSubmissionScope() throws Exception {
+    void anExecutionRunningOnTheSubmittingThreadSeesNoSubmissionScope() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
@@ -91,7 +90,7 @@ class DirectExecutorSafetyTest {
                     .valuesOrThrow();
 
             // The pooled path has always shown null here; the borrowed path must agree, or a nested
-            // raw submission from inside the body picks up this unit's enqueue policy by accident.
+            // raw submission from inside the execution picks up this unit's enqueue policy by accident.
             assertThat(seen.get()).isEqualTo("null");
         } finally {
             runtime.close();
@@ -100,7 +99,7 @@ class DirectExecutorSafetyTest {
     }
 
     @Test
-    void theCallersOwnScopeIsRestoredAfterTheBodyDisturbsIt() throws Exception {
+    void theCallersOwnScopeIsRestoredAfterTheExecutionDisturbsIt() throws Exception {
         // The submitting thread may itself be inside a batch of its own. Isolation must put back what
         // it found rather than merely clearing, or an outer submission loop loses its scope midway.
         ThreadPoolExecutor outerPool = new ThreadPoolExecutor(
@@ -108,7 +107,7 @@ class DirectExecutorSafetyTest {
                 1,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(50),
+                new SmartBlockingQueue<>(50),
                 r -> new Thread(r, "outer-worker"),
                 new ThreadPoolExecutor.AbortPolicy());
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
@@ -122,7 +121,7 @@ class DirectExecutorSafetyTest {
                     .submitBatch(
                             Arrays.asList(1, 2),
                             i -> {
-                                // A nested batch on the direct executor: its bodies borrow this
+                                // A nested batch on the direct executor: its executions borrow this
                                 // worker, which is itself mid-submission for the outer batch.
                                 try {
                                     runtime.par(ParId.of("d"))
@@ -153,7 +152,7 @@ class DirectExecutorSafetyTest {
     }
 
     @Test
-    void theTtlSnapshotStillSurroundsABorrowedBody() throws Exception {
+    void theTtlSnapshotStillSurroundsABorrowedExecution() throws Exception {
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
@@ -165,13 +164,13 @@ class DirectExecutorSafetyTest {
                             Arrays.asList(1),
                             i -> {
                                 seen.set(TTL.get());
-                                TTL.set("mutated-by-body");
+                                TTL.set("mutated-by-execution");
                                 return "ok";
                             },
                             BatchOptions.timeout("b", Duration.ofSeconds(5)))
                     .valuesOrThrow();
 
-            // Clear-run-restore around the body: it reads the prepare-time snapshot, and what it
+            // Clear-run-restore around the execution: it reads the prepare-time snapshot, and what it
             // writes does not escape onto the thread it borrowed.
             assertThat(seen.get()).isEqualTo("submit-time");
             assertThat(TTL.get()).isEqualTo("submit-time");
@@ -183,7 +182,7 @@ class DirectExecutorSafetyTest {
     }
 
     @Test
-    void aDirectExecutorRunsEveryBodyOnTheSubmittingThread() throws Exception {
+    void aDirectExecutorRunsEveryExecutionOnTheSubmittingThread() throws Exception {
         // The characterising fact, pinned so the tests above are known to exercise the borrowed path
         // rather than passing for some unrelated reason.
         ExecutorService direct = MoreExecutors.newDirectExecutorService();
@@ -218,15 +217,10 @@ class DirectExecutorSafetyTest {
                 ParRuntime.builder().register(ParId.of("d"), direct).build();
         try {
             TaskGroup<?, ?> group = runtime.groupDraft("g", Duration.ofSeconds(5))
-                    .par(
-                            "a",
-                            runtime.par(ParId.of("d")),
-                            TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
-                            () -> {
-                                Thread.currentThread().interrupt();
-                                return "a";
-                            })
+                    .par(TaskKey.<String>named("a"), runtime.par(ParId.of("d")), TaskOptions.inheritTimeout(), () -> {
+                        Thread.currentThread().interrupt();
+                        return "a";
+                    })
                     .submitAll();
 
             TaskGroupReport result = group.completionFuture().get(5, TimeUnit.SECONDS);
@@ -241,12 +235,12 @@ class DirectExecutorSafetyTest {
     }
 
     @Test
-    void aPooledBodyRestoringItsFlagStillLeavesTheWorkerUsable() throws Exception {
+    void aPooledExecutionRestoringItsFlagStillLeavesTheWorkerUsable() throws Exception {
         // Control group: the isolation must not change the pooled path, where it is a no-op because
         // ThreadPoolExecutor.runWorker already clears the flag before each task. Two sequential
         // batches on a single-threaded pool, the first of which dirties the flag.
         ThreadPoolExecutor pool = new ThreadPoolExecutor(
-                1, 1, 0, TimeUnit.SECONDS, SmartBlockingQueue.create(50), r -> new Thread(r, "solo-worker"));
+                1, 1, 0, TimeUnit.SECONDS, new SmartBlockingQueue<>(50), r -> new Thread(r, "solo-worker"));
         ParRuntime runtime = ParRuntime.builder().register(ParId.of("p"), pool).build();
         try {
             List<String> first = runtime.par(ParId.of("p"))

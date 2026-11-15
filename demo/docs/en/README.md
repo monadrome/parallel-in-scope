@@ -4,11 +4,12 @@
 
 The runnable demo classes and tests are language-neutral. The long-form problem articles are currently maintained in Chinese and are indexed separately.
 
-> Demo code targets the current `0.3.0` API (`ParRuntime`, `Par`, `ParId`, `BatchOptions`, `TaskGroup`, `GroupStart`, `GroupStep`, `GroupValues`, `Tuple2`), published as `0.3.0-SNAPSHOT`.
+> Demo code tracks the `0.4.0` release (`ParRuntime`, `Par`, `ParId`, `BatchOptions`, `TaskGroup`, `GroupStart`, `GroupStep`, `GroupValues`, `Tuple2`).
 
 ## Start Here
 
 - [Demo README](../../README.en.md)
+- [5-minute quickstart](../../../docs/en/quickstart.md)
 - [Full English user guide](../../../docs/en/user-guide.md)
 - [v0.2 migration guide](../../../docs/en/migration-v0.2.md)
 - [Chinese article catalog](../zh-CN/README.md)

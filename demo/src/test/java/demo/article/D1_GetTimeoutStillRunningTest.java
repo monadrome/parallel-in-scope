@@ -106,7 +106,7 @@ public class D1_GetTimeoutStillRunningTest {
 
         BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
                 .parallelism(2)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         List<Integer> input = Arrays.asList(1, 2);
         TaskBatchResult<Integer> result = par.map(

@@ -18,21 +18,24 @@
 **证据强度**：`实测` = 跑过程序拿到数字；`复核` = 经独立模型验证；`读码` = 静态追踪。
 修复前请按仓库惯例复核每条（含本文件中的引用行号）。
 
+**性能条目状态复核**（2026-10-31，`dev/v0.4.0` @ `2ccb9ab`）：P-P2、P-P7 已完成；P-P1、P-P3、
+P-P6 按当前源码更新了影响面与行号，均未重新实测。其余条目的行号仍以各自记录的基线为准。
+
 ## 总览
 
 | 区 | 编号 | 一句话 | 证据 | 代价 |
 |---|---|---|---|---|
 | 性能 | ~~P-P0~~ | ~~已取消的 deadline 永不从定时器队列移除~~ **已修复 `9f8867c`** | 实测 | — |
-| 性能 | P-P1 | `Par.submit` 单价路径成本是批量路径的 2.4× | 实测 | 中 |
-| 性能 | P-P2 | batch 结果对象无条件预建观测聚合 | 读码 | 低-中 |
-| 性能 | P-P3 | 单个 task future 可达即钉住整批跟踪状态 | 读码 | 中低 |
-| 性能 | P-P4 | `remove(Object)` 每次约 1 KB 垃圾 + 两趟遍历 | 读码 | 低 |
-| 性能 | P-P5 | 队列包 6 项零散开销（节点分配在锁内等） | 读码 | 低 |
-| 性能 | P-P6 | 热路径 6 项常数开销 | 读码 | 低 |
-| 性能 | P-P7 | 每批次一个阻塞 submitter 线程，跑在无界 cached pool | 读码 | 中 |
+| 性能 | P-P1 | `Par.submit` 单价路径仍无快路径；旧 2.4×只是历史分配量，且当前仅测试调用 | 历史实测+读码 | 中 |
+| 性能 | ~~P-P2~~ | ~~batch 结果对象无条件预建观测聚合~~ **已修复（0.4）** | 读码 | — |
+| 性能 | P-P3 | 内部 task future 可达时钉住整批跟踪状态（公开结果不可达） | 读码 | 中低 |
+| 性能 | P-P4 | `remove(Object)` 两趟遍历（分配半项已修复 `96fa94d`） | 读码 | 低 |
+| 性能 | P-P5 | 队列包 5 项零散开销（节点分配在锁内等） | 读码 | 低 |
+| 性能 | P-P6 | 热路径常数开销（6 项，部分只影响特定配置） | 读码 | 低 |
+| 性能 | ~~P-P7~~ | ~~每批次一个阻塞 submitter 线程，跑在无界 cached pool~~ **已修复（完成事件补窗）** | 读码 | — |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
-| API | A-P1 | `CancellationToken` 是不可达的公开类型 | 复核 | 中（破坏性） |
-| API | A-P2 | 诊断断言无作用域时静默返回 `false` | 复核 | 低-中 |
+| API | ~~A-P1~~ | ~~`CancellationToken` 是不可达的公开类型~~ **已修复：包私有化（0.4）** | 复核 | — |
+| API | ~~A-P2~~ | ~~诊断断言无作用域时静默返回 `false`~~ **已关闭：随请求级观测一并删除（0.4）** | 复核 | — |
 | API | A-P3 | `failedTaskName()` 可能是 combine 名且无公开 `failedTask()`（`TaskCompletion.failure()` 口径已修复） | 复核 | 低 |
 | API | A-P6 | 4 处零调用的公开成员 | 读码 | 低-中（破坏性） |
 | API | A-P7 | 6 项选项与形状瑕疵 | 读码 | 低 |
@@ -59,66 +62,89 @@
 
 ### P-P1 · `Par.submit` 单价路径没有快路径
 
-`CancellationToken.bind`（`CancellationToken.java:149/161/165`）对一次提交建**三个**聚合 future
-并调度一次定时器；`Par.map` 每批只建一次（摊薄），`Par.submit` 每任务建一次。
+`CancellationToken.bind`（`CancellationToken.java:228-245`）对一次绑定仍建两层
+`successfulAsList` 和一层 `allAsList`，正常有限 deadline 路径还读两次时钟
+（`CancellationToken.java:232,261`）。`Par.map` 按批摊薄，`Par.submit` 每任务建一次；
+但当前 `Par.submit` 已无主源码调用方（`Par.java:389`），只有包内测试使用，公开用户影响不再成立。
 
-- **实测**：`Par.submit` **4578 B/op、2727 ns/op**；`Par.map` 每元素 **1935 B/op**（2.4×）。
-  参照：裸 `direct.execute(noop)` 16 ns / 0 B。
-- **修复**：`futures.size() == 1` 时走快路径（`bind` 的返回值只用于保留，四个调用点都不读值），
-  但必须保持"外层聚合是唯一同时覆盖任务 future 与 submitCanceller 的可取消句柄"。
-- **风险**：中——落在取消传播核心路径，按仓库惯例需独立对抗性审查。
+- **历史实测**：旧探针记录 `Par.submit` 4578 B/op、2727 ns/op，`Par.map` 每元素 1935 B/op；
+  “2.4×”是分配量比值，不是延迟比值。该探针为非 JMH best-of-3，且比较大量独立单任务与单一批次，
+  不能作为当前收益证明。
+- **旧修复前提已失效**：`bind` 返回值现在交给 `runtime.retainUntilComplete`
+  （`Par.java:407-410,454-456`），不再是“调用点都不读值”。快路径若恢复，必须同时保留
+  “外层聚合是唯一覆盖任务 future 与 submitCanceller 的可取消句柄”和完成保留契约。
+- **状态**：机制仍在，未重新实测。先确认这个仅测试调用的内核入口是否仍值得性能投入；
+  若保留，再用当前版本比较单任务与单元素/小批次，并覆盖 deadline、fail-fast、pre-bind cancel
+  与 submitCanceller 级联。
 
-### P-P2 · `TaskBatchResult` 无条件预建观测聚合
+### P-P2 · 无条件预建批次观测聚合——已修复（0.4）
 
-`TaskBatchResult.java:59` 在构造时无条件调用 `aggregateObservations`（`:69-93`）：O(N) 监听器注册，
-成功后再做一次全量 `ImmutableList.copyOf`（`:83`，Guava 返回的本就是 `unmodifiableList`）。
-
-- **影响**：只用 `results()`/`valuesOrThrow()`/`report()` 的调用方白付；失败批次连堆栈一起被钉住。
-- **修复**：`completionView` 惰性化（`awaitBodyCompletion` 触发初始化）。
+生产同步出口现在等待不收集值的观测发布屏障；内部完整观测列表只有被请求时才构造。
+冻结仍逐项读取可用观测并结合落定归因，保留缺失项与共享清理预算。现行不变量见
+[同步出口契约](design/synchronous-scope-exit.md)；其他结果投影与统计优化仍在
+[P0027](design/proposal/P0027-result-projection-measurement.md) 测量范围内。
 
 ### P-P3 · 大 batch 的常驻内存
 
-`TaskObservation.settledSnapshot`（`TaskObservation.java:45,55-69`）发布后不清空，
-`BodyCompletionTracker.slots` 也不释放；经 `Task → TaskObservation → supplier → TaskExecutionContext`
-链条，**任一已完成 task future 可达即钉住整批**跟踪状态。
+`TaskObservation.settledSnapshot` 是 final，发布后不清空（`TaskObservation.java:43-46,186-192`）；
+`BodyCompletionTracker.slots` 也是 final，`release()` 只完成 `bodyExit`，不清空列表
+（`BodyCompletionTracker.java:46,87-92`）。经
+`Task → TaskObservation.supplier → TaskExecutionContext → TaskBodyState → BodyCompletionTracker`
+链条，**任一已完成内部 task future 可达即钉住整批槽位**。
 
-- **修复**：在 `publish` 获胜路径置空 supplier（**`publishSkipped` 路径不能清**，否则后续 `signal()` NPE）；
-  `slots` 在 outstanding 归零时释放。
+- **影响面已收窄**：`TaskFuture` 是包私有类型，公开同步结果只暴露冻结的 `ImmediateResult` /
+  `TaskCompletion` 数据（`TaskFuture.java:7-15`），用户拿不到这个 task future。当前后果限于内核或
+  包内测试仍持有已完成 Task 的路径，尚未证明存在生产可达的长期持有者。
+- **状态**：机制仍在，未重新实测。下一步用 GC/WeakReference 或反射保留探针确认完成批次后是否有
+  生产路径保留内部 Task；若没有，关闭或降级本项。若确认有，才评估在发布获胜路径释放 supplier
+  与在 outstanding 归零时释放 slots，并保持 `publishSkipped` 的后续 `signal()` 行为。
 
-### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费
+### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费——分配半项**已修复 `96fa94d`**
 
-- `:862-866` 在取锁**之前**无条件分配 `Node<?>[64]` + `Object[64]`（约 1 KB）——空队列、3 元素队列一视同仁。
-- `:899-922` `unlinkIfPresent` 再从 `head` 全扫一趟找前驱。
+- 已修：空队列直接返回，非空队列的搜索缓冲按 live count 定长，超过 64 个元素才用 64 槽批次。
+- 剩余候选（未量化）：确认阶段从 `head` 重扫找前驱。「锁内快照—锁外 equals—锁内按身份确认」是
+  [draining-queue-contract.md](design/draining-queue-contract.md) 的现行要求，两次遍历不是可直接合并的
+  重复；复用前驱提示须先证明不破坏并发重验。
 
-与 JDK 的公平对比：`LinkedBlockingQueue.remove` 同样持双锁全扫，**增量**是"两趟遍历 + 每次 1 KB 垃圾"。
-修复：空队列早退 + 按 `count` 定长；unlink 复用 `bulkRemove` 已有的前驱提示。
-
-### P-P5 · 队列包零散项（读码）
+### P-P5 · 队列包零散项（读码，2026-10-27 按机制名复核）
 
 | 位置 | 问题 |
 |---|---|
-| `DrainingBlockingQueue.java:496,528,692` | `put`/`offer(t)`/`add` 的 `new Node<>` 仍在 `putMonitor` 内（`offer` 已外提） |
-| `:651-668, 710-762` | `peek`/`element`/`remove()` 缺 `poll` 那样的免锁空路径 |
-| `:1180-1193` | `toArray(T[])` 恒双拷贝（`destination` 够大时也先建中间数组） |
-| `:830` | `clear()` 无条件 `signalPutReady()`，含空操作分支 |
-| `VariableLinkedBlockingQueue.java:510-526` | `Itr.remove` 每次从 head 重扫 → `ThreadPoolExecutor.purge()` 场景 O(k·n) |
-| `HeuristicPurger.java:363, :268` | 无条件 CAS 与无条件 `Stopwatch`（日志开关在后面才判） |
+| `DrainingBlockingQueue` 的 `put`、限时 `offer`、`add` | `new Node<>` 仍在 `putMonitor` 内（非阻塞 `offer` 已外提） |
+| `DrainingBlockingQueue` 的 `peek`/`element`/无参 `remove()` | 缺 `poll` 那样的免锁空路径；加快路径须保留与并发入队、`DRAINED`、poison 的 happens-before |
+| `DrainingBlockingQueue.toArray(T[])` | 恒双拷贝（`destination` 够大时也先建中间数组）；须保留「锁内只复制引用、用户数组写入在锁外」 |
+| `DrainingBlockingQueue.clear()` | 无条件 `signalPutReady()`，含空操作分支 |
+| `VariableLinkedBlockingQueue` 迭代器的 `remove` | 每次从 head 重扫 → `ThreadPoolExecutor.purge()` 场景 O(k·n) |
+
+原表还有一行 `HeuristicPurger` 的无条件 CAS 与 `Stopwatch`；该类已随自动 purge 移出主线（`9784312`），不再是待修项。
 
 ### P-P6 · 热路径常数项（读码）
 
-`Checkpoints.java:537`（无 deadline 也读 `nanoTime`）、`CancellationToken.java:43-47`
-（`stateListeners` 永远分配）、`CancellationToken.java:150,166`（`bind` 读两次时钟）、
-`MultiTaskContext.java:50`（unitId 字符串拼接）、`TaskOptions.java:94,112`（每次提交 2 个 `Optional` + `UnitSpec`）、
-`Par.java:285` → `ExecutorRuntime.java:110-113`（每次提交重算 `rejectEnqueueEffective()`）。
+- 无 deadline 也读时钟：`Checkpoints.java:572-592` → `CancellationToken.deadlineExpired()`
+  （`CancellationToken.java:191-193`）无条件读 `ticker`；旧行号已失效。
+- `stateListeners` 永远分配：每个 token 创建 `CopyOnWriteArrayList`（`CancellationToken.java:52`）。
+- `bind` 读两次时钟：正常、有限且未过期 deadline 路径读两次（`CancellationToken.java:232,261`）；
+  无 deadline 不走第二次。
+- unitId 字符串成本：每 unit 一次 `String.valueOf(...)`，不再是旧文所指字符串拼接
+  （`MultiTaskContext.java:181-190`）。
+- options 载体：当前每次调用是 1 个 `Optional` 加 1 个 `UnitSpec`，不是 2 个 `Optional`
+  （`TaskOptions.java:86-89,101-104`）。
+- enqueue 能力检查：只有显式 `rejectEnqueue=true` 才调用
+  `ExecutorRuntime.enqueueRefusalEffective()`（`Par.java:487-489`；`ExecutorRuntime.java:98-100`），
+  默认提交路径没有这次队列查询；旧“每次提交重算”表述已失效。
 
-### P-P7 · 每批次一个阻塞 submitter 线程，跑在无界池上
+以上均未重新实测；建议随小批次/小组准入一起测量，避免逐项凭读码优化。
 
-`SlidingWindowSubmitter` 每批向 `submitterPool` 提交一个 `submitRemaining`（`:145`），该线程
-阻塞在 `blockingQueue.take()`（`:247`）等待窗口推进；池是无界 `Executors.newCachedThreadPool`
-（`ParRuntime.java:99`；`:98` 的 `timeoutActionPool` 同）。并发批次数大时线程规模与资源假设
-无任何文档。
+### P-P7 · 每批次一个阻塞 submitter 线程，跑在无界池上——**已修复（完成事件补窗）**
 
-- **修复**：提交器改用固定池或复用调度线程；至少把资源假设写进文档。
+`SlidingWindowSubmitter` 现由元素完成事件驱动的 `RefillDriver` 认领下一元素
+（`SlidingWindowSubmitter.java:105-141,247-369`），不再为每批保留等待补窗的
+`submitRemaining` 线程，也没有 `submitterPool`。框架等待补窗线程的成本不再随并发批次数增长。
+
+- **回归**：`SlidingWindowResourceBoundTest` 锁住“阻塞的有限窗口批次不驻留 submitter 线程”，
+  基线反证为 24 条等待线程、修复后为 0；契约见
+  [sliding-window-refill.md](design/sliding-window-refill.md)。
+- 本项只覆盖 submitter 池；`timeoutActionPool` 等其他运行时线程池不在此条范围内。
 
 ---
 
@@ -144,19 +170,25 @@ Guava 的 SEVERE 日志里。
 - **旁证**：`TaskBatchResult.java:158` 的 javadoc 自夸 "forgetting to handle failure is not possible here"，
   恰好在本场景被推翻。
 
-### A-P1 · `CancellationToken` 是不可达的公开类型
+### A-P1 · `CancellationToken` 是不可达的公开类型 ——**已修复（0.4，包私有化）**
 
 公开表面中**没有任何成员返回或接受它**（全量反编译扫描确认），但该类型有 3 个公开构造器、
 `create()`、`cancel()`/`cancel(boolean)`、`state()`/`originState()` 等 10 个公开成员。
 用户可以 `new CancellationToken()` 后 `cancel()`——编译通过、运行无副作用。
 
 - 附带：`State`（6 常量）与 `TaskOutcome`（8 常量）是两套部分重叠的词汇表。
-- 指南也在讲用户拿不到的对象：`user-guide.md:412`（已在 `1ba1937` 修）、`cooperative-cancellation.md:86`。
+- 指南也在讲用户拿不到的对象：`docs/en/user-guide.md`（已在 `1ba1937` 修）、
+  `docs/en/reference/cooperative-cancellation.md`。
 - `design/extension-and-wrapping.md` 的唯一扩展点是任务体本身，未把它列为扩展点 → 判定为内核泄漏。
 - **修复**：类型 + `State` 包私有化。破坏面：`ParRuntime.java:547` 的 javadoc 链接、
   `PublicApiSurfaceTest` 两行、同包测试不受影响。
 
-### A-P2 · 诊断断言无作用域时静默返回 `false`
+### A-P2 · 诊断断言无作用域时静默返回 `false` ——**已关闭（0.4，随请求级观测一并删除）**
+
+**处置（`59fe375`）**：`TaskGraphObservationScope` 与全部静态 `has*()` 查询已随请求级任务图观测一并删除，
+由常开的运行时执行器等待图取代（`design/task-graph.md`）。新图没有作用域，`ParRuntime.executorWaitReport()`
+在包括关闭之后的任何时候都可读，因此不存在"无作用域时静默返回 false"这一状态。本条不是靠三态查询修复的，
+实例三态化也已在 `design/task-graph.md` §6 被拒绝。以下原文保留作记录。
 
 `TaskGraphObservationScope` 的 `hasTaskCycle()`/`hasSelfLoop()`/`hasExecutorCycle()`/
 `hasExecutorSelfLoop()`（`:110-145`）读静态 TTL 的当前作用域；**无活动作用域时返回 `false`**，
@@ -166,7 +198,8 @@ Guava 的 SEVERE 日志里。
   `DISABLED/NO_ISSUE/ISSUE`。
 - **修复**：改为实例方法 `scope.hasTaskCycle()`（用户本就持有该实例），或返回 `TaskGraphReport.Status`。
 - **状态（任务图重构后）**：任务级 `hasTaskCycle()`/`hasSelfLoop()` 已删除（生产中恒为 false，见
-  `design/task-graph.md` §6）；剩下的 `hasExecutorCycle()`/`hasExecutorSelfLoop()` 仍有本条问题。
+  `design/task-graph.md` §6）；当时剩下的 `hasExecutorCycle()`/`hasExecutorSelfLoop()` 已随 `59fe375`
+  删除，整个公开查询面不复存在。
 
 ### A-P3 · 两个访问器让用户静默出错 ——`failure()` 半项已修复
 
@@ -186,8 +219,8 @@ Guava 的 SEVERE 日志里。
 
 | 成员 | 位置 | 问题 |
 |---|---|---|
-| `TaskCompletion.succeeded(...)` / `failed(...)` | `TaskCompletion.java:66, :87` | 8/9 个位置参数 + 3 个裸纳秒时间戳；仅同包测试用；且让用户能**伪造看起来由库产出的归因记录** |
-| `SmartBlockingQueue.create(int)` | `SmartBlockingQueue.java:82` | 零调用；`capacity <= 0` 返回 `SynchronousQueue`，与公开构造器（`:29`）抛 `IllegalArgumentException` 冲突——一类两契约 |
+| ~~`TaskCompletion.succeeded(...)` / `failed(...)`~~ | — | **已删除（0.4，2026-10-27）**，理由见 decision-log |
+| ~~`SmartBlockingQueue.create(int)`~~ | — | **已删除（0.4，2026-10-27）**，理由见 decision-log |
 | ~~`TaskGroupResult.memberCount()`~~ | ~~`TaskGroupResult.java:91`~~ | 已随 `5d598ac` 删除（零调用，等于 `members().size()`） |
 | `ParRuntime` purge setter + 4 个 live getter | `ParRuntime.java:237-272` | 仅测试调用；构建期 `ParRuntimePurgePolicy` 已能表达。**待确认**是否有运维用途 |
 
@@ -197,10 +230,10 @@ Guava 的 SEVERE 日志里。
 
 | 位置 | 问题 |
 |---|---|
-| `TaskType.java:10-11` | `taskType` 在非 `SmartBlockingQueue` 队列上**完全静默**，且无任何诊断（`rejectEnqueue` 至少有一次 per-Par 告警） |
+| ~~`TaskType.java:10-11`~~ | ~~`taskType` 在非 `SmartBlockingQueue` 队列上**完全静默**~~ **已不适用（0.4，2026-10-30）**：`TaskType` 改为诊断声明、从不影响入队（ADR 0008），由提交时比对与负载匹配筛查消费 |
 | `MultiTaskContext.java:168-169` | `parallelism(0)` 实为最大并发，与"0 个并行"的直觉相反；指南只说了负值 |
 | `MultiTaskContext.java:203-210` | 超大 `Duration` 溢出饱和为 `Long.MAX_VALUE`，而它同时是"无 deadline"哨兵 → 有限超时静默变无限 |
-| ~~`GroupStep`/`GroupStart` vs 查询侧~~ | ~~`futureOf`/`valueOf` 只有 `TypeToken`~~ **已修复（工作区，未提交）**：公开查询侧新增 `GroupValues.valueOf(String, Class<T>)`、`TaskGroupResult.resultOf(String, Class<T>)`；`futureOf`/`futureAt` 所在的 `TaskGroup` 已包私有，不在公开面 |
+| ~~`GroupStep`/`GroupStart` vs 查询侧~~ | ~~`futureOf`/`valueOf` 只有 `TypeToken`~~ **已随 TaskKey 重设计关闭**：2026-10-02 工作区批次新增的 `valueOf(String, Class<T>)`/`resultOf(String, Class<T>)` 重载已被 0.4 迁移移除——类型化读取统一走 `TaskKey`，动态名/位查询返回 `Object`/`ImmediateResult<?>`（见 docs/en/migration-v0.4.md）；`futureOf`/`futureAt` 所在的 `TaskGroup` 已包私有，不在公开面 |
 | ~~`TaskBatchResult.java:363-372`~~ | ~~`firstException() == null` 双义~~ **已随同步化重构作废**：公开 `TaskBatchResult` 按构造即冻结终态，null 只剩"没有失败"一义 |
 | ~~`TaskBatchResult.java:37, :237`~~ | ~~`close()` 返回 `void`~~ **已随同步化重构作废**：`TaskBatchResult` 不再是 `AutoCloseable` |
 
@@ -215,23 +248,27 @@ Guava 的 SEVERE 日志里。
 **同步化重构后的复核**（`d01bf4e` "make scope execution synchronous" + `fd5c310`，复核于 `8523f64`）：
 批次与组改为同步出口（`Par.map` 阻塞返回冻结的 `TaskBatchResult`；组用 `runAll()` 返回
 `TaskGroupResult`），**O-1 已被该重构取代**（下文的 `close()`/阻塞实测不再适用），O-6/O-7/O-8 的
-证据按下述更新，其余条目仍成立（个别行号已更新）。P/A 明细的行号仍以 `c9f4c19` 为基准；
-P-P1/P-P2/P-P3 在重构后复核仍存在。
+证据按下述更新，其余条目仍成立（个别行号已更新）。P/A 明细原先以 `c9f4c19` 为基准；
+P-P1/P-P3/P-P6 已于 2026-10-31 按 `2ccb9ab` 复核更新影响面，P-P2 已由 0.4 同步出口修复。
+其余条目行号仍可能漂移。
 
 | 编号 | 一句话 | 类别 | 证据 | 代价 |
 |---|---|---|---|---|
 | ~~O-1~~ | ~~批次缺 `cancel()`；`close()` 默认等待预算＝剩余 deadline~~ **已被同步化重构取代**（见下） | — | — | — |
 | ~~O-2~~ | ~~`parallelism` 默认无界（＝库自己文档化的反模式），任何一处文档都没写明~~ **已修复（工作区，见下）** | — | — | — |
-| O-3 | 无法显式表达"无 deadline"；超大 `Duration` 静默饱和为哨兵 | API | 读码 | 低-中 |
+| ~~O-3~~ | ~~`unbounded()` 工厂~~ **已否决（2026-10-27）**；残余饱和缺陷**已修复（D1）** | 缺陷 | 实测 | — |
 | ~~O-4~~ | ~~注册虚拟线程 executor 的告警文案事实错误、处方错误~~ **已修复（工作区，未提交）** | — | — | — |
 | O-5 | 交互式演示只有中文却挂在英文站点；CI 只查 `.md` 不查 `.html` | 文档/i18n | 读码 | 低-中 |
 | O-6 | 动态批次 + 终端汇合无组合形态，deadline 语义差异未文档化 | 功能 | 读码 | 中-高 |
-| O-7 | `stateCounts()` ↔ `outcomeCounts()`，checked ↔ unchecked，两套读法 | API | 读码 | 低-中 |
-| O-8 | 嵌套批次体内读取（checked `valuesOrThrow()`）无文档化写法 | 文档 | 实测 | 低 |
+| ~~O-7~~ | ~~`stateCounts()` ↔ `outcomeCounts()`，checked ↔ unchecked，两套读法~~ **已修复（0.4，聚合读取统一）** | — | — | — |
+| ~~O-8~~ | ~~嵌套批次体内读取（checked `valuesOrThrow()`）无文档化写法~~ **已修复（0.4，批次读取改非受检）** | — | — | — |
 | O-9 | 主源码零 `@since`；`package-info` 无入口导引 | 文档 | 读码 | 低 |
-| ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复（工作区，未提交）** | — | — | — |
+| ~~O-10~~ | ~~README 快速开始缺 0.3 旗舰（任务组）示例~~ **已修复 `c8f12c2a`**（2026-10-02 的工作区批次未落地；本次以 0.3.0 Class 形态补 README，中英 quickstart 补 0.4 TaskKey 形态） | — | — | — |
 | O-11 | 无时间缝（TimeSource），用户难以确定性测试超时/取消 | 功能/可测性 | 读码 | 高 |
 | ~~O-12~~ | ~~`TaskGroup` 成了不可达的公开类型~~ **已不存在**：`TaskGroup` 现为包私有（`TaskGroup.java:59`），`TaskGroupReport` 无公开签名泄漏 | — | — | — |
+| O-16 | 负载匹配筛查的阈值与 CPU 计时开销未实测（2026-10-30 落地时照提案原值） | 功能/校准 | 读码 | 低-中 |
+| ~~O-17~~ | ~~负载匹配窗口按单元名无上限累计~~ **已解决（ADR 0010）**：窗口删除，单元归因每条目至多 256 个 | — | — | — |
+| O-18 | v0.4.0 发布合流时 docs 里的 `blob/dev/v0.4.0/` 源码链接会原样上站，翻转取舍无自动化、需按链接性质决定 | 文档/发布 | 读码 | 低-中 |
 
 ### O-1 ·（已被同步化重构取代）批次缺 cancel-only 入口，`close()` 预算＝剩余 deadline
 
@@ -260,12 +297,13 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 "缺省＝整批一次性提交"；demo 文章反模式 #1 同步改写。"是否强制显式选择"随之定案：保持默认，
 默认值自解释 + 非正值拒绝，不强制显式。
 
-### O-3 · 无法表达"无 deadline"
+### O-3 · 超大 timeout 饱和为"无 deadline"哨兵 ——`unbounded()` **已否决**，饱和缺陷**已修复（D1，2026-10-27）**
 
-顶层无外层作用域可继承时，用户只能编天文数字；超大 `Duration` 静默饱和为 `Long.MAX_VALUE`
-（`Deadlines.java:71-76`），与"无 deadline"哨兵同值（A-P7 第 3 项只记了溢出一半）。建议加显式工厂
-`unbounded()`（`BatchOptions`/`TaskOptions`；组对应 `groupUnbounded`）——是显式第三选择而非漏写，
-不违反"逼用户思考"；顺带在 resolved deadline 为哨兵时免调度定时器（P-P1 热路径顺风车）。
+`unbounded()` 工厂已由维护者否决，理由见 `design/decision-log.md` 与
+[idea-graveyard](docs/zh/design/idea-graveyard.md)。残余缺陷（`ChronoUnit.FOREVER` 等天文数字经饱和
+算术到达哨兵，不布防定时器、默认清理预算归零）按 D1 修复：`MultiTaskContext.resolveDeadlineNanos`
+把显式 timeout 的解析结果钳制在 `Deadlines.LATEST_FINITE_DEADLINE`（`Long.MAX_VALUE - 1`），契约见
+[synchronous-scope-exit.md](design/synchronous-scope-exit.md) §4；回归测试 `ExplicitDeadlineSaturationTest`。
 
 ### O-4 · 虚拟线程 executor 注册告警文案错误 ——**已修复（工作区，未提交）**
 
@@ -288,16 +326,12 @@ P-P1/P-P2/P-P3 在重构后复核仍存在。
 归因区分（业务 `TimeoutException` ≠ 框架 TIMEOUT）也已修复。旧条目：动态 N 的汇总只能落在
 调用线程或用固定元数的组包一层。
 
-### O-7 / O-8 · 读取面不对称
+### O-7 / O-8 · 读取面不对称 ——**已修复（0.4，2026-10-27）**
 
-同步化重构后更明显——批次侧 checked、组侧 unchecked：`valuesOrThrow()` 抛 checked
-`ExecutionException`（`TaskBatchResult.java:67`）↔ 组侧 `valuesOrThrow()`/`orThrow()` 均 unchecked
-（`TaskGroupResult.java:151`、`:173`）；计数仍是 `BatchReport.stateCounts()`
-（`TaskBatchResult.java:124`）↔ `TaskGroupResult.outcomeCounts()`（`:190`）两种名字。
-O-8：`Par.map` 的 body 仍是 `Function`（`ThrowingFunction` 已被用户否决，不得重开），实测在 body 内直接
-调用 `valuesOrThrow()` 编译失败；且嵌套 `map` 现在是同步阻塞调用，会占住 worker。修复：文档给出标准
-写法（`Futures.getUnchecked` / 显式 try-catch / 读 `ImmediateResult`）；是否补 unchecked 读取口与
-O-7 同批决策。
+批次聚合读取改用组侧规则：`TaskBatchResult`/`BatchCombinedResult` 新增 `orThrow()`，`valuesOrThrow()`/
+`terminalValueOrThrow()` 非受检；`BatchReport` 删除，计数与首失败改为 `outcomeCounts()`/`failedTaskResult()`。
+批次 body 内嵌套 `valuesOrThrow()` 不再需要 try/catch。规则见 `design/synchronous-scope-exit.md` §3，
+取舍见 decision-log 的「Batch and group aggregate reads」条目。
 
 ### O-9 / O-10 · 低成本复利（文档）
 
@@ -319,13 +353,13 @@ deadline/超时判定全部直读 `System.nanoTime()`，无注入点，用户无
 公开可达签名中。本条记录时的前提（"public final class TaskGroup"）已不成立，无需修复；
 A-P1（`CancellationToken` 孤岛）仍开放。
 
-### O-13 · 纯超时批次的 `report().firstException()` 恒 null
+### O-13 · 纯超时批次的 `failedTaskResult()` 恒为空
 
-来源：`design/kimi-review-0.3.0-snapshot.md` B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
+来源：kimi 0.3.0-SNAPSHOT 审核 B1 的残余，2026-10-02 按当前 HEAD 复核仍成立。
 `ImmediateResult` 已保证每个非 SUCCESS 元素带 `LeanCancellationException`（含任务名与归因），
-但 `TaskBatchResult.report().firstException()` 只聚合用户/提交失败，纯超时批次拿不到任何异常
-（`TaskBatchResult.java:94-99`；`TaskBatchResultTest.java:298` 把 null 钉为期望）。
-待拍板：这是设计如此（firstException 只指用户失败，超时归因读逐元素
+但 `TaskBatchResult.failedTaskResult()`（原 `report().firstException()`）只取用户/提交失败，纯超时批次为空；
+`orThrow()` 此时抛首个非成功元素的取消异常。
+待拍板：这是设计如此（`failedTaskResult()` 只指执行失败，与组侧同义；超时归因读逐元素
 `ImmediateResult.failure()`），还是应为取消类结局提供聚合异常。
 
 ### O-14 · `FAIL_FAST` 同时覆盖"在飞被取消"与"从未提交"的元素，指南未说明
@@ -341,6 +375,38 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 跨版本 diff（japicmp/revapi 或发布时 javap 计数）缺失；0.x 政策允许破坏性变更，
 更需要机械手段防止"无意"破坏。非发版阻塞。
 
+### O-16 · 负载匹配筛查的阈值与开销未实测（2026-10-30）
+
+来源：`P0025-workload-fit-diagnostics` 落地时的待拍板点。证据：读码，未实测。
+
+- 低 CPU 判定的周期（10 秒执行时间）与阈值（CPU 时间低于一半）没有在真实负载下校准；常开之后，
+  它们决定生产环境里 `WARNING` 的噪声，需要使用反馈。
+- 被筛查任务体两次 `ThreadMXBean.getCurrentThreadCpuTime()` 的单次开销不做 JMH 实测：维护者
+  2026-10-30 决定不引入 JMH，预期没有实际收益。开销只落在条目或单元声明为 `COMPUTE` 的任务体上，
+  其他任务体不读任何时钟（ADR 0010）。
+- `COMPUTE` 条目上的 `BLOCKING` 单元按提案记 `WARNING`；它是否过响需要使用反馈。
+- 提交时比对的去重表改为不可变集合加 compare-and-set 后，每个新出现的不一致对复制至多 1024 项、竞争
+  失败会重建；这条冷路径同样不做基准测试，规模受 1024 的容量上限约束。
+
+### O-17 · 负载匹配窗口按单元名无上限累计 ——**已解决（ADR 0010，2026-10-30）**
+
+观测窗口随常开筛查一起删除。判定改为按条目汇总，单元只用于归因，每个条目至多归因 256 个单元，
+其余任务体计入 `unattributedBodies()`，内存随注册拓扑有界。
+
+### O-18 · v0.4.0 发布时正文源码链接的翻转取舍（2026-10-30）
+
+来源：SSOT 审计问题 2 的延伸发现。证据：读码——`git show` 对比 `dev/v0.3.0`、`main`、`dev/v0.4.0`
+的 docs 链接写法与 `gh-pages.yml` 触发条件。
+
+- 0.4 线 docs（8 个文件、11 处）链接 `blob/dev/v0.4.0/...`：ADR 0008、decision-log、demo 文档等在
+  `main` 上尚不存在，发布前指向 `main` 会 404，指向 dev 是必要的。
+- `gh-pages.yml` 只从 `main` 构建发布站点；发布合流是手工 PR（v0.3.0 为 #59/#60），没有链接翻转
+  自动化。v0.3.0 没有此问题，是因为当时正文里唯一的源码链接本来就写成 `main`。
+- v0.4.0 合流后这些链接将原样发布：`dev/v0.4.0` 分支保留、链接不 404，但随开发线前进而与已发布内容
+  漂移。既有惯例是活契约链接用 `blob/main/`（如 draining-queue-contract）。
+- 需要维护者在发布 PR 里按链接性质取舍：活契约与指南翻成 `main`；带日期的历史注记可保留指向当期
+  dev 分支的快照。发布后再翻亦可，但站点会有一段指向开发线的窗口期。
+
 ---
 
 ## 已修复（无需再动）
@@ -355,11 +421,10 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 ## 待决策
 
-1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不入库。** 4 个探针
-   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）曾随 `a3ac144` 短暂进入 `benchmarks/`，
-   按 `design/decision-log.md` 所载 caller-runs 拍板（benchmark 暂缓、源文件
-   未收入库；拍板全文 `git show db2ab2d:design/archive/caller-runs-support-after-inline-deletion.md`）移出工作树；复现性能数字时从 `a3ac144` 的历史取回
-   （`git show a3ac144:benchmarks/Bench.java` 等），`/tmp/pisbench/` 副本可弃。
+1. ~~**测量仪器是否入库**~~ **已决（2026-10-02）：不作构建或发布产物维护。** 4 个探针
+   （`Bench`/`Probe`/`FailureShape`/`TimerProbe`）已随归档目录删除：它们测的是已不存在的代码，
+   性能结论须按当前代码重新测量（见 P0027）。caller-runs 拍板的结论与理由见
+   [design/decision-log.md](design/decision-log.md)。
 2. **是否引入动态批次 + 终端汇合**（O-6）：触碰 Batch/Group 抽象边界，
    须过 `design/first-principles.md` 六问清单。
 3. **是否引入 TimeSource 时间缝**（O-11）：跨内核改动，须过六问 + 独立对抗性审查；
@@ -379,13 +444,14 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 
 > P-P0、A-P0 已于 `9f8867c` 完成。
 
-1. ~~**用户使用速修（O 组）**~~ **已完成（2026-10-02）**：O-4（告警文案）、O-10（README 任务组示例）；
+1. ~~**用户使用速修（O 组）**~~ **已完成**：O-4（告警文案，2026-10-02）、O-10（README 任务组示例，`c8f12c2a`；2026-10-02 批次该项实际未落地）；
    O-9（`@since`）仍开放。O-1 已随同步化重构关闭，O-2 已修复（工作区）。
-2. **性能线**：P-P1（落在取消传播核心路径，按惯例配独立对抗性审查）、随后 P-P2/P-P3。
+2. **性能线**：P-P2、P-P7 已完成。剩余先测 P0027 的公开冻结结果读取，再做 P-P3 的内部保留审计；
+   P-P1、P-P6 在代表性实测前不进入实现。
 3. **公开面收敛（破坏性，合成一次变更）**：A-P1（`CancellationToken` 孤岛）与 A-P6（零调用公开成员），
-   顺带 A-P2（`has*()` 三态化）、A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
-   同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P3 的
-   `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
+   A-P3 剩余半项（公开 `failedTask()`）、O-7 的命名/checked 收敛；
+   同步更新 `PublicApiSurfaceTest`、迁移说明与用户指南。（O-12 已确认不存在；A-P2 已随请求级观测关闭，
+   `has*()` 三态化不再需要；A-P3 的 `failure()` 口径与 A-P7 的查询侧 `Class<T>` 重载已于 2026-10-02 完成。）
 4. **开放问题**（走六问清单）：待决策两项——batch+combine（O-6）与 TimeSource（O-11）。
    （parallelism 强制化已随 O-2 定案：保持默认。）
 
@@ -402,7 +468,6 @@ A-P1（`CancellationToken` 孤岛）仍开放。
   `ParRuntime.java:106/:144`、`BodyCompletionTracker.java:220` 的 WARNING 日志直接调用；用户替换的
   JUL handler 抛出时可改变 build/prepare/close 的控制流。同文件的 `warnUnfinished` 已用 quiet-logging
   守卫，风格应统一。代价低；修法：套用既有 quiet-logging 惯例并补回归。
-- 记录（非缺陷）：`TaskGraphObservationScope` 的 ISSUE 诊断仍在报告发布前调用，阻塞型 handler 可推迟
-  发布（R8 已记为 informational）；`ExecutionPhaseHintFuture.java:117` 的 SEVERE 文案未带"阶段"词，
+- 记录（非缺陷）：`ExecutionPhaseHintFuture.java:117` 的 SEVERE 文案未带"阶段"词，
   L7 若按字面要求两站点都带阶段则部分满足。
 

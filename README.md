@@ -8,13 +8,24 @@
 [![License](https://img.shields.io/github/license/monadrome/parallel-in-scope)](LICENSE)
 [![Interactive demo](https://img.shields.io/badge/interactive--demo-live-blueviolet)](https://monadrome.github.io/parallel-in-scope/interactive-demo.html)
 
-> Latest stable release: `0.3.0`. This version is a breaking redesign of the task-group API —
-> migrating from `0.2.x`? Read the [v0.3 migration guide](docs/en/migration-v0.3.md) first.
+> Latest stable release: `0.4.0`. This release adds typed task keys, request cancellation, adopted
+> futures, and runtime diagnostics. Migrating from `0.3.x`? Read the [v0.4 migration guide](docs/en/migration-v0.4.md) first.
 
 A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution,
-context propagation, sliding-window scheduling, and thread-pool deadlock diagnostics.
+context propagation, sliding-window scheduling, and thread-pool deadlock and starvation diagnostics.
 
-## Quick Start
+## Requirements
+
+| Use | Requirement |
+|---|---|
+| Runtime | Java 8 or newer |
+| Build | JDK 25 LTS (Error Prone/NullAway enforce this at compile time) |
+| Build tool | Maven 3.9.x |
+
+The published artifact remains Java 8 bytecode. A JDK 21 build is rejected by the enforcer; switch
+to JDK 25 before running Maven.
+
+## Minimal Example
 
 Add the dependency from Maven Central:
 
@@ -22,55 +33,68 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>parallel-in-scope</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-Register every logical entry with the executor it must use, once at the composition root, and close
-both the runtime and your own executors when the application shuts down:
+This smallest complete program uses one executor, one batch, and an explicit timeout:
 
 ```java
-ExecutorService ioPool = Executors.newFixedThreadPool(8);
-ExecutorService httpPool = Executors.newFixedThreadPool(4);
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
+import io.github.monadrome.parallelinscope.ParRuntime;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-ParRuntime runtime = ParRuntime.builder()
-        .register(ParId.of("io"), ioPool)
-        .register(ParId.of("http"), httpPool)
-        .build();
+public final class QuickStart {
 
-Par ioPar = runtime.par(ParId.of("io"));
-Par httpPar = runtime.par(ParId.of("http"));
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        ParRuntime runtime = ParRuntime.builder()
+                .register(ParId.of("io"), pool)
+                .defaultPar(ParId.of("io"))
+                .build();
 
-try {
-    BatchOptions options = BatchOptions.timeout("fetch-user", Duration.ofSeconds(3))
-            .parallelism(4)
-            .taskType(TaskType.IO_BOUND);
-
-    TaskBatchResult<User> result = ioPar.map(userIds, userService::findById, options);
-
-    for (ImmediateResult<User> item : result.results()) {
-        System.out.println(item.outcome());
+        try {
+            Par io = runtime.defaultPar();
+            List<Integer> numbers = Arrays.asList(1, 2, 3, 4);
+            TaskBatchResult<Integer> squares = io.map(
+                    numbers,
+                    n -> n * n,
+                    BatchOptions.timeout("squares", Duration.ofSeconds(5)).parallelism(2));
+            System.out.println("SUCCESS:" + squares.valuesOrThrow());
+        } finally {
+            runtime.close();
+            pool.shutdownNow();
+        }
     }
-
-    TaskGroupResult<Tuple2<User, Account>, Profile> group = runtime
-            .group("profile", Duration.ofSeconds(3))
-            .par("user", ioPar, User.class, () -> loadUser(userId))
-            .par("account", httpPar, Account.class, () -> loadAccount(userId))
-            .combine("profile", httpPar, Profile.class,
-                    values -> buildProfile(values.first(), values.second()))
-            .runAll();
-    Profile profile = group.terminalValueOrThrow();
-} finally {
-    runtime.close();
-    try {
-        runtime.awaitQuiescence(Duration.ofSeconds(30));
-    } catch (InterruptedException interrupted) {
-        Thread.currentThread().interrupt();
-    }
-    ioPool.shutdownNow();
-    httpPool.shutdownNow();
 }
 ```
+
+Expected output is `SUCCESS:[1, 4, 9, 16]`. `map` is synchronous and blocks the calling thread;
+interrupting that caller does not cancel the batch. The timeout is a forced choice: use
+`timeout(...)` or `inheritTimeout(...)`. Batches fail fast: the first failure cancels remaining
+elements, including elements that have not been submitted yet.
+
+`Par.map` accepts a `Function`, so checked exceptions must be wrapped, for example:
+
+```java
+java.util.function.Function<String, String> mapper = value -> {
+    try {
+        return read(value);
+    } catch (java.io.IOException failure) {
+        throw new java.io.UncheckedIOException(failure);
+    }
+};
+```
+
+On `0.3.x`, `valuesOrThrow()` reports a checked `ExecutionException`; the `0.4.0` release uses
+an unchecked failure instead.
 
 Three contracts shape that first call:
 
@@ -79,28 +103,34 @@ Three contracts shape that first call:
   by omission, and an explicit timeout is capped by any enclosing deadline.
 - **A batch is fail-fast.** The first failure cancels the rest of the batch, including elements that
   were never submitted. Read `ImmediateResult.outcome()` for the per-element verdict (`USER_FAILURE`,
-  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `bodyCompletionConfirmed()`
-  before releasing resources shared by direct bodies, and confirm nested exits separately.
+  `TIMEOUT`, `FAIL_FAST`, …) after the synchronous call returns. Results need no close; check `executionExitConfirmed()`
+  before releasing resources shared by direct executions, and confirm nested exits separately.
 - **Parallelism defaults to no cap.** `BatchOptions` starts at `Integer.MAX_VALUE`, which resolution
   caps at the task count — omit `.parallelism(...)` and the whole batch is submitted at once. Set it
   explicitly to bound the sliding window; zero or negative values are rejected at the entry.
 
-The same snippet also declares a **task group**: a fixed set of named tasks, each with its own `Par`,
-declared type, and body, aggregated by one terminal `combine`. `runAll()` executes the chain once and
-returns a frozen result; read the terminal value with `terminalValueOrThrow()`.
-
-`ParRuntime.close()` releases the framework-owned timer and submitter services; it never shuts down
-the executors you registered, so the example closes both pools itself in the `finally` block.
-
-Cross-thread context propagation runs on Alibaba `TransmittableThreadLocal` (TTL): a TTL value is
-captured when the task is prepared and restored on the worker thread — a plain `ThreadLocal` does
-not cross the pool boundary:
+A fixed, heterogeneous set of named operations — fetch the user and the account, then build the
+profile — goes through a one-shot group instead of a batch. On the `0.4.0` release, reuse typed
+keys for declarations and result reads:
 
 ```java
-TransmittableThreadLocal<String> traceId = new TransmittableThreadLocal<>();
-traceId.set("req-42");
-// the mapper inside par.map(...) reads "req-42" on the pool thread
+TaskKey<User> user = TaskKey.named("user");
+TaskKey<Account> account = TaskKey.named("account");
+TaskKey<Profile> profileKey = TaskKey.named("profile");
+TaskGroupResult<Tuple2<User, Account>, Profile> profile = runtime
+        .group("profile", Duration.ofSeconds(3))
+        .par(user, io, () -> loadUser(userId))
+        .par(account, io, () -> loadAccount(userId))
+        .combine(profileKey, io,
+                values -> Profile.of(values.first(), values.second()))
+        .runAll();
+Profile value = profile.terminalValueOrThrow();
 ```
+
+`runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
+The first member failure cancels its siblings, and a member timeout cancels the group. Batch
+aggregate reads are unchecked in `0.4.0`; group reads were already unchecked. See the
+[v0.4 migration guide](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/docs/en/migration-v0.4.md).
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).
@@ -111,7 +141,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 - Deadline, fail-fast, and parent-to-child cancellation propagation
 - Sliding-window submission with bounded concurrency
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
-- Task-type-aware queue admission (`TaskType` drives `SmartBlockingQueue` refusal, not scheduling)
+- Opt-in queue refusal (`rejectEnqueue` with `SmartBlockingQueue`) and workload-fit diagnostics (`TaskType` flags blocking work in compute pools; it never changes execution)
 - Frozen task observations: `completions()` / group `members()` and `terminal()`
 - Cycle detection across task and executor graphs
 
@@ -121,12 +151,14 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 |---|---|
 | [Online documentation](https://monadrome.github.io/parallel-in-scope/) | Published guide for the released line |
 | [Interactive demo](https://monadrome.github.io/parallel-in-scope/interactive-demo.html) | Single-file animated walkthrough of the four core semantics (Chinese UI) |
-| [English documentation](docs/en/index.md) | User guide, API contracts, design notes, and case studies |
-| [v0.3 migration guide](docs/en/migration-v0.3.md) | Breaking changes from the `0.2.x` task-group API |
-| [v0.2 migration guide](docs/en/migration-v0.2.md) | Breaking changes from the `0.1.x` API |
-| [Full user guide](docs/en/user-guide.md) | Configuration, API usage, execution flow, and advanced features |
-| [Demo project](demo/README.en.md) | Runnable examples and the article catalog |
-| [Chinese documentation](docs/zh/index.md) | Complete Chinese documentation set |
+| [Stable English documentation](https://monadrome.github.io/parallel-in-scope/) | Guide for the released `0.4.0` line |
+| [v0.4 documentation source](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Frozen source for the stable release |
+| [0.4 documentation](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/docs/en) | Release guide for `0.4.0` |
+| [Demo project](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/demo) | Runnable examples and the article catalog |
+| [Integration samples](https://github.com/monadrome/parallel-in-scope/tree/v0.4.0/integrations) | 0.4.0 standalone Resilience4j, Sentinel, and Spring examples |
+| [Contributing](CONTRIBUTING.md) | Development and contribution workflow |
+| [Changelog](CHANGELOG.md) | Release history |
+| [Stable Chinese documentation](https://monadrome.github.io/parallel-in-scope/zh/) | Guide for the released `0.4.0` line |
 
 ## Compatibility and Build
 

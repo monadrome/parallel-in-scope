@@ -1,0 +1,80 @@
+package io.github.monadrome.parallelinscope;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verifyNotNull;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * Bounded once-per-pair memory of the submission-time {@link TaskType} mismatches one {@link
+ * ParRuntime} has reported.
+ *
+ * <p>A pair is a {@link Par} and a unit name. The memory never exceeds its capacity and never
+ * evicts. A pair is reported once; after capacity is reached, one overflow is reported and later
+ * new pairs are silent.
+ */
+final class TaskTypeMismatches {
+    /*
+     * An entry has one declared type, so a pair needs no direction in its key. The immutable set is
+     * replaced by CAS: only the admission whose insertion wins reports the pair; a separate
+     * overflow marker similarly assigns one admission the overflow report.
+     */
+
+    static final int CAPACITY = 1024;
+
+    /** What the caller should report for one mismatched admission. */
+    enum Outcome {
+        /** The pair was stored now; report it individually. */
+        FIRST,
+        /** Nothing to report: the pair was already reported, or the overflow was. */
+        SILENT,
+        /**
+         * The memory is full and this admission is the first to find it so; report the overflow
+         * once.
+         */
+        OVERFLOW
+    }
+
+    private final int capacity;
+    private final AtomicReference<ImmutableSet<Map.Entry<ParId, String>>> reported =
+            new AtomicReference<>(ImmutableSet.of());
+    private final AtomicBoolean overflowReported = new AtomicBoolean();
+
+    TaskTypeMismatches() {
+        this(CAPACITY);
+    }
+
+    /** Test seam: a smaller capacity, so boundary races can repeat cheaply. */
+    @VisibleForTesting
+    TaskTypeMismatches(int capacity) {
+        checkArgument(capacity > 0, "capacity %s must be positive", capacity);
+        this.capacity = capacity;
+    }
+
+    /** Records one mismatched admission of {@code unitName} through {@code par}. */
+    Outcome record(ParId par, String unitName) {
+        Map.Entry<ParId, String> pair = Maps.immutableEntry(par, unitName);
+        for (; ; ) {
+            ImmutableSet<Map.Entry<ParId, String>> current = verifyNotNull(reported.get());
+            if (current.contains(pair)) {
+                return Outcome.SILENT;
+            }
+            if (current.size() >= capacity) {
+                return overflowReported.compareAndSet(false, true) ? Outcome.OVERFLOW : Outcome.SILENT;
+            }
+            ImmutableSet<Map.Entry<ParId, String>> next =
+                    ImmutableSet.<Map.Entry<ParId, String>>builderWithExpectedSize(current.size() + 1)
+                            .addAll(current)
+                            .add(pair)
+                            .build();
+            if (reported.compareAndSet(current, next)) {
+                return Outcome.FIRST;
+            }
+        }
+    }
+}

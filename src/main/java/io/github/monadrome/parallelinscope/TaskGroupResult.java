@@ -9,7 +9,7 @@ import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
@@ -21,10 +21,11 @@ import org.jspecify.annotations.Nullable;
 /**
  * Frozen outcome, typed results, and available final observations of a synchronous group.
  *
- * <p>Accessors never wait. A terminal result can coexist with a body still unwinding after
- * cancellation; bodyCompletionConfirmed checks direct members and the combine, not nested children.
- * Nested calls must separately confirm exit before releasing resources their bodies share. Missing final
- * observations are omitted, never filled with provisional end times.
+ * <p>Accessors never wait. A terminal result can coexist with an execution still unwinding after
+ * cancellation; executionExitConfirmed checks direct members, the combine, and adopted sources,
+ * not nested children.
+ * Nested calls must separately confirm exit before releasing resources their executions share. Missing
+ * final observations are omitted, never filled with provisional end times.
  *
  * @param <V> single member value or left-nested Tuple2 of member values
  * @param <R> terminal combine value, or Void when no combine was declared
@@ -33,33 +34,35 @@ import org.jspecify.annotations.Nullable;
 public final class TaskGroupResult<V, R> {
     private final TaskGroupReport report;
     private final ImmutableList<String> names;
-    private final ImmutableList<TypeToken<?>> types;
+
     private final Map<String, ImmediateResult<?>> results;
+    private final Map<TaskKey<?>, ImmediateResult<?>> keyedResults;
     private final Map<String, TaskCompletion<?>> members;
     private final ImmediateResult<GroupValues<V>> values;
     private final @Nullable ImmediateResult<R> terminalResult;
     private final @Nullable TaskCompletion<?> terminal;
-    private final Map<String, Integer> unfinishedBodies;
+    private final Map<String, Integer> unexitedExecutions;
 
     TaskGroupResult(
             TaskGroupReport report,
             ImmutableList<String> names,
-            ImmutableList<TypeToken<?>> types,
             Map<String, ImmediateResult<?>> results,
+            Map<TaskKey<?>, ImmediateResult<?>> keyedResults,
             Map<String, TaskCompletion<?>> members,
             ImmediateResult<GroupValues<V>> values,
             @Nullable ImmediateResult<R> terminalResult,
             @Nullable TaskCompletion<?> terminal,
-            Map<String, Integer> unfinishedBodies) {
+            Map<String, Integer> unexitedExecutions) {
         this.report = report;
         this.names = names;
-        this.types = types;
+
         this.results = ImmutableMap.copyOf(results);
+        this.keyedResults = ImmutableMap.copyOf(keyedResults);
         this.members = ImmutableMap.copyOf(members);
         this.values = values;
         this.terminalResult = terminalResult;
         this.terminal = terminal;
-        this.unfinishedBodies = ImmutableMap.copyOf(unfinishedBodies);
+        this.unexitedExecutions = ImmutableMap.copyOf(unexitedExecutions);
     }
 
     /**
@@ -88,19 +91,17 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * The {@link System#nanoTime()} reading taken when the group converged on its outcome: every
-     * member and the combine had a terminal result. Result convergence is independent of task-body
-     * exit; see {@link #bodyCompletionConfirmed()}.
+     * member and the combine had a terminal result. Result convergence is independent of task execution
+     * exit; see {@link #executionExitConfirmed()}.
      */
     public long endTimeNanos() {
         return report.endTimeNanos();
     }
 
     /**
-     * The group's absolute deadline, the earlier of its own timeout and any enclosing deadline, on
-     * the clock of its cancellation-token tree — the {@code ParRuntime}'s clock for a root group,
-     * the parent's for a nested one. That clock is not necessarily {@link System#nanoTime()}, so
-     * compare this only with other deadlines of the same runtime. {@link Long#MAX_VALUE} means no
-     * deadline.
+     * The group's absolute deadline, the earlier of its own timeout and any enclosing deadline, in
+     * the execution's monotonic clock domain. Compare it only with deadlines from the same clock
+     * domain; it is not a wall-clock timestamp. {@link Long#MAX_VALUE} means no deadline.
      */
     public long deadlineNanos() {
         return report.deadlineNanos();
@@ -108,9 +109,10 @@ public final class TaskGroupResult<V, R> {
 
     /**
      * How the group as a whole ended. A group with a recorded failure — of a member or of the
-     * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code SUBMISSION_FAILURE})
-     * whatever order the tasks completed in; otherwise {@code SUCCESS} or a cancellation outcome
-     * ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}). See {@link TaskOutcome}.
+     * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code
+     * SUBMISSION_FAILURE}) whatever order the tasks completed in; otherwise {@code SUCCESS} or a
+     * cancellation outcome ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}).
+     * See {@link TaskOutcome}.
      */
     public TaskOutcome outcome() {
         return report.outcome();
@@ -168,21 +170,26 @@ public final class TaskGroupResult<V, R> {
     }
 
     /**
-     * Whether every direct task body — each member's and the combine's — had exited, or was
+     * Whether every direct task execution — each member's and the combine's — had exited, or was
      * atomically prevented from starting, when {@code runAll} returned. A cancelled member's result
-     * can be terminal while its body is still unwinding, so check this before releasing a resource
-     * the bodies share. Bodies of nested calls made inside them are not covered.
+     * can be terminal while its execution is still unwinding, so check this before releasing a resource
+     * the executions share. Executions of nested calls made inside them are not covered. An adopted member
+     * occupies one exit slot connected as already run: confirmation also means every adopted source settled.
+     * It does not wait for asynchronous resource cleanup owned by the source's own pipeline, including a
+     * ClosingFuture pipeline whose finishToFuture result has already settled.
      */
-    public boolean bodyCompletionConfirmed() {
-        return unfinishedBodies.isEmpty();
+    public boolean executionExitConfirmed() {
+        return unexitedExecutions.isEmpty();
     }
 
     /**
-     * The direct task bodies whose exit was not confirmed when {@code runAll} returned, counted by
-     * task name; empty exactly when {@link #bodyCompletionConfirmed()} is true.
+     * The direct task executions whose exit was not confirmed when {@code runAll} returned, counted by
+     * task name; empty exactly when {@link #executionExitConfirmed()} is true. A source that
+     * ignores cancellation keeps its adopted member's slot waiting and is counted here under the
+     * member's declared name.
      */
-    public Map<String, Integer> unfinishedBodies() {
-        return unfinishedBodies;
+    public Map<String, Integer> unexitedExecutions() {
+        return unexitedExecutions;
     }
 
     /** All member values on group success; failure includes failure of the declared combine. */
@@ -218,74 +225,26 @@ public final class TaskGroupResult<V, R> {
     }
 
     /**
-     * The result container at a declaration position, checked against the type token declared for
-     * that slot. The match is exact: a supertype or a raw type of the declared type is rejected.
+     * Reads a member's or terminal combine's frozen result using its exact declaration key.
+     * Successful, failed, and cancelled tasks are all readable; this method never waits.
      *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
-     *     count
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
+     * @throws NullPointerException if the key is null
+     * @throws IllegalArgumentException if the key was not declared in this group
      */
-    public <T> ImmediateResult<T> resultAt(int index, TypeToken<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        checkIndex(index);
-        checkArgument(
-                types.get(index).equals(expectedType),
-                "member at index %s was declared as %s but queried as %s",
-                index,
-                types.get(index),
-                expectedType);
-        return cast(resultAt(index));
+    public <T> ImmediateResult<T> resultOf(TaskKey<T> key) {
+        checkNotNull(key, "key cannot be null");
+        ImmediateResult<?> result = keyedResults.get(key);
+        checkArgument(result != null, "no task declared with task key '%s'", key);
+        return cast(Verify.verifyNotNull(result));
     }
 
     /**
-     * The result container at a declaration position, checked against the class declared for that
-     * slot.
+     * Reads successful group values; rethrows unchecked failures and wraps checked failures.
      *
-     * <p>Shorthand for {@link #resultAt(int, TypeToken)} with {@code TypeToken.of(expectedType)}:
-     * identical validation, including the exact-match requirement. Use it for non-generic member
-     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
-     *
-     * @throws NullPointerException if {@code expectedType} is null
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than the member
-     *     count
-     * @throws IllegalArgumentException if {@code expectedType} is not exactly the declared type
+     * @return the member values in declaration order
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when the group did not succeed and no task recorded a failure
      */
-    public <T> ImmediateResult<T> resultAt(int index, Class<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        return resultAt(index, TypeToken.of(expectedType));
-    }
-
-    /**
-     * The named member's result container, checked against the type token declared for that slot.
-     * The match is exact: a supertype or a raw type of the declared type is rejected.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared type
-     */
-    public <T> ImmediateResult<T> resultOf(String name, TypeToken<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        return resultAt(locate(name), expectedType);
-    }
-
-    /**
-     * The named member's result container, checked against the class declared for that slot.
-     *
-     * <p>Shorthand for {@link #resultOf(String, TypeToken)} with {@code TypeToken.of(expectedType)}:
-     * identical validation, including the exact-match requirement. Use it for non-generic member
-     * types; a parameterized type still needs a token, because a {@code Class} cannot carry it.
-     *
-     * @throws NullPointerException if {@code name} or {@code expectedType} is null
-     * @throws IllegalArgumentException if no member was declared with that name, or {@code
-     *     expectedType} is not exactly the declared type
-     */
-    public <T> ImmediateResult<T> resultOf(String name, Class<T> expectedType) {
-        checkNotNull(expectedType, "expectedType cannot be null");
-        return resultOf(name, TypeToken.of(expectedType));
-    }
-
-    /** Reads successful group values; rethrows unchecked failures and wraps checked failures. */
     public GroupValues<V> valuesOrThrow() {
         orThrow();
         try {
@@ -295,7 +254,14 @@ public final class TaskGroupResult<V, R> {
         }
     }
 
-    /** Reads the successful combine value, including null; requires a declared combine. */
+    /**
+     * Reads the successful combine value, including null; requires a declared combine.
+     *
+     * @return the terminal value, possibly null
+     * @throws IllegalStateException if no combine was declared
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when the group did not succeed and no task recorded a failure
+     */
     public @Nullable R terminalValueOrThrow() {
         ImmediateResult<R> result = terminalResult;
         checkState(result != null, "group '%s' declares no combine; use valuesOrThrow()", groupName());
@@ -307,17 +273,25 @@ public final class TaskGroupResult<V, R> {
         }
     }
 
-    /** Preserves the group's existing unchecked failure and pure-cancellation conventions. */
+    /**
+     * Returns this result on group success; otherwise throws the recorded failure of a member or
+     * the combine — as-is when unchecked, wrapped in {@link CompletionException} when checked — or
+     * a {@link CancellationException} when no task recorded a failure. {@link
+     * TaskBatchResult#orThrow()} and {@link BatchCombinedResult#orThrow()} follow the same rule.
+     *
+     * @return this result
+     * @throws CompletionException wrapping the recorded failure when it is checked
+     * @throws CancellationException when no task recorded a failure
+     */
+    @CanIgnoreReturnValue
     public TaskGroupResult<V, R> orThrow() {
         if (outcome() == TaskOutcome.SUCCESS) {
             return this;
         }
         Throwable failure = report.recordedFailure();
-        if (failure instanceof RuntimeException) throw (RuntimeException) failure;
-        if (failure instanceof Error) throw (Error) failure;
         if (failure != null) {
-            throw new CompletionException(
-                    "task group '" + groupName() + "' failed in '" + failedTaskName() + "'", failure);
+            throw TaskBatchResult.selectedFailure(
+                    failure, "task group '" + groupName() + "' failed in '" + failedTaskName() + "'");
         }
         Throwable cancellation = values.failure();
         if (cancellation instanceof CancellationException) throw (CancellationException) cancellation;

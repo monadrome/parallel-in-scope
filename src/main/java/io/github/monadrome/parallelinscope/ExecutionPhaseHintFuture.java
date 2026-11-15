@@ -24,13 +24,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     private static final Logger LOGGER = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
 
-    /** Cleared permanently when the body exits or becomes ineligible to run. */
+    /** Cleared permanently when the execution exits or becomes ineligible to run. */
     private volatile @Nullable Callable<V> callable;
 
     /** Execution hints are separate from the future's completion state. */
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.SUBMITTED);
 
-    private final @Nullable TaskBodyState bodyState;
+    private final @Nullable TaskExecutionState executionState;
 
     private volatile @Nullable Thread runner;
 
@@ -39,6 +39,14 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * runner exit waits for delivery before restoring the thread's flag or returning.
      */
     private volatile boolean interruptDeliveryInProgress;
+
+    /**
+     * Whether this future's winning {@code cancel(true)} delivered its interrupt to a published
+     * runner. Written only by {@link #interruptTask()}, before the interrupt, and read by the runner
+     * when it chooses the late-failure log level. A future runs at most once, so the flag describes
+     * that one run and never the later tasks that reuse the same thread.
+     */
+    private volatile boolean cancellationInterruptDelivered;
 
     private volatile boolean inlineForbidden;
 
@@ -59,13 +67,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return new ExecutionPhaseHintFuture<>(callable, null);
     }
 
-    static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable TaskBodyState bodyState) {
-        return new ExecutionPhaseHintFuture<>(callable, bodyState);
+    static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable TaskExecutionState executionState) {
+        return new ExecutionPhaseHintFuture<>(callable, executionState);
     }
 
-    private ExecutionPhaseHintFuture(Callable<V> callable, @Nullable TaskBodyState bodyState) {
+    private ExecutionPhaseHintFuture(Callable<V> callable, @Nullable TaskExecutionState executionState) {
         this.callable = Objects.requireNonNull(callable, "callable cannot be null");
-        this.bodyState = bodyState;
+        this.executionState = executionState;
     }
 
     /** Nonblocking hint; cancellation is visible even while interrupt delivery is pending. */
@@ -78,7 +86,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         callable = null;
     }
 
-    /** Test probe for body-reference release. */
+    /** Kernel probe for execution-reference release; TaskGroup's test probes read it. */
     boolean callableReleased() {
         return callable == null;
     }
@@ -127,8 +135,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     private String taskLabel() {
-        TaskBodyState body = bodyState;
-        return body == null ? "<untracked>" : body.name();
+        TaskExecutionState taskCode = executionState;
+        return taskCode == null ? "<untracked>" : taskCode.name();
     }
 
     @Nullable
@@ -154,7 +162,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         if (!phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.TERMINAL)) {
             return false;
         }
-        skipBody();
+        skipExecution();
         SubmissionException wrapped = new SubmissionException(failure);
         submissionFailure = wrapped;
         TaskObservation<V> published = observation;
@@ -174,23 +182,23 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return submissionFailure;
     }
 
-    private boolean claimBody() {
-        TaskBodyState body = bodyState;
-        return body == null || body.claimRunning();
+    private boolean claimExecution() {
+        TaskExecutionState taskCode = executionState;
+        return taskCode == null || taskCode.claimRunning();
     }
 
-    private void releaseBody() {
-        TaskBodyState body = bodyState;
-        if (body != null) {
-            body.exited();
+    private void releaseExecution() {
+        TaskExecutionState taskCode = executionState;
+        if (taskCode != null) {
+            taskCode.exited();
         }
     }
 
-    void skipBody() {
+    void skipExecution() {
         releaseCallable();
-        TaskBodyState body = bodyState;
-        if (body != null) {
-            body.skipped();
+        TaskExecutionState taskCode = executionState;
+        if (taskCode != null) {
+            taskCode.skipped();
         }
     }
 
@@ -202,39 +210,47 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
         // Inline execution borrows a thread: isolate its flag and restore the entry state on exit.
         boolean interruptedOnEntry = Thread.interrupted();
-        @Nullable MultiTaskContext borrowedScope = SubmissionScope.current();
+        MultiTaskContext borrowedScope = SubmissionScope.current();
         if (borrowedScope != null) {
             // Nested submissions must not inherit the outer submission's enqueue policy.
             SubmissionScope.restore(null);
         }
         runner = Thread.currentThread();
-        boolean skipped = !claimBody();
-        @Nullable Callable<V> body = callable;
+        boolean skipped = !claimExecution();
+        Callable<V> taskCode = callable;
         boolean cancelled = isCancelled();
         boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
         try {
             if (inlineViolation) {
-                // The body is already claimed; finally publishes its exit rather than skipping it.
+                // The execution is already claimed; finally publishes its exit rather than skipping it.
                 setException(new SubmissionException(new RejectedExecutionException(
                         "task '" + taskLabel() + "' was run on the submitting thread by its executor's"
                                 + " RejectedExecutionHandler, but its contract permits only a worker of its"
                                 + " target Par; the pool was saturated at submission")));
-            } else if (!skipped && !cancelled && body != null) {
-                set(body.call());
+            } else if (!skipped && !cancelled && taskCode != null) {
+                set(taskCode.call());
             }
         } catch (Throwable failure) {
+            /*
+             * The level decision runs only when setException loses to a settled cancellation, so it
+             * can never change the result or its attribution; it chooses only how loudly to report
+             * a failure that no longer has a result to carry.
+             */
             if (!setException(failure) && isCancelled()) {
                 try {
-                    LOGGER.log(Level.WARNING, "task '" + taskLabel() + "' failed after cancellation", failure);
+                    LOGGER.log(
+                            lateFailureLevel(failure),
+                            failure,
+                            () -> "task '" + taskLabel() + "' failed after cancellation");
                 } catch (Throwable ignored) {
                     // Diagnostics cannot break runner cleanup.
                 }
             }
         } finally {
-            // Release captures before the fallback body-exit publication.
+            // Release captures before the fallback execution-exit publication.
             releaseCallable();
             // Fallback for paths where ScopedCallable did not publish exit; idempotent.
-            releaseBody();
+            releaseExecution();
             runner = null;
             // Withdraw runner, then finish pending delivery before the thread can be reused.
             while (interruptDeliveryInProgress) {
@@ -255,12 +271,64 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         }
     }
 
+    /**
+     * Chooses the level for an execution failure that arrived after this future settled as cancelled.
+     *
+     * <p>Returns {@link Level#FINE} for exactly two shapes, both with no suppressed exceptions: a
+     * {@link CheckpointCancellation}, which only {@link Checkpoints} constructs after reading a
+     * committed token; and an {@link InterruptedException} thrown on this run after this future's
+     * cancellation interrupt was delivered to it, with the thread's interrupt flag clear. Every other
+     * failure, including an unmarked or wrapped cancellation exception, any failure carrying a
+     * suppressed exception, and an {@code InterruptedException} without this run's delivery, returns
+     * {@link Level#WARNING}. Must be called on the runner thread from {@link #run()}.
+     *
+     * @param failure the late failure; the original object is logged at either level
+     * @return {@link Level#FINE} for a cancellation acknowledgement, else {@link Level#WARNING}
+     */
+    private Level lateFailureLevel(Throwable failure) {
+        /*
+         * Provenance, never exception type (design/synchronous-scope-exit.md section 4): the check
+         * reads only the exception object and this future's own delivery flag, never the token, so
+         * it cannot race the cancellation cascade. A suppressed exception is an independent failure,
+         * typically from close(), and keeps the warning.
+         */
+        if (failure.getSuppressed().length != 0) {
+            return Level.WARNING;
+        }
+        if (failure instanceof CheckpointCancellation) {
+            return Level.FINE;
+        }
+        /*
+         * Kernel delivery. interruptTask() writes cancellationInterruptDelivered before calling
+         * interrupt(); a JDK blocking call that throws because of that interrupt has observed it, and
+         * Thread.interrupt synchronizes-with that detection (JLS 17.4.4), so this read sees true.
+         * The JDK clears the flag when it throws; a flag that is still set means this exception was
+         * not that consumption (for example close() throwing a fresh InterruptedException after the
+         * execution restored the flag), so it stays a warning. Accepted residual risk: after delivery, an
+         * independent InterruptedException thrown with the flag clear is also FINE; cancellation has
+         * already committed and the result has already settled, so no outcome is hidden.
+         */
+        if (failure instanceof InterruptedException
+                && cancellationInterruptDelivered
+                && !Thread.currentThread().isInterrupted()) {
+            return Level.FINE;
+        }
+        return Level.WARNING;
+    }
+
     @Override
     protected void interruptTask() {
         interruptDeliveryInProgress = true;
         try {
             Thread executing = runner;
             if (executing != null) {
+                /*
+                 * Written only when a published runner is read, so a cancellation before runner
+                 * publication or after its withdrawal in run()'s finally never marks this run.
+                 * Written before interrupt() so a runner that observes the interrupt also observes
+                 * the flag.
+                 */
+                cancellationInterruptDelivered = true;
                 executing.interrupt();
             }
         } finally {
@@ -274,7 +342,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             return;
         }
         if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
-            skipBody();
+            skipExecution();
         } else {
             phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING);
         }

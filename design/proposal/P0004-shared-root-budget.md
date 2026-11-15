@@ -5,7 +5,7 @@
 - 核心出发点：不同同步动态范围中的 root 调用共用端到端预算，减少人工折算剩余时间。
 - 不变量与拟议 MUST：预算 MUST 是显式、只读且携带单调时钟域的值；有效 deadline MUST
   取本次、祖先与共享预算的最小值。耗尽 MUST 走 bind-before-submit 的 TIMEOUT 路径。
-- 被否决方向及理由：单条流水线已有 direct 协调 body，不能只为少一层 lambda 引入类型；
+- 被否决方向及理由：单条流水线已有 direct 协调执行，不能只为少一层 lambda 引入类型；
   不混用 Instant/nanoTime，不构造 ambient RequestScope，不将零客户端 timeout 当无限等待。
 
 ## 目标与论证
@@ -17,7 +17,7 @@
 
 ```java
 runtime.group("request", totalTimeout)
-        .par("pipeline", coordinatorPar, new TypeToken<List<Report>>() {}, () -> {
+        .par(TaskKey.<List<Report>>named("pipeline"), coordinatorPar, () -> {
             List<Value> values = ioPar.map(ids, this::fetch,
                     BatchOptions.inheritTimeout("fetch")).valuesOrThrow();
             return reportPar.map(values, this::render,
@@ -27,7 +27,7 @@ runtime.group("request", totalTimeout)
 ```
 
 这是可行替代。`coordinatorPar` 可以注册 Guava 的 direct executor service，在调用线程执行
-协调 body，避免占用一个等待子任务的池 worker；与子调用共用受限池才可能饥饿。单条
+协调执行，避免占用一个等待子任务的池 worker；与子调用共用受限池才可能饥饿。单条
 同步流水线优先用这个方案，不应仅为少写一层 lambda 引入预算类型。也可由应用逐次计算
 绝对截止点的剩余时间，但需要正确处理预算耗尽、单位取整和每段调用前的再次校验。
 
@@ -53,8 +53,8 @@ List<Report> reports = reportPar.map(values, this::render,
 跨 runtime 的域兼容规则和取消已经发生但预算仍为正的情况都要先明确。
 
 兼容与契约：可选的额外 deadline 上界，无旧调用迁移；修改 deadline 解析规则，不修改
-caller interruption 和 body-exit 保证。需要与请求取消提案 P0001 分别评审，避免一个入口同时承担
+caller interruption 和执行-exit 保证。需要与请求取消提案 P0001 分别评审，避免一个入口同时承担
 “预算值”和“可变取消所有者”两种角色。
 
-与 [P0001](P0001-request-cancellation.md) 分开评审；跨 runtime 时钟域兼容规则与预算耗尽
+与 `proposal:P0001` 分开评审；跨 runtime 时钟域兼容规则与预算耗尽
 行为明确后才可实施。新增选择是兼容的，无旧调用迁移。接口草图没有编译或行为验证。

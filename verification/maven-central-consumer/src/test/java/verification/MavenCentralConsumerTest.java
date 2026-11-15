@@ -1,6 +1,7 @@
 package verification;
 
-import com.google.common.reflect.TypeToken;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.GroupValues;
@@ -10,10 +11,12 @@ import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.ImmediateResult;
 import io.github.monadrome.parallelinscope.TaskGroupResult;
+import io.github.monadrome.parallelinscope.TaskKey;
 import io.github.monadrome.parallelinscope.TaskOutcome;
 import io.github.monadrome.parallelinscope.TaskOptions;
 import io.github.monadrome.parallelinscope.TaskType;
 import io.github.monadrome.parallelinscope.Tuple2;
+import io.github.monadrome.parallelinscope.WorkloadFitReport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -30,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,13 +43,70 @@ class MavenCentralConsumerTest {
     private static final ParId CONSUMER = ParId.of("consumer-pool");
 
     @Test
+    void artifactExposesTypedKeysToAJava8Consumer() throws Exception {
+        TaskKey<String> user = TaskKey.named("user");
+        TaskKey<List<Integer>> orders = TaskKey.named("orders");
+        TaskKey<Integer> total = TaskKey.named("total");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try (ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build()) {
+            Par par = runtime.par(CONSUMER);
+            TaskGroupResult<Tuple2<String, List<Integer>>, Integer> result = runtime.group("keys", Duration.ofSeconds(5))
+                    .par(user, par, () -> "alice")
+                    .par(orders, par, () -> Arrays.asList(2, 3))
+                    .combineValues(total, par, values -> values.valueOf(orders).stream().mapToInt(Integer::intValue).sum())
+                    .runAll();
+            String name = result.valuesOrThrow().valueOf(user);
+            List<Integer> orderValues = result.resultOf(orders).valueOrThrow();
+            assertEquals("alice", name);
+            assertEquals(Arrays.asList(2, 3), orderValues);
+            assertEquals(Integer.valueOf(5), result.resultOf(total).valueOrThrow());
+            assertThrows(IllegalArgumentException.class, () -> result.resultOf(TaskKey.named("user")));
+            assertThrows(IllegalArgumentException.class, () -> result.valuesOrThrow().valueOf(total));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void adoptedFuturesJoinTheGroupScopeOnJava8() throws Exception {
+        TaskKey<String> ready = TaskKey.named("ready");
+        TaskKey<String> pending = TaskKey.named("pending");
+        TaskKey<String> failing = TaskKey.named("failing");
+        TaskKey<String> joined = TaskKey.named("joined");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try (ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build()) {
+            Par par = runtime.par(CONSUMER);
+            TaskGroupResult<Tuple2<String, String>, String> success = runtime.group("adopted", Duration.ofSeconds(5))
+                    .adopt(ready, Futures.immediateFuture("a"))
+                    .adopt(pending, par, Futures.immediateFuture("b"))
+                    .combine(joined, par, values -> values.first() + values.second())
+                    .runAll();
+            assertEquals("ab", success.terminalValueOrThrow());
+
+            SettableFuture<String> never = SettableFuture.create();
+            TaskGroupResult<?, Void> failed = runtime.group("adopted-failure", Duration.ofSeconds(5))
+                    .adopt(ready, Futures.immediateFuture("a"))
+                    .adopt(pending, never)
+                    .par(failing, par, () -> {
+                        throw new IllegalStateException("boom");
+                    })
+                    .runAll();
+            assertEquals(TaskOutcome.USER_FAILURE, failed.outcome());
+            assertTrue(never.isCancelled());
+            assertTrue(failed.executionExitConfirmed());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void publishedArtifactCanBeResolvedAndUsed() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
             BatchOptions options = BatchOptions.timeout("consumer-smoke", Duration.ofSeconds(5))
                     .parallelism(2)
-                    .taskType(TaskType.IO_BOUND);
+                    .taskType(TaskType.BLOCKING);
 
             Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(Arrays.asList(1, 2), value -> value * 2, options);
@@ -60,7 +121,7 @@ class MavenCentralConsumerTest {
             assertEquals("consumer-smoke", options.name());
             assertEquals(2, options.parallelism());
             assertEquals(Optional.of(Duration.ofSeconds(5)), options.timeout());
-            assertEquals(TaskType.IO_BOUND, options.taskType());
+            assertEquals(TaskType.BLOCKING, options.taskType());
             assertEquals(CONSUMER, par.id());
             assertEquals(runtime, par.runtime());
         } finally {
@@ -70,8 +131,46 @@ class MavenCentralConsumerTest {
     }
 
     /**
+     * Always-on workload-fit screening times every execution admitted through an entry declared
+     * {@code COMPUTE} with thread CPU time. Screening drops its own failures, so a CPU-time path that
+     * breaks on the Java 8 runtime shows up only here, as unmeasured or missing executions.
+     */
+    @Test
+    void computeEntryIsScreenedWithThreadCpuTimeOnJava8() throws Exception {
+        ParId compute = ParId.of("consumer-compute");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try (ParRuntime runtime = ParRuntime.builder().register(compute, executor, TaskType.COMPUTE).build()) {
+            TaskBatchResult<Long> result = runtime.par(compute).map(
+                    Arrays.asList(1, 2, 3, 4),
+                    value -> {
+                        long sum = 0;
+                        for (int i = 0; i < 100_000; i++) {
+                            sum += i % (value + 1);
+                        }
+                        return sum;
+                    },
+                    BatchOptions.timeout("consumer-compute", Duration.ofSeconds(5)).parallelism(2));
+            assertEquals(4, result.valuesOrThrow().size());
+
+            WorkloadFitReport report = runtime.workloadFitReport();
+            assertEquals(1, report.pars().size());
+            WorkloadFitReport.ParMeasurement measurement = report.pars().get(0);
+            assertEquals(compute, measurement.par());
+            assertEquals(TaskType.COMPUTE, measurement.taskType());
+            assertEquals(4L, measurement.executions());
+            assertEquals(0L, measurement.unmeasuredExecutions());
+            assertEquals(1, measurement.units().size());
+            assertEquals(4L, measurement.units().get(0).executions());
+            assertFalse(measurement.issue());
+            assertFalse(report.anyIssue());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    /**
      * Exercises the deepest generic inference the public API asks of a consumer: a three-member
-     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose body
+     * chain whose value type is a left-nested {@link Tuple2}, a terminal combine whose execution
      * destructures that nest inside a lambda, and typed lookups. This runs under a real JDK 8
      * compiler in CI, which is where the nesting is most likely to break.
      */
@@ -79,19 +178,14 @@ class MavenCentralConsumerTest {
     void publishedArtifactExposesTheOneShotGroupChain() throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
-        TypeToken<List<String>> namesType = new TypeToken<List<String>>() {};
         try {
             Par par = runtime.par(CONSUMER);
             TaskGroupResult<Tuple2<Tuple2<String, List<String>>, Integer>, String> group = runtime
                     .group("consumer-group", Duration.ofSeconds(5))
-                    .par("user", par, String.class, () -> "alice")
-                    .par("names", par, namesType, () -> Arrays.asList("a", "b"))
-                    .par("count", par, Integer.class, () -> 2)
-                    .combine(
-                            "summary",
-                            par,
-                            String.class,
-                            values -> values.first().first() + ":"
+                    .par(TaskKey.<String>named("user"), par, () -> "alice")
+                    .par(TaskKey.<List<String>>named("names"), par, () -> Arrays.asList("a", "b"))
+                    .par(TaskKey.<Integer>named("count"), par, () -> 2)
+                    .combine(TaskKey.<String>named("summary"), par, values -> values.first().first() + ":"
                                     + values.first().second().size() + ":"
                                     + values.second())
                     .runAll();
@@ -104,9 +198,9 @@ class MavenCentralConsumerTest {
                 assertEquals(Integer.valueOf(2), typed.second());
 
                 assertEquals(3, values.size());
-                assertEquals("alice", values.valueOf("user", TypeToken.of(String.class)));
-                assertEquals(Arrays.asList("a", "b"), values.valueAt(1, namesType));
-                assertEquals("alice", group.resultOf("user", TypeToken.of(String.class)).valueOrThrow());
+                assertEquals("alice", values.valueOf("user"));
+                assertEquals(Arrays.asList("a", "b"), values.valueAt(1));
+                assertEquals("alice", group.resultOf("user").valueOrThrow());
                 assertEquals(
                         "alice:2:2",
                         group.terminalValueOrThrow());
@@ -125,10 +219,9 @@ class MavenCentralConsumerTest {
             Par par = runtime.par(CONSUMER);
             TaskGroupResult<Tuple2<String, Integer>, String> result = runtime
                     .group("class-options", Duration.ofSeconds(5))
-                    .par("user", par, TaskOptions.timeout(Duration.ofSeconds(2)), String.class, () -> "alice")
-                    .par("count", par, TaskOptions.inheritTimeout(), Integer.class, () -> 2)
-                    .combine("summary", par, TaskOptions.inheritTimeout(), String.class,
-                            values -> values.first() + ":" + values.second())
+                    .par(TaskKey.<String>named("user"), par, TaskOptions.timeout(Duration.ofSeconds(2)), () -> "alice")
+                    .par(TaskKey.<Integer>named("count"), par, TaskOptions.inheritTimeout(), () -> 2)
+                    .combine(TaskKey.<String>named("summary"), par, TaskOptions.inheritTimeout(), values -> values.first() + ":" + values.second())
                     .runAll();
 
             assertEquals(Tuple2.of("alice", 2), result.valuesOrThrow().typedValues());
@@ -185,7 +278,7 @@ class MavenCentralConsumerTest {
             assertEquals(Integer.valueOf(12), combined.terminalValueOrThrow());
             assertEquals(TaskOutcome.SUCCESS, combined.terminalResult().outcome());
             assertEquals(3, combined.batchResult().results().size());
-            assertTrue(combined.bodyCompletionConfirmed());
+            assertTrue(combined.executionExitConfirmed());
 
             // A failed element leaves the terminal cancelled without running the combine.
             BatchOptions failing = BatchOptions.timeout("combine-fail-fast", Duration.ofSeconds(5));
@@ -218,7 +311,7 @@ class MavenCentralConsumerTest {
         try {
             Par par = runtime.par(CONSUMER);
             // A successful null element value arrives as a null entry: the combine input is
-            // CombineBody<List<@Nullable E>, C>, so the body null-checks each entry.
+            // Combiner<List<@Nullable E>, C>, so the execution null-checks each entry.
             io.github.monadrome.parallelinscope.BatchCombinedResult<String, Integer> combined =
                     par.mapAndCombine(
                             Arrays.asList("a", "b", "c"),
@@ -258,7 +351,7 @@ class MavenCentralConsumerTest {
                     value -> awaitInterruption(started, interrupted, value),
                     BatchOptions.timeout("timeout-contract", Duration.ofMillis(200))
                             .parallelism(2)
-                            .taskType(TaskType.IO_BOUND));
+                            .taskType(TaskType.BLOCKING));
 
             assertTrue(started.await(5, TimeUnit.SECONDS), "tasks did not start");
             assertThrows(
@@ -292,7 +385,7 @@ class MavenCentralConsumerTest {
                     },
                     BatchOptions.timeout("fail-fast-contract", Duration.ofSeconds(10))
                             .parallelism(3)
-                            .taskType(TaskType.IO_BOUND));
+                            .taskType(TaskType.BLOCKING));
 
             assertThrows(
                     ExecutionException.class, () -> result.results().get(0).valueOrThrow());
@@ -324,18 +417,18 @@ class MavenCentralConsumerTest {
                                 value -> awaitInterruption(innerStarted, innerInterrupted, value),
                                 BatchOptions.timeout("inner-contract", Duration.ofSeconds(10))
                                         .parallelism(2)
-                                        .taskType(TaskType.IO_BOUND));
+                                        .taskType(TaskType.BLOCKING));
                         innerResult.set(nested);
                         innerReturned.countDown();
-                        // Stay in the body until the test releases it, swallowing the interrupt the
+                        // Stay in the execution until the test releases it, swallowing the interrupt the
                         // deadline delivers: the outer element must end cancelled by the deadline,
-                        // not by the body racing it with an exception of its own.
+                        // not by the execution racing it with an exception of its own.
                         awaitUninterruptibly(releaseOuter);
                         return outerValue;
                     },
                     BatchOptions.timeout("outer-contract", Duration.ofMillis(300))
                             .parallelism(1)
-                            .taskType(TaskType.IO_BOUND));
+                            .taskType(TaskType.BLOCKING));
 
             assertTrue(innerStarted.await(5, TimeUnit.SECONDS), "nested tasks did not start");
             assertThrows(

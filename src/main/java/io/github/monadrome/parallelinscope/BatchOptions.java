@@ -2,6 +2,8 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.CheckReturnValue;
 import java.time.Duration;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -10,10 +12,11 @@ import org.jspecify.annotations.Nullable;
  * Immutable options of one {@link Par#map} batch: its name, its requested parallelism, and the
  * execution policy applied to every element.
  *
- * <p>A batch is a fan-out over homogeneous input, so it owns exactly two concepts a single task
- * does not have: the batch identity shared by all elements and the concurrency limit of the sliding
- * window. Per-element execution policy is the rest of this type — timeout, task type, and enqueue
- * rejection.
+ * <p>A batch is a fan-out over homogeneous input: its identity is shared by all elements, and its
+ * concurrency limit controls the sliding window. Timeout and enqueue rejection form the execution
+ * policy; an optional {@link TaskType} declaration is diagnostic only and never changes execution.
+ * {@link #cancelOn(ListenableFuture)} adds an optional caller-owned cancellation input for
+ * the whole scope.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
  * #timeout(String, Duration)}; inheriting requires an enclosing scoped task at map time. Every
@@ -21,6 +24,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @since 0.3.0
  */
+@CheckReturnValue
 public final class BatchOptions {
     private final String name;
     private final int parallelism;
@@ -28,6 +32,7 @@ public final class BatchOptions {
     private final TaskType taskType;
     private final boolean rejectEnqueue;
     private final @Nullable Duration closeGrace;
+    private final @Nullable ListenableFuture<?> cancellationSignal;
 
     private BatchOptions(
             String name,
@@ -35,33 +40,48 @@ public final class BatchOptions {
             @Nullable Duration timeout,
             TaskType taskType,
             boolean rejectEnqueue,
-            @Nullable Duration closeGrace) {
+            @Nullable Duration closeGrace,
+            @Nullable ListenableFuture<?> cancellationSignal) {
         this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
         this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
         this.closeGrace = closeGrace;
+        this.cancellationSignal = cancellationSignal;
     }
 
-    /** Returns batch options that inherit the enclosing scope's deadline. */
+    /**
+     * Returns batch options that inherit the enclosing scope's deadline.
+     *
+     * @param name the batch name
+     * @throws NullPointerException if {@code name} is null
+     * @throws IllegalArgumentException if {@code name} is blank
+     */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.IO_BOUND, false, null);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.UNKNOWN, false, null, null);
     }
 
     /**
      * Returns batch options with an explicit timeout for the whole batch.
      *
-     * @throws NullPointerException if {@code timeout} is null
-     * @throws IllegalArgumentException if {@code timeout} is negative or zero
+     * <p>Any positive duration is accepted. One whose deadline does not fit the clock range
+     * resolves to the latest representable deadline: it remains a finite execution deadline and
+     * still determines the default cleanup budget, never meaning "no deadline".
+     *
+     * @param name the batch name
+     * @param timeout the positive execution timeout
+     * @throws NullPointerException if {@code name} or {@code timeout} is null
+     * @throws IllegalArgumentException if {@code name} is blank, or if {@code timeout} is negative or zero
      */
     public static BatchOptions timeout(String name, Duration timeout) {
         return new BatchOptions(
                 name,
                 Integer.MAX_VALUE,
                 Validation.requirePositive(timeout, "timeout"),
-                TaskType.IO_BOUND,
+                TaskType.UNKNOWN,
                 false,
+                null,
                 null);
     }
 
@@ -77,10 +97,19 @@ public final class BatchOptions {
                 timeout,
                 taskType,
                 rejectEnqueue,
-                closeGrace);
+                closeGrace,
+                cancellationSignal);
     }
 
-    /** Returns a copy of these options with the given task type. */
+    /**
+     * Returns a copy of these options with the given diagnostic task type for every element.
+     *
+     * <p>The declaration describes the element executions; nested batches and the terminal combine of
+     * {@link Par#mapAndCombine} do not inherit it. It never changes admission, enqueueing,
+     * rejection, or any element's outcome; see {@link TaskType}.
+     *
+     * @throws NullPointerException if {@code taskType} is null
+     */
     public BatchOptions taskType(TaskType taskType) {
         return new BatchOptions(
                 name,
@@ -88,28 +117,31 @@ public final class BatchOptions {
                 timeout,
                 checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
-                closeGrace);
+                closeGrace,
+                cancellationSignal);
     }
 
     /**
      * Returns a copy of these options with the given enqueue-rejection policy.
      *
      * <p>The policy is honored only when the registered executor's queue is a {@link
-     * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this
-     * flag is inert.
+     * SmartBlockingQueue}; with any other queue, enqueue rejection is never triggered and this flag
+     * is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace);
+        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace, cancellationSignal);
     }
 
     /**
-     * Returns a copy with the cleanup budget used by {@link Par#map} after results settle,
-     * waiting for direct task bodies and their final observations before returning.
+     * Returns a copy with the cleanup budget used by {@link Par#map} after results settle, waiting
+     * for direct task executions and their final observations before returning.
      *
      * <p>The budget starts after result convergence. {@link Duration#ZERO} checks exit without
-     * waiting. When unset, the budget is derived from the remaining execution deadline. A terminal
-     * cancellation result can coexist with a body still closing resources; inspect
-     * {@link TaskBatchResult#bodyCompletionConfirmed()} for the frozen direct-body exit status.
+     * waiting. When unset, the budget is derived from the remaining execution deadline. A run that
+     * ends at its deadline has no remaining budget: unless a grace was set explicitly, its derived
+     * cleanup wait is zero and executions still unwinding are not awaited. A terminal
+     * cancellation result can coexist with an execution still closing resources; inspect {@link
+     * TaskBatchResult#executionExitConfirmed()} for the frozen direct-execution exit status.
      *
      * @throws NullPointerException if {@code closeGrace} is null
      * @throws IllegalArgumentException if {@code closeGrace} is negative
@@ -121,7 +153,30 @@ public final class BatchOptions {
                 timeout,
                 taskType,
                 rejectEnqueue,
-                Validation.requireNonNegative(closeGrace, "closeGrace"));
+                Validation.requireNonNegative(closeGrace, "closeGrace"),
+                cancellationSignal);
+    }
+
+    /**
+     * Returns a copy that cancels the batch when {@code signal} completes successfully, fails, or
+     * is cancelled. The source remains caller-owned: the library never completes or cancels it.
+     *
+     * <p>Like a deadline or fail-fast, the cancellation interrupts running executions; there is no
+     * non-interrupting variant. Interruption is cooperative and does not guarantee that arbitrary
+     * IO or user code stops. The source takes effect at execution admission, before
+     * any execution can start; an empty batch returns successfully without registering.
+     *
+     * @throws NullPointerException if {@code signal} is null
+     */
+    public BatchOptions cancelOn(ListenableFuture<?> signal) {
+        return new BatchOptions(
+                name,
+                parallelism,
+                timeout,
+                taskType,
+                rejectEnqueue,
+                closeGrace,
+                checkNotNull(signal, "signal cannot be null"));
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -131,8 +186,8 @@ public final class BatchOptions {
 
     /**
      * Requested parallelism; always positive. The default {@link Integer#MAX_VALUE} places no limit
-     * beyond the batch size — resolution caps it by the task count, so the whole batch is submitted
-     * at once. Set a lower value to bound the sliding window.
+     * beyond the batch size — the effective limit is the task count. Set a lower value to bound the
+     * sliding window.
      */
     public int parallelism() {
         return parallelism;
@@ -143,10 +198,18 @@ public final class BatchOptions {
         return Optional.ofNullable(timeout);
     }
 
+    /**
+     * Returns the diagnostic task type declared for every element; {@link TaskType#UNKNOWN} by
+     * default.
+     */
     public TaskType taskType() {
         return taskType;
     }
 
+    /**
+     * Returns whether enqueue refusal is requested; it has effect only with a {@link
+     * SmartBlockingQueue}.
+     */
     public boolean rejectEnqueue() {
         return rejectEnqueue;
     }
@@ -157,6 +220,13 @@ public final class BatchOptions {
      */
     public Optional<Duration> closeGrace() {
         return Optional.ofNullable(closeGrace);
+    }
+
+    CancellationToken.@Nullable RequestCancellationLink admitCancellation(CancellationToken token) {
+        if (cancellationSignal == null) {
+            return null;
+        }
+        return token.cancelOn(cancellationSignal);
     }
 
     /** Adapts these options to the kernel carrier of this batch. */

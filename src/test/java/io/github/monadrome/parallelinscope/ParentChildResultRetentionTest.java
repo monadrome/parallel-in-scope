@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
  * Reference-retention contract between a running parent scope and its completed child scopes: the
  * parent's cancellation listener must not keep child business results alive.
  *
- * <p>A parent body that loops over child scopes, consuming and discarding each page of results,
+ * <p>A parent execution that loops over child scopes, consuming and discarding each page of results,
  * used to retain every historical child result through the parent token's listener list until the
  * parent token itself finished. Retention must instead track the currently active child scopes,
  * not the history of successful ones.
@@ -94,7 +94,7 @@ class ParentChildResultRetentionTest {
 
     /**
      * The severable link must stay live while the child scope is running: cancelling the parent
-     * token from outside still propagates into a child scope whose body has not finished.
+     * token from outside still propagates into a child scope whose execution has not finished.
      */
     @Test
     void parentCancelWhileChildScopeRunsStillPropagates() throws Exception {
@@ -144,7 +144,7 @@ class ParentChildResultRetentionTest {
             CancellationToken parent = parentToken.get();
             assertThat(parent).isNotNull();
 
-            parent.cancel(true);
+            parent.cancel();
 
             awaitTrue(childInterrupted);
             awaitReported(childReport);
@@ -169,7 +169,7 @@ class ParentChildResultRetentionTest {
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
 
-        child.cancel(true);
+        child.cancel();
 
         assertThat(linkedChild(child))
                 .as("a terminal child token must not keep its parent link reachable")
@@ -184,7 +184,7 @@ class ParentChildResultRetentionTest {
     @Test
     void childCreatedFromAlreadyCancelledParentSeversLinkDuringConstruction() throws Exception {
         CancellationToken parent = CancellationToken.create();
-        parent.cancel(true);
+        parent.cancel();
 
         CancellationToken child = new CancellationToken(parent);
 
@@ -192,6 +192,62 @@ class ParentChildResultRetentionTest {
         assertThat(linkedChild(child))
                 .as("the inline propagated cancellation must sever the link installed in the constructor")
                 .isNull();
+    }
+
+    @Test
+    void nestedEmptyBatchesDoNotAddParentCancellationListeners() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        ParRuntime runtime =
+                ParRuntime.builder().register(ParId.of("parent"), direct).build();
+        try {
+            Par par = runtime.par(ParId.of("parent"));
+            TaskFuture<Integer> parent = par.submit(
+                    "parent",
+                    () -> {
+                        CancellationToken token = java.util.Objects.requireNonNull(TaskExecutionContext.current())
+                                .multiTaskContext()
+                                .cancellationToken();
+                        int listenersBefore = parentCancellationListeners(token);
+                        assertThat(par.map(null, value -> value, BatchOptions.inheritTimeout("null-child"))
+                                        .valuesOrThrow())
+                                .isEmpty();
+                        assertThat(par.map(
+                                                Collections.emptyList(),
+                                                value -> value,
+                                                BatchOptions.inheritTimeout("empty-child"))
+                                        .valuesOrThrow())
+                                .isEmpty();
+                        assertThat(parentCancellationListeners(token)).isEqualTo(listenersBefore);
+                        return 1;
+                    },
+                    TaskOptions.timeout(Duration.ofSeconds(30)));
+
+            assertThat(parent.get(5, TimeUnit.SECONDS)).isEqualTo(1);
+        } finally {
+            runtime.close();
+            direct.shutdownNow();
+        }
+    }
+
+    private static int parentCancellationListeners(CancellationToken token) throws Exception {
+        Field futureField = CancellationToken.class.getDeclaredField("futureToken");
+        futureField.setAccessible(true);
+        Object future = futureField.get(token);
+        Field listenersField = Class.forName("com.google.common.util.concurrent.AbstractFutureState")
+                .getDeclaredField("listenersField");
+        listenersField.setAccessible(true);
+        Object listener = listenersField.get(future);
+        if (listener == null) {
+            return 0;
+        }
+        Field nextField = listener.getClass().getDeclaredField("next");
+        nextField.setAccessible(true);
+        int count = 0;
+        while (listener != null) {
+            count++;
+            listener = nextField.get(listener);
+        }
+        return count;
     }
 
     /** Reads the child reference of a token's parent link, or {@code null} when severed/absent. */
