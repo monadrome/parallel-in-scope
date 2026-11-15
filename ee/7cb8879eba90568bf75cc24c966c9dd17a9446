@@ -1,0 +1,20 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  ai_agent 90-91,94-95
+  s_6fb938faea569b::t_227fe42327b747 78,80-85,87-89,92-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ee7cb8879eba90568bf75cc24c966c9dd17a9446",
+  "prompts": {},
+  "sessions": {
+    "s_6fb938faea569b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ba50-6f93-7631-988a-7d63f1cad353",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
