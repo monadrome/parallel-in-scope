@@ -1,0 +1,23 @@
+docs/zh/user-guide.md
+  s_300fc739e78067::t_23357817f97499 681-695
+docs/zh/design/philosophy.md
+  s_300fc739e78067::t_bdc5abcaff8d11 205,207,209,211-213,215,218-221,224,228,233,237,360
+docs/en/user-guide.md
+  s_300fc739e78067::t_23357817f97499 789-804
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "7bdaa161785b29a7c2b60482f5f3ac6ae83bc5d6",
+  "prompts": {},
+  "sessions": {
+    "s_300fc739e78067": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d5a9-4125-7650-b52a-d6010a423a9d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
