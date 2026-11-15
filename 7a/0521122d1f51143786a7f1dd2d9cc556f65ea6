@@ -1,0 +1,21 @@
+design/issue-automation.md
+  s_8abbc0bbec8fff::t_69536ce17fd70d 279-284
+AGENTS.md
+  s_8abbc0bbec8fff::t_69a77fccd467db 265-268
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "8583589ab66efd2652ba4c396df1ed9406b15fa5",
+  "prompts": {},
+  "sessions": {
+    "s_8abbc0bbec8fff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ee57843d-95c5-46f5-a7ea-0a1fcdd70261",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
