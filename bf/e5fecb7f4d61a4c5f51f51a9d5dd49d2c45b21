@@ -1,0 +1,30 @@
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/reports/mutations.xml
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-117
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/SHA256SUMS
+  s_0359cf67dbc8bc::t_d23f56e097b878 3
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-2
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/logs/pit-final.log
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-9181
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/README.md
+  s_0359cf67dbc8bc::t_d3cd81b87e0a6c 1-3,8-41
+  s_0359cf67dbc8bc::t_cf4b004458aa35 4-7
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/run-meta/final.txt
+  s_0359cf67dbc8bc::t_1610d2422df2e5 3-5
+  s_0359cf67dbc8bc::t_d23f56e097b878 1-2,6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "bfe5fecb7f4d61a4c5f51f51a9d5dd49d2c45b21",
+  "prompts": {},
+  "sessions": {
+    "s_0359cf67dbc8bc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b30c50bf-7c72-4bc3-8c4c-2c9e781a0275",
+        "model": "kimi-k3"
+      },
+      "human_author": null
+    }
+  }
+}
