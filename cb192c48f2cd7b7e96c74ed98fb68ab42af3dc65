@@ -1,0 +1,22 @@
+scripts/extract_figures.py
+  s_ce73de3a0acc3d::t_58d6eb67382558 176-182
+  s_ce73de3a0acc3d::t_5d617cfe45a9db 122-123,125,130,133-137,140-141,143
+  s_ce73de3a0acc3d::t_b8f1f1cf4a5b08 8,10,15,67-83,85,95-97,102-105,111-112,119-121,150,161-175,183-201
+  s_ce73de3a0acc3d::t_9454139c5dfd8f 9,84,86-94,98-101,106-110,124,126-129,131-132,138-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3a474b83d0d2c550699865801a2af746e833a93e",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
