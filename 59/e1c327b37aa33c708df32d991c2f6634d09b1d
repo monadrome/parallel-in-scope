@@ -1,0 +1,35 @@
+tools/llm-review-bench/src/adapters/process.ts
+  s_ce73de3a0acc3d::t_c23b5895f27e50 16-24,78,94-97,139-156,194,205,209,211-212,215
+.claude/skills/multi-review/SKILL.md
+  s_ce73de3a0acc3d::t_8cf8eec2c8311f 59-79
+tools/llm-review-bench/src/commands/status.ts
+  s_ce73de3a0acc3d::t_53038f469cf38a 3
+  s_ce73de3a0acc3d::t_534855665de316 40
+  s_ce73de3a0acc3d::t_934908cc55e2b5 1-2,4-39,41-91
+tools/llm-review-bench/src/runner/reviews.ts
+  s_ce73de3a0acc3d::t_c23b5895f27e50 229-241
+tools/llm-review-bench/src/adapters/common.ts
+  s_ce73de3a0acc3d::t_c23b5895f27e50 21-25
+tools/llm-review-bench/src/cli.ts
+  s_ce73de3a0acc3d::t_5aa164f35f2b6d 14,24,101-102,245-255
+tools/llm-review-bench/test/timeout-resume.test.ts
+  s_ce73de3a0acc3d::t_48f785e0d65375 46,63-64,69
+  s_ce73de3a0acc3d::t_a57ca8cc177489 103
+  s_ce73de3a0acc3d::t_a09e885cfb3b28 6,23-33,99-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "c0639b52fb8cb8affee029641ffdcd52da8fe45a",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
