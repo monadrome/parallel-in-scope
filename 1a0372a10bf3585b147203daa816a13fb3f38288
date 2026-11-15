@@ -1,0 +1,9 @@
+ledger/2026-11-07-core-security-route.json
+  ai_agent 1-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1a0372a10bf3585b147203daa816a13fb3f38288",
+  "prompts": {}
+}
