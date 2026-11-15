@@ -1,0 +1,44 @@
+pom.xml
+  s_267349bbc6df50::t_3b3a676775d32c 9,22
+README.zh-CN.md
+  s_267349bbc6df50::t_3b3a676775d32c 11,19,25
+CHANGELOG.md
+  s_267349bbc6df50::t_3b3a676775d32c 5-6
+docs/zh/user-guide.md
+  s_267349bbc6df50::t_3b3a676775d32c 3
+scripts/verify-maven-central.sh
+  s_267349bbc6df50::t_3b3a676775d32c 4,9
+verification/maven-central-consumer/pom.xml
+  s_267349bbc6df50::t_3b3a676775d32c 21
+docs/en/user-guide.md
+  s_267349bbc6df50::t_3b3a676775d32c 3
+.github/ISSUE_TEMPLATE/bug_report.yml
+  s_267349bbc6df50::t_3b3a676775d32c 22,29
+demo/pom.xml
+  s_267349bbc6df50::t_3b3a676775d32c 9,21
+scripts/test-verify-maven-central.sh
+  s_267349bbc6df50::t_12bf166c5a920d 102
+  s_267349bbc6df50::t_3b3a676775d32c 103,105
+.github/pull_request_template.md
+  s_267349bbc6df50::t_3b3a676775d32c 44
+README.md
+  s_267349bbc6df50::t_3b3a676775d32c 11,19,25
+CONTRIBUTING.md
+  s_267349bbc6df50::t_3b3a676775d32c 126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7c62a15dcc62a8e850afbd1fab503bcec177ffed",
+  "prompts": {},
+  "sessions": {
+    "s_267349bbc6df50": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13e55-7215-7a13-997a-78b2c3709453",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
