@@ -1,0 +1,19 @@
+design/interruption-contract.md
+  s_5d5a610ceba84e::t_5fe16f03439266 288-292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "4d8148e32f35c0d83767972b73443b72d10b5d42",
+  "prompts": {},
+  "sessions": {
+    "s_5d5a610ceba84e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_eb627f8c-a585-4848-a3c0-c60bec371620",
+        "model": "claude-haiku-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
