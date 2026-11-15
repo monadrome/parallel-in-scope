@@ -1,0 +1,19 @@
+ledger/2026-11-10-direct-context-executor-singleton.json
+  s_51a7dc8d9e3065::t_21ae245ad69509 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "0046b37bb8fb001a07d193579f07baf669294895",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
