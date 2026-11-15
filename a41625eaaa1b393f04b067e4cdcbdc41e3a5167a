@@ -1,0 +1,19 @@
+ledger/2026-11-11-active-readme-queue-name.json
+  s_570a668571c2d4::t_d70fd513d12dc3 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "01be871e51403c5d05d26a7d8ecde018bcafde3e",
+  "prompts": {},
+  "sessions": {
+    "s_570a668571c2d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c9e2-4d95-7e72-82c4-dff059fa42c5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
