@@ -1,0 +1,29 @@
+design/axiom-drift-decisions-2026-09-14.md
+  s_98fbc98db87999::t_3d299c1537491c 67
+adr/0006-queues-ship-with-core.md
+  s_fb1b1827ea4722::t_5c30aa4e7bb5b4 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "b40af045b4a1ea92a61da2a0ba2787feeebaefce",
+  "prompts": {},
+  "sessions": {
+    "s_98fbc98db87999": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "681be366-1d73-4ec6-b13b-3f1745f831e5",
+        "model": "ep-s52bpjk9"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_fb1b1827ea4722": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "07e9284c-d4c8-46d4-aace-f131aa253aae",
+        "model": "ep-s52bpjk9"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
