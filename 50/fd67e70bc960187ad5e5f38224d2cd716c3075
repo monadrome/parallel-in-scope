@@ -1,0 +1,24 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_5ad4597eb7d0f3::t_6d55924eabe2e9 244,258-261,263
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_5ad4597eb7d0f3::t_54d12fa8ff5b35 127,129-130
+  s_5ad4597eb7d0f3::t_587715906b3560 128
+design/task-termination-and-scope.md
+  s_5ad4597eb7d0f3::t_014c69752310f4 148-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "50fd67e70bc960187ad5e5f38224d2cd716c3075",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
