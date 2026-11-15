@@ -1,0 +1,20 @@
+src/test/java/io/github/monadrome/parallelinscope/ParRuntimePoliciesTest.java
+  s_1503957580b8e1::t_10ade427453684 131-133,138-140
+  s_1503957580b8e1::t_029b8561ba1cf1 6-10,122-130,134-137,141-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "a0ad33cc38795c144705d09644665b2916dad5b1",
+  "prompts": {},
+  "sessions": {
+    "s_1503957580b8e1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd97-dc3b-7a53-aa99-7cd0a70d4636",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
