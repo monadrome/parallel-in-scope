@@ -1,0 +1,50 @@
+.agents/skills/contract-first-assurance/evals/evals.json
+  s_c0a68ccffe75de::t_2f759a0ec172f1 3
+  s_c0a68ccffe75de::t_c7ba350ce89342 11,35-44
+.agents/skills/contract-first-assurance/SKILL.md
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 5
+  s_c0a68ccffe75de::t_ab5ff4ecd9f629 23-25,261,330
+.agents/skills/contract-first-assurance/scripts/verify_run.py
+  s_c0a68ccffe75de::t_65a25a575d9792 22,88-89,93-101
+  s_c0a68ccffe75de::t_3de8ec6c785134 70-87,90-92,102-104
+.agents/skills/contract-first-assurance/references/mutation-dispositions.md
+  s_c0a68ccffe75de::t_ab5ff4ecd9f629 1-30,36-39
+  s_c0a68ccffe75de::t_dad6f738a01f0b 31-35
+.agents/skills/assurance-report/SKILL.md
+  s_c0a68ccffe75de::t_2f8f4c2ac98f37 22
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 4
+.agents/skills/contract-extract/SKILL.md
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 4
+.agents/skills/contract-diff/SKILL.md
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 4
+.agents/skills/contract-first-assurance/references/host-adapter.md
+  s_c0a68ccffe75de::t_ab5ff4ecd9f629 61-69
+.agents/skills/contract-first-assurance/references/reproducible-runs.md
+  s_c0a68ccffe75de::t_2f759a0ec172f1 16-17
+  s_c0a68ccffe75de::t_ab5ff4ecd9f629 33-42,55-57
+.agents/skills/isolated-test-generation/SKILL.md
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 4
+.agents/skills/contract-first-assurance/scripts/verify_package.py
+  s_c0a68ccffe75de::t_3de8ec6c785134 112
+.agents/skills/contract-first-assurance/package.yaml
+  s_c0a68ccffe75de::t_2f759a0ec172f1 12,15,18,21,32
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 3,27
+.agents/skills/contract-first-assurance/adapters/vformation.yaml
+  s_c0a68ccffe75de::t_a3c7dd4f2cf0e8 2,33-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f7b9c97cc2e3110dc73b81f22042567360658d10",
+  "prompts": {},
+  "sessions": {
+    "s_c0a68ccffe75de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1da4b-133d-71f1-9b6e-1741cbfc24c1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
