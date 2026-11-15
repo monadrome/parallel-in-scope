@@ -1,0 +1,24 @@
+design/llm-review-benchmark.md
+  s_8893a452a5048e::t_fdce22d985d166 359-360
+  s_8893a452a5048e::t_f8ae4b96d8a705 340-358
+tools/llm-review-bench/test/timeout-resume.test.ts
+  s_8893a452a5048e::t_47ea9e0f2f5681 2-3,6,23-56
+tools/llm-review-bench/src/adapters/process.ts
+  s_8893a452a5048e::t_50fb23f23065f3 131,147-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "357e1ba0cc8c0a6cd72fb07cf5a00a812deb633e",
+  "prompts": {},
+  "sessions": {
+    "s_8893a452a5048e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a18abc-b522-78e1-90ed-13ed1c061e19",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
