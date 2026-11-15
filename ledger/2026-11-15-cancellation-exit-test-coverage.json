@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-15-cancellation-exit-test-coverage",
+  "date": "2026-11-15",
+  "topic": "cancellation-exit-test-coverage",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "test: cover cancellation attribution and exit-publication ordering",
+      "test: assert skip disposition when skipIfPending wins the claim race",
+      "test: detect the elapsed-budget mutant in awaitBounded",
+      "docs: archive cancellation-exit test PIT evidence"
+    ],
+    "files": 8,
+    "insertions": 9507,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "parallel-in-scope-new-1a1e32f9-20261115-104852-f0669e",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 620194,
+            "findings": {
+              "total": 1,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 1
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 1
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-dev-v0.5.0-2026-11-15",
+        "head": "1a1e32f9cecade5e70134c95730d32e8e9a6f311",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "refactoring-review-detect-codex": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/reports/mutations.xml",
+      "statuses": {
+        "KILLED": 111,
+        "SURVIVED": 3
+      },
+      "total": 114,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 1,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "codex CLI unusable (MCP auth transport failure); refactoring detectors and adversarial review ran on kiro reviewers"
+}
