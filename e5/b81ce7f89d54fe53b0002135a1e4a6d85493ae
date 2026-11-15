@@ -1,0 +1,29 @@
+mkdocs/mkdocs.yml
+  s_59b619f4da5c34::t_1878c2e34eda83 1-101
+.github/workflows/gh-pages.yml
+  s_59b619f4da5c34::t_5ec5b155a1887d 1-63
+mkdocs/docs/stylesheets/extra.css
+  s_59b619f4da5c34::t_7b73f4e482e852 1-10
+mkdocs/docs/index.md
+  s_59b619f4da5c34::t_4ca6205cd87c2e 1-74
+README.md
+  s_59b619f4da5c34::t_6569820ed43ecd 5-6
+mkdocs/docs/getting-started.md
+  s_59b619f4da5c34::t_1f480f24db93c7 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.33-trip",
+  "base_commit_sha": "e5b81ce7f89d54fe53b0002135a1e4a6d85493ae",
+  "prompts": {},
+  "sessions": {
+    "s_59b619f4da5c34": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3bb1e739-d2f6-4191-815f-58bd3a04d37f",
+        "model": "glm-5.2"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
