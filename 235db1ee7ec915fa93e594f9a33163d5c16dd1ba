@@ -1,0 +1,225 @@
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  ai_agent 79
+demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  ai_agent 57
+demo/docs/zh-CN/articles/I1-idea-graveyard.md
+  ai_agent 20,111
+demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  ai_agent 39,49
+demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  ai_agent 53,58,63
+docs/en/reference/cooperative-cancellation.md
+  ai_agent 29,45
+demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  ai_agent 6,72,136,190
+docs/zh/user-guide.md
+  ai_agent 40,43,93
+demo/src/main/java/demo/basic/BasicParDemo.java
+  ai_agent 4,19,48-49
+demo/src/test/java/demo/article/QuickStartTest.java
+  ai_agent 6,52,62,74
+docs/en/reference/nullability-annotations.md
+  ai_agent 15
+demo/articles/H1-defensive-null-handling.md
+  ai_agent 56,66
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  ai_agent 25,63,92,112,115,127,130,133,187,196
+demo/articles/F1-cpu-task-queuing.md
+  ai_agent 36,47,58
+demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java
+  ai_agent 6,106
+demo/docs/zh-CN/articles/I2-java8-compatibility-cost.md
+  ai_agent 23,27,30,61,65
+demo/src/test/java/demo/article/G1_TaskListenerMonitoringTest.java
+  ai_agent 6,112,188
+demo/src/test/java/demo/article/G6_BatchDbQueryTest.java
+  ai_agent 6,124,176
+src/test/java/io/github/huatalk/parallelinscope/cancel/CheckpointsTest.java
+  ai_agent 8,275
+docs/zh/reference/nullability-annotations.md
+  ai_agent 47
+demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  ai_agent 38,54
+demo/articles/I1-idea-graveyard.md
+  ai_agent 19,108
+demo/articles/I2-java8-compatibility-cost.md
+  ai_agent 23,27,30,61,65
+demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  ai_agent 6,28,114,143
+demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java
+  ai_agent 8,82,93
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java
+  ai_agent 6,67,85,92,109,118,125,146,158,165,194,203,226,282-283,286,290,306,311,351,378
+demo/articles/A1-cancel-true-ignored.md
+  ai_agent 28,30,39,52
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  ai_agent 35,50
+demo/src/test/java/demo/article/B1_MdcContextLostTest.java
+  ai_agent 6,98,107,148,155,162,169
+demo/src/test/java/demo/article/B2_FunctionSignatureBloatTest.java
+  ai_agent 7,115,151
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  ai_agent 5,57,105
+docs/en/design/idea-graveyard.md
+  ai_agent 3
+docs/en/migration-v0.2.md
+  ai_agent 9,15,17-19
+demo/articles/B2-function-signature-bloat.md
+  ai_agent 37,45,57
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  ai_agent 62
+demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java
+  ai_agent 10,155
+demo/articles/C1-thread-pool-deadlock.md
+  ai_agent 33,39,55,64
+demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java
+  ai_agent 6,116,129
+demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  ai_agent 51,59
+demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  ai_agent 33,47
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphBatchIdentityTest.java
+  ai_agent 5,7,22,41,61,71,85,120,122,127,143,157
+CHANGELOG.md
+  ai_agent 7,14
+src/test/java/io/github/huatalk/parallelinscope/internal/ScopedCallableContextRestoreTest.java
+  ai_agent 8,61,105
+docs/zh/reference/cooperative-cancellation.md
+  ai_agent 47,65,160
+docs/zh/design/philosophy.md
+  ai_agent 346,353
+demo/src/main/java/demo/integration/BatchProcessingDemo.java
+  ai_agent 4,44
+AGENTS.md
+  ai_agent 52-58
+demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  ai_agent 37,41,57
+demo/articles/E1-queue-flooding.md
+  ai_agent 55,67
+demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java
+  ai_agent 7,86
+docs/zh/visuals/parallel-in-scope-architecture.html
+  ai_agent 21
+demo/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 55,73,81
+demo/articles/D2-late-bind-race-condition.md
+  ai_agent 59,72
+src/test/java/io/github/huatalk/parallelinscope/scope/ScopePrimitivesTest.java
+  ai_agent 78,125,167,179,236
+demo/articles/G4-named-executor-pool.md
+  ai_agent 53,58,63
+src/test/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContextTest.java
+  ai_agent 6,17,22,34,55,64,69,71,77
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphExportTest.java
+  ai_agent 8,10,50,77,103,134,183,192,199,238,247,254,281,286
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  ai_agent 33,50,59
+demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  ai_agent 56
+demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  ai_agent 6,28,110,133
+docs/en/user-guide.md
+  ai_agent 40,43,93
+demo/docs/en/README.md
+  ai_agent 7
+demo/articles/G6-batch-db-query.md
+  ai_agent 47,67
+src/test/java/io/github/huatalk/parallelinscope/queue/SmartBlockingQueueTest.java
+  ai_agent 8,60
+demo/docs/zh-CN/articles/G1-task-listener-monitoring.md
+  ai_agent 35,68
+demo/articles/E2-submitter-pool-offloading.md
+  ai_agent 49,60
+demo/architecture-constraints.md
+  ai_agent 25,108,147
+src/test/java/io/github/huatalk/parallelinscope/context/graph/TaskGraphPolarityTest.java
+  ai_agent 5,37,72,101,119,147
+demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java
+  ai_agent 6,102
+docs/zh/migration-v0.2.md
+  ai_agent 9,15,17-19
+src/main/java/io/github/huatalk/parallelinscope/scope/Par.java
+  ai_agent 30,86,92,95-100
+src/main/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContext.java
+  ai_agent 4,27,40,52,65,73,76,102-103,125,128,131,139,181-182
+demo/src/test/java/demo/article/E2_SubmitterPoolOffloadingTest.java
+  ai_agent 7,83-84
+adr/0005-globalpar-executor-binding.md
+  ai_agent 17,61,68,103,205,236,238,241,258,269,273,439-440,442,447,689,696,721,727,763,930,957,1007,1025,1057,1069,1102,1120,1148,1169-1170,1174,1181
+README.zh-CN.md
+  ai_agent 32,46,51
+demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 39,46,60
+src/test/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutorBatchContextTest.java
+  ai_agent 10,222
+src/main/java/io/github/huatalk/parallelinscope/internal/ScopedCallable.java
+  ai_agent 5,152
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  ai_agent 36,54
+demo/articles/A3-lean-vs-fat-exception.md
+  ai_agent 32,38,50
+demo/docs/zh-CN/articles/G6-batch-db-query.md
+  ai_agent 64
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  ai_agent 31,47,50,68,104
+demo/articles/G2-batch-result-report.md
+  ai_agent 63,73
+demo/docs/zh-CN/articles/E1-queue-flooding.md
+  ai_agent 63
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  ai_agent 6,93-94
+docs/zh/visuals/parallel-in-scope-user-guide.html
+  ai_agent 22
+demo/src/test/java/demo/article/A2_NestedCancelPropagationTest.java
+  ai_agent 6,106,117-118
+explore/PR文档与代码一致性分析.md
+  ai_agent 12,24
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskGraph.java
+  ai_agent 10,42,44,250,261,272-273,300
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  ai_agent 70
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 68,76
+README.en.md
+  ai_agent 32,46,51
+demo/articles/G1-task-listener-monitoring.md
+  ai_agent 35,47,73
+demo/src/main/java/demo/basic/CancellationDemo.java
+  ai_agent 6,21,45
+demo/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 45,51,64
+demo/articles/I4-vs-completable-future.md
+  ai_agent 78
+demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  ai_agent 29,31,48
+docs/zh/design/idea-graveyard.md
+  ai_agent 3
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalPar.java
+  ai_agent 8,41,193-194,210
+demo/articles/G5-batch-http-calls.md
+  ai_agent 34,49
+docs/zh/internals/thread-relay.md
+  ai_agent 12,17
+demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  ai_agent 7,119,181
+demo/articles/B1-threadlocal-context-lost.md
+  ai_agent 45,60
+demo/articles/A2-nested-cancel-propagation.md
+  ai_agent 50,58
+demo/src/test/java/demo/article/E1_QueueFloodingTest.java
+  ai_agent 6,105
+demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  ai_agent 7,76,90,102
+README.md
+  ai_agent 31
+demo/articles/D1-get-timeout-task-still-running.md
+  ai_agent 37,49,62
+demo/README.md
+  ai_agent 66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "235db1ee7ec915fa93e594f9a33163d5c16dd1ba",
+  "prompts": {}
+}
