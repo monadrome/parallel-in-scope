@@ -1,0 +1,23 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
+  s_0359cf67dbc8bc::t_eb0cc1f2a52593 54-66
+core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java
+  s_0359cf67dbc8bc::t_eb0cc1f2a52593 5,31-32,49-70,94-133
+core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java
+  s_0359cf67dbc8bc::t_eb0cc1f2a52593 370-387,564-604,871-876
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1a1e32f9cecade5e70134c95730d32e8e9a6f311",
+  "prompts": {},
+  "sessions": {
+    "s_0359cf67dbc8bc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b30c50bf-7c72-4bc3-8c4c-2c9e781a0275",
+        "model": "kimi-k3"
+      },
+      "human_author": "EricLin <linqinghua4@gmail.com>"
+    }
+  }
+}
