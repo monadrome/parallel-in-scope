@@ -1,0 +1,23 @@
+verification/review-task-termination.md
+  s_e4d21f1619e9d6::t_cb6cf87c7f429f 1-5
+ledger/2026-11-13-task-termination-consumption-api-final-verification.json
+  s_e4d21f1619e9d6::t_cb6cf87c7f429f 1-44
+verification/pit-audit/2026-11-13-task-termination.md
+  s_e4d21f1619e9d6::t_cb6cf87c7f429f 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "b7ad84c4c4545cefef479eb7073ed3956d03c6db",
+  "prompts": {},
+  "sessions": {
+    "s_e4d21f1619e9d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d4cf-8357-7f12-bafd-ea99a749cad8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
