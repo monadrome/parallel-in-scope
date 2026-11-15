@@ -1,0 +1,20 @@
+ledger/2026-11-14-core-diagnostic-pit-evidence.json
+  s_d1bea004599e62::t_87d793468f977e 1-24,27-28,30-75
+  s_d1bea004599e62::t_88f027d112da5d 25-26,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ab7d3965148dbb5678e5b120f977e7377b1f00bb",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
