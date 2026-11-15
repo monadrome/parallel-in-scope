@@ -1,0 +1,25 @@
+.github/workflows/ci.yml
+  s_4d4bea29d57e17::t_80dbd641c32be7 5,135,202
+AGENTS.md
+  s_4d4bea29d57e17::t_80dbd641c32be7 64,459
+.github/workflows/codeql.yml
+  s_4d4bea29d57e17::t_80dbd641c32be7 5,7
+.claude/skills/dependency-audit/SKILL.md
+  s_4d4bea29d57e17::t_053be7363899a1 16,67,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "229758897c51016655283cfd0fceebb627c0fe06",
+  "prompts": {},
+  "sessions": {
+    "s_4d4bea29d57e17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b50b-48c6-7be0-af37-e37e28ae2d12",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
