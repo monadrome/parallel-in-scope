@@ -1,0 +1,19 @@
+ledger/2026-11-15-cancellation-exit-test-coverage.json
+  s_0359cf67dbc8bc::t_03275c72f3471a 1-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1d42afa66eb91034c13ca8e907319b4b64f57741",
+  "prompts": {},
+  "sessions": {
+    "s_0359cf67dbc8bc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b30c50bf-7c72-4bc3-8c4c-2c9e781a0275",
+        "model": "kimi-k3"
+      },
+      "human_author": "EricLin <linqinghua4@gmail.com>"
+    }
+  }
+}
