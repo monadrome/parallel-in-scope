@@ -1,0 +1,27 @@
+tools/llm-review-bench/README.md
+  s_1f7d9b63a8a776::t_3d99ba0a50973e 38
+AGENTS.md
+  s_1f7d9b63a8a776::t_a46d1910984f03 319,383
+design/llm-review-benchmark.md
+  s_1f7d9b63a8a776::t_3d99ba0a50973e 88
+.gitignore
+  s_1f7d9b63a8a776::t_a46d1910984f03 29,44-47
+refactoring-review/AGENTS.md
+  s_1f7d9b63a8a776::t_3d99ba0a50973e 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "449c4fa5aae3f3020adc0a7b081795fbc98e40e6",
+  "prompts": {},
+  "sessions": {
+    "s_1f7d9b63a8a776": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bf4a-2d33-7132-a2e1-dcfd9ff56733",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
