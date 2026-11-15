@@ -1,0 +1,27 @@
+scripts/refactoring-review.py
+  s_6ef012108ae407::t_b0684f9a843afc 869-881,1102
+  s_6ef012108ae407::t_025b26ca4bba6a 41,699-731
+scripts/tests/test_refactoring_review.py
+  s_6ef012108ae407::t_4131ee93bbf1c4 364-371
+  s_6ef012108ae407::t_1d90c69df09a72 347-363
+refactoring-review/AGENTS.md
+  s_6ef012108ae407::t_34cb40409a9a63 52-56
+.agents/skills/refactoring-review/SKILL.md
+  s_6ef012108ae407::t_34cb40409a9a63 45-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f6396f4e3c63d99f3cc38188fe102a34860355bb",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
