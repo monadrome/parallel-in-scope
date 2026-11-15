@@ -1,0 +1,19 @@
+ledger/2026-11-10-historical-benchmark-final-scorecard.json
+  s_fcaade8c4507a4::t_02fdb8c5991509 28-30,33,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2173003e557068946b2f388da57d86abac91c18e",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
