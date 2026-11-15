@@ -1,0 +1,21 @@
+scripts/tests/test_run_pit_core.py
+  s_c0a68ccffe75de::t_fff99dfad82809 41
+  s_c0a68ccffe75de::t_95f35ec0675aae 72
+  s_c0a68ccffe75de::t_6e57e9689b8d1b 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a021d1e5f5c888af8b355d458245bafd32ed3b4f",
+  "prompts": {},
+  "sessions": {
+    "s_c0a68ccffe75de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1da4b-133d-71f1-9b6e-1741cbfc24c1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
