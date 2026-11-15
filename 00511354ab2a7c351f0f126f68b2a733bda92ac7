@@ -1,0 +1,67 @@
+pom.xml
+  s_289bf50fb54a83::t_130caaae708d8f 209-215
+  s_289bf50fb54a83::t_294b871ebd0196 202-208,216-236
+src/main/java/io/github/huatalk/parallelinscope/queue/PooledMonitorDiningPhilosophersDemo.java
+  h_a991f50801869b 1-258
+src/test/java/io/github/huatalk/parallelinscope/MonitorLinkedBlockingQueueTest.java
+  s_289bf50fb54a83::t_1ce295161e202b 629-908,932-1102
+  s_289bf50fb54a83::t_ed35a16335889f 909-931
+  s_6064adf08b3cab::t_aea9a28165bab7 4,420
+  s_6064adf08b3cab::t_524323ffab88bc 9,12-15,24-25,241-269,271-312,314,317-318,320-359,361,364-365,367-410,412-419,421-498,500-512
+  s_6064adf08b3cab::t_c4225bbf0c38d6 1-3,5-8,10-11,16-23,26-64,152-240,513-628,1103-1130,1204,1257-1262,1316-1317
+  s_6064adf08b3cab::t_6aa91ad9fd4dd4 65-105,1263-1271,1293-1294,1315
+  s_6064adf08b3cab::t_7d049aac0e748f 270,313,315-316,319,360,362-363,366,411,499,1131-1203,1205-1256,1295-1314
+  s_6064adf08b3cab::t_ad69892c518b73 106-151,1272-1292
+src/main/java/io/github/huatalk/parallelinscope/queue/ClosableQueueLifecycleDemo.java
+  s_9ee3e69bd76a49::t_037e839f4a8db9 1-94
+src/main/java/io/github/huatalk/parallelinscope/queue/MonitorLinkedBlockingQueue.java
+  s_6064adf08b3cab::t_267df6abac41c6 1-17,19-24,29,33-41,43,45-46,49-50,52,59-98,100,102-110,112-118,120-122,128-134,136-140,142-147,150,155-156,159,161,165-171,174,178-179,181-182,185,190,192-197,203-204,209-210,215,217-221,225,230,234,236,241-246,250,254-255,257,261,263,268-272,279-280,286,288,293-297,302-303,305,307-312,314-328,330-335,337-348,350-355,357-358,360-365,367-374,376-378,381,383-392,394-399,401-409,413,415-429,432-437,439-453,456-458,463-508,516-537,541-542,576-587,589-597,604-605,607-614,616-618,627-632,634,636-643,645-649,651-656,658-661,663-668,670-680,682-687,689-704,706-722
+  s_6064adf08b3cab::t_0553554f5082c3 25-28,151,154,175,180,226,229,251,256,588
+  s_6064adf08b3cab::t_e8e1a2427ae634 148-149,152-153,157,160,162-164,172-173,176-177,183,186-189,191,198-202,205-207,211-214,216,222-224,227-228,231-232,235,237-240,247-249,252-253,258-259,262,264-267,273-278,281-283,285,287,289-292,298-301,304,306
+  s_6064adf08b3cab::t_a83d059b0ead66 509-510,513,543-545,547-554,556-560,566-575,606,615,633,644,650,657,662,669,681,688,705
+  s_6064adf08b3cab::t_ce525f8cd5cf72 313,329,336,349,356,359,366,375,379-380,382,393,400,410,414,430-431,438,454,459-462
+  s_6064adf08b3cab::t_7872e072f7eb92 18,30-32,47-48,51,55-56,99,111,119,135,141
+  s_6064adf08b3cab::t_4473af5c019573 53-54,57-58,101,158,184,208,233,260,284,411-412,455,511-512,514-515,538-540,546,555,561-565,635
+  s_6064adf08b3cab::t_79e8027049f4cc 598-603,619-625
+  s_6064adf08b3cab::t_dc8478fbadaccd 42,44,123-127
+  s_6064adf08b3cab::t_409f78efa7e794 626
+src/main/java/io/github/huatalk/parallelinscope/queue/MonitorDiningPhilosophersDemo.java
+  h_a991f50801869b 1-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "00511354ab2a7c351f0f126f68b2a733bda92ac7",
+  "prompts": {},
+  "humans": {
+    "h_a991f50801869b": {
+      "author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_289bf50fb54a83": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bdf4c786-329c-4e2f-9f7a-cf4db44a5b17",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_6064adf08b3cab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fcb16-e037-7e53-8673-f70e5264dc23",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_9ee3e69bd76a49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fba01601-7909-4b6e-bbbc-21e35aaa0d76",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
