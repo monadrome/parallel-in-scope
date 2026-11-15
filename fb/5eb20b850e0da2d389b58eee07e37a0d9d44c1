@@ -1,0 +1,37 @@
+historical-eval/tools/verify-sample.sh
+  s_490d18c85ab19e::t_3811082d8dd92a 4-7,12-16,27,29-31,33-34,39
+  s_490d18c85ab19e::t_4cdb880d965837 24
+  s_490d18c85ab19e::t_cc772d5105b215 28
+historical-eval/samples/BUG-0002/oracle/fixed.patch
+  s_490d18c85ab19e::t_8bee005f656c41 1-38
+historical-eval/samples/BUG-0002/prompt/task.md
+  s_490d18c85ab19e::t_8bee005f656c41 1-8
+historical-eval/samples/BUG-0001/manifest.json
+  s_490d18c85ab19e::t_3811082d8dd92a 4-7,10-15,17-18
+historical-eval/samples/BUG-0002/manifest.json
+  s_490d18c85ab19e::t_8bee005f656c41 1-12
+historical-eval/tools/compare-patches.py
+  s_490d18c85ab19e::t_7b28e229e6b9af 15,34
+historical-eval/samples/BUG-0002/oracle/hidden-tests/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueueGoldenTest.java
+  s_490d18c85ab19e::t_8bee005f656c41 1-30
+historical-eval/README.md
+  s_490d18c85ab19e::t_7b28e229e6b9af 55-61
+historical-eval/samples/BUG-0002/prompt/src/main/java/io/github/monadrome/parallelinscope/queue/VariableLinkedBlockingQueue.java
+  s_490d18c85ab19e::t_8bee005f656c41 1-516
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "fb5eb20b850e0da2d389b58eee07e37a0d9d44c1",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
