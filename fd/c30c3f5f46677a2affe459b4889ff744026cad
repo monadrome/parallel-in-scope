@@ -1,0 +1,11 @@
+design/AGENTS.md
+  ai_agent 7-8
+AGENTS.md
+  ai_agent 125-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "fdc30c3f5f46677a2affe459b4889ff744026cad",
+  "prompts": {}
+}
