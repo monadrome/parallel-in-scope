@@ -1,0 +1,11 @@
+scripts/check-java-conventions.py
+  ai_agent 22,44,487-496,519
+verification/java-conventions.md
+  ai_agent 101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "b37e12dfd2e6140891bc6c67ee6740273a750d06",
+  "prompts": {}
+}
