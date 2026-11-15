@@ -1,0 +1,9 @@
+verification/race-claims/claims.json
+  ai_agent 93-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "eabe1148db09583325ab77b471daf656ed3eb53d",
+  "prompts": {}
+}
