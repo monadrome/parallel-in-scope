@@ -1,0 +1,105 @@
+design/proposal/P0007-result-read-allocation.md
+  ai_agent 1-27
+design/task-group-submission.md
+  ai_agent 3-6,8,12,14,18,20-22,24-30,34-45,47,51-52,55,58-61,63-66,70,72-74,76,80-81,85-86,90,95-96,98,100,102-105,107,112-120,130-131,134,141-144,153-156,163-165,167-169
+design/task-group-lifecycle.md
+  ai_agent 3-6,8,18-20,23-24,27-28,42-46,50,65,74,80,93-95,121-123,142,195-196,209,212-213,218-219,225-228,235-237,246-248,251,257-258,265,269,271-279,290,296-304
+design/proposal-lifecycle.md
+  ai_agent 1-76
+design/AGENTS.md
+  ai_agent 6-10,12-57,61-63,65-76,78,83-84,87,91-95,97-104,109,112-134
+design/batch-terminal-combine.md
+  ai_agent 1-46
+design/interruption-contract.md
+  ai_agent 1-266
+design/proposal/P0005-subtree-completion.md
+  ai_agent 1-57
+design/proposal/P0008-runtime-drain-diagnostics.md
+  ai_agent 1-33
+design/first-principles.md
+  ai_agent 10-11,55,57
+design/proposal/P0017-oss-adoption-path.md
+  ai_agent 1-76
+design/proposal/P0019-result-exhaustive-matching.md
+  ai_agent 1-65
+design/proposal/P0021-executor-boundary-diagnostics.md
+  ai_agent 1-47
+design/sliding-window-refill.md
+  ai_agent 1-57
+design/proposal/P0002-api-surface-reduction.md
+  ai_agent 1-295
+design/proposal/P0009-named-terminal-input.md
+  ai_agent 1-33
+adr/0001-layered-cartesian-concurrency-testing.md
+  ai_agent 91-98,282-286
+adr/0002-separate-task-execution-and-future-lifecycle.md
+  ai_agent 7-22,237-240
+adr/0004-lifecycle-blocking-queue-recovery.md
+  ai_agent 25
+design/group-one-shot-api-refactor-codex.md
+  ai_agent 1-269
+design/issue-automation.md
+  ai_agent 1-275
+design/proposal/P0001-request-cancellation.md
+  ai_agent 1,3-4,6,8-14,16,18,20-24,27-31,34-35,37,40-44,47-48,50-56,58-87
+design/synchronous-scope-exit.md
+  ai_agent 1-414
+design/task-graph.md
+  ai_agent 1-206
+design/proposal/P0003-errorprone-cleanup.md
+  ai_agent 1-178
+design/task-group-api-and-options.md
+  ai_agent 3-6,10-11,26-27,29-30,32,49,54,61,64-66,79-80,82-87,107,114,119,121,124,130,143-146,148-149,153,155-159,175-176,184-199,203-205,208-211
+design/execution-future-simplification.md
+  ai_agent 1-132
+design/proposal/P0006-execution-protocol-consolidation.md
+  ai_agent 1-50
+design/confirmed-proposal-defects.md
+  ai_agent 1-126
+adr/0005-globalpar-executor-binding.md
+  ai_agent 868
+design/cancel-intent-clock-domain-validation-2026-10-08.md
+  ai_agent 1-284
+design/cancellation-propagation.md
+  ai_agent 17-37,39,41,45,52-54,138-190,208-238
+design/extension-and-wrapping.md
+  ai_agent 1,3-6,8,12,16-17,19,27,29,34,36-37,41,57,60,68,70-71,76,78,80,82-84,86,88,97,99,101,103,111-112,114,118-121,127-128,130,134-136,138,142-144,146,148,150,152-161,163,165,167-178,180,183-189,191,194-196,198-204,206,208-211,213-224,226,228,231-244,247,249,269-294,298-300,302-305,307,314,316,320-332,336-346,350-354,358,360-362,364,370
+adr/0007-bind-before-submit-and-borrowed-thread-isolation.md
+  ai_agent 1-169
+design/proposal/P0013-opentelemetry-verification.md
+  ai_agent 1-102
+design/proposal/P0022-documentation-maintenance.md
+  ai_agent 1-78
+design/proposal/P0023-artifact-verification.md
+  ai_agent 1-73
+design/decision-log.md
+  ai_agent 1-99
+design/task-group-cancellation.md
+  ai_agent 3-5,7,13-15,29,32-34,46-47,54,85,87-91,93-98,102-105,109-111,113,117-118,123,131-132,137-139,144-145,154,158-159,163-165,168,171,181-185,197-201,203-205
+design/proposal/P0004-shared-root-budget.md
+  ai_agent 1-60
+design/proposal/P0020-deadline-attribution-policy.md
+  ai_agent 1-30
+adr/AGENTS.md
+  ai_agent 38-39
+adr/0003-event-coalesced-purge-maintenance.md
+  ai_agent 54
+design/proposal/P0024-comment-and-javadoc-maintenance.md
+  ai_agent 1-48
+design/batch-settle-attribution.md
+  ai_agent 1-110
+design/runner-interrupt-delivery.md
+  ai_agent 1-93
+design/task-group-observability-and-verification.md
+  ai_agent 1,3-6,8,10,12,14-15,21,23,27,29-30,32-35,39-41,61-63,65,69-80,86-89,95-96,103,112-115,119-122,126,130-134,136,152-156,160-162,164,166,172,176,179-180
+design/task-group-terminal-combine.md
+  ai_agent 3-8,33,35,37,41-47,49,53-57,60-69,72-77,81-91,93-97,103-111,117,119-121,123-124,126-127,131-132,135,138,140-142,146-149,151,154-155,157,160,162-165,173-174,180,189,201,205-206,210,214,219-239,242-243
+design/runner-interrupt-explainer.html
+  ai_agent 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "15ae02f93d82ef08a9f5b2f6e749a7925e8166d6",
+  "prompts": {}
+}
