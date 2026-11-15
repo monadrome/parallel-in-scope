@@ -1,0 +1,30 @@
+adr/0002-separate-task-execution-and-future-lifecycle.md
+  s_844f7c4e774b16::t_d4518283f19953 123-124,231,419
+src/test/java/io/github/huatalk/parallelinscope/control/ActionGateTest.java
+  s_844f7c4e774b16::t_bab6dab0e93487 6-11,14,52-58,99-107,109-135
+  s_844f7c4e774b16::t_6f75d2a3cfc32a 1,20,23-24,26-28,32-33,35-37,42,44-46,49-51,59-76,78,92-93,95
+  s_844f7c4e774b16::t_d150148950985b 41,48
+  s_844f7c4e774b16::t_3a7e574a59bc68 79-88
+src/main/java/io/github/huatalk/parallelinscope/control/ActionGate.java
+  s_844f7c4e774b16::t_6f75d2a3cfc32a 1,7,9,13,21,23,25-27,29-30,34-35,37-38,42,44-45,47-49,53,55-57,59-62,66,68-69,71-72,77,79-81,83-84,87,91,93-95,97-100,104,106-109,111-115,117,121-123,125,128-129,133,139,142-143,148,151-152,155-157,159,163,166-167,170-172,175
+  s_844f7c4e774b16::t_bab6dab0e93487 10-12,127
+  s_844f7c4e774b16::t_9ed2e2939ec1d3 14-17,149,153,164,168
+CHANGELOG.md
+  s_844f7c4e774b16::t_6f75d2a3cfc32a 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.35-trip",
+  "base_commit_sha": "9141ea6cfe9a47a72f81810ffb56e77586f6c813",
+  "prompts": {},
+  "sessions": {
+    "s_844f7c4e774b16": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fb737-7955-7452-b389-16c3c650dd27",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
