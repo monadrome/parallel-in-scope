@@ -1,0 +1,19 @@
+design/executor-transparency.md
+  s_55445120998176::t_7c3af91a38b1a0 1-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6c3ce3b0d66e431e19ef07c7c5eae31e0fc2d50f",
+  "prompts": {},
+  "sessions": {
+    "s_55445120998176": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "392cc089-d84b-46e6-b121-b611da923e7f",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
