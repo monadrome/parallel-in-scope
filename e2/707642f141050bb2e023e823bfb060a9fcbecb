@@ -1,0 +1,21 @@
+historical-eval/README.md
+  ai_agent 136-153
+historical-eval/tools/run-group-sandbox.py
+  s_490d18c85ab19e::t_5eea7a1dee35c1 1-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "e2707642f141050bb2e023e823bfb060a9fcbecb",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
