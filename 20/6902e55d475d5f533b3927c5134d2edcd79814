@@ -1,0 +1,71 @@
+verification/java-conventions.md
+  s_02c55561323c18::t_83e75e1ee2246c 12
+adr/0004-lifecycle-blocking-queue-recovery.md
+  s_02c55561323c18::t_7a893de9090a04 7
+design/AGENTS.md
+  s_02c55561323c18::t_b9162ebdbe351e 127,130
+.github/workflows/ci.yml
+  s_02c55561323c18::t_e15028b8ac78d5 230-231
+docs/en/reference/nullability-annotations.md
+  s_02c55561323c18::t_ccce720aac8df9 13
+AGENTS.md
+  s_02c55561323c18::t_87f01872a8d273 252
+  s_02c55561323c18::t_74228224e7833b 233
+  s_02c55561323c18::t_67e8e8e5a0c081 213
+  s_02c55561323c18::t_8ddcf38efdf8f1 147-151,153-155
+  s_02c55561323c18::t_fde23329c7753d 152
+docs/zh/user-guide.md
+  s_02c55561323c18::t_7e2c2c6b422810 683-684,691
+  s_02c55561323c18::t_aa01ac0343726c 708
+docs/en/user-guide.md
+  s_02c55561323c18::t_c4963e6bee1c7a 817
+  s_02c55561323c18::t_bc3c73b38d9483 791-793,799
+docs/zh/migration-v0.5.md
+  s_02c55561323c18::t_cbb90eb423df3a 119,125
+scripts/check-java-conventions.py
+  s_02c55561323c18::t_97bb99326f520e 44
+CHANGELOG.md
+  s_02c55561323c18::t_e7a04fff961adc 8
+docs/zh/reference/nullability-annotations.md
+  s_02c55561323c18::t_f043d472467578 13
+scripts/tests/test_refactoring_review.py
+  s_02c55561323c18::t_9ea45c9fd61d11 190,195
+adr/0006-queues-ship-with-core.md
+  s_02c55561323c18::t_57fae8753209fd 36
+docs/en/migration-v0.5.md
+  s_02c55561323c18::t_1decce58bf8999 117,123
+core/pom.xml
+  s_02c55561323c18::t_34664beca4548d 110
+adr/0015-blocking-queues-standalone-repository.md
+  s_02c55561323c18::t_e8ae9a6b9016f2 1-40
+pom.xml
+  s_02c55561323c18::t_8f7fb4173edf40 13
+  s_02c55561323c18::t_9eca620d09f5df 26
+adr/0013-standalone-blocking-queues-artifact.md
+  s_02c55561323c18::t_865f7a334330bf 7
+  s_02c55561323c18::t_59ff52c7241a32 50-52
+  s_02c55561323c18::t_a0979653f90297 39-40
+refactoring-review/config.json
+  s_02c55561323c18::t_6f322c6a5091e2 17-18
+  s_02c55561323c18::t_3786bcd7b20676 98
+  s_02c55561323c18::t_7feb262bef7dd3 84
+verification/pit.md
+  s_02c55561323c18::t_7b917646fc33ab 14-15
+  s_02c55561323c18::t_03c7db56c7a845 38,40-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "206902e55d475d5f533b3927c5134d2edcd79814",
+  "prompts": {},
+  "sessions": {
+    "s_02c55561323c18": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_55b99381-13b3-461a-8c8e-f9fdb37e3ee4",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
