@@ -1,0 +1,22 @@
+blocking-queues/src/test/java/io/github/monadrome/queues/ResizableBlockingQueueTest.java
+  s_51a7dc8d9e3065::t_98f781d6c298db 202-203
+  s_51a7dc8d9e3065::t_80563a80c667e8 216-221
+AGENTS.md
+  s_51a7dc8d9e3065::t_80563a80c667e8 360-365
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a6f5fe34ec56735ea56cae0ac3a6d3f35b73fe6f",
+  "prompts": {},
+  "sessions": {
+    "s_51a7dc8d9e3065": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bdaf-d64d-7e33-a95d-bddc7a988660",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
