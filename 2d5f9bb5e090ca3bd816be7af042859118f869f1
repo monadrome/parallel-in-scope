@@ -1,0 +1,21 @@
+historical-eval/README.md
+  s_490d18c85ab19e::t_a099fe29c74918 75-85
+historical-eval/tools/verify-all-gold.py
+  s_490d18c85ab19e::t_a099fe29c74918 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "2d5f9bb5e090ca3bd816be7af042859118f869f1",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
