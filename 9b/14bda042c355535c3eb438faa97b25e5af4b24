@@ -1,0 +1,27 @@
+design/workload-fit-screening.md
+  s_335edcc8596330::t_5bec79c804416f 46-47
+  s_335edcc8596330::t_8db53e2d2ac4ff 84-88
+  s_335edcc8596330::t_be6b1bb929f6a9 80-83,89
+  s_335edcc8596330::t_87ebc8138dc3ed 139-156
+src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java
+  s_335edcc8596330::t_b16b2a988c0d86 62-63
+src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java
+  s_335edcc8596330::t_2520cdd80619c0 35-66
+  s_335edcc8596330::t_8a761fc6627921 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9b14bda042c355535c3eb438faa97b25e5af4b24",
+  "prompts": {},
+  "sessions": {
+    "s_335edcc8596330": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27a11c36-fcec-4b32-9f40-767029457748",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
