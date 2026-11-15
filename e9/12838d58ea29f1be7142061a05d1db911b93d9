@@ -1,0 +1,23 @@
+scripts/tests/test_check_project_baseline.py
+  s_5ad4597eb7d0f3::t_a2a55cdc0c683e 1-49
+.agents/skills/contract-first-assurance/SKILL.md
+  s_5ad4597eb7d0f3::t_5d3f9962af81af 258
+scripts/check-project-baseline.py
+  s_5ad4597eb7d0f3::t_5d3f9962af81af 19,70-71,74-76,78-84,99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "8a417bb851f7548bbeff827245904d3cafba7b4b",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
