@@ -1,0 +1,21 @@
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_335edcc8596330::t_edde2cd86aa740 34
+  s_335edcc8596330::t_ef1f2a7fdd9c3b 100-136
+  s_335edcc8596330::t_8c0372652b42fb 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "eb91673853cb639a92adcb993f7a133786e3881b",
+  "prompts": {},
+  "sessions": {
+    "s_335edcc8596330": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27a11c36-fcec-4b32-9f40-767029457748",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
