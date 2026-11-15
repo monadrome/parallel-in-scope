@@ -1,0 +1,23 @@
+docs/en/migration-v0.2.md
+  s_d1bea004599e62::t_c3f464cbc2727e 282
+docs/en/user-guide.md
+  s_d1bea004599e62::t_c3f464cbc2727e 475-477,526
+docs/zh/user-guide.md
+  s_d1bea004599e62::t_c3f464cbc2727e 414,458-459
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e0b9b9f51a72f17f17a95d0f12a3469855632e95",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
