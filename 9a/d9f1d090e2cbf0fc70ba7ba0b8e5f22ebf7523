@@ -1,0 +1,23 @@
+src/test/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurgerConcurrencyTest.java
+  s_54b5961f321145::t_c178140282bfaf 140,142,152,154
+  s_54b5961f321145::t_95b52c6bf53a3f 116,118,128-133,136
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  s_54b5961f321145::t_b874828d8075a1 240,245,252-255,275-276
+  s_54b5961f321145::t_086a9efa0ae6d6 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9ad9f1d090e2cbf0fc70ba7ba0b8e5f22ebf7523",
+  "prompts": {},
+  "sessions": {
+    "s_54b5961f321145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cce39c04-10d0-4d8d-b770-545255d0b5d9",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
