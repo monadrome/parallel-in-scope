@@ -1,0 +1,29 @@
+docs/zh/migration-v0.5.md
+  s_e2c8cce2466ed4::t_0861d4939f0c7f 39
+docs/en/migration-v0.5.md
+  s_e2c8cce2466ed4::t_0861d4939f0c7f 36
+pom.xml
+  s_e2c8cce2466ed4::t_0861d4939f0c7f 13
+core/pom.xml
+  s_e2c8cce2466ed4::t_0861d4939f0c7f 105
+AGENTS.md
+  s_e2c8cce2466ed4::t_a8d7bcaa4c33c3 174
+  s_e2c8cce2466ed4::t_0861d4939f0c7f 80,86,92-94
+  s_e2c8cce2466ed4::t_427df0b7642068 152-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9b7b3e49c7ca9158ed419e8e072f9e66039bf873",
+  "prompts": {},
+  "sessions": {
+    "s_e2c8cce2466ed4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b925-0237-76a0-b6c1-3a2e7acb4886",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
