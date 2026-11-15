@@ -1,0 +1,45 @@
+design/analysis/flagship-review-2026-10-29/05-github-about-copy.md
+  s_8029e92a443aa7::t_688d90db64842f 1-94
+design/analysis/llm-usage-selection-guide-2026-10-27.md
+  s_8029e92a443aa7::t_688d90db64842f 1-312
+design/analysis/flagship-review-2026-10-29/04-first-use-p0-p1-plan.md
+  s_8029e92a443aa7::t_688d90db64842f 1-803
+design/analysis/flagship-review-2026-10-29/06-verified-facts.md
+  s_8029e92a443aa7::t_688d90db64842f 1-55
+design/analysis/flagship-review-2026-10-29/README.md
+  s_8029e92a443aa7::t_688d90db64842f 1-91
+design/AGENTS.md
+  s_8029e92a443aa7::t_688d90db64842f 168
+design/analysis/llm-model-selection-blog-2026-10-27.md
+  s_8029e92a443aa7::t_688d90db64842f 1-86
+design/analysis/flagship-review-2026-10-29/01-portfolio-review.md
+  s_8029e92a443aa7::t_688d90db64842f 1-332
+design/analysis/interruption-cancellation-review-2026-11-04.md
+  s_8029e92a443aa7::t_688d90db64842f 1-118
+design/proposal/P0037-future-path-staged-outcome-api.md
+  s_8029e92a443aa7::t_688d90db64842f 1-164
+design/analysis/flagship-review-2026-10-29/03-adversarial-review.md
+  s_8029e92a443aa7::t_688d90db64842f 1-284
+design/analysis/code-quality-metrics-2026-11-06.md
+  s_8029e92a443aa7::t_688d90db64842f 1-320
+design/analysis/flagship-review-2026-10-29/02-engineering-review.md
+  s_8029e92a443aa7::t_688d90db64842f 1-278
+design/analysis/llm-model-selection-blog-kimi-2026-10-27.md
+  s_8029e92a443aa7::t_688d90db64842f 1-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "318a69216fe218dc001ae5eec6c92f31a39f446c",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
