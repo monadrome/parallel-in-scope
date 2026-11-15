@@ -1,6 +1,6 @@
 # Idea Graveyard
 
-> 本文部分示例保留 0.2 之前的历史 API。当前应用装配使用 `ParRuntime.builder()` 和 `BatchOptions`/`TaskOptions`，请以 [v0.3 迁移指南](../migration-v0.3.md) 为准。
+> 本文部分示例保留历史 API。当前应用装配使用 `ParRuntime.builder()`、`BatchOptions`/`TaskOptions` 和 `TaskKey<T>`，请以[使用指南](../user-guide.md)和 [v0.4 迁移指南](../migration-v0.4.md) 为准。
 
 
 > 本页记录了我们**认真考虑过但最终决定不实现**的特性，以及拒绝的理由。
@@ -15,7 +15,7 @@
 
 **为什么不做：**
 
-我们曾经实现过 `failFast` 开关，后来在 [0b8cb63](https://github.com/monadrome/parallel-in-scope/commit/0b8cb63) 中**主动删除**了它。
+我们曾经实现过 `failFast` 开关，后来**主动删除**了它。
 
 fail-fast 是结构化并发的核心语义：一个 scope 内的任务要么全部成功，要么在第一个失败时取消剩余任务。允许"忽略失败继续跑"会引入多种复杂性：
 
@@ -80,7 +80,7 @@ ListenableFuture<Report> report = Futures.transform(allPrices, this::buildReport
 | 退避策略？ | 固定间隔？指数退避？抖动？ |
 | 幂等性？ | 重试一个 HTTP POST 安全吗？ |
 | 重试时是否占用并发窗口？ | 占用则降低吞吐，不占用则可能超出并发限制 |
-| 重试的结果算成功还是另一种状态？ | 影响 `BatchReport` 的统计语义 |
+| 重试的结果算成功还是另一种状态？ | 影响批次结果 `outcomeCounts()` 的统计语义 |
 
 把这些策略内置到框架中，要么做得太简单（覆盖不了实际场景），要么做得太复杂（变成了 Resilience4j）。无论哪种，都偏离了 parallel-in-scope 的定位。
 
@@ -182,7 +182,7 @@ httpPar.map(urls, url -> {
 
 parallel-in-scope 要求输入是一个**已物化的 `List<T>`**，这是刻意的：
 
-1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。`BatchReport` 的状态统计也依赖于预知总任务数。
+1. **总量必须提前已知。** 库会将并行度 clamp 到 `min(parallelism, taskSize)`——如果不知道总量，无法做这个优化。批次结果的状态统计也依赖于预知总任务数。
 2. **滑动窗口需要随机访问。** `SlidingWindowSubmitter.submitAll()` 按索引提交 prepared tasks，全部执行 future 在提交前就已准备并绑定。流式输入无法提供这种随机访问模式。
 3. **背压语义冲突。** 响应式流的背压机制和滑动窗口是两种不同的流控范式。让它们共存在同一个执行模型中会互相干扰，语义变得不可预测。
 
@@ -207,8 +207,8 @@ TaskGroup 已按名称、声明类型和左嵌套 Tuple2 支持独立异构 Call
 
 ```java
 TaskGroupResult<Tuple2<User, Order>, Void> result = runtime.group("load", Duration.ofSeconds(3))
-        .par("user", ioPar, User.class, () -> fetchUser(id))
-        .par("order", ioPar, Order.class, () -> fetchOrder(id))
+        .par(TaskKey.<User>named("user"), ioPar, () -> fetchUser(id))
+        .par(TaskKey.<Order>named("order"), ioPar, () -> fetchOrder(id))
         .runAll();
 ```
 
@@ -237,24 +237,24 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 
 ## 内置受检异常映射接口（ThrowingFunction）
 
-**请求：** 让 `Par.map` 的元素函数可以直接声明受检异常。现状是它收标准 `java.util.function.Function`，其 `apply` 不能声明 `throws`，因此元素体里做 HTTP、JDBC、文件这类 IO 时必须自己 try/catch 包成非受检异常；而同一份工作写在 group 成员或 combine 上就不必，因为那些入口本来就收 `Callable` / `CombineBody`。
+**请求：** 让 `Par.map` 的元素函数可以直接声明受检异常。现状是它收标准 `java.util.function.Function`，其 `apply` 不能声明 `throws`，因此元素体里做 HTTP、JDBC、文件这类 IO 时必须自己 try/catch 包成非受检异常；而同一份工作写在 group 成员或 combine 上就不必，因为那些入口本来就收 `Callable` / `Combiner`。
 
 **为什么不做：**
 
-1. **换不来任何结构化并发保证。** 执行内核本来就以 `Callable` 形态运行每个任务体（`map` 内部只是把 `Function` 包一层 `Callable`），取消、deadline 与失败归因在两种签名下完全相同。改签名只是把"包装"这个动作从调用方挪到签名里，库的能力一点没变。
+1. **换不来任何结构化并发保证。** 执行内核本来就以 `Callable` 形态运行每个任务代码（`map` 内部只是把 `Function` 包一层 `Callable`），取消、deadline 与失败归因在两种签名下完全相同。改签名只是把"包装"这个动作从调用方挪到签名里，库的能力一点没变。
 2. **公共表面积与迁移成本不成比例。** 新增一个公开函数式接口 `ThrowingFunction<T, R>`，同时替换 `Par.map` 的参数类型：对持有 `Function` 变量的调用点是源码级破坏，二进制同样不兼容，还要配一篇迁移文档。为省一次 try/catch 付这些代价，不划算。
 3. **"新增重载"这条折中路本来就堵死。** `map(Collection, Function, ...)` 与 `map(Collection, ThrowingFunction, ...)` 对无显式类型的 lambda 调用点会产生二义性，两个函数式接口无法共存于同名重载——所以只能在"改签名"和"不改"之间二选一。
 4. **包装策略属于调用方。** 是改抛非受检异常、还是返回领域结果类型，取决于应用的错误模型以及调用链上的重试/告警策略；库替你决定，等于把策略焊死在公开 API 上。标准 JDK `Function` 也更小、更熟悉，调用方不必再学一个词根相同的库内类型。
 
 **替代方案：** 在元素函数体内完成包装——捕获受检异常后改抛非受检异常，或返回显式领域结果。需要更强表达力时，把会抛的工作交给 group 成员（收 `Callable`，可直接声明 `throws`）；单任务用单成员组，把纯映射留给 `map`。
 
-**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。结论与完整否决理由见 `design/decision-log.md` 对应条目；逐项否决分析的全文可用 `git show db2ab2d:design/archive/par-map-throwing-function-v0.3-proposal.md` 取回；除非用户明确重启该决策，后续不再重开。
+**状态：** 该方向已由用户**明确否决并关闭**（2026-09-25），不是"暂缓"。结论与每种备选签名的否决理由见 `design/decision-log.md` 对应条目；除非用户明确重启该决策，后续不再重开。
 
 ---
 
 ## 提交期 caller-thread 回退选项（`runOnCallerThread`）
 
-**曾经存在：** `TaskOptions`/`BatchOptions` 上的提交期选项，在绑定的 executor 拒绝任务时把任务体借到提交线程上 inline 执行。0.3.0 发布前被**主动删除**，从未进入任何已发布版本。
+**曾经存在：** `TaskOptions`/`BatchOptions` 上的提交期选项，在绑定的 executor 拒绝任务时把任务代码借到提交线程上 inline 执行。0.3.0 发布前被**主动删除**，从未进入任何已发布版本。
 
 **为什么删除：**
 
@@ -267,6 +267,29 @@ BatchOptions opts = BatchOptions.timeout("fetch", Duration.ofSeconds(30)).parall
 2. **背压语义补不回来。** 库内建的回退会把提交线程占在提交机制内部，池饱和时后续元素的提交自然变慢；执行器侧的处理器能复现执行本身，复现不了批次提交内部的这种节流时序。
 
 **替代方案：** `MoreExecutors.newDirectExecutorService()`（每个任务都 inline，契约即如此）或 `ThreadPoolExecutor` + `CallerRunsPolicy`（饱和时 inline）。被借用线程的中断标志与 `SubmissionScope` 隔离由内核的 `run()` 承担，与走哪条路径无关。
+
+---
+
+## 无 deadline 工厂（`unbounded()`）
+
+**请求：** 为 `BatchOptions`/`TaskOptions`/`ParRuntime.group` 补一个「不设上限」的工厂，作为 `timeout(...)` 与 `inheritTimeout(...)` 之外的第三种选择。
+
+**为什么不做：**
+
+1. **deadline 是同步作用域唯一的活性来源。** `map`/`runAll` 不可中断地等待，调用方中断不取消执行，公开面也没有运行句柄。无 deadline 的顶层作用域里，一个不配合中断的任务代码会让调用线程永远挂住，没有任何出口。
+2. **「二选一、无第三态」是刻意的。** 漏写 timeout 编译不过；`unbounded()` 不消除任何遗漏，只是给「不设上限」一个被认可的名字，削弱这层刻意保留的摩擦。
+3. **表达力已经够了。** 「长」任务写一个宽松的运维上界即可，它同时是生产防护；代价只是每个作用域一个定时器，作用域落定即移除。「永远」几乎从来不是真实需求。
+
+**替代方案：**
+
+```java
+TaskBatchResult<Report> reports = par.map(shards, this::rebuild,
+        BatchOptions.timeout("nightly-rebuild", Duration.ofHours(6)));
+```
+
+嵌套调用用 `inheritTimeout(...)` 继承外层预算。`ChronoUnit.FOREVER` 这类天文数字也会被接受并解析为有限 deadline，但执行永远不退出时，取消后的清理等待也近乎无限；需要「取消后不等」就显式写 `closeGrace(Duration.ZERO)`。
+
+**重开条件：** 出现「任何有限上界都有害，而不只是不便」的具体用例，并同时给出无 deadline 作用域的活性方案。
 
 ---
 

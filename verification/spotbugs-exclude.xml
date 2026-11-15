@@ -1,0 +1,32 @@
+<!--
+  SpotBugs baseline for the opt-in `spotbugs` profile.
+
+  Only High-priority findings are gated, so this file is deliberately short: every entry is a
+  reviewed false positive, not a blanket suppression. Run the full report with
+  `mvn -Pspotbugs -Dspotbugs.threshold=Low -Dmaven.test.skip=true spotbugs:spotbugs` and
+  triage new entries before adding to this file.
+-->
+<FindBugsFilter>
+    <!--
+      The @Nullable on this override marks the runtime null check, not an accepted null value.
+      SpotBugs reads the requireNonNull/throw as "must be non-null" and reports the annotation
+      as contradictory. Changing the public annotation is an API decision, so the finding stays
+      excluded until that decision is made.
+    -->
+    <Match>
+        <Class name="io.github.monadrome.parallelinscope.SmartBlockingQueue"/>
+        <Method name="offer"/>
+        <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    </Match>
+
+    <!--
+      Package-private helper that accepts a nullable value and re-asserts it before the cast.
+      The annotation describes the input; the requireNonNull is the assertion, not a contract
+      that null is accepted.
+    -->
+    <Match>
+        <Class name="io.github.monadrome.parallelinscope.TaskGroup"/>
+        <Method name="castCombiner"/>
+        <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    </Match>
+</FindBugsFilter>

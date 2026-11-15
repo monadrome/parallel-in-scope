@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.reflect.TypeToken;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
- * Locks the inline guard's behavior when work nests: a combine body that opens another group or
+ * Locks the inline guard's behavior when work nests: a combiner that opens another group or
  * batch, and a combine whose own {@code Par} is the one the nested work runs on.
  *
  * <p>The guard compares the executing thread against the thread still inside {@code
@@ -32,15 +31,15 @@ class TaskGroupCombineNestedGuardTest {
                 2,
                 0,
                 TimeUnit.SECONDS,
-                SmartBlockingQueue.create(100),
+                new SmartBlockingQueue<>(100),
                 r -> new Thread(r, threadName),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Test
-    void aCombineBodyMayRunANestedBatchOnItsOwnPar() throws Exception {
+    void aCombinerMayRunANestedBatchOnItsOwnPar() throws Exception {
         // The outer combine runs on a combine-worker and submits a batch to the very same Par from
-        // inside its body. The outer combine's handoff window closed long before, so nothing about
+        // inside its execution. The outer combine's handoff window closed long before, so nothing about
         // the outer submission may leak into the judgement of the inner one — and the inner elements
         // carry no guard at all, since the guard is only ever set on a combine.
         ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
@@ -54,16 +53,14 @@ class TaskGroupCombineNestedGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "sum",
+                            TaskKey.<String>named("sum"),
                             runtime.par(ParId.of("c")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 combineThread.set(Thread.currentThread().getName());
                                 List<String> ran = runtime.par(ParId.of("c"))
@@ -92,7 +89,7 @@ class TaskGroupCombineNestedGuardTest {
     @Test
     void aNestedGroupsCombineIsJudgedByItsOwnHandoffNotTheOuterOne() throws Exception {
         // Two combines, one inside the other, on two different Pars. The inner group is declared and
-        // submitted from inside the outer combine's body, so the inner combine's submitting thread is
+        // submitted from inside the outer combine's execution, so the inner combine's submitting thread is
         // the outer combine's worker. Both must succeed: neither combine ran inside its own handoff.
         ExecutorService memberPool = Executors.newFixedThreadPool(2, r -> new Thread(r, "member"));
         ThreadPoolExecutor outerCombinePool = saturatingPool("outer-combine");
@@ -107,30 +104,26 @@ class TaskGroupCombineNestedGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "outer-sum",
+                            TaskKey.<String>named("outer-sum"),
                             runtime.par(ParId.of("outer")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 outerThread.set(Thread.currentThread().getName());
                                 TaskGroup<?, String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
                                         .par(
-                                                "x",
+                                                TaskKey.<String>named("x"),
                                                 runtime.par(ParId.of("m")),
                                                 TaskOptions.inheritTimeout(),
-                                                TypeToken.of(String.class),
                                                 () -> "x")
                                         .combine(
-                                                "inner-sum",
+                                                TaskKey.<String>named("inner-sum"),
                                                 runtime.par(ParId.of("inner")),
                                                 TaskOptions.inheritTimeout(),
-                                                TypeToken.of(String.class),
                                                 inner -> {
                                                     innerThread.set(Thread.currentThread()
                                                             .getName());
@@ -184,29 +177,25 @@ class TaskGroupCombineNestedGuardTest {
         try {
             TaskGroup<?, String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
-                            "a",
+                            TaskKey.<String>named("a"),
                             runtime.par(ParId.of("m")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             () -> "a")
                     .combine(
-                            "outer-sum",
+                            TaskKey.<String>named("outer-sum"),
                             runtime.par(ParId.of("outer")),
                             TaskOptions.inheritTimeout(),
-                            TypeToken.of(String.class),
                             values -> {
                                 TaskGroup<?, String> nested = runtime.groupDraft("inner", Duration.ofSeconds(5))
                                         .par(
-                                                "x",
+                                                TaskKey.<String>named("x"),
                                                 runtime.par(ParId.of("m")),
                                                 TaskOptions.inheritTimeout(),
-                                                TypeToken.of(String.class),
                                                 () -> "x")
                                         .combine(
-                                                "inner-sum",
+                                                TaskKey.<String>named("inner-sum"),
                                                 runtime.par(ParId.of("inner")),
                                                 TaskOptions.inheritTimeout().rejectEnqueue(true),
-                                                TypeToken.of(String.class),
                                                 inner -> {
                                                     innerThread.set(Thread.currentThread()
                                                             .getName());

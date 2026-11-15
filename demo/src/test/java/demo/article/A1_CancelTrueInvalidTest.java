@@ -2,10 +2,10 @@ package demo.article;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskType;
@@ -86,15 +86,15 @@ public class A1_CancelTrueInvalidTest {
         // 解决方案：Par.map() 配合超时自动取消
         BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
                 .parallelism(3)
-                .taskType(TaskType.IO_BOUND);
+                .taskType(TaskType.BLOCKING);
 
         List<Integer> input = Arrays.asList(1, 2, 3);
         long start = System.currentTimeMillis();
         TaskBatchResult<Integer> result = par.map(
                 input,
                 x -> {
-                    // 使用 Checkpoints.sleep() 响应取消信号
-                    Checkpoints.sleep(5000);
+                    // 使用 Checkpoints.checkSleep() 响应取消信号
+                    Checkpoints.checkSleep(5000, TimeUnit.MILLISECONDS);
                     return x;
                 },
                 opts);

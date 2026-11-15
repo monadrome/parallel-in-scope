@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from issue_agent import agents, landing, pipeline, schemas, triage
+from issue_agent import agents, gates, landing, pipeline, schemas, triage
 from issue_agent.github import GitHub
 from issue_agent.issues import Issue
 from issue_agent.proc import CommandError
@@ -63,6 +63,31 @@ class HoldTest(unittest.TestCase):
         run = types.SimpleNamespace(config=types.SimpleNamespace(gate_rounds=2), gates=[])
         with mock.patch.object(pipeline, "check_gates", return_value=[]):
             self.assertIsNone(pipeline.local_gates(run))
+
+
+class RebaseRecheckTest(unittest.TestCase):
+    def test_an_inconclusive_gate_after_rebasing_stops_for_a_maintainer(self):
+        gh = types.SimpleNamespace(holds_claim=mock.Mock(return_value=True), merge_pr=mock.Mock(return_value="f" * 40),
+                                   delete_branch=mock.Mock())
+        run = types.SimpleNamespace(gh=gh, human_paths=[], unresolved=[], gates=[], config=types.SimpleNamespace(base_branch="dev/v0.3.0"),
+                                    clone=Path("/x"), base_sha="b", pushed_sha="p", deadline=0.0, pr=12, branch="auto/issue-7-x",
+                                    issue=types.SimpleNamespace(number=7), claim_sha="c",
+                                    report={"title": "fix: x y z", "summary": "s", "completes_issue": True})
+
+        def recheck(target, check_pit=True):
+            target.gates = [gates.Gate("reverse-verify", "inconclusive", "the build failed without reaching the new tests")]
+            return []
+
+        with mock.patch.object(landing.workspace, "rebase_onto_base", return_value="fresh"), \
+                mock.patch.object(landing, "head", return_value="rebased"), \
+                mock.patch.object(landing, "check_gates", side_effect=recheck), \
+                mock.patch.object(landing.workspace, "push", return_value="rebased") as push, \
+                mock.patch.object(landing, "wait_ci", return_value=("green", [])):
+            outcome = landing.land(run)
+        self.assertEqual(outcome.state, "review")
+        self.assertIn("reverse-verify is inconclusive", outcome.reason)
+        push.assert_not_called()
+        gh.merge_pr.assert_not_called()
 
 
 class ClaimGuardTest(unittest.TestCase):

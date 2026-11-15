@@ -64,9 +64,9 @@ HTTP artifact 与源码 revision；不让同名 install 隐藏公开 API 不匹�
 
 ## 来源
 
-2026-10-09 Claude `67244035` 与 Codex `01a120ae` 的 OSS 比较，随后用户选择不推 main、
-在 dev 线上有未发布改动时自动发快照。已执行的发布改动以 `5935059`、`7fa42f5`、
-`8b5fc71`、`8d7ff69` 及当前 workflow 为准；保留未落实的构件身份/验证建议，不回滚已选
+2026-10-09 Claude 与 Codex 的 OSS 比较，随后用户选择不推 main、
+在 dev 线上有未发布改动时自动发快照。已执行的发布改动以当前 snapshot 与 release
+workflow 为准；保留未落实的构件身份/验证建议，不回滚已选
 trigger/日限流策略。本提案不修改 workflow、pom、公开坐标或外部应用。
 
 本提案承接 P0018 未实施的构件身份与消费验证方向。误报 Published 的摘要缺陷已由

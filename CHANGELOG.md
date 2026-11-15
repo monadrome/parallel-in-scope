@@ -2,6 +2,187 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-07
+
+- Fix Guava null-check convention violations in the execution kernel.
+- Correct race-claim verification metadata for observation publication and adopted-member settlement ordering.
+- Document the Java 8-compatible Spring 5.3.39 integration dependency exception for the unavailable upstream security fixes.
+
+## [0.4.0] - 2026-11-07
+
+### Breaking changes
+
+- Change the earlier 0.4 development `ImmediateResult.fold` from three handlers to four:
+  `onValue`, `onUserFailure`, `onSubmissionFailure`, and `onCancelled`; the three-argument overload
+  is removed. See the [0.4 migration guide](docs/en/migration-v0.4.md).
+
+- Remove `ResourceCloser` and the closer-taking `adopt` overloads from the earlier 0.4 development API.
+  Adopted futures keep structured cancellation, deadlines, attribution, and frozen results, but the group no longer
+  closes their values. Manage intermediate resources in a `ClosingFuture` pipeline or by the value's recipient;
+  source settlement does not wait for an external pipeline's asynchronous close. See the 0.4 migration guide.
+
+- Rename the task-execution terms to execution and execution exit, with no aliases: `awaitBodyCompletion` to `awaitExecutionExit`, `bodyCompletionConfirmed` to `executionExitConfirmed`, `unfinishedBodies` to `unexitedExecutions`, `unexitedBodySignals` to `unexitedExecutionSignals`, workload-fit `bodies`, `unattributedBodies`, and `unmeasuredBodies` to `executions`, `unattributedExecutions`, and `unmeasuredExecutions`, and `CombineBody` to `Combiner`. Behaviour is unchanged. See [migration-v0.4](docs/en/migration-v0.4.md#execution-exit-terminology).
+- Replace request-scoped task-graph observation with an always-on, runtime-level executor wait
+  graph. Every nested synchronous call — `map`, `mapAndCombine`, or `runAll` made inside a task
+  execution — records which registered executor waits for which starvation-prone executor; no scope or
+  switch is needed, and waits from unrelated requests now combine, so the classic cross-request
+  cycle (one request waiting from pool A on B, another from B on A) is visible. Read the state with
+  the new `ParRuntime.executorWaitReport()`, whose `ExecutorWaitReport.cyclicComponents()` lists
+  cyclic strongly connected components with members, one concrete cycle, and witnesses, each
+  executor given as all of its registered `ParId`s. When waits first form a cycle, one JUL `WARNING`
+  per component is logged from a runtime-owned thread, never from the submitting one. Remove
+  `TaskGraphObservationScope` (including the static `hasExecutorCycle()` / `hasExecutorSelfLoop()`
+  queries, which ignored the policy and read `false` after close), `TaskGraphReport`,
+  `ParRuntimeDeadlockPolicy`, `ParRuntime.openTaskGraphObservation()`, `ParRuntime.deadlockPolicy()`,
+  and `ParRuntime.Builder.deadlockPolicy(...)`. There is no per-request verdict; run code against a
+  dedicated `ParRuntime` to isolate one.
+- Make `CancellationToken` and its nested `State` package-private. No public member ever accepted or
+  returned a token, so a token built by application code was connected to no library work: its
+  deadline never fired, because the public constructors carried no deadline scheduler, and
+  `cancel()` stopped nothing. Bound execution with `BatchOptions.timeout`, `TaskOptions.timeout`, or
+  `ParRuntime.group(name, timeout)`; read attribution from `TaskOutcome`; observe cancellation and
+  the remaining budget inside an execution with `Checkpoints.checkpoint()` and `Checkpoints.remaining()`.
+- Make `TaskType` an optional diagnostic declaration that never changes execution. Replace
+  `IO_BOUND`, `CPU_BOUND`, and `MIXED` with `COMPUTE`, `BLOCKING`, and `UNKNOWN`; the default on
+  `BatchOptions` and `TaskOptions` is `UNKNOWN`. A `CPU_BOUND` unit used to make a
+  `SmartBlockingQueue` refuse it, so a label added to describe the work changed where it ran;
+  `SmartBlockingQueue.offer` now refuses only on `rejectEnqueue`. Write
+  `taskType(TaskType.COMPUTE).rejectEnqueue(true)` where the refusal was intended. The terminal
+  combine of `mapAndCombine` no longer inherits the batch's type, and the inert-refusal warning now
+  names only `rejectEnqueue`. See the 0.4 migration guide.
+- Remove `Checkpoints.checkRunnable`, `Checkpoints.checkSupplier`, `Checkpoints.checkpoint(String,
+  boolean)`, and `Checkpoints.sleep(long)`. The first two turned a user exception type into a
+  `CancellationException` while the outcome stayed `USER_FAILURE`; handle that exception as a
+  business failure, or call `Checkpoints.checkpoint()` where the execution should stop. Replace
+  `checkpoint(name, lean)` with `checkpoint()` and `sleep(millis)` with
+  `checkSleep(millis, TimeUnit.MILLISECONDS)`. See the 0.4 migration guide.
+
+### Features
+
+- Declare the work an entry carries with `ParRuntime.Builder.register(ParId, ExecutorService,
+  TaskType)` and read it with `Par.taskType()`. At admission, a unit whose declared type disagrees
+  with its entry's is logged once per entry and unit name, as `WARNING` for a `BLOCKING` unit on a
+  `COMPUTE` entry and `INFO` for the reverse. The runtime remembers at most 1024 pairs and then logs
+  one summary instead of further new pairs.
+- Screen workload fit all the time with the new `ParRuntime.workloadFitReport()`. The runtime times
+  the executions admitted through an entry or unit declared `COMPUTE`, comparing thread CPU time with
+  execution time, and judges each entry in epochs of ten seconds of execution time. The first epoch
+  with CPU use below half sets `ParMeasurement.issue()` and logs one `WARNING`: a screening lead for
+  blocking work in a compute pool, including work whose author did not know it blocks. Judging the
+  entry rather than each unit catches blocking spread over many small units. Units are attributed up
+  to 256 per entry, and a unit declared `COMPUTE` is judged for suspected declaration drift. Counts
+  are cumulative; an execution whose entry and unit are both undeclared or blocking is never timed, and
+  direct executor work is never measured.
+
+- Add scope-level request cancellation through `BatchOptions.cancelOn(ListenableFuture<?>)` and
+  `GroupStart.cancelOn(ListenableFuture<?>)`. Any completion of the caller-owned source cancels the
+  whole batch or group, including `mapAndCombine`, and interrupts running executions like a deadline or
+  fail-fast does: every framework cancellation interrupts, and there is no non-interrupting variant.
+  Preserve first-wins attribution (`GROUP_CANCELLED` when the source wins), never finish the source,
+  register only after successful preparation immediately before binding, and sever the execution
+  link on terminal completion.
+  Empty batches and groups do not register. `TaskOptions` intentionally has no member-level variant.
+- Adopt futures already in flight as group members with `GroupStart.adopt` / `GroupStep.adopt`.
+  The group owns each adopted `ListenableFuture` from `runAll()` on: fail-fast, deadlines,
+  `cancelOn`, and enclosing cancellation cancel it with `cancel(true)`, and a `runAll()`
+  that fails admission cancels it (a stale-stage or thread-confinement rejection leaves it
+  untouched). Values enter ordinary combines and frozen results; their resource lifetime stays with
+  the source's own pipeline or the value's recipient. `executionExitConfirmed()` confirms that adopted
+  futures settled, not that an external pipeline's asynchronous close finished. An optional producer
+  `Par` puts nested waits on adopted futures into `executorWaitReport()`.
+
+- Add opt-in `ParRuntime.openThreadPoolStarvationObservation(Duration)` for direct work submitted
+  outside the structured task graph. `ThreadPoolStarvationReport` distinguishes clean observation,
+  potential starvation, sampling failure, and insufficient executor visibility, with immutable
+  per-pool evidence. Sampling uses an independent daemon scheduler, a minimum 10 millisecond
+  interval, and fixed-delay scheduling; it only observes registered physical `ThreadPoolExecutor`
+  counters and never wraps or changes user tasks.
+  Rename evidence `stagnantSamples()` to `stagnantIntervals()` to count qualifying sample pairs;
+  evidence remains sticky for the observation window. Reports also
+  expose `samplingInterval()`, `SAMPLING_FAILED`, and `failureMessage()`. Open observations are included in
+  `ParRuntime.inFlight()` and `ParRuntimeSnapshot.activeObservations()` until their reports publish,
+  so runtime shutdown cannot retire either framework scheduler early.
+
+- Add `TaskKey<T>.named(name)` for typed group declarations and result lookup.
+  `par(key, par, [options,] taskCode)` and `combine(key, par, [options,] taskCode)` bind the execution to
+  the key's type; `GroupValues.valueOf(key)` reads members, and `TaskGroupResult.resultOf(key)`
+  reads member or terminal results. Keys use object identity and may be reused across runs.
+  `combineValues(key, par, [options,] taskCode)` receives a `GroupValues` view for keyed input access
+  through the existing prepared terminal. Names stay unique; types are checked only at compile time.
+  Remove string-plus-`Class`/`TypeToken` declarations, typed name/position lookup overloads,
+  `typeAt`/`typeOf`, and raw-class result validation. Migrate declarations and typed reads to
+  the same key object; generic results need no runtime token. Dynamic name/position lookups
+  remain untyped, and tuple combines remain supported. Raw types and unchecked casts are the
+  caller's responsibility. Literal-null one-argument
+  `valueOf(null)` / `resultOf(null)` calls now require a `String` or `TaskKey` cast to disambiguate.
+
+- Batch aggregate reads follow the group rule. `TaskBatchResult.valuesOrThrow()` and
+  `BatchCombinedResult.terminalValueOrThrow()` no longer declare `ExecutionException`: they pass
+  through a new `orThrow()` on both types, which rethrows the selected recorded failure as-is when
+  unchecked and wraps it in `CompletionException` when checked. `terminalValueOrThrow()` now checks
+  element failures first, so an element's business exception is no longer reported as the combine's
+  `FAIL_FAST` cancellation. `TaskBatchResult.BatchReport` and `report()` are removed in favor of
+  `outcomeCounts()` and `failedTaskResult()`, matching `TaskGroupResult`. Nested batch reads inside a
+  batch execution no longer need a try/catch.
+
+- Add `ImmediateResult.successful()` and four-way `fold(onValue, onUserFailure, onSubmissionFailure,
+  onCancelled)`, a consumer that branches on the outcome: user-code and submission failures are
+  distinct, while cancellation-shaped outcomes reach `onCancelled`.
+
+- Remove `TaskCompletion.succeeded/failed` (a completion is a library-produced observation that no
+  public method accepts) and `SmartBlockingQueue.create(int)` (it returned a `SynchronousQueue` for
+  non-positive capacity while the constructor rejects it). See the 0.4 migration guide.
+
+### Changed
+
+- Stop warning when an execution acknowledges a cancellation that already settled its task. An execution that
+  exits through a `Checkpoints` call that read the committed cancellation, or through a raw JDK
+  blocking call woken by the engine's cancellation interrupt on that run, is now logged as
+  `failed after cancellation` at `FINE` instead of `WARNING`; the decision reads where the
+  exception came from, never its type. Every other late failure, including one that carries a
+  suppressed `close()` failure, an `InterruptedException` the engine did not cause, and a
+  `CancellationException` built by user code, is still a `WARNING`. A `Checkpoints` adapter
+  interrupted while the scope is not cancelled still throws an unmarked `LeanCancellationException`
+  and the outcome stays `USER_FAILURE`. Monitors that counted these warnings should read
+  `outcomeCounts()` instead.
+
+### Fixed
+
+- Snapshot nonempty batch inputs with `ImmutableList.copyOf` in both `map` and `mapAndCombine`,
+  avoiding quadratic indexed traversal of sequential lists. Null input elements now fail before
+  any task runs; successful null results and the existing empty-input rules are unchanged.
+- Wait for batch observation publication without collecting its values on the synchronous exit.
+  The internal full observation-list view is initialized only when requested, remains shared and
+  read-only, and does not change settle attribution, missing frozen observations, or cleanup budgets.
+
+- Deliver the once-per-`Par` inert `rejectEnqueue` warning from a runtime-owned thread instead of the
+  submitting thread. A log handler that threw used to fail the submission before any execution ran, and
+  one that blocked delayed it; a failing handler or a delivery that cannot start now only loses the
+  message. The new `TaskType` mismatch warnings are delivered the same way.
+- An explicit timeout too large for the clock range — `ChronoUnit.FOREVER`,
+  `Duration.ofSeconds(Long.MAX_VALUE)`, or any duration whose deadline overflows — no longer
+  resolves to the internal no-deadline sentinel. It resolves to the latest representable deadline,
+  so the deadline timer is armed and, without `closeGrace`, `map` and `runAll` wait for cancelled
+  executions to exit within the remaining deadline, exactly as a 200-year timeout does; before, such a
+  scope returned after fail-fast without waiting and reported the executions as unfinished. Any positive
+  timeout is still accepted. Callers who want cancel-without-waiting set `closeGrace(Duration.ZERO)`.
+  `Checkpoints.remaining()` in such a scope reads a large finite budget instead of
+  `Duration.ofNanos(Long.MAX_VALUE)`.
+- Make the never-started batch observation test wait for its blocking task to
+  enter before cancellation, avoiding a scheduling race in release verification.
+
+### Build
+
+- Add Error Prone contract annotations to the API: immutable option withers, the
+  `ParRuntime.group(String, Duration)` / `groupInheriting(String)` entries, and one-shot group
+  stages require their return values, while `orThrow()` remains valid as a standalone failure check.
+  Dropping a group entry's return value declares nothing and runs no group. `ParRuntime.Builder.build()`
+  and starvation-observation scopes carry `@MustBeClosed`; downstream Error Prone users should close
+  these resources with try-with-resources. Add lock ownership, immutability, and test-visibility
+  annotations without changing runtime behavior. See the v0.4 migration guide.
+- Start the `0.4.0-SNAPSHOT` development line on `dev/v0.4.0`, preserving the
+  previous snapshot publication gate and library/demo verification steps.
+
 ## [0.3.0] - 2026-10-15
 
 ### Breaking changes
@@ -22,7 +203,7 @@
 - Redesign groups as single-use, creating-thread fluent declarations: `group(...).par(...)[.combine(...)].runAll()` returns `TaskGroupResult<V,R>`. Declaration starts no deadline, timer, TTL capture, or executor work. Member shapes remain left-nested `Tuple2`; `Class`/`TypeToken` declarations and exact typed lookups remain. Read member values with `valuesOrThrow()` and combine values with `terminalValueOrThrow()`; query terminal containers with `resultOf`/`resultAt` (see `design/synchronous-scope-exit.md`).
 - Remove the task-group structure and binding types without compatibility aliases (see `design/group-one-shot-api-refactor-codex.md` §3): `TaskGroupDefinition` (with its nested `Builder` / `Member<T>` / `TaskDefinition` / `CombineDefinition` and their `tasks()` / `combine()` accessors), `TaskGroup.Bindings`, `TaskGroup.CombineContext`, and `ParRuntime.defineGroup*` / `submitGroup`. `TaskKey` is replaced by member names and declaration positions, `CombineFunction` by the top-level `CombineBody<V, R>`, and `CompletedTaskValues` by `GroupValues`; `TaskGroupListener` is still replaced by processing the returned TaskGroupResult, and `TaskGroupOptions`' timeout choice now moves to the `group*` entry points with `closeGrace` on `GroupStart`. `TaskGroupDefinition.builder(options)` is replaced by the owner-bound `group*` calls, `buildWithCombiner` by the chain-tail `combine(...)`, and `TaskGroup.submit(global, definition)` by `global.group(...).par(...)[.combine(...)].runAll()`. `ParName` survives as the renamed value type `ParId` — see the next bullet. Six new public types back the chain: `GroupStart`, `GroupStep`, `CombinedGroupStep`, `CombineBody`, `GroupValues`, and `Tuple2`.
 - Remove TaskListener and all runtime registration APIs. Final observations are returned as frozen TaskCompletion data through batch `completions()` and group `members()`/`terminal()`. End times are final; after bounded cleanup, unavailable observations remain explicitly absent rather than pending business futures.
-- Remove the `DeadlockDetectionListener` SPI — the interface, its nested `DeadlockDetectionEvent`, `ParRuntimeDeadlockPolicy.Builder.listener(...)`, and `ParRuntimeDeadlockPolicy.listeners()` — so graph detection results are no longer pushed to a runtime-global listener list (see `design/archive/deadlock-listener-removal-proposal-codex.md`). `ParRuntimeDeadlockPolicy` keeps `enabled()` / `Builder.enabled(boolean)` as the independent switch for close-time detection. The result moves onto the request scope: `TaskGraphObservationScope.reportFuture()` publishes an immutable `TaskGraphReport` computed once from the single graph snapshot frozen at `close()`, whose `status()` distinguishes `DISABLED`, `NO_ISSUE`, and `ISSUE` — the three outcomes a missing listener callback could not separate. A detection failure ends the future in failure with a JUL warning instead of being silently swallowed; the positive-report JUL `WARNING` keeps its title, and its fields follow the report's `toString()` (see the task-graph entry below). The future is read-only (`cancel(...)` returns `false`), every normally returning `close()` guarantees it is done, concurrent closers wait for that publication, and a callback registered after close still receives the report. Detection accessors rename to the bare style: `hasExecutorCycle()` → `executorCycle()`, `hasExecutorSelfLoop()` → `executorSelfLoop()`, `hasAnyIssue()` → `anyIssue()`; the task-level pair is removed (see the task-graph entry below), and the scope's static `hasExecutorCycle()` / `hasExecutorSelfLoop()` queries are unchanged.
+- Remove the `DeadlockDetectionListener` SPI — the interface, its nested `DeadlockDetectionEvent`, `ParRuntimeDeadlockPolicy.Builder.listener(...)`, and `ParRuntimeDeadlockPolicy.listeners()` — so graph detection results are no longer pushed to a runtime-global listener list (see `design/decision-log.md`). `ParRuntimeDeadlockPolicy` keeps `enabled()` / `Builder.enabled(boolean)` as the independent switch for close-time detection. The result moves onto the request scope: `TaskGraphObservationScope.reportFuture()` publishes an immutable `TaskGraphReport` computed once from the single graph snapshot frozen at `close()`, whose `status()` distinguishes `DISABLED`, `NO_ISSUE`, and `ISSUE` — the three outcomes a missing listener callback could not separate. A detection failure ends the future in failure with a JUL warning instead of being silently swallowed; the positive-report JUL `WARNING` keeps its title, and its fields follow the report's `toString()` (see the task-graph entry below). The future is read-only (`cancel(...)` returns `false`), every normally returning `close()` guarantees it is done, concurrent closers wait for that publication, and a callback registered after close still receives the report. Detection accessors rename to the bare style: `hasExecutorCycle()` → `executorCycle()`, `hasExecutorSelfLoop()` → `executorSelfLoop()`, `hasAnyIssue()` → `anyIssue()`; the task-level pair is removed (see the task-graph entry below), and the scope's static `hasExecutorCycle()` / `hasExecutorSelfLoop()` queries are unchanged.
 - Rename `ParName` to `ParId` at every naming endpoint: `ParRuntime.Builder.register(ParId, ExecutorService)` still returns `Builder`, and `defaultPar(ParId)`, `parTaskListener(ParId, TaskListener)`, `ParRuntime.par` / `find` / `taskListenersFor(ParId)` take the value type; `ParRuntime.pars()` returns `Map<ParId, Par>` and `Par.id()` returns `ParId`, replacing `Par.name()`. A `ParId` stays a composition-root lookup key and diagnostic label, never a resource identity — deadlock detection remains keyed on `ExecutorIdentity` by object reference. Null/blank validation stays in `ParId.of` (`NullPointerException` / `IllegalArgumentException`), and a well-formed id still says nothing about whether it is registered (`Builder.build()` / `par(ParId)` reject unknown ids).
 - TaskGroupListener is replaced by ordinary processing of the synchronous TaskGroupResult; callbacks on completed values may use `ImmediateResult.asFuture()` with a consumer-owned executor.
 - Group declaration rejects foreign Pars, duplicate names, primitive/unresolved tokens, stale stages and cross-thread draft use. `runAll()` rejects closed-runtime admission and missing inherited deadlines; lookup rejects unknown names, out-of-range positions and non-exact TypeTokens. Runtime/member/combine failures return as terminal data. A combine failure also fails aggregate member values; individual successful member results stay readable.
@@ -65,7 +246,7 @@
   while removing general phase callbacks and their ordering monitors. Running cancellation remains
   queryable during delayed or throwing interrupt delivery; body-exit and runner safety remain intact.
 
-- Add `ImmediateResult<T>`: terminal value-or-throwable data, successful null supported, all Left reads wrap the stored cause in ExecutionException. `asFuture()` returns an already completed, non-cancellable ListenableFuture; cancellation is failure data (`isCancelled=false`). Both get overloads preserve interruption, and listeners use the consumer's executor outside business resource lifetime.
+- Add `ImmediateResult<T>`: terminal value-or-throwable data, successful null supported, all value reads wrap the stored cause in ExecutionException. `asFuture()` returns an already completed, non-cancellable ListenableFuture; cancellation is failure data (`isCancelled=false`). Both get overloads preserve interruption, and listeners use the consumer's executor outside business resource lifetime.
 
 - Add `TaskGraphObservationScope.reportFuture()` and the top-level immutable `TaskGraphReport`: each observation scope publishes its close-time detection result exactly once — a report carrying the executor cycle and self-loop flags, the rendered task/executor edges of the cycle, and a `Status` of `DISABLED`, `NO_ISSUE`, or `ISSUE` — backed by an internal `SettableFuture` and exposed as a read-only view whose `cancel(...)` returns `false`. Reports are library-created only, and any normally returning `close()` publishes before it returns.
 
@@ -174,15 +355,12 @@
 - Remove the package-private `ActionGate`. It was introduced as a public count- and duration-based gate, privatized when the `.control` package was dissolved, and never acquired a caller: the purge cadence it was meant to amortize is coalesced by `HeuristicPurger`'s own maintenance state machine instead. No public API changes.
 - Remove the executor-tag subsystem: `ParRuntime.Builder.register(ParId, ExecutorService, String...)` loses its varargs tag parameter, and `ParRuntime.executorTags()`, `executorTags(ParId)`, `executorTags(ExecutorService)`, and `parsWithExecutorTag(String)` are deleted along with the three indexes behind them. Tags were metadata the library itself never read — they changed no scheduling, cancellation, queue, or graph-identity decision — so they were a parallel naming system maintained beside `ParId` with nothing depending on it. Attach diagnostic labels to the executor's own `ThreadFactory` thread names, or keep the mapping in application code. Physical-executor sharing across several `ParId`s is unaffected: it is detected by `ExecutorIdentity` reference equality, which the tags never participated in. Added and removed within the `0.3.0` line, so no `0.2.x` migration step exists.
 - Remove `TaskGroupResult.memberCount()` (call `members().size()`) and the package-private `ParRuntime.timerService()`. Neither had a caller: `memberCount()` returned the map size the member view already exposes, and `timerService()` was superseded by `timeoutScheduler()`, which wraps the same field with the action-pool dispatch every deadline needs. `memberCount()` shipped in `0.2.0`, so it carries a migration entry.
-- Remove the package-private `BlockingRisk` enum, `ExecutorRuntime.blockingRisk()`, `detectRisk`, and the `ExecutorRuntime(ExecutorService, BlockingRisk)` constructor that existed only to inject a classification. When deadlock proneness moved to `ExecutorRuntime.starvationProne()` (`design/archive/executor-transparency.md` §8), the classification was left carrying "resource shape" with no reader: nothing in the library consulted the stored value, and purge binding and edge coverage are decided by the `ThreadPoolExecutor` check and `starvationProne()` respectively. No behavior or public API change; see §10 of that document.
+- Remove the package-private `BlockingRisk` enum, `ExecutorRuntime.blockingRisk()`, `detectRisk`, and the `ExecutorRuntime(ExecutorService, BlockingRisk)` constructor that existed only to inject a classification. When deadlock proneness moved to `ExecutorRuntime.starvationProne()` (see `design/decision-log.md`), the classification was left carrying "resource shape" with no reader: nothing in the library consulted the stored value, and purge binding and edge coverage are decided by the `ThreadPoolExecutor` check and `starvationProne()` respectively. No behavior or public API change.
 
 ### Features
 
 - Add `TaskGroupDefinition.Builder.task(key, parName, callable)` for members that run under the group deadline: it is exactly the four-argument form with `TaskOptions.inheritTimeout()`, so a member that needs no tighter budget, different task type, or different enqueue policy declares no options. The forced deadline choice remains at the group level, and a member that inherits the group deadline still cannot outlive it. The terminal combine gets the same treatment through `buildWithCombiner(key, parName, function)`.
 - Add the public `TaskFuture<T>` contract and its package-private-constructed `Task<T>` implementation: every delivered task execution future reports its `taskName()`, `outcome()`, `deadlineNanos()`, `remaining()`, and `failure()`. The view is additive over `ListenableFuture`, so Guava combinators and code that never checks the interface are unaffected; `FluentFuture.from(task)` remains the route to fluent chaining.
-
-### Features
-
 - Bind existing futures into a task scope with cancellation, timeout, and fail-fast behavior.
 - Support custom schedulers and isolate timer callback dispatch from timer threads.
 - Add the public `ActionGate` API for count- and duration-based action gating.

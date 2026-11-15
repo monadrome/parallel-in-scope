@@ -1,16 +1,11 @@
 ---
 title: "并发库的减法哲学：parallel-in-scope 设计复盘"
 date: 2026-06-27
-url: ""
-views: 0
-likes: 0
-collects: 0
-source: "原创"
 ---
 
 # 并发库的减法哲学：parallel-in-scope 设计复盘
 
-> 本文记录 v0.2 前后的设计演进，部分代码片段使用历史 API。当前公开 API 以[使用指南](../user-guide.md)和 [v0.2 迁移指南](../migration-v0.2.md) 为准。
+> 本文记录 v0.2 前后的设计演进，部分代码片段使用历史 API。当前公开 API 以[使用指南](../user-guide.md)为准；从历史 API 迁移见 [v0.4](../migration-v0.4.md)、[v0.3](../migration-v0.3.md)、[v0.2](../migration-v0.2.md) 迁移指南。
 
 
 > 本文随仓库按 [Apache License 2.0](https://github.com/monadrome/parallel-in-scope/blob/main/LICENSE) 许可使用和转载；请保留许可证要求的版权与许可声明。
@@ -158,10 +153,10 @@ fail-fast 接好，之后才允许提交。deadline 位于 token 中，取请求
 ```
 
 没有 placeholder，也没有事后交换 delegate 的绑定步骤。
-视图从创建起就指向实际执行 future，因此取消能到达正在运行任务体的线程。
+视图从创建起就指向实际执行 future，因此取消能到达正在运行任务代码的线程。
 滑动窗口仅决定同一 prepared future 何时进入线程池。
 
-绑定必须先于任何提交：direct executor 或 CallerRunsPolicy 可能在 `execute()` 内运行用户任务体，
+绑定必须先于任何提交：direct executor 或 CallerRunsPolicy 可能在 `execute()` 内运行用户任务代码，
 deadline 是这条同步执行路径的取消来源。公开同步出口不改变内部并行和取消拓扑。
 
 ---
@@ -172,37 +167,36 @@ deadline 是这条同步执行路径的取消来源。公开同步出口不改�
 
 **传统做法的问题：** `Thread.interrupt()` 只设置一个 boolean 标志。你只知道"我被取消了"，不知道是哪个子任务失败触发的 fail-fast、还是整批超时、还是父任务级联传播。而且在高频循环中，你需要不断检查 `Thread.interrupted()`——这个检查本身不花钱，但如果你要在检查到中断时抛异常来中断执行流，`new InterruptedException()` 的 `fillInStackTrace()` 就是另一回事了。
 
-`fillInStackTrace()` 是 JVM 里最贵的操作之一——它要收集整个调用栈的栈帧，大约占异常创建总耗时的 90%+，一次调用约 1-5 微秒（取决于栈深度）。如果检查点每秒被调用 100 万次，那就是每秒 1-5 秒的 CPU 时间花在填栈上——这个开销是致命的。
+`fillInStackTrace()` 是 JVM 里较贵的操作之一——它要收集整个调用栈的栈帧，开销随栈深度增长，往往构成异常创建成本的大头，单次调用在微秒量级（取决于栈深度）。如果检查点每秒被调用 100 万次，每秒就有数秒的 CPU 时间花在填栈上——这个开销是致命的。
 
-parallel-in-scope 在高频路径提供轻量取消异常，并在诊断场景使用 JDK 标准异常：
+parallel-in-scope 的检查点抛出轻量取消异常：
 
 - **`LeanCancellationException`：** 覆写 `fillInStackTrace()` 返回 `this`，零开销。用于高频检查点。
-- **`CancellationException`：** 保留完整堆栈。用于调试场景。
 
 ```java
 // 典型使用位置：循环体内部或长任务的关键步骤之间
 for (Item item : items) {
-    Checkpoints.checkpoint("process-item", true);  // 零开销，抛出 LeanCancellationException
+    Checkpoints.checkpoint();  // 零开销，抛出 LeanCancellationException
     process(item);
 }
-
-// 调试时切换为 false，保留完整堆栈方便排查
-Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 ```
+
+检查点读到已提交的取消后退出，是执行对取消的正确响应，不是失败：归因读 token，取消已落定时
+内核按来源把这种确认记为 `FINE`，不产生告警。
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-`CancellationToken.State` 用带符号的 int code 区分取消原因（以下列出取消相关状态，省略了 `SUCCESS`）：
+库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskOutcome`（以下列出取消相关的值）：
 
-| 状态 | Code | 含义 |
-|---|---|---|
-| `RUNNING` | 0 | 正常执行 |
-| `FAIL_FAST` | -1 | 某个子任务失败，触发 fail-fast |
-| `TIMEOUT` | -2 | 批次超时 |
-| `CANCELLED` | -3 | 被显式 `cancel()` |
-| `PROPAGATED_CANCELLED` | -4 | 父任务取消，级联传播 |
+| `TaskOutcome` | 含义 |
+|---|---|
+| `FAIL_FAST` | 某个兄弟任务失败，触发 fail-fast |
+| `TIMEOUT` | 批次或组的 deadline 到期 |
+| `GROUP_CANCELLED` | 所在批次或组被取消，包括父任务取消的级联传播 |
+| `MEMBER_CANCELLED` | 单个组成员自身被取消 |
 
-`shouldInterruptCurrentThread()` 方法简单判断 `code < 0`——如果是负数，说明被取消了，检查点立即抛出异常。
+token 本身是包私有的内核类型：用户既拿不到也不需要它，限时用 `BatchOptions.timeout` / `TaskOptions.timeout`，
+在任务代码内观察取消与剩余预算用 `Checkpoints.checkpoint()` / `Checkpoints.remaining()`。
 
 > 好的并发框架不仅要告诉你"任务被取消了"，还要告诉你"为什么被取消"。
 
@@ -210,13 +204,15 @@ Checkpoints.checkpoint("process-item", false); // 抛出 CancellationException
 
 ## 五、SmartBlockingQueue：CPU 密集型任务的"反队列"策略
 
+> 2026-10-30 注记：本节记录 0.2/0.3 的设计。0.4 起 `TaskType` 不再影响入队（[ADR 0008](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/adr/0008-tasktype-as-workload-fit-diagnostic.md)）：`SmartBlockingQueue` 只在 `rejectEnqueue` 时拒绝入队，`TaskType` 改为发现"阻塞任务进了计算池"的诊断声明，取值为 `COMPUTE`/`BLOCKING`/`UNKNOWN`。下文的 `CPU_BOUND`/`IO_BOUND` 与 `offer()` 代码是当时的实现。
+
 解决了取消和超时之后，还有两个横切关注点需要处理：任务怎么排队（CPU 任务和 IO 任务的策略不同），以及上下文怎么跨线程传播。先说排队。
 
 **传统做法的问题：** 任务来了就入队，一视同仁。但想象一个场景：线程池有 10 个线程，队列容量 100。提交了 50 个 CPU 密集型任务，全部入队。接下来提交 20 个 IO 密集型任务——排在 CPU 任务后面。IO 任务本应很快完成（只是等网络响应），CPU 任务要算很久。结果 IO 任务被堵住，延迟飙升。
 
 CPU 任务排队只增加延迟，不增加吞吐。
 
-parallel-in-scope 的做法：CPU 密集型任务，宁可同步执行也不排队。
+parallel-in-scope 的做法：CPU 密集型任务不进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
 
 ```java
 // CPU 密集型
@@ -236,7 +232,7 @@ BatchOptions ioOpts = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
 @Override
 public boolean offer(E e) {
     MultiTaskContext unit = SubmissionScope.current();
-    // CPU 密集型任务：拒绝入队，触发 CallerRunsPolicy 同步执行
+    // CPU 密集型任务：拒绝入队；后续行为由 executor 的拒绝策略决定
     if (unit != null && unit.taskType() == TaskType.CPU_BOUND) {
         return false;
     }
@@ -252,7 +248,7 @@ public boolean offer(E e) {
 
 `SmartBlockingQueue` 的策略是：CPU 任务不入队；其他任务是否入队还取决于 `rejectEnqueue`。返回 `false` 后的实际行为由线程池配置的拒绝策略决定，使用 `CallerRunsPolicy` 时才会在调用方线程执行。
 
-> **CPU 任务排队只增加延迟，不增加吞吐。** 宁可调用方线程同步执行，也不让计算密集型任务堵住 IO 通道。
+> **CPU 任务排队只增加延迟，不增加吞吐。** 不让计算密集型任务进入 `SmartBlockingQueue`，后续行为由线程池的拒绝策略决定。
 
 > 并发控制不是"限制同时执行的任务数"，而是"让正确的任务在正确的时间执行"。
 
@@ -281,41 +277,24 @@ par.map("shared-pool", orders, order -> {
 
 这不是传统的锁死锁，线程 dump 里看不到 `BLOCKED` 状态。这是**线程池的死锁**——线程在 `Future.get()` 上等待，而不是在 `synchronized` 上等待。
 
-parallel-in-scope 的解决方案是 **请求级任务依赖图**。设计借鉴 Guava `common.graph`：节点是任务单元（一次 `Par.map()` 批次、一个组成员、一个汇总），只描述自己——名称、所在执行器、并行度、任务数；「谁等待谁」只由图的边表达。每次准入把它新建的单元与关系作为一个片段写入图：调用方同步等待它准入的单元（`FORK`），汇总消费成员或批次的结果（`JOIN`）：
-
-```java
-// 请求入口
-try (TaskGraphObservationScope observation = global.openTaskGraphObservation()) {
-    // ... 执行业务逻辑，期间所有 Par 调用会自动记录依赖关系
-    // 例如上面的嵌套调用：外层批次的 body FORK 内层批次，两者都在 shared-pool 上
-} // 请求结束时 close() 自动检测
-```
-
-每个单元在每次调用时都是新节点，所以任务图本身按构造无环——"同名任务重入"不会在任务层成环。真正的风险在执行器层：请求结束时，把每条 `FORK` 投影成「等待方的池 → 被等待方的池」，只保留被等待方可能饿死的边，再在这张执行器 waits-for 图上找环。上面的例子投影成 `shared-pool → shared-pool` 自环，立即检出；`JOIN` 没有线程在等，不参与投影。
-
-一个池是否可能饿死，只看「每个 worker 都忙时新提交的去向」：
+parallel-in-scope 的解决方案是 **运行时级的执行器等待图**。每个 `ParRuntime` 常开地记录：一个任务代码在 `Par.map()`、`mapAndCombine` 或组 `runAll()` 里同步等待它准入的单元时，就是「任务代码所在的池 → 被等待单元所在的池」的一条等待。只记被等待方可能饿死的等待：
 
 - 零容量交接队列（如 `CachedThreadPool` 的 `SynchronousQueue`）→ 不会，入队被拒，池子只能开新线程或显式拒绝
 - 有缓冲能力的队列（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能**，子任务排在已阻塞的 worker 后面，`maximumPoolSize` 再大也没机会开新线程
 
-检测结果随请求作用域发布：关闭 `TaskGraphObservationScope` 时对冻结的图运行一次检测，报告经 `reportFuture()` 以 `TaskGraphReport` 交付：
+上面的例子记成 `shared-pool → shared-pool` 自环。图属于运行时而不是某个请求，所以「请求 1 在 A 上等 B、请求 2 在 B 上等 A」这种跨请求的环也能看到——单看每个请求都没有环，合起来负载一高就会互相饿死。等待第一次形成环时，运行时在自有线程上打一条 `WARNING`，任何时候都能读出报告：
 
 ```java
 ParRuntime global = ParRuntime.builder()
     .register(ParId.of("shared-pool"), pool)
-    .deadlockPolicy(ParRuntimeDeadlockPolicy.builder().enabled(true).build())
     .build();
-ListenableFuture<TaskGraphReport> reportFuture;
-try (TaskGraphObservationScope scope = global.openTaskGraphObservation()) {
-    reportFuture = scope.reportFuture();
-    handleRequest();
-}
-TaskGraphReport report = Futures.getDone(reportFuture);
-if (report.executorSelfLoop()) {
-    log.warn("Potential deadlock: executor self-loop detected! {}",
-        report.executorEdges());
+handleRequest();
+for (ExecutorWaitReport.Component cycle : global.executorWaitReport().cyclicComponents()) {
+    log.warn("Potential deadlock: {}", cycle);
 }
 ```
+
+报告列出有环的强连通分量与一个具体的环，而不是枚举所有环；它是「曾经观测到的结构性风险」，不证明线程此刻已经死锁。
 
 > 死锁检测不应该是事后分析工具，应该是运行时守护。问题在发生的瞬间就被发现。
 
@@ -392,7 +371,7 @@ par.map("io-pool", urls, url -> {
 2. **一个 scope，要么全成功，要么第一个失败时停止。** Fail-fast 是唯一语义。
 3. **提交是提交，绑定是绑定。** 不要在上菜之前开酒。
 4. **取消不只是中断线程，还要告诉它为什么。** 双异常策略。
-5. **CPU 任务排队只增加延迟，不增加吞吐。** 宁可同步执行也不堵 IO。
+5. **CPU 任务排队只增加延迟，不增加吞吐。** 不让它进入 `SmartBlockingQueue`，后续行为由线程池拒绝策略决定。
 
 这些不是最佳实践，是设计约束。一旦在某条上让步，整个设计就会像多米诺骨牌一样坍塌。
 
@@ -412,8 +391,4 @@ parallel-in-scope 有一些已知的局限，它们是刻意的设计选择：
 
 潜龙勿用——但如果用了，就用对。
 
-如果你的项目也有线程池死锁的困扰，试试在测试环境开启 `ParRuntimeDeadlockPolicy` 检测并保存作用域的 `reportFuture()`——一处配置加一个 future。至少，下次卡死的时候你能知道为什么。
-
----
-
-*如果这篇文章对你有帮助，欢迎关注我，持续分享高质量技术干货。*
+如果你的项目也有线程池死锁的困扰，在测试末尾断言一次 `runtime.executorWaitReport().cyclicComponents()` 为空——不需要任何配置。至少，下次卡死的时候你能知道为什么。

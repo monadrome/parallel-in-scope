@@ -18,6 +18,7 @@ SCAN_ROOTS = (
     ROOT / "demo",
     ROOT / "design",
     ROOT / "adr",
+    ROOT / "refactoring-review",
 )
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+['\"][^)]*['\"])?\)")
 

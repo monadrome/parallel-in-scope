@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev/v0.4.0 ]
   pull_request:
 
 concurrency:
@@ -16,10 +16,14 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          # mkdocs_git_revision_date_localized_plugin warns on a shallow clone,
+          # and `mkdocs build --strict` turns that warning into a failure.
+          fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -36,6 +40,15 @@ jobs:
 
       - name: Check design route table
         run: python3 scripts/check-design-routes.py
+
+      - name: Check documentation references
+        run: python3 scripts/check-doc-refs.py
+
+      - name: Check Java conventions on new lines
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
+          python3 scripts/check-java-conventions.py --base "$BASE"
 
       - name: Test repository scripts
         run: python3 -m unittest discover -s scripts -t scripts
@@ -57,12 +70,12 @@ jobs:
         java-version: [ 25 ]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up build JDK ${{ matrix.java-version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: ${{ matrix.java-version }}
           distribution: temurin
@@ -71,8 +84,24 @@ jobs:
       - name: Check Java formatting
         run: mvn -B -ntp spotless:check
 
+      - name: Check demo Java formatting
+        run: mvn -B -ntp -f demo/pom.xml spotless:check
+
       - name: Build and test library on build JDK ${{ matrix.java-version }}
         run: mvn -B -ntp clean install
+
+      - name: Verify registered race claims
+        timeout-minutes: 30
+        run: python3 scripts/check-race-claims.py
+
+      - name: Upload race-claim evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: race-claims-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.java-version }}
+          path: target/race-claims/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Capture the built library version
         run: echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
@@ -100,12 +129,12 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Two different JDKs on purpose: the library is built by a JDK that Error Prone/NullAway
       # support, and the JDK 8 runtime below only exercises the resulting artifact.
       - name: Set up build JDK 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: 25
           distribution: temurin
@@ -117,7 +146,7 @@ jobs:
           mvn -B -ntp -Dmaven.test.skip=true -Dmaven.javadoc.skip=true clean install
 
       - name: Set up Java 8 runtime
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: 8
           distribution: temurin
@@ -134,3 +163,14 @@ jobs:
           mvn -B -ntp
           -Dparallel-in-scope.version="$LIBRARY_VERSION"
           clean test
+
+      # The demo keeps a Java 8 test-runtime baseline; run its tests on the JDK 8
+      # runtime so a post-Java-8 test dependency cannot slip through the JDK 25 build.
+      - name: Run the demo on the Java 8 runtime
+        working-directory: demo
+        env:
+          MAVEN_BASEDIR: ${{ github.workspace }}/demo
+        run: >-
+          mvn -B -ntp
+          -Dparallel-in-scope.version="$LIBRARY_VERSION"
+          test

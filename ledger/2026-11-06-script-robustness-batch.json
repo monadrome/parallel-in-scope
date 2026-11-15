@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-06-script-robustness-batch",
+  "date": "2026-11-06",
+  "topic": "script-robustness-batch",
+  "routes": [
+    "defect"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "fix: harden refactoring review process cleanup",
+      "fix: make race claim subprocess cleanup bounded",
+      "fix: unify issue agent process lifecycle cleanup",
+      "fix: bound extract figures browser cleanup"
+    ],
+    "files": 8,
+    "insertions": 489,
+    "deletions": 73
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "scripts-full-suite": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Batch Kimi review: first round 1 critical + 4 major; fixed and second round 2 high + 1 medium; user waived final re-review. Targeted 50 tests pass; full script suite had one unrelated process-metrics teardown race."
+}

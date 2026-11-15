@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.errorprone.annotations.Immutable;
 import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 
@@ -11,9 +12,10 @@ import org.jspecify.annotations.Nullable;
  * parallelism fixed at 1, because a single task has no fan-out to limit. The kernel resolves this
  * carrier and nothing else, so it never depends on which public entry point produced the values.
  *
- * <p>Package-private by design: adapting an option type to this carrier is the only seam between
- * the public option types and unit resolution, and it must not widen the public API.
+ * <p>Unit resolution consumes this carrier independently of the public entry point that supplied
+ * the options.
  */
+@Immutable
 final class UnitSpec {
     private final String name;
     private final int requestedParallelism;

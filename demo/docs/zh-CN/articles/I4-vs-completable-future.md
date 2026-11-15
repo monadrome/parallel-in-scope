@@ -73,12 +73,13 @@ CompletableFuture.allOf(f1, f2).join(); // 30 秒后才抛异常
 // parallel-in-scope：并发控制 + 超时取消 + fail-fast + 上下文传播
 ParRuntime config = ParRuntime.builder()
         .register(ParId.of("my-pool"), pool)
+        .defaultPar(ParId.of("my-pool"))
         .build();
 Par par = config.defaultPar();
 
 BatchOptions opts = BatchOptions.timeout("batch-api", java.time.Duration.ofMillis(5000))
         .parallelism(4)           // 最多 4 个并发
-        .taskType(TaskType.IO_BOUND);
+        .taskType(TaskType.BLOCKING);
 
 TaskBatchResult<String> result = par.map( urls, url -> {
     MDC.put("traceId", traceId); // TTL 自动传播到子线程
@@ -95,4 +96,4 @@ System.out.println(result.reportString());
 
 ---
 
-> 📁 相关 demo：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/main/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)
+> 📁 相关 demo：[G5_BatchHttpCallsTest.java](https://github.com/monadrome/parallel-in-scope/blob/v0.4.0/demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java)

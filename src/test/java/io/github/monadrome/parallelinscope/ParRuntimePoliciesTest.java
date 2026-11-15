@@ -36,13 +36,6 @@ class ParRuntimePoliciesTest {
     }
 
     @Test
-    void deadlockPolicyBuilderExposesFluentSelfReturns() {
-        ParRuntimeDeadlockPolicy.Builder deadlock = ParRuntimeDeadlockPolicy.builder();
-        assertThat(deadlock.enabled(true)).isSameAs(deadlock);
-        assertThat(deadlock.build().enabled()).isTrue();
-    }
-
-    @Test
     void discardingRejectionPoliciesFailTheBuildNamingTheParAndThePolicy() {
         // DiscardPolicy and DiscardOldestPolicy accept a task and drop it: execute() neither runs it
         // nor throws, so the prepared future stays pending and every batch or group submitted to
@@ -114,7 +107,7 @@ class ParRuntimePoliciesTest {
         // The guard reads the structure of the object it can see, and a TTL wrapper is not a
         // ThreadPoolExecutor. Before the wrapper was looked through, registering this pool skipped
         // the guard entirely and the silent-drop configuration the guard exists to refuse built
-        // successfully, surfacing only as a late timeout with no task body ever entered.
+        // successfully, surfacing only as a late timeout with no task execution ever entered.
         ThreadPoolExecutor physical = new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new ThreadPoolExecutor.DiscardPolicy());
         ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);

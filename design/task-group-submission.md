@@ -35,14 +35,13 @@ executor rejection 只有实际提交时才能知道，因此属于提交后的�
 deadline 布防）、以及向目标 executor 的实际提交——处于同一次 `ParRuntime.whileOpen()` 中：
 
 - 历史规则曾要求「实际 executor 调用在 admission 外进行」，以防止 executor 行为延长
-  admission。该规则被一个已复现的竞态否决（见
-  [cancel-intent-clock-domain-validation-2026-10-08.md](cancel-intent-clock-domain-validation-2026-10-08.md)
-  第七轮）：start 在 admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
+  admission。该规则被一个已复现的竞态否决（2026-10-08 时钟域评审第七轮）：start 在
+  admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
   runtime 的 deadline 调度器，使成员 bind 抛出 RejectedExecutionException 逃出 runAll。
   admission 覆盖全部 bind 后，本 runtime 服务在整个启动期间必然存活。
 - 代价与不变量：close() 从不等待 admission（只在 admission 与批次都排空后才关闭服务），
-  因此 CallerRunsPolicy 内联 body 在 admission 内运行不会引入死锁——awaitQuiescence 本来就
-  等待 body 退出；服务关闭只是与既有的排空等待对齐。
+  因此 CallerRunsPolicy 内联执行在 admission 内运行不会引入死锁——awaitQuiescence 本来就
+  等待执行退出；服务关闭只是与既有的排空等待对齐。
 
 本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：声明期没有任何运行状态或执行，提交时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
 
@@ -54,7 +53,8 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 3. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
 4. 为每个声明创建 member Batch、TaskExecutionContext、成员 future 和执行权竞争对象；
 5. 将全部 `MemberState` 注册到 Group，发布完整 members registry；
-6. 空组立即发布 `SUCCESS` 并返回，不创建 timer；非空组安排 Group deadline timer；
+6. 空组立即发布 `SUCCESS` 并返回，不创建 timer、不注册请求来源；非空组在全部准备成功后注册声明的
+   请求来源，紧接着完成 group/member bind 与 Group deadline timer；
 7. 按声明顺序向各自目标 executor 提交同一个 prepared future（仍在同一次 admission 内）；
 8. 退出 registry/admission 机制；提交循环结束后进入收敛；若某个成员 inline 执行、失败或触发
    fail-fast，剩余尚未调用
@@ -62,7 +62,7 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 
 声明校验的异常类型有分界：草稿的生命周期错误（非创建线程调用、在已推进的阶段上继续使用
 旧 step、重复提交）抛 `IllegalStateException`；声明参数错误（名称为 null/空白/重复、`Par`
-为 null 或不属于 owner、body/options/type 为 null、type 为 primitive 或含未解析类型变量）
+为 null 或不属于 owner、执行/options/key 为 null）
 按 JDK 惯例抛 `NullPointerException`/`IllegalArgumentException`。
 
 不能在全部成员注册前调用任何 `executor.execute()`，否则 direct executor 或 rejection fallback 可能在 Group 看见完整成员集合前执行用户代码。
@@ -73,7 +73,11 @@ deadline 布防）、以及向目标 executor 的实际提交——处于同一�
 fail-fast/timeout/cancel 终结的成员尝试一次目标 executor 提交。由于 direct executor 可以
 inline 执行，执行期间部分甚至全部成员已经终态属于合法行为。
 
-成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的 body，并且不得执行任何用户 callable。
+成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的执行，并且不得执行任何用户 callable。
+该要求覆盖准备之后、首次提交之前的启动阶段：调用方 `cancelOn` 信号的准入（例如其 `addListener`
+抛出）与组/成员 bind 失败时，启动路径先终结组 token，再取消全部 prepared future，使执行出口槽位、
+retain 与 adopted 所有权经正常收敛释放，runtime 仍可达到 quiescence；清理中的失败作为 suppressed
+附在调用方看到的启动失败上。
 
 ### 7.3 Prepared single-task submission
 
@@ -128,13 +132,12 @@ mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批�
 | `ParRuntime.timeoutScheduler()` | Group/member deadline |
 | `ParRuntime.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
 | `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk |
-| `ScopedCallable` | current task、checkpoint、计时、body exit 发布、恢复 |
+| `ScopedCallable` | current task、checkpoint、计时、执行 exit 发布、恢复 |
 | `TaskExecutionContext` | 单成员任务执行身份与 timing |
 | `SubmissionScope` | 一次 executor submission 的队列策略 |
 | `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与当前 phase 查询 |
 | `CancellationToken` | outer→group→member 取消传播和中断 |
 | `TtlCallable` | 已配置 TTL 的提交时快照与恢复 |
-| `TaskGraphObservationScope` | 请求级观测归属 |
 
 ### 9.2 不得复用
 
@@ -160,9 +163,9 @@ io.github.monadrome.parallelinscope/
   TaskSubmissions.java            // package-private prepare / submitScoped 两阶段内核
 ```
 
-`ParName` 已更名为 `ParId` 保留（见
-[decision-log.md](decision-log.md) 的 group-api-redesign-v0.3-decision 条目，原 §13.1 及
-增补裁定 §19.6、§19.10，全文见 git 历史 `db2ab2d`）。
+`ParName` 已更名为 `ParId` 保留：v0.3 重设计曾提议删除 `ParName`、端点改收裸 `String`，
+评审否决——值类型是执行器查找边界唯一的校验点与查找键（`ParId.of` 构造即校验非 null、非空白），
+删掉它只把同一校验下沉到每个端点，不合并任何功能。组名与成员名从来不是查找键，仍是 `String`。
 
 `ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 与 `TaskGroup` 在完成
 owner、policy、runtime identity 和 executor 的解析后直接调用同包内核；任务准备与

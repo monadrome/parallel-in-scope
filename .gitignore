@@ -23,14 +23,22 @@ graph-viz/
 tmp/
 todo/
 
-# Claude
-.claude/
+# Local LLM review benchmark evidence (raw logs and derived records stay local)
+.review-benchmark/
+
+# Claude (track project skills; keep local settings and worktrees ignored)
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 
 # Local senate tooling state and its design draft
 .senate/
 
-# Local agent tooling: symlinks into node_modules, created per-IDE by npm postinstall
-npm-huatalk-hiding-skill-hide
+# ZCode local harness state
+.zcode/
+
+# Kiro local harness state
+.kiro/
 
 # Playwright MCP scratch output
 .playwright-mcp/
@@ -40,9 +48,8 @@ npm-huatalk-hiding-skill-hide
 .firecrawl/
 skills-lock.json
 
-# Scratch assets
-pelican-check.png
-pelican-bicycle-deepseek-v4.1-flash.svg
+# Local property-test state left behind by jqwik runs
+.jqwik-database
 
 # Local planning state
 .planning/
