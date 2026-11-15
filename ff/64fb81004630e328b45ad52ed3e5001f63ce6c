@@ -1,0 +1,19 @@
+ledger/2026-11-12-future-consumption-standard.json
+  s_6ef012108ae407::t_7e4e32d9864eab 1-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ff64fb81004630e328b45ad52ed3e5001f63ce6c",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
