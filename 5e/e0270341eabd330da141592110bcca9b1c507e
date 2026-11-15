@@ -1,0 +1,19 @@
+scripts/check-java-conventions.py
+  s_02c55561323c18::t_888251b607e796 447-450
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "5ee0270341eabd330da141592110bcca9b1c507e",
+  "prompts": {},
+  "sessions": {
+    "s_02c55561323c18": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_55b99381-13b3-461a-8c8e-f9fdb37e3ee4",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
