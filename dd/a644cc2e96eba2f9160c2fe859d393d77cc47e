@@ -1,0 +1,21 @@
+scripts/check-design-routes.py
+  s_6ef012108ae407::t_3a8fc6079fa943 15-18
+design/proposal/P0041-future-consumption-standard.md
+  s_6ef012108ae407::t_3a8fc6079fa943 3,170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "dda644cc2e96eba2f9160c2fe859d393d77cc47e",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
