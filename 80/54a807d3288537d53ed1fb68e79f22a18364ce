@@ -1,0 +1,9 @@
+design/runner-interrupt-explainer.html
+  ai_agent 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "51b442c775fa4072f0cf47649282deb71d86a714",
+  "prompts": {}
+}
