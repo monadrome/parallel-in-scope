@@ -1,0 +1,79 @@
+tmp/chm-lock-mechanism.html
+  s_2bd502c882efb1::t_9fe6cd700dcc3f 91-92
+  s_2bd502c882efb1::t_57db47c158165b 9-16,18-69,71-72,78-90,93-159,163,166-167,171,173-174
+demo/articles/E3-closable-blocking-queue.md
+  s_9ee3e69bd76a49::t_beefb5c81b2bd3 266
+  s_289bf50fb54a83::t_7d7f1591a70bdc 1-190,192-265,267-297
+tmp/ConcurrentHashMap迭代器总结.md
+  s_01da86762b8881::t_c4125334f06d59 28,30,61,65,89,100
+  s_01da86762b8881::t_50c6ffe96668ad 24-27,29,31-60,62-64,66-88,90-99,101-103
+demo/docs/zh-CN/articles/E3-closable-blocking-queue.md
+  s_9ee3e69bd76a49::t_b1a6ab01948210 1-248,250-280
+  s_9ee3e69bd76a49::t_13251d1469eb3b 249
+tmp/CHM的锁机制.md
+  s_2bd502c882efb1::t_6b63f7c12847ab 11,13-29,40,58,80,88-89,91-92,115-118,123-126,128,130,135,137-143,146,148,150,153-155,158,160,162-167,172,192,208
+  s_2bd502c882efb1::t_307df194e57d48 230-234,236-237,240,242-246
+  s_2bd502c882efb1::t_2715b2251b5b4a 127,129,131-134,136,144,168-170
+  s_2bd502c882efb1::t_266c8da3d04930 60,78,81-87,90,93-114,119-120
+  s_2bd502c882efb1::t_024c72826ab1c8 235,238-239,241
+  s_e360a08d48d570::t_c214961435c059 3-5,7,9,30,32-36,38,42,44,46-54,56,64-76,174-180,182,184-186,188,190,194-207,209-214,217-226,247,250-251,255
+guava-monitor-code-reading-report.html
+  s_6064adf08b3cab::t_09c72851d96084 77-81
+  s_6064adf08b3cab::t_e323583edc1e93 1-76,82-547
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "6ecf2c67f2fc0c248e8a8a80a783a639af875bed",
+  "prompts": {},
+  "sessions": {
+    "s_01da86762b8881": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a02255-e18d-7942-9f82-3492e990e1a0",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_289bf50fb54a83": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bdf4c786-329c-4e2f-9f7a-cf4db44a5b17",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_2bd502c882efb1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a02325-a4e2-7e51-925c-fed2cef07f0b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_6064adf08b3cab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fcb16-e037-7e53-8673-f70e5264dc23",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_9ee3e69bd76a49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fba01601-7909-4b6e-bbbc-21e35aaa0d76",
+        "model": "ep-07p4u7vn"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_e360a08d48d570": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0231b-a869-7c01-b6ff-1a08d3365c2c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
