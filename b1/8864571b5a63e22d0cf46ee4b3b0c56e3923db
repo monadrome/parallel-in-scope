@@ -1,0 +1,19 @@
+AGENTS.md
+  s_c0a68ccffe75de::t_c30a75aa0f0e91 129-133,384-385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "43c825f8ceb3f7d938438fc4b4f8ecae1bb62c7d",
+  "prompts": {},
+  "sessions": {
+    "s_c0a68ccffe75de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1da4b-133d-71f1-9b6e-1741cbfc24c1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
