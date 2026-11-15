@@ -1,0 +1,23 @@
+scripts/check-java-conventions.py
+  s_c28b84ac9f0057::t_712da88f93f386 370,374-386
+verification/java-conventions.md
+  ai_agent 69-72
+scripts/tests/test_check_java_conventions.py
+  s_c28b84ac9f0057::t_712da88f93f386 193-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5fb790f6f165910df7a67fa84564d71047859abe",
+  "prompts": {},
+  "sessions": {
+    "s_c28b84ac9f0057": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "52d5199f-ef4d-470e-9030-105303659fec",
+        "model": "deepseek-v4-1-flash-261017"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
