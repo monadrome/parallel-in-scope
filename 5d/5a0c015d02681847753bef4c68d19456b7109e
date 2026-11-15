@@ -1,0 +1,23 @@
+historical-eval/README.md
+  ai_agent 20-30
+historical-eval/catalog/fix-inventory.jsonl
+  ai_agent 1-430
+historical-eval/tools/inventory-fixes.py
+  s_490d18c85ab19e::t_ee178ae9a434fd 1-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5d5a0c015d02681847753bef4c68d19456b7109e",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
