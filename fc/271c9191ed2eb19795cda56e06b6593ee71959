@@ -1,0 +1,24 @@
+src/test/java/io/github/huatalk/parallelinscope/SimpleResizableBlockingQueueTest.java
+  s_844f7c4e774b16::t_4ce614ba814090 122-141,144-156
+  s_844f7c4e774b16::t_47c1dce5a7d34b 1-121,157-193
+  s_844f7c4e774b16::t_c50e1fc1cf44f9 142-143
+src/main/java/io/github/huatalk/parallelinscope/queue/SimpleResizableBlockingQueue.java
+  s_844f7c4e774b16::t_47c1dce5a7d34b 1-33,35-356
+  s_844f7c4e774b16::t_4ce614ba814090 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.35-trip",
+  "base_commit_sha": "fc271c9191ed2eb19795cda56e06b6593ee71959",
+  "prompts": {},
+  "sessions": {
+    "s_844f7c4e774b16": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fb737-7955-7452-b389-16c3c650dd27",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
