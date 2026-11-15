@@ -1,0 +1,19 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_1a2ad261f79c17::t_812c9128a87582 848-855,858-864
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0393e650c05ad715b95de04ffdf5050a4fb3aad3",
+  "prompts": {},
+  "sessions": {
+    "s_1a2ad261f79c17": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_128193cb-b4b0-4894-823c-c1e2dc46650a",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
