@@ -1,0 +1,19 @@
+ledger/2026-11-06-script-robustness-batch.json
+  s_ce73de3a0acc3d::t_8d54d7d97a4217 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "febed9c1fafa3d3235e432dc47cbb9b1dcc6bb56",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
