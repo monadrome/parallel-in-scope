@@ -1,0 +1,25 @@
+design/AGENTS.md
+  s_0e78eb08bf975c::t_357891dd14348b 94
+design/synchronous-scope-exit.md
+  s_0e78eb08bf975c::t_1a9e3e3dcb0dcd 162
+CHANGELOG.md
+  s_0e78eb08bf975c::t_1a9e3e3dcb0dcd 7-9,119-121
+integrations/src/main/java/integrations/app/QuoteApplication.java
+  s_0e78eb08bf975c::t_1a9e3e3dcb0dcd 69-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "520851541d1f0e97c2fac048a6bf4c8a11e81e94",
+  "prompts": {},
+  "sessions": {
+    "s_0e78eb08bf975c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b440-e180-70a3-b802-2e05b81decda",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
