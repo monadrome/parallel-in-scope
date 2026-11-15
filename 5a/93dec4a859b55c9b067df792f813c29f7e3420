@@ -1,0 +1,27 @@
+adr/0016-codex-fresh-base-test-reconstruction.md
+  s_9711939ae740e5::t_47b3783ef13621 55-60
+  s_9711939ae740e5::t_bd5b6f97edce01 1-49
+intent.md
+  s_9711939ae740e5::t_47b3783ef13621 36,45,47,51,59,65
+  s_9711939ae740e5::t_bd5b6f97edce01 1-33,37-39,41-44,48-50,52-57,60-63,66
+adr/0017-commit-verified-lifecycle-test.md
+  s_9711939ae740e5::t_47b3783ef13621 1-51
+core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java
+  s_9711939ae740e5::t_ba99bb6b536735 63-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "5a93dec4a859b55c9b067df792f813c29f7e3420",
+  "prompts": {},
+  "sessions": {
+    "s_9711939ae740e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d9c3-0646-7a23-b895-4dd772756d2e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
