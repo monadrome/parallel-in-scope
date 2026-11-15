@@ -1,0 +1,43 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java
+  s_5ad4597eb7d0f3::t_6884bc82bd974a 30-44
+  s_5ad4597eb7d0f3::t_d66accc5fe94f5 26
+  s_5ad4597eb7d0f3::t_10ccd3c424abde 8,10-12
+  s_5ad4597eb7d0f3::t_7e50b6ca8049c6 29
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_5ad4597eb7d0f3::t_5e4f0ad7315828 382-385
+  s_5ad4597eb7d0f3::t_c59a5caf8c0f63 386-393
+core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java
+  s_5ad4597eb7d0f3::t_a2af65721e5e66 7,424-428
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+  s_5ad4597eb7d0f3::t_968cc201768a2c 7,227-231,248-252
+core/src/main/java/io/github/monadrome/parallelinscope/TaskExecutionState.java
+  s_5ad4597eb7d0f3::t_c59a5caf8c0f63 125-134
+core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_5ad4597eb7d0f3::t_509338dfd96a14 56,342,388-396
+design/task-termination-and-scope.md
+  s_5ad4597eb7d0f3::t_7a2484c5509718 156-164
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  s_5ad4597eb7d0f3::t_c9083b577f31e7 6
+  s_5ad4597eb7d0f3::t_295c89a87926bf 187-190
+  s_5ad4597eb7d0f3::t_e92d670f162486 252-269
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_5ad4597eb7d0f3::t_9568edcd21e2be 406,932-940,1028-1035
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_5ad4597eb7d0f3::t_29e062748c6332 262-266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "7a23b6fb0f8475e1e44c841ebc1efd128a24b9f2",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
