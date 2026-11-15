@@ -1,0 +1,29 @@
+docs/en/migration-v0.2.md
+  s_e4d21f1619e9d6::t_415cfb1885219b 12,14,115-116,118-120,122,138,183-185,251,280
+docs/zh/migration-v0.2.md
+  s_e4d21f1619e9d6::t_415cfb1885219b 11,13,100-101,103-105,107,123,151-153,222,249
+design/task-group-api-and-options.md
+  s_e4d21f1619e9d6::t_460b09884b66f9 239,241
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  s_e4d21f1619e9d6::t_415cfb1885219b 15,93,118,207,233,283,303-304,336,338,364,397-398,442
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  s_e4d21f1619e9d6::t_460b09884b66f9 79
+core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_e4d21f1619e9d6::t_460b09884b66f9 75-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1e9200b6e42526cef452c7f4672aee34ecc1a75a",
+  "prompts": {},
+  "sessions": {
+    "s_e4d21f1619e9d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d4cf-8357-7f12-bafd-ea99a749cad8",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
