@@ -1,0 +1,25 @@
+historical-eval/catalog/model-runs/final-scorecard.json
+  s_fcaade8c4507a4::t_1269d18fb817e9 20,57,168
+historical-eval/catalog/model-runs/final-scorecard.md
+  s_fcaade8c4507a4::t_1269d18fb817e9 10-11,14
+historical-eval/catalog/model-runs/final-scorecard.html
+  s_fcaade8c4507a4::t_1269d18fb817e9 2
+historical-eval/tools/generate-model-report.py
+  s_fcaade8c4507a4::t_15d47068ef6741 87-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ac18f0f3e84a4b96fe642e659e5a568c851bd7dc",
+  "prompts": {},
+  "sessions": {
+    "s_fcaade8c4507a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c2d5-9724-7270-bd72-f2d67102c9a0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
