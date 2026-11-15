@@ -1,0 +1,19 @@
+ledger/2026-11-11-queue-name-clarity.json
+  s_570a668571c2d4::t_5c88ee6b678d7f 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "4dcaa5fadb5a4637559107db7ba559ab56e17618",
+  "prompts": {},
+  "sessions": {
+    "s_570a668571c2d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c9e2-4d95-7e72-82c4-dff059fa42c5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
