@@ -1,0 +1,23 @@
+scripts/tests/test_refactoring_review.py
+  s_6ef012108ae407::t_d3b78efa49a8c8 372-378
+scripts/refactoring-review.py
+  s_6ef012108ae407::t_d3b78efa49a8c8 885-889,1110
+refactoring-review/config.json
+  s_6ef012108ae407::t_d3b78efa49a8c8 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "89850f56db70f6e40b781e842bdc28d053d4427a",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
