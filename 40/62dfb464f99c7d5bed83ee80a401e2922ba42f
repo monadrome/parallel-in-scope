@@ -1,0 +1,24 @@
+scripts/check-race-claims.py
+  s_ce73de3a0acc3d::t_b1815ae882f1b0 28-29,60,72-76,80-81,87-93,95-102,104-106,115-116,265-268
+  s_ce73de3a0acc3d::t_8b96221555b56d 34,61-71,77-79,82-86,103,107-114
+  s_ce73de3a0acc3d::t_5b019ba559d7c9 50-59
+scripts/tests/test_check_race_claims.py
+  s_ce73de3a0acc3d::t_4a17046610dd81 12,16,135,141-163
+  s_ce73de3a0acc3d::t_ceea88efc7eefb 136-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ce1089cd4fb70c298a52e59072a185125e454e69",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
