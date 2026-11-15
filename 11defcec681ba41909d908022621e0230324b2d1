@@ -1,0 +1,19 @@
+refactoring-review/config.json
+  s_6ef012108ae407::t_d4ce81374ab995 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "11defcec681ba41909d908022621e0230324b2d1",
+  "prompts": {},
+  "sessions": {
+    "s_6ef012108ae407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdc9-863c-7af1-bf01-71c5374e4cc5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
