@@ -1,0 +1,39 @@
+src/main/java/io/github/huatalk/parallelinscope/internal/FutureInspector.java
+  ai_agent 51
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalPar.java
+  ai_agent 73
+docs/en/user-guide.md
+  ai_agent 119
+src/main/java/io/github/huatalk/parallelinscope/scope/BatchExecutionContext.java
+  ai_agent 8,64-67,75-76,127-128
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalParPurgePolicy.java
+  ai_agent 12,17,32-33,39,52-54
+src/test/java/io/github/huatalk/parallelinscope/internal/FutureInspectorTest.java
+  ai_agent 73
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  ai_agent 55,66,68-69,77,80,84,93,98,232,260,308,315,317,322,327,332,336,341,352,361,366,373,376,382,388,400,408
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParTest.java
+  ai_agent 420,424
+src/main/java/io/github/huatalk/parallelinscope/scope/Par.java
+  ai_agent 95-96,101-102,116
+docs/zh/user-guide.md
+  ai_agent 118
+adr/0003-event-coalesced-purge-maintenance.md
+  ai_agent 54
+adr/0005-globalpar-executor-binding.md
+  ai_agent 868
+src/main/java/io/github/huatalk/parallelinscope/queue/DrainingBlockingQueue.java
+  ai_agent 997-998,1090,1122
+src/main/java/io/github/huatalk/parallelinscope/scope/AsyncBatchResult.java
+  ai_agent 105-108,111
+src/main/java/io/github/huatalk/parallelinscope/context/graph/TaskGraph.java
+  ai_agent 191,193
+src/test/java/io/github/huatalk/parallelinscope/scope/GlobalParPoliciesTest.java
+  ai_agent 60,73,75,77,86,91,95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "6d24d6d7aae01e65060dfa5ae08c867d9b35ded0",
+  "prompts": {}
+}
