@@ -1,0 +1,145 @@
+integrations/src/main/java/integrations/sentinel/SentinelGuard.java
+  ai_agent 1-96
+demo/src/test/java/demo/article/E1_QueueFloodingTest.java
+  ai_agent 106,114,122
+demo/docs/zh-CN/articles/B2-function-signature-bloat.md
+  ai_agent 50,75
+demo/src/test/java/demo/article/G6_BatchDbQueryTest.java
+  ai_agent 127,187
+demo/src/main/java/demo/basic/BasicParDemo.java
+  ai_agent 69
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  ai_agent 18,51,54,57,71,79-80,84-85,102,147
+integrations/src/main/java/integrations/resilience4j/ResilientCall.java
+  ai_agent 1-124
+demo/pom.xml
+  ai_agent 9,21,36,59,67,73,86
+demo/docs/zh-CN/articles/A3-lean-vs-fat-exception.md
+  ai_agent 43,74
+demo/README.md
+  ai_agent 5,12-13,56,67
+demo/docs/zh-CN/articles/C2-cached-vs-fixed-pool.md
+  ai_agent 42,46,48,50,64,90
+demo/docs/zh-CN/articles/I2-java8-compatibility-cost.md
+  ai_agent 28,31
+demo/docs/zh-CN/README.md
+  ai_agent 5,9
+demo/README.en.md
+  ai_agent 7
+integrations/AGENTS.md
+  ai_agent 1-78
+integrations/src/main/java/integrations/app/QuoteApplication.java
+  ai_agent 1-91
+integrations/src/main/java/integrations/app/PricingClient.java
+  ai_agent 1-13
+demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md
+  ai_agent 29,46,51,59,71
+demo/docs/zh-CN/articles/F1-cpu-task-queuing.md
+  ai_agent 1,36-38,40-43,51-52,56-57,70,72-75,79
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  ai_agent 55-57,68,84-85,95,100,112,117
+demo/docs/zh-CN/articles/E2-submitter-pool-offloading.md
+  ai_agent 37,40-41,51,57,69
+demo/src/main/java/demo/basic/CancellationDemo.java
+  ai_agent 13,21,27,61-62,67-68,75
+demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java
+  ai_agent 119,130
+integrations/src/test/java/integrations/resilience4j/ResilientCallTest.java
+  ai_agent 1-262
+integrations/README.md
+  ai_agent 1-94
+demo/docs/zh-CN/articles/G4-named-executor-pool.md
+  ai_agent 50,53-55,58-59,63-64,69,90
+integrations/src/test/java/integrations/sentinel/SentinelGuardTest.java
+  ai_agent 1-210
+demo/docs/zh-CN/articles/B1-threadlocal-context-lost.md
+  ai_agent 45,69
+integrations/README.en.md
+  ai_agent 1-118
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  ai_agent 47,53,70
+demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  ai_agent 75,137,199
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  ai_agent 6,52-53,87-88,112,117,122-123
+demo/docs/zh-CN/articles/D2-late-bind-race-condition.md
+  ai_agent 48,67
+demo/docs/zh-CN/articles/I3-sliding-window-vs-semaphore.md
+  ai_agent 89,95
+demo/docs/zh-CN/articles/A2-nested-cancel-propagation.md
+  ai_agent 47,76
+demo/docs/zh-CN/articles/E1-queue-flooding.md
+  ai_agent 59,87
+integrations/src/main/java/integrations/spring/ParRuntimeLifecycle.java
+  ai_agent 1-76
+demo/docs/en/README.md
+  ai_agent 7,12
+integrations/pom.xml
+  ai_agent 1-126
+demo/docs/zh-CN/articles/G6-batch-db-query.md
+  ai_agent 52,65,93
+integrations/src/main/java/integrations/sentinel/SentinelFlowRules.java
+  ai_agent 1-40
+demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java
+  ai_agent 85
+demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java
+  ai_agent 159
+demo/src/test/java/demo/article/H1_NullEmptyInputTest.java
+  ai_agent 87-88,103
+integrations/src/main/java/integrations/app/Quote.java
+  ai_agent 1-59
+demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  ai_agent 7,146
+demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md
+  ai_agent 34,39,44,46,56,61,77,82
+demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java
+  ai_agent 11,30,48-56,119,121-122,132,145,182-223
+integrations/src/test/java/integrations/app/QuoteServiceTest.java
+  ai_agent 1-197
+integrations/src/main/java/integrations/app/QuoteConfiguration.java
+  ai_agent 1-129
+demo/src/main/java/demo/integration/BatchProcessingDemo.java
+  ai_agent 22,74-75
+demo/src/test/java/demo/article/QuickStartTest.java
+  ai_agent 48,55-56,63,74-75,82-84
+demo/docs/zh-CN/articles/H1-defensive-null-handling.md
+  ai_agent 47,59,83
+integrations/src/main/java/integrations/app/InventoryClient.java
+  ai_agent 1-13
+demo/docs/zh-CN/articles/A1-cancel-true-ignored.md
+  ai_agent 33,44,49,54-55,64
+demo/docs/zh-CN/articles/G1-completion-future-monitoring.md
+  ai_agent 44,46,84
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  ai_agent 4,9,19-21,55-56,64,79-80,85-86,88,96,102,109,125-126
+demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java
+  ai_agent 7,105
+demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java
+  ai_agent 109
+demo/AGENTS.md
+  ai_agent 7-8
+demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md
+  ai_agent 41,53,58,74
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  ai_agent 1,3,9,22,26,81,115-117,123,129,138
+integrations/src/main/java/integrations/support/Cancellations.java
+  ai_agent 1-71
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  ai_agent 76,82,99
+demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  ai_agent 204
+demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java
+  ai_agent 115,193
+integrations/src/main/java/integrations/app/QuoteService.java
+  ai_agent 1-125
+integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java
+  ai_agent 1-104
+demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java
+  ai_agent 8,89,96-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ddb9802463ec664aa9fe540615ec4eb5e3ada895",
+  "prompts": {}
+}
