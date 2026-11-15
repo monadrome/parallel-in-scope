@@ -1,0 +1,15 @@
+src/main/java/io/github/monadrome/parallelinscope/TaskUnit.java
+  ai_agent 1-13
+src/main/java/io/github/monadrome/parallelinscope/TaskId.java
+  ai_agent 1-94
+src/main/java/io/github/monadrome/parallelinscope/TaskGroupRun.java
+  ai_agent 1-13
+src/test/java/io/github/monadrome/parallelinscope/TaskIdTest.java
+  ai_agent 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ae97519a62de4f5fdcc2a2868c54fb140640a4d2",
+  "prompts": {}
+}
