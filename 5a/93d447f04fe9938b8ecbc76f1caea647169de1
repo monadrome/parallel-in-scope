@@ -1,0 +1,11 @@
+historical-eval/catalog/fix-inventory.jsonl
+  ai_agent 1
+historical-eval/tools/inventory-fixes.py
+  ai_agent 8,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "5a93d447f04fe9938b8ecbc76f1caea647169de1",
+  "prompts": {}
+}
