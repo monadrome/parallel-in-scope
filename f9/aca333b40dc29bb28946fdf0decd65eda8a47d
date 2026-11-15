@@ -1,0 +1,43 @@
+src/test/java/io/github/monadrome/parallelinscope/ImmediateResultFoldTest.java
+  s_0e78eb08bf975c::t_1828c27dd1c12d 22-25,40-42,81-86,89-90
+  s_0e78eb08bf975c::t_d6f694dc1de646 52-58,68-69,87,114-115
+design/decision-log.md
+  s_0e78eb08bf975c::t_728cf6b0aaca21 302
+  s_0e78eb08bf975c::t_3eabf31ba88c8f 298-301,303
+docs/en/user-guide.md
+  s_0e78eb08bf975c::t_b26ee7f1d4b9a8 374-375,380-381,384,388-392,613
+design/AGENTS.md
+  s_0e78eb08bf975c::t_c26b383dffdd1b 168
+  s_0e78eb08bf975c::t_cdc0954b56353c 94
+design/synchronous-scope-exit.md
+  s_0e78eb08bf975c::t_728cf6b0aaca21 263-265
+  s_0e78eb08bf975c::t_cb1c77c64788bd 162
+  s_0e78eb08bf975c::t_c26b383dffdd1b 153-161
+src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_0e78eb08bf975c::t_d6f694dc1de646 81-87,91-92,100-101,104-105,111,113
+design/proposal/P0037-future-path-staged-outcome-api.md
+  s_0e78eb08bf975c::t_fc0cc78e5e7a88 1-103
+docs/zh/migration-v0.4.md
+  s_0e78eb08bf975c::t_b26ee7f1d4b9a8 44-61
+docs/en/migration-v0.4.md
+  s_0e78eb08bf975c::t_b26ee7f1d4b9a8 47-66
+docs/zh/user-guide.md
+  s_0e78eb08bf975c::t_9a73a4d043cdab 336
+  s_0e78eb08bf975c::t_b26ee7f1d4b9a8 330,335,339,343-345,529
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "68190b76fd78d8eab444627dcd367c29768dfb3a",
+  "prompts": {},
+  "sessions": {
+    "s_0e78eb08bf975c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b440-e180-70a3-b802-2e05b81decda",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
