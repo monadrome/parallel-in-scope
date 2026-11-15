@@ -1,0 +1,19 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
+  s_0359cf67dbc8bc::t_a7b6261af313f1 68-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f8e00bd23567515886442889e952294b169ea46e",
+  "prompts": {},
+  "sessions": {
+    "s_0359cf67dbc8bc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b30c50bf-7c72-4bc3-8c4c-2c9e781a0275",
+        "model": "kimi-k3"
+      },
+      "human_author": "EricLin <linqinghua4@gmail.com>"
+    }
+  }
+}
