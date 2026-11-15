@@ -1,0 +1,11 @@
+historical-eval/tools/compare-patches.py
+  ai_agent 1-55
+historical-eval/README.md
+  ai_agent 43-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0a6eaefe3f1d4e200df723f27a407d402783b2c6",
+  "prompts": {}
+}
