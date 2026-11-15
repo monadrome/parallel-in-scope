@@ -114,13 +114,13 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 
 `rejectEnqueue`, `capacity()`, and `setCapacity(int)` keep their previous behavior. `TaskType` remains diagnostic and does not change queue admission; only `rejectEnqueue(true)` requests refusal through `SubmissionAwareBlockingQueue`.
 
-`DrainingBlockingQueue` and `ResizableBlockingQueue` are now published by `io.github.monadrome:blocking-queues` under `io.github.monadrome.queues`. Add this dependency when using either standalone queue:
+`DrainingBlockingQueue` and `ResizableBlockingQueue` are now published by `io.github.monadrome:blocking-queues` under `io.github.monadrome.queues`, developed in the standalone [blocking-queues](https://github.com/monadrome/blocking-queues) repository. Add this dependency when using either standalone queue:
 
 ```xml
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>blocking-queues</artifactId>
-    <version>0.5.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 

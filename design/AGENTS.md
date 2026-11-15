@@ -121,14 +121,13 @@
 | [cancellation-model.md](cancellation-model.md) | **取消机制总览（导航，不持有规则）**：决策/传播/执行/协作/归因/出口六层与各自的权威契约、四类取消来源与非来源、一次取消经过各层的顺序、各入口的 token 拓扑、易混淆事实；改动取消相关机制前先读，再按其索引进入具体契约 |
 | [cancellation-propagation.md](cancellation-propagation.md) | Guava `ListenableFuture` 取消传播机制（transform/catching/addCallback/组合 future 的方向差异），`CancellationToken.bind` 依赖的语义与源码索引 |
 | [sliding-window-refill.md](sliding-window-refill.md) | 滑窗事件驱动补窗契约：调用方完成初始窗口、完成线程认领下一元素、窗口上界与取消/失败处置、框架线程 O(1) 资源上界 |
-| [draining-queue-contract.md](draining-queue-contract.md) | `DrainingBlockingQueue` 逐渐关闭契约：OPEN→DRAINING→DRAINED 状态机、规则优先级瀑布、poison/mutations 配置 |
-
 相关决策：
 
 - [ADR 0013](../adr/0013-standalone-blocking-queues-artifact.md)：通用阻塞队列独立 artifact 与包边界；`SubmissionAwareBlockingQueue` 仍属于 core。
+- [ADR 0015](../adr/0015-blocking-queues-standalone-repository.md)：blocking-queues 源码迁出本仓库；队列源码、测试与 [draining queue contract](https://github.com/monadrome/blocking-queues/blob/main/design/draining-queue-contract.md) 归属独立仓库，core 以 `blocking-queues.version` 消费正式版。
 - [ADR 0006](../adr/0006-queues-ship-with-core.md)：历史上的同产物决策，已由 ADR 0013 取代；其中 `TaskType` 的排队/拒绝语义已由 ADR 0008 取代。
 - [ADR 0003](../adr/0003-event-coalesced-purge-maintenance.md)：`Superseded`，现行规则见 [execution future simplification](execution-future-simplification.md)；仅供追溯自动 purge 旧方案。
-- [ADR 0004](../adr/0004-lifecycle-blocking-queue-recovery.md)：`Superseded`，现行规则见 [draining queue contract](draining-queue-contract.md)；仅供追溯 abrupt-close 旧方案。
+- [ADR 0004](../adr/0004-lifecycle-blocking-queue-recovery.md)：`Superseded`，现行规则见独立仓库的 draining queue contract（ADR 0015）；仅供追溯 abrupt-close 旧方案。
 
 ### 扩展与包装
 

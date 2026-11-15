@@ -5,6 +5,7 @@
 ### Build
 
 - Start the `0.5.0-SNAPSHOT` development line on `dev/v0.5.0`, preserving the snapshot publication gate and carrying forward the approved proposal context from the v0.4 line.
+- Move `blocking-queues` development to the standalone [blocking-queues](https://github.com/monadrome/blocking-queues) repository and consume `io.github.monadrome:blocking-queues:0.1.0` as an external dependency. Queue sources, tests, and the draining-close contract now live there; this repository's reactor is back to the core module alone (ADR 0015).
 
 ### Breaking changes
 

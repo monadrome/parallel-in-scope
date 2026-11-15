@@ -227,6 +227,6 @@ jobs:
           cache: maven
 
       - name: Validate library Javadocs
-        # Install the reactor first so core's blocking-queues dependency is
-        # available on a clean runner without relying on a warm Maven cache.
+        # Install first so the javadoc goal runs against the built artifact on a
+        # clean runner without relying on a warm Maven cache.
         run: mvn -B -ntp -Dmaven.test.skip=true install javadoc:javadoc

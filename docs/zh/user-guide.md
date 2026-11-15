@@ -680,14 +680,15 @@ ioThreadPool.purge(); // 执行器所有者的维护流程
 ## 生命周期队列
 
 `DrainingBlockingQueue` 和 `ResizableBlockingQueue` 由独立的
-`io.github.monadrome:blocking-queues` 构件发布。使用这些队列时，除
+`io.github.monadrome:blocking-queues` 构件发布，在独立的
+[blocking-queues](https://github.com/monadrome/blocking-queues) 仓库中开发。使用这些队列时，除
 `parallel-in-scope` 外还要增加以下依赖，并从 `io.github.monadrome.queues` 导入类型：
 
 ```xml
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>blocking-queues</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -704,7 +705,7 @@ queue.awaitDrained();   // 可选：等待排空
 Job job = queue.take(); // 排空前返回真实元素；排空后返回 poison
 ```
 
-关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/design/draining-queue-contract.md)。
+关闭后消费端仍能取到关闭前已入队的元素，无需恢复通道；`drainTo` 在任何状态下都可用，用于主动放弃剩余存量。用 `shutdown()` 判断"生产端已关"，用 `drained()` 判断"已排空"。完整契约见 [排干式关闭契约](https://github.com/monadrome/blocking-queues/blob/main/design/draining-queue-contract.md)。
 
 ## 集成配方 {#integration-recipes}
 

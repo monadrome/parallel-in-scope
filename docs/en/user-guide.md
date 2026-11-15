@@ -788,14 +788,15 @@ For a physical `ThreadPoolExecutor`, the prepared future is also the queued Runn
 ## Lifecycle-aware queues
 
 `DrainingBlockingQueue` and `ResizableBlockingQueue` are published by the standalone
-`io.github.monadrome:blocking-queues` artifact. Add it alongside `parallel-in-scope` when using
-these queues, and import them from `io.github.monadrome.queues`:
+`io.github.monadrome:blocking-queues` artifact, developed in the
+[blocking-queues](https://github.com/monadrome/blocking-queues) repository. Add it alongside
+`parallel-in-scope` when using these queues, and import them from `io.github.monadrome.queues`:
 
 ```xml
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>blocking-queues</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -813,7 +814,7 @@ queue.awaitDrained();   // optional: wait until drained
 Job job = queue.take(); // real element before drained; poison after drained
 ```
 
-Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](https://github.com/monadrome/parallel-in-scope/blob/v0.4.1/design/draining-queue-contract.md).
+Consumers can still take elements that were queued before `close()`; no recovery channel is needed, and `drainTo` stays available in every state for discarding remaining work. Use `shutdown()` for "production is closed" and `drained()` for "the queue is empty and terminal". Full contract: [draining-close contract](https://github.com/monadrome/blocking-queues/blob/main/design/draining-queue-contract.md).
 
 ## Integration recipes {#integration-recipes}
 

@@ -116,13 +116,13 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 诊断，不改变入队准入；只有 `rejectEnqueue(true)` 会请求
 `SubmissionAwareBlockingQueue` 拒绝入队。
 
-`DrainingBlockingQueue` 和 `ResizableBlockingQueue` 现在由 `io.github.monadrome:blocking-queues` 发布，包名为 `io.github.monadrome.queues`。使用独立队列时请新增以下依赖：
+`DrainingBlockingQueue` 和 `ResizableBlockingQueue` 现在由 `io.github.monadrome:blocking-queues` 发布，包名为 `io.github.monadrome.queues`，在独立的 [blocking-queues](https://github.com/monadrome/blocking-queues) 仓库中开发。使用独立队列时请新增以下依赖：
 
 ```xml
 <dependency>
     <groupId>io.github.monadrome</groupId>
     <artifactId>blocking-queues</artifactId>
-    <version>0.5.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 

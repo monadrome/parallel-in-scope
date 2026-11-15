@@ -33,7 +33,7 @@ implementations"，即与 core 无代码耦合是有意的，不是欠账。库�
    artifactId。
 2. `SmartBlockingQueue` 留在 root 包；`rejectEnqueue` 的排队/拒绝语义留在 core，不随队列包迁移
    （`TaskType` 不再参与排队/拒绝，见 [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)）。
-3. `queue` 的公开契约与 [draining close contract](../design/draining-queue-contract.md)
+3. `queue` 的公开契约与 [draining close contract](https://github.com/monadrome/blocking-queues/blob/main/design/draining-queue-contract.md)（已随队列迁入独立仓库，ADR 0015）
    一并作为本库的公开产品维护，队列缺陷由本仓库承担归因与修复。
 4. core 代码不得新增对 `queue` 包类型的依赖；`SmartBlockingQueue` →
    `VariableLinkedBlockingQueue` 这一处委托依赖保持不变。

@@ -107,7 +107,7 @@
         <dependency>
             <groupId>io.github.monadrome</groupId>
             <artifactId>blocking-queues</artifactId>
-            <version>${project.version}</version>
+            <version>${blocking-queues.version}</version>
         </dependency>
         <!-- Core: Guava (ListenableFuture, Graph, etc.) -->
         <dependency>
@@ -382,11 +382,6 @@
                             <!-- targetClasses / targetTests / mutators come from the
                                  same-named project properties so their user properties can
                                  override them; see <properties>. -->
-                            <!-- Demonstration programs are executable examples, not library
-                                 contract code; keep them out of the mutation score denominator. -->
-                            <excludedClasses>
-                                <param>io.github.monadrome.queues.*Demo*</param>
-                            </excludedClasses>
                             <!-- Lincheck attaches its own instrumentation agent and must not run
                                  inside PIT's instrumented worker. Surefire's exclude does not
                                  constrain PIT's targetTests discovery, so exclude it here too. -->

@@ -187,13 +187,12 @@ class PlanModeTest(RepoTestCase):
 
 class RoutesAndRulesTest(RepoTestCase):
     def test_routes_follow_paths_and_changed_lines(self):
-        self.write("blocking-queues/src/main/java/io/github/monadrome/queues/Q.java", java("Q", 5))
+        self.write("demo/src/main/D.java", java("D", 5))
         self.write(f"{MAIN}/W.java", java("W", 5, "Thread.currentThread().interrupt(); int v{index};"))
         self.commit("routes")
         _, _, plan = self.plan()
         routes = plan["agents"][0]["routes"]
-        self.assertIn("blocking-queues/AGENTS.md", routes)
-        self.assertIn("adr/0013-standalone-blocking-queues-artifact.md", routes)
+        self.assertIn("demo/AGENTS.md", routes)
         self.assertIn("design/interruption-contract.md", routes)
         self.assertIn("design/AGENTS.md", routes)
         self.assertNotIn("adr/0012-contract-and-implementation-comment-layers.md", routes)

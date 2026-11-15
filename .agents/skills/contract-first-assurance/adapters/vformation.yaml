@@ -15,7 +15,6 @@ contract_paths:
 
 public_api_paths:
   - core/src/main/java/
-  - blocking-queues/src/main/java/
 
 build_commands:
   compile: mvn -DskipTests compile
@@ -71,7 +70,5 @@ execution_policy:
 isolation:
   source_paths:
     - core/src/main/java/
-    - blocking-queues/src/main/java/
   test_paths:
     - core/src/test/java/
-    - blocking-queues/src/test/java/

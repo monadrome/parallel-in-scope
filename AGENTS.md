@@ -139,21 +139,20 @@ Base package: `io.github.monadrome.parallelinscope`.
 | Package | Responsibility |
 |---|---|
 | root package | Public API and callbacks plus the package-private execution kernel |
-| `blocking-queues` module | Independent general-purpose queue implementations |
 
 The root package deliberately co-locates the public API with package-private cancellation,
 context, graph, and scheduling implementation. This is the Java 8 encapsulation boundary: do not
 reintroduce public bridge types or conceptual subpackages merely to categorize files.
 
-The standalone `blocking-queues` module publishes the general-purpose queue implementations as
-`io.github.monadrome:blocking-queues`. Its artifact boundary is defined by
-`adr/0013-standalone-blocking-queues-artifact.md`; it must not depend on the core module. The
-`SubmissionAwareBlockingQueue` adapter remains in the core root package because its admission
-semantics read `SubmissionScope` and `MultiTaskContext`.
-
-The queue module is outside the core mechanism and outside default reading scope: skip it in
-repository-wide sweeps unless the task names queue behavior. Its tests still run in `mvn test`.
-Rules are in `blocking-queues/AGENTS.md`.
+The general-purpose queue implementations publish as the standalone
+`io.github.monadrome:blocking-queues` artifact, developed in the separate
+[blocking-queues](https://github.com/monadrome/blocking-queues) repository; core consumes it as an
+external dependency pinned by `blocking-queues.version` in the parent POM. The artifact boundary is
+defined by `adr/0013-standalone-blocking-queues-artifact.md` and the repository move by
+`adr/0015-blocking-queues-standalone-repository.md`. The `SubmissionAwareBlockingQueue` adapter
+remains in the core root package because its admission semantics read `SubmissionScope` and
+`MultiTaskContext`. Queue behavior, its contract, and its tests live in that repository and are
+outside this repository's reading and verification scope.
 
 Two invariants to respect:
 
@@ -211,7 +210,7 @@ mechanisms, from no sharing down to hand-built protocols, lives in
 
 ## Key Conventions
 
-- Java 8 APIs only in `core/src/main/java` and `blocking-queues/src/main/java`.
+- Java 8 APIs only in `core/src/main/java`.
 - Declaration Javadoc states the contract its reader can rely on: purpose,
   inputs and results, nullability, exceptions, concurrency, cancellation, and
   lifecycle. This includes internal declarations. Public Javadoc must make sense
@@ -231,8 +230,7 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   or deleting a comment, preserve each distinct valid claim and correct claims
   that no longer match the code. Do not use comment count, density, or length
   as a deletion criterion or add mechanical gates for them. These rules apply
-  to library, tests, and demo; the standalone queue module's JDK-port parity comments
-  remain governed by `blocking-queues/AGENTS.md`.
+  to library, tests, and demo.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
   Respelled public members need changelog and migration-guide entries. Preserve
@@ -251,8 +249,7 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
   `Monitor.Guard.isSatisfied()`).
-- Every library package under `core/src/main/java` and
-  `blocking-queues/src/main/java` has `package-info.java` with JSpecify
+- Every library package under `core/src/main/java` has `package-info.java` with JSpecify
   `@NullMarked`; consumer modules keep their own nullability policy.
   annotate only exceptions with `org.jspecify.annotations.Nullable`
   (TYPE_USE position, compile scope). NullAway enforces the annotations at

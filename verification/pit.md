@@ -11,9 +11,8 @@ and example modules (`demo/`, `integrations/`, and
 `verification/maven-central-consumer/`) are outside PIT unless the user
 explicitly requests a broader scope. Validate those modules through their own
 tests and the runtime-consumer matrix; for a consumer-only change, record PIT as
-`skipped` with this scope rule as the reason. The independent
-`blocking-queues` artifact follows its scoped instructions and is not pulled
-into a core PIT run automatically.
+`skipped` with this scope rule as the reason. The `blocking-queues` artifact lives
+in its own repository and is outside core PIT scope.
 
 ## Decide applicability and scope
 
@@ -36,11 +35,11 @@ an incoming commit changes the same mechanism. Changing a collaborator's behavio
 can invalidate evidence even when the mutated class itself is unchanged.
 
 A broader core run selects the production classes directly in the root package
-and their relevant root-package tests. Enumerate these from the source directories
-without recursively adding the independent queue package. The POM's default
+and their relevant root-package tests. The POM's default
 package wildcard can include subpackages: do not use it as an implicit core-only
-scope. Queue changes follow their own [instructions](../blocking-queues/AGENTS.md);
-unrelated changes do not require a queue sweep.
+scope. Queue behavior belongs to the standalone
+[blocking-queues](https://github.com/monadrome/blocking-queues) repository and follows
+its own verification policy; unrelated changes do not require a queue sweep.
 
 Use focused runs during iteration. Before accepting a cross-cutting change, run
 the complete affected scope, in one run or documented batches. A maintainer may

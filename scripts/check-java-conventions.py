@@ -41,7 +41,7 @@ from typing import Iterable, Iterator, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = "src/main/java"
-SOURCE_DIRS = ("core/src/main/java", "blocking-queues/src/main/java")
+SOURCE_DIRS = ("core/src/main/java",)
 DEFAULT_UPSTREAM = "origin/dev/v0.5.0"
 # The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
 EXCLUDED_PREFIXES = ("io/github/monadrome/queues/", "io/github/monadrome/parallelinscope/queue/", "src/main/java/io/github/monadrome/parallelinscope/queue/")
