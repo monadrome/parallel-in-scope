@@ -367,6 +367,25 @@ public class CancellationTokenTest {
     }
 
     @Test
+    public void failFastCallbackCancelsSiblingAndSubmissionSynchronously() {
+        CancellationToken token = CancellationToken.create();
+        SettableFuture<String> failed = SettableFuture.create();
+        SettableFuture<String> sibling = SettableFuture.create();
+        SettableFuture<Void> submission = SettableFuture.create();
+
+        token.bind(ImmutableList.of(failed, sibling), submission, TIMER);
+
+        // The binding callback uses directExecutor, so the cancellation cascade is complete when
+        // the triggering failure returns. Keeping this assertion synchronous makes a missing
+        // cascade fail promptly instead of being reported only as a PIT timeout.
+        failed.setException(new RuntimeException("boom"));
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
+        assertThat(sibling).isCancelled();
+        assertThat(submission).isCancelled();
+    }
+
+    @Test
     public void bindReturnsAggregateTrackingAllFuturesAndTheSubmitter() {
         CancellationToken token = CancellationToken.create();
 
@@ -540,6 +559,47 @@ public class CancellationTokenTest {
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
         assertThat(work.cancelInterrupt).hasValue(true);
         assertAggregateDone(aggregate);
+    }
+
+    @Test
+    public void requestCancellationIsDistinguishedFromFrameworkCancellation() {
+        CancellationToken token = CancellationToken.create();
+        SettableFuture<Void> source = SettableFuture.create();
+
+        token.cancelOn(source);
+        source.set(null);
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(token.cancelledByCaller()).isTrue();
+
+        CancellationToken timeout = CancellationToken.create();
+        timeout.timeoutCancel();
+        assertThat(timeout.cancelledByCaller()).isFalse();
+
+        CancellationToken failFast = CancellationToken.create();
+        failFast.failFastCancel();
+        assertThat(failFast.cancelledByCaller()).isFalse();
+    }
+
+    @Test
+    public void directCancellationIsNotAttributedToCaller() {
+        CancellationToken token = CancellationToken.create();
+
+        token.cancel();
+
+        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
+        assertThat(token.cancelledByCaller()).isFalse();
+    }
+
+    @Test
+    public void timeoutSchedulerReportsTheInjectedDomainScheduler() {
+        ManualClock clock = new ManualClock();
+        ScheduledExecutorService scheduler = clock.scheduler();
+        CancellationToken token =
+                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker(), scheduler);
+
+        assertThat(token.timeoutScheduler()).isSameAs(scheduler);
+        assertThat(CancellationToken.create().timeoutScheduler()).isNull();
     }
 
     @Test
@@ -808,6 +868,12 @@ public class CancellationTokenTest {
         AtomicBoolean taskStillPending = new AtomicBoolean();
         token.addStateListener(state -> {
             observed.set(state);
+            // A losing transition must not run its cancellation aftermath inside the winner's
+            // listener window. The ordering lets group listeners attribute the winner before any
+            // cascade reaches the bound work.
+            if (state == CancellationToken.State.CANCELLED) {
+                token.timeoutCancel();
+            }
             taskStillPending.set(!task.isDone());
         });
 
