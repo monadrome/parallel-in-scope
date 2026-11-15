@@ -1,0 +1,39 @@
+scripts/check-english-docs.py
+  ai_agent 2-8,16-17,20-21,27-61,63-64
+scripts/check-design-routes.py
+  ai_agent 1-140
+scripts/verify-maven-central.sh
+  ai_agent 5-32,39-40
+scripts/test-verify-maven-central.sh
+  ai_agent 1-164
+scripts/check-api-surface.py
+  ai_agent 1-346
+verification/maven-central-consumer/pom.xml
+  ai_agent 18-20
+scripts/check-local-links.py
+  ai_agent 13-21
+scripts/tests/test_check_english_docs.py
+  ai_agent 1-67
+scripts/tests/fixtures/api_surface/evolving-base.txt
+  ai_agent 1-130
+scripts/tests/fixtures/api_surface/evolving-changed.txt
+  ai_agent 1-136
+verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java
+  ai_agent 3,5-6,11-12,14,16,53,55-57,72-247,265,267,298,300-301,314,329,342,344-345
+scripts/tests/fixtures/api_surface/evolving-added.txt
+  ai_agent 1-156
+scripts/tests/fixtures/api_surface/visibility.txt
+  ai_agent 1-531
+scripts/tests/test_check_design_routes.py
+  ai_agent 1-158
+scripts/tests/fixtures/api_surface/evolving-reordered.txt
+  ai_agent 1-162
+scripts/tests/test_check_api_surface.py
+  ai_agent 1-369
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "32c8434d1eb0291743b645c37ad16b9b39d4722d",
+  "prompts": {}
+}
