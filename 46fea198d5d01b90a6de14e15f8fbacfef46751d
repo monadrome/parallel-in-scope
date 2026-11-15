@@ -1,0 +1,19 @@
+ledger/2026-11-12-skill-reproducibility.json
+  s_5ad4597eb7d0f3::t_879db47c64c00a 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "41ca8cddeefed791f52e67e54cd00647417c8a9f",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
