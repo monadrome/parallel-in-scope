@@ -1,0 +1,21 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupScopeTerminationCauseTest.java
+  s_e3a5e9dbc9ca9d::t_c18c6d8263420e 1-20,24-33,35-36,39-43,47-54,56-57,60-62
+  s_e3a5e9dbc9ca9d::t_73647f3caf1217 22-23,34,45-46,55
+  s_e3a5e9dbc9ca9d::t_3ac0fc1c058f31 21,37-38,44,58-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "dbcda3d371141d1ad8875eb78c08963cf19a6687",
+  "prompts": {},
+  "sessions": {
+    "s_e3a5e9dbc9ca9d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bf24-c989-77e3-8aad-0dde54827dfc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
