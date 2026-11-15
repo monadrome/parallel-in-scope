@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_ce4d39d2513261::t_613dfae7065558 130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9e371cab77353282a645a9afacb16f41e20f5622",
+  "prompts": {},
+  "sessions": {
+    "s_ce4d39d2513261": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b9bf-a944-70a1-83e6-f3a2b124c789",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
