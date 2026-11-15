@@ -1,0 +1,27 @@
+historical-eval/tools/run-repair-loop.py
+  s_490d18c85ab19e::t_547b991227247a 212-226,256,314-329,334-369,377-383,385-399,407-413,456-464,470-471,493,499
+  s_490d18c85ab19e::t_23a7549f16e1f0 1-211,227-241,254-255,257-313,330-333,384,414-455,465-469,472-492,494-498,500-506
+  s_490d18c85ab19e::t_31a1f66df6129a 242-253,370-376,400-406
+historical-eval/tools/compare-model-runs.py
+  s_490d18c85ab19e::t_709bf906858f7b 1-108,115-234
+  s_490d18c85ab19e::t_2f3f0ec44a90fe 109-114
+historical-eval/tools/run-model-matrix.py
+  s_490d18c85ab19e::t_cccfe78cb6f976 206-207,239-240,245
+  s_490d18c85ab19e::t_d97c2f15493b36 1-205,208-238,241-244,246-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "ea7a2c7ae260cd510950d1d5a510975fd1f126e5",
+  "prompts": {},
+  "sessions": {
+    "s_490d18c85ab19e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bb80-2d2f-7e90-9d27-b71ba1bc31ff",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
