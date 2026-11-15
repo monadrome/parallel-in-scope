@@ -1,0 +1,25 @@
+src/main/java/io/github/huatalk/parallelinscope/cancel/Checkpoints.java
+  ai_agent 125,129,137,142
+src/main/java/io/github/huatalk/parallelinscope/internal/ConcurrentLimitExecutor.java
+  ai_agent 211
+src/main/java/io/github/huatalk/parallelinscope/internal/FutureState.java
+  ai_agent 17
+src/main/java/io/github/huatalk/parallelinscope/internal/ListenableCompletionService.java
+  ai_agent 6,76
+src/main/java/io/github/huatalk/parallelinscope/cancel/HeuristicPurger.java
+  ai_agent 21,23,66,77,135,247,271
+src/main/java/io/github/huatalk/parallelinscope/scope/GlobalPar.java
+  ai_agent 29
+src/main/java/io/github/huatalk/parallelinscope/scope/Par.java
+  ai_agent 35
+src/main/java/io/github/huatalk/parallelinscope/queue/VariableLinkedBlockingQueue.java
+  ai_agent 55,61
+src/main/java/io/github/huatalk/parallelinscope/scope/AsyncBatchResult.java
+  ai_agent 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f15428b83945b42bcd717a2dc4d253acb116e0b5",
+  "prompts": {}
+}
