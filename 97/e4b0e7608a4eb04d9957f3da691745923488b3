@@ -1,0 +1,17 @@
+.github/ISSUE_TEMPLATE/bug_report.yml
+  ai_agent 22,29
+.github/ISSUE_TEMPLATE/config.yml
+  ai_agent 7-9
+CHANGELOG.md
+  ai_agent 5-6
+CONTRIBUTING.md
+  ai_agent 51,131-132
+docs/en/migration-v0.4.md
+  ai_agent 116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "97e4b0e7608a4eb04d9957f3da691745923488b3",
+  "prompts": {}
+}
