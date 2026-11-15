@@ -1,0 +1,9 @@
+ledger/2026-11-06-multi-review-script-robustness.json
+  ai_agent 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1b8308a3714d9965d4aff4210ead5a560ed0a4fd",
+  "prompts": {}
+}
