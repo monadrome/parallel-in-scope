@@ -1,0 +1,20 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_6fb938faea569b::t_f2dc8a4e2bbce1 110,113
+  ai_agent 126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f3daaa76e2b6014b1e863c24d47de877a7613dbf",
+  "prompts": {},
+  "sessions": {
+    "s_6fb938faea569b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ba50-6f93-7631-988a-7d63f1cad353",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
