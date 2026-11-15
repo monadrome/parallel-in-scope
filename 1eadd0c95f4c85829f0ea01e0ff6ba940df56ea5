@@ -1,0 +1,31 @@
+.github/ISSUE_TEMPLATE/bug_report.yml
+  ai_agent 9,37,44,62,74,82
+.github/workflows/snapshot.yml
+  ai_agent 1-162
+AGENTS.md
+  ai_agent 19,43-48,51-74,84-90,94-101,106-110,112-130,138-140,150-236,240-259,268,270,272,278-280,282-289,297-302
+.github/ISSUE_TEMPLATE/design_proposal.yml
+  ai_agent 2,8,26
+CONTRIBUTING.md
+  ai_agent 11-15,20,31-32,46,57-84,88-89,104-106,110,123-140,144-154
+BACKLOG.md
+  ai_agent 1-408
+.github/workflows/codeql.yml
+  ai_agent 23-24,27
+.github/pull_request_template.md
+  ai_agent 3-4,9-15,21-22,41-50
+.github/workflows/ci.yml
+  ai_agent 37-42,54-57,61-62,64,71-74,77-95,105-107,110,114,126-132
+.gitignore
+  ai_agent 3,29-31,38-41
+.github/ISSUE_TEMPLATE/config.yml
+  ai_agent 6
+.github/workflows/release.yml
+  ai_agent 28-30,35,51,53,55-60,66-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1eadd0c95f4c85829f0ea01e0ff6ba940df56ea5",
+  "prompts": {}
+}
