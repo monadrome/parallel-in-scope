@@ -1,0 +1,21 @@
+README.md
+  s_570a668571c2d4::t_384131c788f615 149,151
+README.zh-CN.md
+  s_570a668571c2d4::t_384131c788f615 129,131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "756b3bd7f5fb1cf6b94abcc4924242b4eaf60398",
+  "prompts": {},
+  "sessions": {
+    "s_570a668571c2d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c9e2-4d95-7e72-82c4-dff059fa42c5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
