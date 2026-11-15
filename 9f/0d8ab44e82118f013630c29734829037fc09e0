@@ -1,0 +1,11 @@
+README.md
+  ai_agent 11-12,36,99-100,116-117,120-122,125-127,134-135,157-159,164
+README.zh-CN.md
+  ai_agent 11-12,34,83,97,100-102,105-107,114,136-138,141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9f0d8ab44e82118f013630c29734829037fc09e0",
+  "prompts": {}
+}
