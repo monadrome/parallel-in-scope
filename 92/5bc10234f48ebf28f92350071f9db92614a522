@@ -1,0 +1,19 @@
+ledger/2026-11-14-mutation-disposition-workflow.json
+  s_c0a68ccffe75de::t_51e32d92b1d371 7,15-16,18-20,24,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "446c7de60ae74ab53cdb1d0469247d16e8edcfdd",
+  "prompts": {},
+  "sessions": {
+    "s_c0a68ccffe75de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1da4b-133d-71f1-9b6e-1741cbfc24c1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
