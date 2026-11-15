@@ -1,0 +1,21 @@
+scripts/check-project-baseline.py
+  s_5ad4597eb7d0f3::t_a4f4c62a70e9bf 19,74-80,85
+scripts/tests/test_check_project_baseline.py
+  s_5ad4597eb7d0f3::t_a4f4c62a70e9bf 30,41-42,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "50aead71f107e6ac30aea5a2942b697340d16e66",
+  "prompts": {},
+  "sessions": {
+    "s_5ad4597eb7d0f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cb34-47b4-7a33-9267-b7132902c1c7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
