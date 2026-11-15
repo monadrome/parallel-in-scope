@@ -1,0 +1,35 @@
+.github/dependabot.yml
+  s_4d4bea29d57e17::t_17cf4b52f3fa6c 1-12
+.github/workflows/codeql.yml
+  s_4d4bea29d57e17::t_17cf4b52f3fa6c 19
+.github/workflows/ci.yml
+  s_4d4bea29d57e17::t_17cf4b52f3fa6c 15,62,95-97,120-122,134-145,147,151-155,173,176,180,192,200-229
+.github/workflows/release.yml
+  s_4d4bea29d57e17::t_1ef273a40f4272 32
+scripts/check-java-bytecode.py
+  s_4d4bea29d57e17::t_17cf4b52f3fa6c 1-79
+.github/workflows/dependency-review.yml
+  s_4d4bea29d57e17::t_1ef273a40f4272 13
+.github/workflows/gh-pages.yml
+  s_4d4bea29d57e17::t_1ef273a40f4272 20,58
+.github/workflows/summary.yml
+  s_4d4bea29d57e17::t_1ef273a40f4272 10
+.github/workflows/snapshot.yml
+  s_4d4bea29d57e17::t_1ef273a40f4272 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "001acbf90912690adad3c30eedef636a760f4b93",
+  "prompts": {},
+  "sessions": {
+    "s_4d4bea29d57e17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b50b-48c6-7be0-af37-e37e28ae2d12",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
