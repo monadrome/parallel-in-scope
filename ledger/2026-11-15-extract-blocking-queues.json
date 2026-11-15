@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-15-extract-blocking-queues",
+  "date": "2026-11-15",
+  "topic": "extract-blocking-queues",
+  "routes": [
+    "dependency",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "chore: move blocking-queues development to the standalone repository",
+      "refactor: drop redundant queue exclusion prefixes from the convention gate"
+    ],
+    "files": 34,
+    "insertions": 107,
+    "deletions": 5644
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-extract-blocking-queues-2026-11-15",
+        "head": "206902e55d475d5f533b3927c5134d2edcd79814",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "unknown"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "refactoring-review-merge": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "module moved to monadrome/blocking-queues (released 0.1.0, byte-identical sources); core consumes it as an external dependency; no adversarial review triggered"
+}
