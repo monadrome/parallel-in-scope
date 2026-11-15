@@ -1,0 +1,9 @@
+historical-eval/tools/inventory-fixes.py
+  ai_agent 48-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "dbc1605f3e6b552507a3b84903a8e67095c8c776",
+  "prompts": {}
+}
