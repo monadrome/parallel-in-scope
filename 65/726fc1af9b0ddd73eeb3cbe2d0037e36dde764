@@ -1,0 +1,29 @@
+docs/zh/user-guide.md
+  s_ddd0e3efd84a7c::t_1bc533c32797e0 739-752
+core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java
+  s_ddd0e3efd84a7c::t_ba8b8d86b1990f 1-53
+docs/en/user-guide.md
+  s_ddd0e3efd84a7c::t_fe903a02733661 844-860
+core/src/test/java/io/github/monadrome/parallelinscope/ContextExecutorsTest.java
+  s_ddd0e3efd84a7c::t_47d8532554e81c 1-83
+design/extension-and-wrapping.md
+  s_ddd0e3efd84a7c::t_bca298a08b463a 228-246
+core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+  s_ddd0e3efd84a7c::t_2358b1c3e6e7c3 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "65726fc1af9b0ddd73eeb3cbe2d0037e36dde764",
+  "prompts": {},
+  "sessions": {
+    "s_ddd0e3efd84a7c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bab2-2f6c-7ca1-a9d7-2237ebb1c19b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
