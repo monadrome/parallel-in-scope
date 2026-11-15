@@ -1,0 +1,26 @@
+core/pom.xml
+  s_d1bea004599e62::t_419ac5351c90ca 80-84,400,410-411
+scripts/run-pit-core.sh
+  s_d1bea004599e62::t_9924a62cd96e4c 15,24-27
+  s_d1bea004599e62::t_9d0d4aa54e036b 85-86
+  s_d1bea004599e62::t_bba99110377f2a 87-89,154,187-189
+  s_d1bea004599e62::t_d7190777c39972 132,163
+  s_d1bea004599e62::t_3e2d907653930c 155-157
+  s_d1bea004599e62::t_540f0c9274f211 185-186,195,198-211,213,218-219,229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ce59ebdb118126df6a3398125e6073bdff4924fe",
+  "prompts": {},
+  "sessions": {
+    "s_d1bea004599e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d947-261b-7302-ab98-d8b6e296f06f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
