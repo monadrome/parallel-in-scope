@@ -65,6 +65,16 @@ class ExecutionExitTrackerTest {
     }
 
     @Test
+    void awaitBoundedPositiveBudgetReportsAnElapsedBudget() throws Exception {
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        tracker.register(context("task"));
+
+        // The registered execution never exits, so the small budget elapses and the wait
+        // reports false instead of hanging or reporting completion.
+        assertThat(tracker.awaitBounded(Duration.ofMillis(20).toNanos())).isFalse();
+    }
+
+    @Test
     void awaitBoundedPositiveBudgetWaitsForAndReportsCompletion() throws Exception {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         TaskExecutionState slot = tracker.register(context("task"));
