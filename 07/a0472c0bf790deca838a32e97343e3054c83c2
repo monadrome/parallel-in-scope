@@ -1,0 +1,42 @@
+docs/en/reference/nullability-annotations.md
+  s_afd4e372de42bd::t_9c1d5b2faa7f4a 13-17
+scripts/check-local-links.py
+  s_afd4e372de42bd::t_b55575bd1f2ece 19
+integrations/AGENTS.md
+  s_afd4e372de42bd::t_9c1d5b2faa7f4a 47-48
+adr/0014-logging-backend-boundary.md
+  s_afd4e372de42bd::t_9c1d5b2faa7f4a 1
+AGENTS.md
+  s_afd4e372de42bd::t_ab3e18951e6342 105-113
+  s_afd4e372de42bd::t_9c1d5b2faa7f4a 233-235
+docs/zh/reference/nullability-annotations.md
+  s_afd4e372de42bd::t_9c1d5b2faa7f4a 13-16
+design/AGENTS.md
+  s_afd4e372de42bd::t_9c1d5b2faa7f4a 115
+scripts/tests/test_check_design_routes.py
+  s_afd4e372de42bd::t_98cc861c18f0ab 107-113
+scripts/check-doc-refs.py
+  s_afd4e372de42bd::t_6905f602265528 92-96
+  s_afd4e372de42bd::t_b55575bd1f2ece 37,40
+scripts/tests/test_check_doc_refs.py
+  s_afd4e372de42bd::t_b55575bd1f2ece 113-120
+  s_afd4e372de42bd::t_6905f602265528 121-126
+scripts/check-design-routes.py
+  s_afd4e372de42bd::t_98cc861c18f0ab 88-106,117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a0f112c26d38b53b600e2c2ebfc88716650808a4",
+  "prompts": {},
+  "sessions": {
+    "s_afd4e372de42bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d995-0a50-7b63-81d3-5f40bcdd1a3d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
