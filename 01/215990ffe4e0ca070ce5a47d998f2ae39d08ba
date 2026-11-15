@@ -1,0 +1,20 @@
+ledger/2026-11-14-require-independent-review.json
+  s_afd4e372de42bd::t_83653ed5efc37f 74-75,79,86-87,91,157
+  s_afd4e372de42bd::t_825d978bc266fc 1-73,76-78,80-85,88-90,92-156,158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c75081465f9a145a7a8ab1231d75a27ac53b6e46",
+  "prompts": {},
+  "sessions": {
+    "s_afd4e372de42bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d995-0a50-7b63-81d3-5f40bcdd1a3d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
