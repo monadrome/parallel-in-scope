@@ -1,0 +1,19 @@
+scripts/tests/test_refactoring_review.py
+  s_ce73de3a0acc3d::t_8bebb3c7ee4919 395
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "4f29ba85d020bb28a1fd8e52cfe0524998e2c5bb",
+  "prompts": {},
+  "sessions": {
+    "s_ce73de3a0acc3d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b395-362e-7333-8b09-adc3d71a292e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
