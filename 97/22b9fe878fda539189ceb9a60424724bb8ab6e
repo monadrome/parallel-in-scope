@@ -1,0 +1,21 @@
+src/test/java/io/github/monadrome/parallelinscope/LeanCancellationExceptionTest.java
+  ai_agent 5,31
+src/main/java/io/github/monadrome/parallelinscope/Validation.java
+  ai_agent 1-89
+src/main/java/io/github/monadrome/parallelinscope/ExecutorIdentity.java
+  ai_agent 24,29,33
+src/test/java/io/github/monadrome/parallelinscope/ValidationTest.java
+  ai_agent 1-88
+src/main/java/io/github/monadrome/parallelinscope/LeanCancellationException.java
+  ai_agent 3-4,9,11
+src/main/java/io/github/monadrome/parallelinscope/ParId.java
+  ai_agent 14-15,21,23-24,41
+src/main/java/io/github/monadrome/parallelinscope/SubmissionException.java
+  ai_agent 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "9722b9fe878fda539189ceb9a60424724bb8ab6e",
+  "prompts": {}
+}
