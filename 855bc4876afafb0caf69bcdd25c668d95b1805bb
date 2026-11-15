@@ -1,0 +1,23 @@
+README.md
+  s_570a668571c2d4::t_29ba6307996520 149
+  s_570a668571c2d4::t_d65af8e20307cc 14-16,141-144,147-148,151
+README.zh-CN.md
+  s_570a668571c2d4::t_d65af8e20307cc 14-15,121-124,127-128,131
+  s_570a668571c2d4::t_29ba6307996520 129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1960e5b3f9873a5ea8b237d77bd8f975d9d413e4",
+  "prompts": {},
+  "sessions": {
+    "s_570a668571c2d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c9e2-4d95-7e72-82c4-dff059fa42c5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
