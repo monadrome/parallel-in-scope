@@ -1,0 +1,67 @@
+scripts/test-verify-maven-central.sh
+  s_8029e92a443aa7::t_1b22f3492d8188 102
+.github/ISSUE_TEMPLATE/config.yml
+  ai_agent 7-9
+docs/en/index.md
+  ai_agent 3,15
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_8029e92a443aa7::t_b4e3e01843cb0a 3,9,22,26
+verification/maven-central-consumer/pom.xml
+  ai_agent 21
+demo/docs/zh-CN/README.md
+  ai_agent 5
+demo/README.en.md
+  ai_agent 7
+integrations/pom.xml
+  ai_agent 9,24
+docs/en/quickstart.md
+  ai_agent 1,5,11
+.github/ISSUE_TEMPLATE/bug_report.yml
+  ai_agent 22,29
+docs/zh/quickstart.md
+  ai_agent 1,5,11
+demo/pom.xml
+  ai_agent 9,21
+README.zh-CN.md
+  s_8029e92a443aa7::t_e0de05532e8c6e 11-12,34,83,97,100-101,105-106,114,136-138,141
+  s_8029e92a443aa7::t_10b7e07572c967 102,107
+README.md
+  s_8029e92a443aa7::t_e0de05532e8c6e 11-12,36,99-100,116-117,120-121,125-126,134-135,157-159,164
+  s_8029e92a443aa7::t_10b7e07572c967 122,127
+CHANGELOG.md
+  ai_agent 5-6
+demo/README.md
+  ai_agent 5,56
+CONTRIBUTING.md
+  ai_agent 51,131-132
+demo/docs/en/README.md
+  ai_agent 7
+docs/en/user-guide.md
+  ai_agent 3
+docs/zh/index.md
+  ai_agent 3
+docs/en/migration-v0.4.md
+  ai_agent 116
+docs/zh/user-guide.md
+  ai_agent 3
+pom.xml
+  ai_agent 9,22
+scripts/verify-maven-central.sh
+  ai_agent 4,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "7bf0a8f9d5705e2d988cbbc763bddd74bbb062fd",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
