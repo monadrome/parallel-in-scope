@@ -1,0 +1,27 @@
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/SHA256SUMS
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-3
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/logs/pit-final.log
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-9181
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/reports/mutations.xml
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-117
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/run-meta/final.txt
+  s_0359cf67dbc8bc::t_1610d2422df2e5 1-6
+verification/pit-audit/2026-11-15-cancellation-exit-test-evidence/README.md
+  s_0359cf67dbc8bc::t_d3cd81b87e0a6c 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "63ccacb5b403ea2e2322066bf40523c83769b9c3",
+  "prompts": {},
+  "sessions": {
+    "s_0359cf67dbc8bc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b30c50bf-7c72-4bc3-8c4c-2c9e781a0275",
+        "model": "kimi-k3"
+      },
+      "human_author": "EricLin <linqinghua4@gmail.com>"
+    }
+  }
+}
