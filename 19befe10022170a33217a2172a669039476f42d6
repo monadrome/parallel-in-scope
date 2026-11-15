@@ -1,0 +1,19 @@
+src/main/java/io/github/huatalk/parallelinscope/cancel/CancellationToken.java
+  s_c0fec488f19b2e::t_e51531292de48f 124-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "19befe10022170a33217a2172a669039476f42d6",
+  "prompts": {},
+  "sessions": {
+    "s_c0fec488f19b2e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c1b8ca6-6d63-402f-8ad3-b73bd769d36b",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
