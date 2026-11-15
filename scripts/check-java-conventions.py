@@ -43,8 +43,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = "src/main/java"
 SOURCE_DIRS = ("core/src/main/java",)
 DEFAULT_UPSTREAM = "origin/dev/v0.5.0"
-# The queue package keeps its JDK-port parity under queue/AGENTS.md; this gate leaves it alone.
-EXCLUDED_PREFIXES = ("io/github/monadrome/queues/", "io/github/monadrome/parallelinscope/queue/", "src/main/java/io/github/monadrome/parallelinscope/queue/")
 
 ACCESSOR_NAME = re.compile(r"(?:get|is)[A-Z][\w$]*")
 OVERRIDE = re.compile(r"@(?:\w+\.)*Override\b")
@@ -446,8 +444,10 @@ def source_roots(root: Path) -> list[tuple[str, Path]]:
 
 
 def is_excluded(relative: str) -> bool:
-    return any(relative.startswith(excluded) for excluded in EXCLUDED_PREFIXES) or \
-        "/queue/" in relative or "/queues/" in relative
+    # Queue sources still appear in diffs whose base predates the module's move to the
+    # standalone blocking-queues repository; their JDK-port parity is governed there, so
+    # this gate leaves those paths alone.
+    return "/queue/" in relative or "/queues/" in relative
 
 
 def java_files(root: Path) -> list[tuple[str, Path]]:
