@@ -1,0 +1,28 @@
+scripts/tests/test_check_java_conventions.py
+  s_c28b84ac9f0057::t_f09d58c31827a5 114-122
+  s_c28b84ac9f0057::t_906f52f5d9e14f 180-195
+verification/java-conventions.md
+  s_c28b84ac9f0057::t_c183ac9ef7b653 32-35,47-49,53-55,68-71
+scripts/check-java-conventions.py
+  s_c28b84ac9f0057::t_7fc5e15ee0c710 48,75
+  s_c28b84ac9f0057::t_2b27767cf2bcca 204-215
+  s_c28b84ac9f0057::t_18cfb7c7c3832f 268-292
+  s_c28b84ac9f0057::t_456b834e331a57 332,334-337,354-378,383-384
+  s_c28b84ac9f0057::t_f4c768ff9cd9f5 307-308,312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "58a72e39ad48e04a9fc7c7a866dc4c463111a37a",
+  "prompts": {},
+  "sessions": {
+    "s_c28b84ac9f0057": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "52d5199f-ef4d-470e-9030-105303659fec",
+        "model": "deepseek-v4-1-flash-261017"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
