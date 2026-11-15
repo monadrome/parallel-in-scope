@@ -1,0 +1,19 @@
+design/decision-log.md
+  s_8029e92a443aa7::t_7de500547b8d5d 67-68,483-490
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "39e27bf88d9c28e9fc256a321f7e91b5b6e012ee",
+  "prompts": {},
+  "sessions": {
+    "s_8029e92a443aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1b4e2-cdf9-7fb2-9120-efe3c0e5e3fb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
