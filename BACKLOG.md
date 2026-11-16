@@ -29,8 +29,8 @@ P-P6 按当前源码更新了影响面与行号，均未重新实测。其余条
 | 性能 | P-P1 | `Par.submit` 单价路径仍无快路径；旧 2.4×只是历史分配量，且当前仅测试调用 | 历史实测+读码 | 中 |
 | 性能 | ~~P-P2~~ | ~~batch 结果对象无条件预建观测聚合~~ **已修复（0.4）** | 读码 | — |
 | 性能 | P-P3 | 内部 task future 可达时钉住整批跟踪状态（公开结果不可达） | 读码 | 中低 |
-| 性能 | P-P4 | `remove(Object)` 两趟遍历（分配半项已修复 `96fa94d`） | 读码 | 低 |
-| 性能 | P-P5 | 队列包 5 项零散开销（节点分配在锁内等） | 读码 | 低 |
+| 性能 | ~~P-P4~~ | ~~`remove(Object)` 两趟遍历~~ **已迁出**：队列模块移至独立仓库，残余候选见 [blocking-queues#4](https://github.com/monadrome/blocking-queues/issues/4) | 读码 | — |
+| 性能 | ~~P-P5~~ | ~~队列包 5 项零散开销~~ **已迁出**：见 [blocking-queues#1](https://github.com/monadrome/blocking-queues/issues/1)/[blocking-queues#2](https://github.com/monadrome/blocking-queues/issues/2)/[blocking-queues#3](https://github.com/monadrome/blocking-queues/issues/3) | 读码 | — |
 | 性能 | P-P6 | 热路径常数开销（6 项，部分只影响特定配置） | 读码 | 低 |
 | 性能 | ~~P-P7~~ | ~~每批次一个阻塞 submitter 线程，跑在无界 cached pool~~ **已修复（完成事件补窗）** | 读码 | — |
 | API | ~~A-P0~~ | ~~`valuesOrThrow()` 丢掉真实失败原因~~ **已修复 `9f8867c`** | 实测+复核 | — |
@@ -99,22 +99,28 @@ P-P6 按当前源码更新了影响面与行号，均未重新实测。其余条
   生产路径保留内部 Task；若没有，关闭或降级本项。若确认有，才评估在发布获胜路径释放 supplier
   与在 outstanding 归零时释放 slots，并保持 `publishSkipped` 的后续 `signal()` 行为。
 
-### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费——分配半项**已修复 `96fa94d`**
+### P-P4 · `DrainingBlockingQueue.remove(Object)` 的两处浪费——**已迁出（blocking-queues#4）**
 
-- 已修：空队列直接返回，非空队列的搜索缓冲按 live count 定长，超过 64 个元素才用 64 槽批次。
-- 剩余候选（未量化）：确认阶段从 `head` 重扫找前驱。「锁内快照—锁外 equals—锁内按身份确认」是
-  [draining-queue-contract.md](design/draining-queue-contract.md) 的现行要求，两次遍历不是可直接合并的
-  重复；复用前驱提示须先证明不破坏并发重验。
+队列模块已随 ADR 0015 移至独立仓库，本条随之迁移为
+[blocking-queues#4](https://github.com/monadrome/blocking-queues/issues/4)，不再属于本仓库的优化范围。
+要点已随 issue 记录：分配半项此前已修复（`96fa94d`：空队列早退、搜索缓冲按 live count 定长、
+64 槽批次）；剩余候选是确认阶段从 `head` 重扫找前驱，未量化、须先测量；「锁内快照—锁外
+equals—锁内按身份确认」是契约要求，两次遍历不可合并，复用前驱提示须先证明不破坏并发重验。
+契约文档现位于独立仓库的 `design/draining-queue-contract.md`。
 
-### P-P5 · 队列包零散项（读码，2026-10-27 按机制名复核）
+### P-P5 · 队列包零散项——**已迁出（blocking-queues#1/#2/#3）**
 
-| 位置 | 问题 |
-|---|---|
-| `DrainingBlockingQueue` 的 `put`、限时 `offer`、`add` | `new Node<>` 仍在 `putMonitor` 内（非阻塞 `offer` 已外提） |
-| `DrainingBlockingQueue` 的 `peek`/`element`/无参 `remove()` | 缺 `poll` 那样的免锁空路径；加快路径须保留与并发入队、`DRAINED`、poison 的 happens-before |
-| `DrainingBlockingQueue.toArray(T[])` | 恒双拷贝（`destination` 够大时也先建中间数组）；须保留「锁内只复制引用、用户数组写入在锁外」 |
-| `DrainingBlockingQueue.clear()` | 无条件 `signalPutReady()`，含空操作分支 |
-| `VariableLinkedBlockingQueue` 迭代器的 `remove` | 每次从 head 重扫 → `ThreadPoolExecutor.purge()` 场景 O(k·n) |
+队列模块已随 ADR 0015 移至独立仓库，五个零散项按内聚度拆为三个 issue，全部要点与并发约束
+已随 issue 记录：
+
+- `put`/限时 `offer`/`add` 在 `putMonitor` 内分配 `new Node<>`（非阻塞 `offer` 已外提）→
+  [blocking-queues#1](https://github.com/monadrome/blocking-queues/issues/1)
+- `ResizableBlockingQueue`（原 `VariableLinkedBlockingQueue`）迭代器 `remove` 每次从 head
+  重扫，`ThreadPoolExecutor.purge()` 场景 O(k·n) →
+  [blocking-queues#2](https://github.com/monadrome/blocking-queues/issues/2)
+- `peek`/`element`/无参 `remove()` 缺免锁空路径、`toArray(T[])` 恒双拷贝、`clear()` 无条件
+  `signalPutReady()` →
+  [blocking-queues#3](https://github.com/monadrome/blocking-queues/issues/3)
 
 原表还有一行 `HeuristicPurger` 的无条件 CAS 与 `Stopwatch`；该类已随自动 purge 移出主线（`9784312`），不再是待修项。
 
@@ -403,7 +409,7 @@ A-P1（`CancellationToken` 孤岛）仍开放。
 - `gh-pages.yml` 只从 `main` 构建发布站点；发布合流是手工 PR（v0.3.0 为 #59/#60），没有链接翻转
   自动化。v0.3.0 没有此问题，是因为当时正文里唯一的源码链接本来就写成 `main`。
 - v0.4.0 合流后这些链接将原样发布：`dev/v0.4.0` 分支保留、链接不 404，但随开发线前进而与已发布内容
-  漂移。既有惯例是活契约链接用 `blob/main/`（如 draining-queue-contract）。
+  漂移。既有惯例是活契约链接用 `blob/main/`。
 - 需要维护者在发布 PR 里按链接性质取舍：活契约与指南翻成 `main`；带日期的历史注记可保留指向当期
   dev 分支的快照。发布后再翻亦可，但站点会有一段指向开发线的窗口期。
 
