@@ -1,0 +1,19 @@
+AGENTS.md
+  s_341fd7b5403922::t_49c046b6672030 220-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "53829493dacdff11a01a57ae488ad824505d1c45",
+  "prompts": {},
+  "sessions": {
+    "s_341fd7b5403922": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_71e49d5f-5576-43f3-b3d2-743cc7ca965d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
