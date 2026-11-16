@@ -93,9 +93,9 @@ class CheckDocRefsTest(unittest.TestCase):
         )
         self.assertEqual(docs.violations(self.root), [])
 
-    def test_analysis_inputs_and_pinned_baselines_are_exempt(self):
+    def test_analysis_inputs_and_dated_records_are_exempt(self):
         self.write("design/analysis/input.md", "See `git show abc1234:x.md` and Foo.java:9.\n")
-        self.write("BACKLOG.md", "See Foo.java:9.\n")
+        self.write("CHANGELOG.md", "See Foo.java:9.\n")
         self.write("todo.md", "See Foo.java:9.\n")
         self.assertEqual(docs.violations(self.root), [])
 

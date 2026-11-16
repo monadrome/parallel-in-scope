@@ -333,7 +333,7 @@ Documentation must stay readable and correct without the Git object database:
 - Write a pointer so that it reads on its own: when the target holds a single
   sentence, write that sentence at the pointer instead of a jump to it.
 - `scripts/check-doc-refs.py` enforces these rules on live documents. Until the
-  maintainer rewrites them, `BACKLOG.md`, `todo.md` (scratch), analysis inputs
+  maintainer rewrites them, `todo.md` (scratch), analysis inputs
   under `design/analysis/`, the changelog, and the dated records under
   `verification/` and `tools/` are exempt and may still carry hashes; do not
   add new ones. Most hashes they cite are already unreachable from any branch.
@@ -619,9 +619,10 @@ Load documents when their subject affects the task:
 - `adr/` - Historical decision rationale; decisions are never rewritten, and
   records are condensed only per `adr/AGENTS.md`. New records only for
   decisions `design/AGENTS.md` principle 10 routes there.
-- `BACKLOG.md` - Known defects and deferred work, each with an evidence grade.
-  It is pinned to the commit named at its top, so re-verify any line number it
-  cites before acting on an entry.
+- `BACKLOG.md` - Changes planned before a specific release: breaking API
+  changes, release tooling, and small fixes. Landed items are removed rather
+  than struck through; verify each entry against current sources before
+  acting on it.
 - `mkdocs/mkdocs.yml` - Site navigation, i18n locales, and the redirect map for
   previously published URLs. Update when adding, renaming, or moving a page
   under `docs/`.

@@ -43,7 +43,6 @@ SCAN_PREFIXES = (
 )
 EXEMPT_PREFIXES = ("design/analysis/",)
 EXEMPT_FILES = {
-    "BACKLOG.md",
     "CHANGELOG.md",
     "todo.md",
 }
