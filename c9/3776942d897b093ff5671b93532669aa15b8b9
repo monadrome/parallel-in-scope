@@ -1,0 +1,19 @@
+ledger/2026-11-15-backlog-streamline.json
+  s_341fd7b5403922::t_846d3ce1e8e797 1-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c93776942d897b093ff5671b93532669aa15b8b9",
+  "prompts": {},
+  "sessions": {
+    "s_341fd7b5403922": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_71e49d5f-5576-43f3-b3d2-743cc7ca965d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
