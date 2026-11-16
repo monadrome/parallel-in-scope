@@ -7,8 +7,6 @@ package io.github.monadrome.parallelinscope;
  * callable reached its first instruction or that its thread has exited. {@link #NOT_CLAIMED} means
  * that the claim was never acquired; framework preparation, queueing, observation registration, and
  * cleanup may still have occurred.
- *
- * @since 0.5.0
  */
 public enum ExecutionDisposition {
     /** The task acquired the atomic execution claim. */

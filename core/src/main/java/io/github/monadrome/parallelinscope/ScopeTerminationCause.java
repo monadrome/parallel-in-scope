@@ -10,8 +10,6 @@ import org.jspecify.annotations.Nullable;
  * <p>A scope chooses one cause at its first successful linearization. Later member outcomes and
  * diagnostics remain available on the scope result but do not replace this value. The source
  * identity is diagnostic metadata and is not a cross-run retry or billing key.
- *
- * @since 0.5.0
  */
 public final class ScopeTerminationCause {
 

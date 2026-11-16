@@ -28,7 +28,6 @@ import org.jspecify.annotations.Nullable;
  * final observations are omitted, never filled with provisional end times.
  *
  * @param <R> terminal combine value, or Void when no combine was declared
- * @since 0.3.0
  */
 public final class TaskGroupResult<R> {
     private final TaskGroupReport report;

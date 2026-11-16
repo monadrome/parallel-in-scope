@@ -7,8 +7,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * <p>The class is intentionally final. Java 8 has no sealed classes, so callers select one of the
  * two factories instead of constructing or extending an arbitrary failure branch.
- *
- * @since 0.5.0
  */
 public final class FailureCause {
 

@@ -15,7 +15,6 @@ import com.google.errorprone.annotations.Immutable;
  * defeat these guarantees and are the caller's responsibility.
  *
  * @param <T> the task's result type
- * @since 0.4.0
  */
 @Immutable
 @SuppressWarnings("UnusedTypeParameter")

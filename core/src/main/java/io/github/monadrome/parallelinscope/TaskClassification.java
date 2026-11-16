@@ -23,8 +23,6 @@ package io.github.monadrome.parallelinscope;
  * originated from (or was applied directly to) a single member, while {@link #GROUP_CANCELLED}
  * means the group was cancelled as a whole or the cancellation propagated down from an enclosing
  * scope.
- *
- * @since 0.3.0
  */
 enum TaskClassification {
     /** Task has not reached a terminal state. */

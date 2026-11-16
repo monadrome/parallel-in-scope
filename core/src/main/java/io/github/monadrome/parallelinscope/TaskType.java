@@ -20,9 +20,6 @@ package io.github.monadrome.parallelinscope;
  *       execution time where either side declares {@link #COMPUTE}, logs low CPU use once, and
  *       reports it in {@link ParRuntime#workloadFitReport()}.
  * </ul>
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
 public enum TaskType {
     /** Mostly consumes CPU and should not hold its thread while waiting. */

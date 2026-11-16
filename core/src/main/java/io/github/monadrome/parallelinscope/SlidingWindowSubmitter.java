@@ -33,7 +33,6 @@ import org.jspecify.annotations.Nullable;
  * is directly visible to queue maintenance such as {@code ThreadPoolExecutor.purge()}.
  *
  * @param <V> the result type of tasks
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class SlidingWindowSubmitter<V> {
 

@@ -9,9 +9,6 @@ import com.google.errorprone.annotations.Immutable;
  * <p>Each field is an independent read of a concurrent counter, so the snapshot is not
  * linearizable: it explains a stuck {@link ParRuntime#awaitQuiescence(java.time.Duration)} to an
  * operator, and must not drive control flow or substitute for the quiescence wait itself.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
 @Immutable
 public final class ParRuntimeSnapshot {

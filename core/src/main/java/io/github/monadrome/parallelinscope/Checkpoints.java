@@ -47,9 +47,6 @@ import org.jspecify.annotations.Nullable;
  * adapter makes at most one attempt and returns the same outcome the underlying JDK call gives a
  * negative timeout ({@code false}, an immediate return, or {@link TimeoutException}); a
  * lock-based call may still block briefly while reacquiring its monitor.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
 public final class Checkpoints {
 

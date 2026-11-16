@@ -217,6 +217,9 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   lifecycle. This includes internal declarations. Public Javadoc must make sense
   without reading package-private types; retain observable ordering and
   resource-lifetime guarantees in the contract.
+- Do not add `@since` Javadoc tags before the 1.0.0 release: the pre-1.0.0 API
+  changes too frequently for version tracking to help. Do not add `@author`
+  tags; authorship is unambiguous and tracked by Git.
 - Put maintainer-only algorithms and local protocol explanations in ordinary
   `/* ... */` comments inside the owning class or private mechanism. Use
   `@implNote` only for implementation details useful in generated API docs,

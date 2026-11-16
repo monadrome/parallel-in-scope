@@ -24,8 +24,6 @@ import java.util.List;
  * half that time. These diagnostic calibration values may change between releases. Counts and
  * durations are cumulative; differences between reports measure an interval. Reports are created
  * only by the library; read one with {@link ParRuntime#workloadFitReport()}.
- *
- * @since 0.4.0
  */
 @Immutable
 public final class WorkloadFitReport {
@@ -64,8 +62,6 @@ public final class WorkloadFitReport {
      * not; a total and each unit's totals are individually consistent, but are not one atomic
      * snapshot. They may differ because executions are finishing concurrently or diagnostic bookkeeping
      * failed.
-     *
-     * @since 0.4.0
      */
     @Immutable
     public static final class ParMeasurement {
@@ -180,8 +176,6 @@ public final class WorkloadFitReport {
 
     /**
      * The screened executions of one unit within an entry, keyed by unit name and unit type.
-     *
-     * @since 0.4.0
      */
     @Immutable
     public static final class UnitMeasurement {

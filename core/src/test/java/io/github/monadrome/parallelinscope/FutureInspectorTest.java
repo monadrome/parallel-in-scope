@@ -10,8 +10,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for failed-future inspection via FutureInspector.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class FutureInspectorTest {
 

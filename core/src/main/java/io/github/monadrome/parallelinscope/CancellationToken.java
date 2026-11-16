@@ -39,8 +39,6 @@ import org.jspecify.annotations.Nullable;
  * child task groups, and a child never outlives its parent: the effective deadline is the minimum
  * of the requested deadline and the parent's. Before task submission, {@link #bind} connects the
  * token to prepared futures and enforces that deadline together with fail-fast cancellation.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class CancellationToken {
 

@@ -23,7 +23,6 @@ import java.util.Objects;
  * null or blank.
  *
  * @param <K> the kind of unit this id names: {@link TaskUnit} or {@link TaskGroupRun}
- * @since 0.3.0
  */
 @Immutable
 @SuppressWarnings("UnusedTypeParameter")

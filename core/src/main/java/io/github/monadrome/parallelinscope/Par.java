@@ -30,9 +30,6 @@ import org.jspecify.annotations.Nullable;
  * <p>Provides synchronous batch execution with bounded parallelism, deadlines, fail-fast
  * cancellation, and frozen results. Nested executions inherit cancellation and cannot extend an
  * enclosing deadline. New executions are rejected once the owning runtime begins shutdown.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
 public final class Par {
     /*
@@ -83,8 +80,6 @@ public final class Par {
     /**
      * Returns the work this entry was registered to carry; {@link TaskType#UNKNOWN} when the
      * registration declared none. The declaration is diagnostic only; see {@link TaskType}.
-     *
-     * @since 0.4.0
      */
     public TaskType taskType() {
         return taskType;

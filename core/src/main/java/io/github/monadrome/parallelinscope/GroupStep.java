@@ -11,8 +11,6 @@ import java.util.concurrent.Callable;
  * not carry an aggregate member-value type, so adding or reordering members does not change the public
  * type of the chain. The same one-shot, single-threaded, stage-checked contract as {@link
  * GroupStart} applies.
- *
- * @since 0.5.0
  */
 @CheckReturnValue
 public interface GroupStep {

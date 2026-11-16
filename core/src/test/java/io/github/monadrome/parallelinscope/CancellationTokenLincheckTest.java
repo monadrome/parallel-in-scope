@@ -17,8 +17,6 @@ import org.junit.jupiter.api.Timeout;
  * invariant that must hold in every interleaving: the winning transition is exactly one terminal
  * state, bound work is cancelled either by the winning transition or by the bind callback, and a
  * state listener observes the terminal transition exactly once.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 @SuppressWarnings("FutureReturnValueIgnored")
 @Timeout(120)

@@ -26,8 +26,6 @@ import java.util.concurrent.Executor;
  * <p>{@link #registrationContextExecutor()} captures once when it is created and replays that fixed
  * snapshot for every command. It is intended for a listener or callback group that belongs to one
  * registration context; create a separate instance for each such context.
- *
- * @since 0.5.0
  */
 public final class ContextExecutors {
 
@@ -41,7 +39,6 @@ public final class ContextExecutors {
      * entry context is restored afterwards.
      *
      * @return an executor that always runs commands inline and restores the caller's context
-     * @since 0.5.0
      */
     public static Executor directContextExecutor() {
         return ContextPropagatingDirectExecutor.INSTANCE;
@@ -56,7 +53,6 @@ public final class ContextExecutors {
      * request contexts.
      *
      * @return an executor that replays the creation-time context for every command
-     * @since 0.5.0
      */
     public static Executor registrationContextExecutor() {
         return new CapturedDirectExecutor(Transmitter.capture());

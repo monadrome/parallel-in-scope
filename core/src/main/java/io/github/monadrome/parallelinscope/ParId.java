@@ -20,8 +20,6 @@ import com.google.errorprone.annotations.Immutable;
  * registered. {@code of("htpp")} is a valid value that fails at {@link ParRuntime.Builder#build()}
  * or {@link ParRuntime#par(ParId)}. It must never participate in deadlock decisions, which are
  * keyed on executor object identity.
- *
- * @since 0.3.0
  */
 @Immutable
 public final class ParId {

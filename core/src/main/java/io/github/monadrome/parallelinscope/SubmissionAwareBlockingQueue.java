@@ -26,8 +26,6 @@ import org.jspecify.annotations.Nullable;
  * BatchOptions} is {@code rejectEnqueue=false}.
  *
  * @param <E> the type of elements held in this queue
- * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
 public class SubmissionAwareBlockingQueue<E> extends ForwardingBlockingQueue<E> {
 

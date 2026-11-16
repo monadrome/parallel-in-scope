@@ -17,7 +17,6 @@ import org.jspecify.annotations.Nullable;
  * observation APIs before releasing resources shared with a task.
  *
  * @param <T> the successful value type
- * @since 0.5.0
  */
 public final class TaskTermination<T> {
 

@@ -7,8 +7,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * <p>The source is diagnostic metadata. It distinguishes nested parents, members, deadlines, and
  * request handles without making callers depend on internal scope names for classification.
- *
- * @since 0.5.0
  */
 public final class CancellationReason {
 

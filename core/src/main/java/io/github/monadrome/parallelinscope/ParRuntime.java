@@ -59,8 +59,6 @@ import org.jspecify.annotations.Nullable;
  * Runs admitted before closing retain their submission, timeout, and cancellation processing while
  * the framework-owned services drain; {@code close()} itself does not wait for those runs to
  * finish.
- *
- * @since 0.3.0
  */
 public final class ParRuntime implements AutoCloseable {
     private static final Duration MINIMUM_SAMPLING_INTERVAL = Duration.ofMillis(10);
@@ -306,7 +304,6 @@ public final class ParRuntime implements AutoCloseable {
      * ExecutorWaitReport}.
      *
      * @return the current immutable snapshot
-     * @since 0.4.0
      */
     public ExecutorWaitReport executorWaitReport() {
         return executorWaits.report();
@@ -536,7 +533,6 @@ public final class ParRuntime implements AutoCloseable {
      * measured. See {@link WorkloadFitReport} for verdicts, calibration, and limitations.
      *
      * @return the current immutable report
-     * @since 0.4.0
      */
     public WorkloadFitReport workloadFitReport() {
         List<WorkloadFitReport.ParMeasurement> measurements = new ArrayList<>();
@@ -779,8 +775,6 @@ public final class ParRuntime implements AutoCloseable {
      * Mutable composition-root builder for an immutable {@link ParRuntime}. Register every logical
      * entry and optionally its default before calling {@link #build()}; registered executors remain
      * owned by the application.
-     *
-     * @since 0.3.0
      */
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
@@ -825,7 +819,6 @@ public final class ParRuntime implements AutoCloseable {
          * @return this builder
          * @throws NullPointerException if {@code id}, {@code executor}, or {@code taskType} is null
          * @throws IllegalArgumentException if {@code id} is already registered
-         * @since 0.4.0
          */
         public Builder register(ParId id, ExecutorService executor, TaskType taskType) {
             checkNotNull(id, "id cannot be null");

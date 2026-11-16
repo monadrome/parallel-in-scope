@@ -31,7 +31,6 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <V> the input type, such as a batch value list or a group's {@link GroupValues}
  * @param <R> the assembled result type
- * @since 0.3.0
  */
 @FunctionalInterface
 public interface Combiner<V, R> {

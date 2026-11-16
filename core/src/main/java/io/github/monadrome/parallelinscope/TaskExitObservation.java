@@ -19,8 +19,6 @@ import org.jspecify.annotations.Nullable;
  * results. A never-started task has zero start/end times and durations. Ticker readings may
  * otherwise be negative. Missing observations are represented explicitly by the enclosing result,
  * rather than by records with provisional end times.
- *
- * @since 0.3.0
  */
 public final class TaskExitObservation<T> {
 

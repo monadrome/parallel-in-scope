@@ -16,7 +16,6 @@ import org.jspecify.annotations.Nullable;
  * released. Workload diagnostics must not replace the execution's own value or failure.
  *
  * @param <V> return value type
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class ScopedCallable<V> implements Callable<V> {
 

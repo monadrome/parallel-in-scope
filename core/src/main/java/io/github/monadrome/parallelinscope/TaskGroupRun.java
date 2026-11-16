@@ -7,7 +7,5 @@ package io.github.monadrome.parallelinscope;
  * the type argument that separates {@code TaskId<TaskGroupRun>} from {@link TaskUnit}. A group run
  * is not a task unit — it has no execution of its own — so its identity is a separate space that must
  * not be filed among unit ids. See {@link TaskId}.
- *
- * @since 0.3.0
  */
 public interface TaskGroupRun {}

@@ -32,8 +32,6 @@ import org.jspecify.annotations.Nullable;
  * interval. The evidence is sticky for the observation window. The condition is deliberately
  * bounded and conservative: a long CPU-bound task can produce the same signal, so the report does
  * not claim a dependency cycle.
- *
- * @since 0.4.0
  */
 public final class ThreadPoolStarvationObservationScope implements AutoCloseable {
 

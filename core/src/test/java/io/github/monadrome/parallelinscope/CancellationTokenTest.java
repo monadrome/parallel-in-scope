@@ -29,8 +29,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for CancellationToken and cooperative cancellation.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 public class CancellationTokenTest {
     private static final ScheduledExecutorService TIMER = Executors.newSingleThreadScheduledExecutor();

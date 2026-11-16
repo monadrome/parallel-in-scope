@@ -15,8 +15,6 @@ import org.jspecify.annotations.Nullable;
  * work while its completed-task count did not advance across qualifying observation intervals. It
  * is sticky evidence from the observation window, not a close-time health assertion, and is not
  * proof of a dependency cycle or a particular blocking call.
- *
- * @since 0.4.0
  */
 @Immutable
 public final class ThreadPoolStarvationReport {

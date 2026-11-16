@@ -33,7 +33,6 @@ import org.jspecify.annotations.Nullable;
  * stays a plain future.
  *
  * @param <T> the result type of individual tasks
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class TaskBatch<T> implements AutoCloseable {
 

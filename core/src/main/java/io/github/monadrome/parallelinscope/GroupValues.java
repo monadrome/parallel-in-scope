@@ -24,8 +24,6 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Types are enforced by the compiler; no runtime type information is stored or checked. Raw
  * types and unchecked casts can defeat this guarantee and are the caller's responsibility.
- *
- * @since 0.3.0
  */
 public final class GroupValues {
     private final ImmutableList<String> names;

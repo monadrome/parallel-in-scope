@@ -32,8 +32,6 @@ import org.jspecify.annotations.Nullable;
  * Nested calls must separately confirm their own execution exit; confirmation is not transitive.
  * Task-local resources belong in the execution's try-with-resources. This snapshot never discovers or
  * closes user objects.
- *
- * @since 0.3.0
  */
 public final class TaskBatchResult<T> {
     private final String batchName;
@@ -127,7 +125,6 @@ public final class TaskBatchResult<T> {
      * @return this result
      * @throws CompletionException wrapping the recorded failure when it is checked
      * @throws CancellationException when no element recorded a failure
-     * @since 0.4.0
      */
     @CanIgnoreReturnValue
     public TaskBatchResult<T> orThrow() {
@@ -174,7 +171,6 @@ public final class TaskBatchResult<T> {
      * deadline or cancellation alone. Locate the element with {@code results().indexOf(...)}.
      *
      * @return the first failed element's result, or empty
-     * @since 0.4.0
      */
     public Optional<ImmediateResult<T>> failedTaskResult() {
         for (ImmediateResult<T> result : results) {

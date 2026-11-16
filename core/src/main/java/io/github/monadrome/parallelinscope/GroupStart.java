@@ -32,8 +32,6 @@ import java.util.concurrent.Callable;
  *
  * <p>Implementations are created only by the library; the interface is public so the chain type can
  * be named, not so it can be implemented elsewhere.
- *
- * @since 0.3.0
  */
 @CheckReturnValue
 public interface GroupStart {
@@ -89,7 +87,6 @@ public interface GroupStart {
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
      * @throws IllegalStateException if this stage is stale or used from another thread
-     * @since 0.4.0
      */
     <T> GroupStep adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
 
@@ -104,7 +101,6 @@ public interface GroupStart {
      * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
      *     {@code producer} belongs to another runtime
      * @throws IllegalStateException if this stage is stale or used from another thread
-     * @since 0.4.0
      */
     <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
 

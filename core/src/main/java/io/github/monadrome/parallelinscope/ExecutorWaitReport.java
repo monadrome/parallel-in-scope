@@ -29,8 +29,6 @@ import java.util.Set;
  *
  * <p>Reports are created only by the library; read the current one with {@link
  * ParRuntime#executorWaitReport()}.
- *
- * @since 0.4.0
  */
 public final class ExecutorWaitReport {
     private static final ExecutorWaitReport EMPTY = new ExecutorWaitReport(ImmutableList.<Component>of());
@@ -76,8 +74,6 @@ public final class ExecutorWaitReport {
      * One cyclic strongly connected component of the executor waits-for graph, with one concrete
      * cycle through it. Each executor is given as the set of every {@link ParId} it is registered
      * under: several ids may share one executor, which is still one node.
-     *
-     * @since 0.4.0
      */
     public static final class Component {
         private final ImmutableSet<ExecutorIdentity> identities;

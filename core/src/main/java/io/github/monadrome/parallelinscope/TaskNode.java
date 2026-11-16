@@ -17,8 +17,6 @@ import org.jspecify.annotations.Nullable;
  * <p>Nodes are equal by unit id. Every other field is a fact fixed when the unit was resolved;
  * {@link MultiTaskContext} creates exactly one node per unit, so equal nodes also carry equal facts
  * in production. See {@code design/task-graph.md}.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class TaskNode {
 

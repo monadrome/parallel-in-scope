@@ -26,8 +26,6 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <E> the element result type
  * @param <C> the terminal combine result type
- * @author Eric Lin (linqinghua4 at gmail dot com)
- * @since 0.3.0
  */
 public final class BatchCombinedResult<E, C> {
 
@@ -125,7 +123,6 @@ public final class BatchCombinedResult<E, C> {
      * @return this result
      * @throws CompletionException wrapping the recorded failure when it is checked
      * @throws CancellationException when a selected element or the combine ended cancelled
-     * @since 0.4.0
      */
     @CanIgnoreReturnValue
     public BatchCombinedResult<E, C> orThrow() {

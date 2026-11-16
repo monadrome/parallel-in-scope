@@ -8,8 +8,6 @@ import java.util.concurrent.Future;
 
 /**
  * Java 8-compatible utility for inspecting {@link Future} state.
- *
- * @author Eric Lin (linqinghua4 at gmail dot com)
  */
 final class FutureInspector {
 

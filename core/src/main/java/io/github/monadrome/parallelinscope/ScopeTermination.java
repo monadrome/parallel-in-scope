@@ -8,8 +8,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Shared three-state logical termination shape for Batch and Group scopes.
- *
- * @since 0.5.0
  */
 public final class ScopeTermination {
 

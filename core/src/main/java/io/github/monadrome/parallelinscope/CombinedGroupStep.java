@@ -10,7 +10,6 @@ import com.google.errorprone.annotations.CheckReturnValue;
  * frozen outcome data; caller interruption is restored after the wait.
  *
  * @param <R> terminal combine value
- * @since 0.5.0
  */
 @CheckReturnValue
 public interface CombinedGroupStep<R> {

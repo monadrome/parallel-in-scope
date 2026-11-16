@@ -23,8 +23,6 @@ import org.jspecify.annotations.Nullable;
  * declares that the enclosing scope's deadline is inherited, while {@link #timeout(Duration)} sets
  * an explicit one. No third state exists: omitting the choice does not compile, and the two
  * declarations cannot appear together.
- *
- * @since 0.3.0
  */
 @CheckReturnValue
 @Immutable
