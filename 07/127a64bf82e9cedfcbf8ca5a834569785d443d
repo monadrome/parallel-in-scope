@@ -1,0 +1,23 @@
+BACKLOG.md
+  s_09f503ddae91b7::t_4712ea3d5770b4 32-33
+  s_09f503ddae91b7::t_b4deabae898d8d 102,104-109,111,113-123
+  s_09f503ddae91b7::t_38b2647b917fc3 412
+pom.xml
+  s_09f503ddae91b7::t_f9f14c864c7b41 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "07127a64bf82e9cedfcbf8ca5a834569785d443d",
+  "prompts": {},
+  "sessions": {
+    "s_09f503ddae91b7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_4c5ef2ed-0f5f-4257-af23-98afec2efeef",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
