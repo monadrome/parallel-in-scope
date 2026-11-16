@@ -1,0 +1,29 @@
+scripts/tests/test_watch_delivery_ci.py
+  s_09f503ddae91b7::t_457235c6d6fcb6 138-142
+  s_09f503ddae91b7::t_9df891daa013ba 104-105,107-108,110,112-113
+  s_09f503ddae91b7::t_eff52da337cec0 75-88
+  s_09f503ddae91b7::t_2b9e40213bb5dd 182-183,190-214
+scripts/watch-delivery-ci.py
+  s_09f503ddae91b7::t_51f86e7048cf17 140-144
+  s_09f503ddae91b7::t_d0b46b5d5b4d41 148-154
+  s_09f503ddae91b7::t_59f6a0953091bb 19-20
+  s_09f503ddae91b7::t_14a0de4949341c 61-62,64,73-76
+  s_09f503ddae91b7::t_e39afc4134a7a5 120-122
+  s_09f503ddae91b7::t_c011a4cb0a0e6b 203,205-206,208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1370b7bae79db049da5e7cf3855bfea86bf0eae4",
+  "prompts": {},
+  "sessions": {
+    "s_09f503ddae91b7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_4c5ef2ed-0f5f-4257-af23-98afec2efeef",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
