@@ -46,6 +46,7 @@ python3 scripts/check-java-conventions.py  # new library-source convention viola
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
 python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures
+python3 scripts/watch-delivery-ci.py <sha>  # watch the pushed tip's CI runs to a terminal result; attributes runs by head_sha
 python3 .agents/skills/contract-first-assurance/scripts/verify_package.py  # verify the versioned assurance skill bundle
 python3 scripts/check-worktree-skills.py  # verify required project skills are materialized and tracked
 python3 scripts/check-project-baseline.py  # verify the development-line baseline is consistent
@@ -400,6 +401,10 @@ Documentation must stay readable and correct without the Git object database:
   one fails, fix it in a follow-up commit and rerun the affected local job.
   Local preflight does not replace remote CI: after pushing, monitor the remote
   checks to a terminal result and apply any environment-specific fixes there.
+  Attribute runs by the pushed tip: monitor only runs whose head_sha equals the
+  pushed commit (`python3 scripts/watch-delivery-ci.py <sha>` does this), and
+  rerun or fix only failures in those runs. A newer run at a later head_sha is
+  another delivery's responsibility; do not watch, retry, or fix it.
 - For every code change, run `/refactoring-review`
   (`.agents/skills/refactoring-review/SKILL.md`) after the behavior commit and
   before Adversarial Review or delivery. `scripts/refactoring-review.py plan`
