@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-15-watch-delivery-ci",
+  "date": "2026-11-15",
+  "topic": "watch-delivery-ci",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "feat: add delivery CI watcher with per-SHA attribution",
+      "fix: address watch-delivery-ci review findings"
+    ],
+    "files": 3,
+    "insertions": 439,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "add scripts/watch-delivery-ci.py + tests + AGENTS.md run-attribution rule for concurrent delivery sessions; lightweight review round 1 found 6 minor findings (all adopted in 1370b7ba), round 2 clean; dogfooded on real pushes twice, both green"
+}
