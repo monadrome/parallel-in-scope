@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-15-backlog-streamline",
+  "date": "2026-11-15",
+  "topic": "backlog-streamline",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: rewrite backlog as a pre-release change record",
+      "docs: drop settled backlog items found in review"
+    ],
+    "files": 5,
+    "insertions": 27,
+    "deletions": 479
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 50875,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "claude",
+            "status": "timed_out",
+            "attempts": 2,
+            "durationMs": 1710884,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 478347,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "ocr",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 20103,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": 34970,
+              "outputTokens": 2522,
+              "totalTokens": 37492,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 359853,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 1,
+              "rejected": 1,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 5,
+          "adjudicated": 5,
+          "confirmed": 4,
+          "rejected": 1,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": 34970,
+          "outputTokens": 2522,
+          "totalTokens": 37492,
+          "systemsWithUsage": 1,
+          "systemsTotal": 5,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": ""
+}
