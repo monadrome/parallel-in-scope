@@ -16,7 +16,8 @@ Usage:
 line declared in `.agents/project-baseline.json`.
 
 Exit codes: 0 every run succeeded; 1 at least one run failed or was cancelled;
-2 usage or API error; 3 no run materialized for the SHA within the grace period.
+2 usage, API, or watch-timeout error; 3 no run materialized for the SHA within
+the grace period.
 """
 
 import argparse
@@ -57,8 +58,10 @@ def real_gh(args):
 
 
 def resolve_sha(rev):
+    # rev^{commit} peels annotated tags to the tagged commit; a bare rev would
+    # resolve to the tag object, whose SHA never has workflow runs.
     proc = subprocess.run(
-        ["git", "rev-parse", rev], capture_output=True, text=True, check=False
+        ["git", "rev-parse", f"{rev}^{{commit}}"], capture_output=True, text=True, check=False
     )
     sha = proc.stdout.strip()
     if proc.returncode != 0 or len(sha) != 40:
@@ -67,7 +70,10 @@ def resolve_sha(rev):
 
 
 def resolve_repo(gh):
-    return gh(["repo", "view", "--json", "nameWithOwner"])["nameWithOwner"]
+    repo = gh(["repo", "view", "--json", "nameWithOwner"]).get("nameWithOwner")
+    if not repo:
+        raise GhError("gh repo view returned no nameWithOwner")
+    return repo
 
 
 def default_branch():
@@ -108,10 +114,12 @@ def wait_for_runs(gh, repo, sha, sleep):
 
 
 def watch(gh, repo, sha, timeout_minutes, interval_seconds, sleep):
-    deadline = time.monotonic() + timeout_minutes * 60
     runs = wait_for_runs(gh, repo, sha, sleep)
     if not runs:
         return None
+    # The deadline starts after the grace wait so materialization time does not
+    # eat into the watch budget.
+    deadline = time.monotonic() + timeout_minutes * 60
     while time.monotonic() < deadline:
         if all(run.status == "completed" for run in runs):
             return runs
@@ -129,17 +137,21 @@ def failed_job_names(gh, repo, run_id):
     ]
 
 
-def find_newer_delivery(branch_payload, our_sha):
-    """Branch runs arrive newest first; a newest run that is not ours means the branch moved."""
-    for item in branch_payload.get("workflow_runs", []):
-        head_sha = item.get("head_sha")
-        return head_sha if head_sha and head_sha != our_sha else None
-    return None
+def branch_tip(gh, repo, branch):
+    """The branch ref's current tip; comparing it to the watched SHA is exact,
+    unlike run-list ordering, which manual dispatch runs at old SHAs can fool."""
+    payload = gh(["api", f"repos/{repo}/branches/{branch}"])
+    return payload.get("commit", {}).get("sha")
 
 
 def decide(runs):
-    """(exit code, per-run summary lines) for a fully completed run set."""
-    failed = [run for run in runs if run.conclusion != "success"]
+    """(exit code, per-run summary lines) for a fully completed run set.
+
+    skipped/neutral count as passed, matching failed_job_names: a workflow-level
+    skip means nothing was required of that run, not that the delivery failed.
+    Cancelled counts as failed: the checks never reached a verdict.
+    """
+    failed = [run for run in runs if run.conclusion not in ("success", "skipped", "neutral")]
     lines = [f"{run.name}: {run.conclusion}" for run in runs]
     return (1 if failed else 0), lines
 
@@ -188,15 +200,12 @@ def main(argv=None, gh=real_gh, sleep=time.sleep, out=print):
     branch = args.branch or default_branch()
     if branch:
         try:
-            newer = find_newer_delivery(
-                gh(["api", f"repos/{repo}/actions/runs?branch={branch}&per_page=5"]),
-                sha,
-            )
+            tip = branch_tip(gh, repo, branch)
         except GhError:
-            newer = None
-        if newer:
+            tip = None
+        if tip and tip != sha:
             out(
-                f"note: branch {branch} has moved to {newer[:7]}; "
+                f"note: branch {branch} has moved to {tip[:7]}; "
                 "runs at that tip belong to that delivery - do not retry or fix them"
             )
     out("delivery checks green" if code == 0 else "delivery checks FAILED")
