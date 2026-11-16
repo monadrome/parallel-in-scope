@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-15-ci-env-file-hardening",
+  "date": "2026-11-15",
+  "topic": "ci-env-file-hardening",
+  "routes": [
+    "defect"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "fix: keep Maven output out of the CI env file"
+    ],
+    "files": 1,
+    "insertions": 10,
+    "deletions": 2
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "fix ci.yml GITHUB_ENV multi-line fragility in demo and runtime-consumer jobs; reproduced from failed run 43800346415; local bash simulation under Actions flags verified old form writes multi-line output and continues while new form is single-line/fail-fast; lightweight independent review clean, no findings"
+}
