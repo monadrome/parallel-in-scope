@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-15-queue-items-to-standalone",
+  "date": "2026-11-15",
+  "topic": "queue-items-to-standalone",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: retarget queue performance items to the standalone blocking-queues repository"
+    ],
+    "files": 2,
+    "insertions": 23,
+    "deletions": 17
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "queue backlog P-P4/P-P5 retargeted to monadrome/blocking-queues issues #1-#4 after the module extraction; lightweight independent review clean (one editorial nit applied); check-doc-refs OK; local blocking-queues/target residue removed in the shared checkout"
+}
