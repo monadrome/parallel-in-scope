@@ -85,7 +85,7 @@ The detector proposes a tier; triage may only make it stricter (T0 to T1 or T2, 
 |---|---|---|
 | `T0` local mechanical | rename of a private member or local; extract or inline a private method; delete dead code the change introduced; merge duplication inside the change; migrate a touched precondition to the Guava taxonomy; move a comment to its correct layer | apply; full `mvn test` |
 | `T1` cross-symbol or sensitive | a package-private signature; an edit spanning files; code under the cancellation, interruption, deadline, visibility, context-propagation, executor-binding, or queue routes without changing the protocol; test helpers | apply; targeted tests plus full suite; `python3 scripts/check-race-claims.py` when the code is concurrency-sensitive; name each one as an attack surface for code review |
-| `T2` suggestion only | public API; documented contracts; concurrency protocols; new types or concepts; out-of-diff code; queue JDK parity | never applied; record its destination: `BACKLOG.md`, a `design/proposal/` entry, or the report's open items |
+| `T2` suggestion only | public API; documented contracts; concurrency protocols; new types or concepts; out-of-diff code; queue JDK parity | never applied; record its destination: `BACKLOG.md` when the suggestion gates a specific release, otherwise a `design/proposal/` entry or the report's open items |
 
 ## Scaling
 
