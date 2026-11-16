@@ -109,7 +109,14 @@ jobs:
           retention-days: 7
 
       - name: Capture the built library version
-        run: echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+        # Assign first, then echo: a failed help:evaluate aborts the step via
+        # set -e on the assignment instead of writing multi-line Maven error
+        # output into the env file, which the runner rejects with an opaque
+        # "Invalid format" error. tail -n 1 keeps the value single-line when
+        # Maven prints warnings around the evaluated result.
+        run: |
+          LIBRARY_VERSION="$(mvn -B -ntp help:evaluate -Dexpression=project.version -q -DforceStdout | tail -n 1)"
+          echo "LIBRARY_VERSION=$LIBRARY_VERSION" >> "$GITHUB_ENV"
 
       - name: Build demo on build JDK ${{ matrix.java-version }}
         run: >-
@@ -167,7 +174,8 @@ jobs:
 
       - name: Build the Java 8 library artifact with the build JDK
         run: |
-          echo "LIBRARY_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+          LIBRARY_VERSION="$(mvn -B -ntp help:evaluate -Dexpression=project.version -q -DforceStdout | tail -n 1)"
+          echo "LIBRARY_VERSION=$LIBRARY_VERSION" >> "$GITHUB_ENV"
           mvn -B -ntp -Dmaven.test.skip=true -Dmaven.javadoc.skip=true clean install
 
       - name: Set up Java ${{ matrix.java-version }} runtime
