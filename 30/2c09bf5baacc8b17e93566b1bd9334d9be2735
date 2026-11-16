@@ -1,0 +1,21 @@
+refactoring-review/principles.md
+  s_341fd7b5403922::t_ba04307291a4db 88
+BACKLOG.md
+  s_341fd7b5403922::t_321b91d500a4b6 5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "302c09bf5baacc8b17e93566b1bd9334d9be2735",
+  "prompts": {},
+  "sessions": {
+    "s_341fd7b5403922": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_71e49d5f-5576-43f3-b3d2-743cc7ca965d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
