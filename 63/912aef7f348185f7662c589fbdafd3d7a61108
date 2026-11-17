@@ -1,0 +1,19 @@
+design/decision-log.md
+  s_0181f20e54f87b::t_83998619685a75 252-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "63912aef7f348185f7662c589fbdafd3d7a61108",
+  "prompts": {},
+  "sessions": {
+    "s_0181f20e54f87b": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_fe2a0a6b-f090-4af8-900e-c39ad48d1f4d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
