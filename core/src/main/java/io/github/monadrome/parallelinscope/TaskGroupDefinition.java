@@ -22,17 +22,6 @@ import org.jspecify.annotations.Nullable;
  * kernel can read it without synchronization.
  */
 final class TaskGroupDefinition {
-    /*
-     * Members and the combine arrive as two separate arguments rather than one list tagged by kind,
-     * so "at most one combine" is a property of the structure instead of a rule this constructor
-     * has to enforce. The declaration layer holds them separately already, and nothing reads them
-     * as a single sequence: a tagged list would only be flattened on the way in and split apart
-     * again on arrival.
-     *
-     * The owning runtime is not carried here: the kernel already receives it as an explicit
-     * argument, and the draft that builds this structure is bound to that same runtime at creation,
-     * so a stored copy could only ever agree with the argument.
-     */
 
     private final String name;
     private final @Nullable Duration timeout;

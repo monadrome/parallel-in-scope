@@ -158,7 +158,6 @@ public final class TaskGroupResult<R> {
         if (member != null) {
             return Optional.of(member);
         }
-        // A failed name absent from the member results is the terminal combine.
         return Optional.of(Verify.verifyNotNull(terminalResult, "a recorded failed task is a member or the combine"));
     }
 

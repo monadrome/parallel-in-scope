@@ -30,9 +30,6 @@ public final class GroupValues {
 
     private final ImmutableList<TaskKey<?>> keys;
 
-    /*
-     * Null-tolerant by design: ImmutableList rejects nulls, successful member values allow them.
-     */
     private final List<@Nullable Object> values;
 
     private GroupValues(ImmutableList<String> names, ImmutableList<TaskKey<?>> keys, List<@Nullable Object> values) {

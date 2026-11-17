@@ -26,15 +26,6 @@ import org.jspecify.annotations.Nullable;
  * <p>Not thread-safe by construction: it is usable only from its creating thread.
  */
 final class GroupDraft {
-    /*
-     * Java has no move semantics, so a stage cannot be invalidated by handing off a value: the same
-     * GroupDraft is reachable from every stage object, and each stage carries the sequence number
-     * it was minted at. Any mutating or submitting call verifies that the draft is still at that
-     * number and then advances it, which is what makes a saved earlier-stage reference, a second
-     * submission, or a fork off an old stage fail with IllegalStateException instead of quietly
-     * corrupting the declaration. Compile-time stage separation in the three public interfaces is
-     * the ergonomic guard; this is the correctness guard.
-     */
 
     private final ParRuntime owner;
     private final String name;
@@ -190,8 +181,6 @@ final class GroupDraft {
         try {
             return cast(owner.submitPreparedGroup(definition, payloads));
         } catch (RuntimeException | Error failure) {
-            // Admission or preparation failed: prepare cancelled the futures it built and released
-            // the executions it took; clear whatever was never taken.
             payloads.discard();
             throw failure;
         }
