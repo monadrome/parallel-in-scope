@@ -1,0 +1,58 @@
+design/AGENTS.md
+  s_6089cce8990783::t_fa8d4ac4859132 129-131
+docs/en/design/idea-graveyard.md
+  s_6089cce8990783::t_979ffb1dc97b8a 71-74
+docs/en/user-guide.md
+  s_6089cce8990783::t_5cf7b9f604e82d 3
+README.md
+  s_6089cce8990783::t_fe2b5eac309d1e 134-135
+CHANGELOG.md
+  s_6089cce8990783::t_75c91238470850 31
+  s_6089cce8990783::t_b00cb939f8fb53 30
+  s_6089cce8990783::t_0b8b0eeda0ff05 20-23
+  s_6089cce8990783::t_ad6cd596c46ca0 32
+README.zh-CN.md
+  s_6089cce8990783::t_e6abc369b6cedb 113-114
+adr/AGENTS.md
+  s_6089cce8990783::t_455dc71570e2fa 30-36
+docs/zh/design/idea-graveyard.md
+  s_6089cce8990783::t_39a8e3d140f2c4 328-339
+design/decision-log.md
+  s_6089cce8990783::t_9e32099f7f1914 401-414
+adr/0013-standalone-blocking-queues-artifact.md
+  s_6089cce8990783::t_282776bc0c9bd5 6-7
+refactoring-review/principles.md
+  s_6089cce8990783::t_23f650e881c0cc 26-27
+AGENTS.md
+  s_6089cce8990783::t_2a5bb0c5aaca45 347
+  s_6089cce8990783::t_68d90ad3d6382d 609
+  s_6089cce8990783::t_a6105d260945b9 298
+  s_6089cce8990783::t_dfe65c7e7eee58 286,289-291
+  s_6089cce8990783::t_f903f79b9762c8 360
+  s_6089cce8990783::t_2a51756895ea88 544-545
+  s_6089cce8990783::t_ad974e6e3e0d0c 240-242
+adr/0001-layered-cartesian-concurrency-testing.md
+  s_6089cce8990783::t_bbb841725dc03a 15
+docs/zh/user-guide.md
+  s_6089cce8990783::t_49c0136503d1c7 3
+design/proposal/P0002-api-surface-reduction.md
+  s_6089cce8990783::t_4bc09b054af0e3 212
+adr/0008-tasktype-as-workload-fit-diagnostic.md
+  s_6089cce8990783::t_fcbac3a5e3ce33 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "562a3ec123d35582974be6a043611202a1ba7b1e",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
