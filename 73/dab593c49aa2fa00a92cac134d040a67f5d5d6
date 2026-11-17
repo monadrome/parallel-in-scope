@@ -1,0 +1,19 @@
+BACKLOG.md
+  s_05def8cf091a05::t_94f0a8e09d2e83 14-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "73dab593c49aa2fa00a92cac134d040a67f5d5d6",
+  "prompts": {},
+  "sessions": {
+    "s_05def8cf091a05": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e0c08e1-62ac-4962-9988-b2b649ec67de",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
