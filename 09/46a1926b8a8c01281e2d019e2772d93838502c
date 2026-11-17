@@ -1,0 +1,39 @@
+CONTRIBUTING.md
+  s_6089cce8990783::t_bd2d3b23e940a4 127-131,135-140
+.github/pull_request_template.md
+  s_6089cce8990783::t_7a6b49bbb7b574 45-47,51,53
+  s_6089cce8990783::t_389336739c2db5 57
+scripts/tests/test_check_api_surface.py
+  s_6089cce8990783::t_21fcce9331b8ee 251-252,254,258,264-266,278-280,283,285-289
+  s_6089cce8990783::t_b5618e69727458 209
+  s_6089cce8990783::t_c809270eed4d45 168,173
+  s_6089cce8990783::t_2196aa9d1c1a7b 190,192-195
+scripts/issue_agent/tests/test_policy.py
+  s_6089cce8990783::t_f5cfb63a69b23c 100
+.github/ISSUE_TEMPLATE/design_proposal.yml
+  s_6089cce8990783::t_4f75b37a1dcd82 85-86
+scripts/tests/test_check_adr.py
+  s_6089cce8990783::t_da8250d78cc2f2 85-98
+scripts/check-api-surface.py
+  s_6089cce8990783::t_e505c82b1b0685 2,8-10,13
+  s_6089cce8990783::t_f4b6152641fb2f 303
+  s_6089cce8990783::t_c890263e4bd786 252-253,256,258-260,263
+  s_6089cce8990783::t_aee25fc2b9b93e 317-318
+  s_6089cce8990783::t_434d29a98a3f75 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "0946a1926b8a8c01281e2d019e2772d93838502c",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
