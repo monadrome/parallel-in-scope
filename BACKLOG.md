@@ -5,17 +5,11 @@ than struck through; the changelog and Git history keep the record. Open
 design questions live in `design/proposal/`, not here. Entries cite the
 retired inventory ids once for traceability.
 
-## Before 1.0.0 — breaking API changes, land as one batch
-
-- Expose `TaskGroupResult.failedTask()` and unify combine attribution:
-  `failedTaskName()` can name the terminal combine, which `members()` does
-  not contain, so `members().get(failedTaskName())` fails on a combine
-  failure (was A-P3). Land together with the `PublicApiSurfaceTest`,
-  migration-note, and user-guide updates.
-
 ## Before the v0.5.0 release
 
-- Flip the `blob/dev/v0.5.0/` source links in `docs/` when the release
-  merges to `main`: live contracts and guides point at `main`, dated notes
-  may keep the dev snapshot. There is no link-flip automation; decide per
-  link in the release PR (was O-18).
+- At the release merge, replace `blob/dev/v0.5.0/` with `blob/main/` in the
+  7 source links of `docs/en/index.md` and `docs/zh/index.md` (find them
+  with `grep -rn "blob/dev/v0.5.0" docs/`). All are live navigation to
+  GitHub-only demo and integrations content; none are dated notes, so no
+  per-link judgment is needed. Flipping earlier breaks the links: the
+  targets do not exist on `main` until the release merges (was O-18).
