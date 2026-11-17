@@ -1,0 +1,21 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupRun.java
+  s_0a69b5cf40ed0d::t_034a0fcec50ad0 7-9
+core/src/main/java/io/github/monadrome/parallelinscope/TaskUnit.java
+  s_0a69b5cf40ed0d::t_bef9dc2da778fb 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "b8065bed3dcc6cdd5b4b5c5f2c43a93fbb4bb5b3",
+  "prompts": {},
+  "sessions": {
+    "s_0a69b5cf40ed0d": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_51ffdcb2-ab9b-4fb1-82d3-6df595f38360",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
