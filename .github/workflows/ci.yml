@@ -42,6 +42,9 @@ jobs:
       - name: Check design route table
         run: python3 scripts/check-design-routes.py
 
+      - name: Check ADR conformance
+        run: python3 scripts/check-adr.py
+
       - name: Check documentation references
         run: python3 scripts/check-doc-refs.py
 
