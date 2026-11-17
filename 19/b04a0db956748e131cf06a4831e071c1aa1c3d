@@ -1,0 +1,29 @@
+adr/0005-globalpar-executor-binding.md
+  s_6089cce8990783::t_deb01bc3699b97 1,10-24,28-32,34,37-39,42-44,48-99,103-122,126-129,131-133,137,139-143,147,149-153
+adr/0013-standalone-blocking-queues-artifact.md
+  s_6089cce8990783::t_4fbead4edbd2c2 1,5-6,9-13,17-21,23-24,28,34,40,42-43,45-47,49-51,55-57,59-60,62-63,65-67,71-77,81-84
+adr/0010-always-on-workload-fit-screening.md
+  s_6089cce8990783::t_0bdcf4cb728e01 1,5-6,9-11,15-37,41-62,66-79,83,85-89,91,93-100,104-107
+adr/0014-logging-backend-boundary.md
+  s_6089cce8990783::t_b3859909e435cd 1,5-6,13-30,34-35,37-39,41,43-48,50-53,57,59-63,65,67-70,72,74-76,78,80-83,87-90,92-94,96-99,103,105-110,112-113
+adr/0008-tasktype-as-workload-fit-diagnostic.md
+  s_6089cce8990783::t_4af0390d0f6875 1,5-6,9-15,19-40,44-68,72-96,100-121,125-130
+adr/0015-blocking-queues-standalone-repository.md
+  s_6089cce8990783::t_975984c0ae6793 1,5,8-9,13-20,24-32,36-40,44-45,47-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "19b04a0db956748e131cf06a4831e071c1aa1c3d",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
