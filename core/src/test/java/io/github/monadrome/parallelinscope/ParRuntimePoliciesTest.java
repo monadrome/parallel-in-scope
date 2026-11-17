@@ -173,7 +173,7 @@ class ParRuntimePoliciesTest {
         // Both registration warnings go through the guarded announcements path, so a user JUL
         // handler that throws cannot reach the thread building the runtime. A direct
         // announcements executor keeps delivery synchronous with the build, and the attempt
-        // count proves both handlers ran inside the guard rather than not running at all.
+        // count proves both warning stations ran inside the guard rather than not running at all.
         Logger runtimeLogger = Logger.getLogger(ParRuntime.class.getName());
         AtomicInteger publishAttempts = new AtomicInteger();
         Handler throwing = new Handler() {
