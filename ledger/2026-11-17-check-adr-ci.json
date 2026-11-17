@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-check-adr-ci",
+  "date": "2026-11-17",
+  "topic": "check-adr-ci",
+  "routes": [
+    "dependency"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "ci: wire check-adr.py into the documentation gates"
+    ],
+    "files": 2,
+    "insertions": 4,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "ci-only: wire check-adr.py into ci.yml docs job and release.yml gates; lightweight review clean; release-tag re-dispatch observation rejected (Central rejects redeploy of published versions)"
+}
