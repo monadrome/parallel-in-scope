@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Fail a pull request that removes or changes public API without migration notes.
+"""Fail a pull request that removes or changes public API without a changelog entry.
 
 The surface is every public and protected member of every public type, nested types
 included, read from `javap -protected -v` over two compiled class trees: the pull
 request's merge base and its head. Each member becomes one normalized line, so member
 order and classfile noise never register; a changed signature is a removed line plus an
-added line. Removed lines fail the check unless the same pull request changes both
-docs/en/migration-v<major>.<minor>.md and docs/zh/migration-v<major>.<minor>.md, where
-<major>.<minor> comes from the head pom.xml version. Added lines are listed, never fatal.
+added line. Removed lines fail the check unless the same pull request changes
+CHANGELOG.md, whose Unreleased section carries each breaking change with its migration
+action. Added lines are listed, never fatal.
 
 The report goes to stdout and, when set, $GITHUB_STEP_SUMMARY. Exit status: 0 pass,
-1 removals without migration notes, 2 the check could not run.
+1 removals without a changelog update, 2 the check could not run.
 """
 
 from __future__ import annotations
@@ -22,13 +22,11 @@ import re
 import shutil
 import subprocess
 import sys
-import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 from typing import Iterable, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
-GUIDE_DIRS = ("docs/en", "docs/zh")
-LINE_RE = re.compile(r"^(\d+)\.(\d+)(?:\.|-|$)")
+CHANGELOG = "CHANGELOG.md"
 SYNTHETIC_CLASS_RE = re.compile(r"\$\d")
 SKIPPED_CLASS_FILES = frozenset({"package-info.class", "module-info.class"})
 FLAG_RE = re.compile(r"\bACC_[A-Z]+\b")
@@ -224,27 +222,6 @@ def diff(base: set[str], head: set[str]) -> tuple[list[str], list[str]]:
     return sorted(base - head), sorted(head - base)
 
 
-def migration_guides(version: str) -> tuple[str, ...]:
-    match = LINE_RE.match(version)
-    if not match:
-        raise ApiSurfaceError(f"cannot read <major>.<minor> from project version {version!r}")
-    name = f"migration-v{match[1]}.{match[2]}.md"
-    return tuple(f"{directory}/{name}" for directory in GUIDE_DIRS)
-
-
-def project_version(pom: bytes) -> str:
-    """The project's own <version>, not the parent's."""
-    try:
-        root = ElementTree.fromstring(pom)
-    except ElementTree.ParseError as error:
-        raise ApiSurfaceError(f"pom.xml is not well-formed XML: {error}") from error
-    namespace = root.tag[: root.tag.index("}") + 1] if root.tag.startswith("{") else ""
-    version = (root.findtext(f"{namespace}version") or "").strip()
-    if not version:
-        raise ApiSurfaceError("pom.xml declares no project <version>")
-    return version
-
-
 def git(*args: str) -> bytes:
     result = subprocess.run(["git", *args], cwd=ROOT, capture_output=True)
     if result.returncode != 0:
@@ -272,16 +249,18 @@ class Verdict:
     message: str
 
 
-def evaluate(removed: Sequence[str], guides: Sequence[str], documented: set[str]) -> Verdict:
-    """Removals pass only when every guide changed in this pull request and still exists."""
+def evaluate(removed: Sequence[str], required: Sequence[str], documented: set[str]) -> Verdict:
+    """Removals pass only when every required document changed in this pull request and still exists."""
     if not removed:
         return Verdict(True, "no public API was removed or changed")
-    missing = [guide for guide in guides if guide not in documented]
+    missing = [path for path in required if path not in documented]
     if not missing:
-        return Verdict(True, "public API was removed or changed and both migration guides are updated")
+        return Verdict(
+            True, "public API was removed or changed and the required documentation is updated"
+        )
     return Verdict(
         False,
-        "public API was removed or changed; update " + " and ".join(guides)
+        "public API was removed or changed; update " + " and ".join(required)
         + " in this pull request (not updated: " + ", ".join(missing) + ")",
     )
 
@@ -321,7 +300,7 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--base-classes", type=Path, required=True, help="compiled classes of the merge base")
     parser.add_argument("--head-classes", type=Path, required=True, help="compiled classes of the head")
     parser.add_argument(
-        "--base", type=revision_argument, required=True, help="merge-base commit; migration notes count from it to HEAD"
+        "--base", type=revision_argument, required=True, help="merge-base commit; the changelog requirement counts from it to HEAD"
     )
     return parser.parse_args(argv)
 
@@ -330,14 +309,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         base = resolve_commit(args.base)
-        guides = migration_guides(project_version(git("show", "HEAD:pom.xml")))
         changed = changed_paths(base)
         removed, added = diff(extract(args.base_classes), extract(args.head_classes))
     except ApiSurfaceError as error:
         print(f"API surface check could not run: {error}", file=sys.stderr)
         return 2
-    documented = {guide for guide in guides if guide in changed and exists_at_head(guide)}
-    verdict = evaluate(removed, guides, documented)
+    documented = {CHANGELOG} if CHANGELOG in changed and exists_at_head(CHANGELOG) else set()
+    verdict = evaluate(removed, (CHANGELOG,), documented)
     publish(render(base, removed, added, verdict))
     return 0 if verdict.passed else 1
 

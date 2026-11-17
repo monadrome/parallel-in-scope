@@ -97,7 +97,7 @@ class SelectionTest(unittest.TestCase):
 
 class PathPolicyTest(unittest.TestCase):
     def test_secrets_and_adr_edits_are_forbidden(self):
-        forbidden, _ = policy.classify_paths([("A", ".env"), ("A", "keys/release.asc"), ("M", "adr/0006-queues-ship-with-core.md")])
+        forbidden, _ = policy.classify_paths([("A", ".env"), ("A", "keys/release.asc"), ("M", "adr/0013-standalone-blocking-queues-artifact.md")])
         self.assertEqual(len(forbidden), 3)
 
     def test_new_adr_deletions_and_build_files_need_a_human(self):

@@ -82,7 +82,7 @@ body:
     attributes:
       label: Compatibility and migration
       description: |
-        Would this break a public signature, a documented contract, or a migration guide? What would
-        the migration note say?
+        Would this break a public signature or a documented contract? What would the
+        changelog entry say?
     validations:
       required: false

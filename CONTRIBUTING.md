@@ -124,22 +124,20 @@ result dispositions.
 
 The library is in `0.x`: breaking changes are acceptable when they carry a
 documented rationale. If your change renames or alters a public API or a
-documented contract, update both migration guides of the current release line
-in the same pull request: `docs/en/migration-v<major>.<minor>.md` and
-`docs/zh/migration-v<major>.<minor>.md`, where `<major>.<minor>` comes from the
-`pom.xml` version (for example, the `0.4.0` release uses
-[docs/en/migration-v0.4.md](docs/en/migration-v0.4.md) and
-[docs/zh/migration-v0.4.md](docs/zh/migration-v0.4.md)). State the rationale
-in the PR description.
+documented contract, add a self-contained entry to the `Unreleased` section of
+[CHANGELOG.md](CHANGELOG.md) in the same pull request: what breaks and what to
+do instead. The project maintains no separate migration guides; guides
+published for released versions are frozen records. State the rationale in the
+PR description.
 
 CI enforces the signature half of this rule. On every pull request the `build`
 job compiles the merge base and runs `scripts/check-api-surface.py`, which
-compares the public and protected members of public types, nested types and the
-`queue` package included, between the merge base and the head. A removed member
-or a changed signature fails the job unless the pull request changes both
-guides; additions never fail. The job summary lists every addition, removal,
-and changed signature. Behavior and contract changes leave no trace in the
-signatures, so they still need migration notes without a reminder from CI.
+compares the public and protected members of public types, nested types
+included, between the merge base and the head. A removed member or a changed
+signature fails the job unless the pull request updates `CHANGELOG.md`;
+additions never fail. The job summary lists every addition, removal, and
+changed signature. Behavior and contract changes leave no trace in the
+signatures, so they still need a changelog entry without a reminder from CI.
 `PublicApiSurfaceTest` still pins the set of public types at test time; the CI
 check covers their members.
 

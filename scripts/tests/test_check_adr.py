@@ -82,6 +82,20 @@ class AdrConformanceTest(unittest.TestCase):
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_field_looking_lines_inside_sections_do_not_count(self):
+        self.write("0001-title.md", VALID.replace(
+            "- Status: Accepted\n", "").replace(
+            "## Decision", "## Decision\n\n- Status: Accepted\n"))
+        errors = self.check().stderr
+        self.assertIn("missing metadata field: Status", errors)
+
+    def test_fields_beyond_the_header_window_are_not_read(self):
+        preamble = "\n".join(f"line {number}" for number in range(45))
+        self.write("0001-title.md", VALID.replace(
+            "- Status: Accepted", f"{preamble}\n- Status: Accepted"))
+        errors = self.check().stderr
+        self.assertIn("missing metadata field: Status", errors)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -42,17 +42,16 @@ dispositions with evidence. If PIT is skipped, give the applicability reason. --
 
 <!--
 The 0.x line accepts breaking changes with a documented rationale. If this PR
-renames or alters a public API or a documented contract, update both migration
-guides of the release line in the same PR: docs/en/migration-v<major>.<minor>.md
-and docs/zh/migration-v<major>.<minor>.md, with <major>.<minor> from the pom.xml
-version (docs/en/migration-v0.3.md and docs/zh/migration-v0.3.md on 0.3.0).
+renames or alters a public API or a documented contract, add a self-contained
+entry to the Unreleased section of CHANGELOG.md in the same PR: what breaks and
+what to do instead. The project maintains no separate migration guides.
 
 CI checks the signatures: the build job's "Check public API changes against the
 merge base" step fails when a public or protected member of a public type is
-removed or its signature changes and this PR does not change both guides.
+removed or its signature changes and this PR does not update CHANGELOG.md.
 Additions pass and are listed in the job summary. Behavior and contract changes
-are invisible to that check and still need the notes.
+are invisible to that check and still need the entry.
 -->
 
 - [ ] No breaking changes
-- [ ] Breaking changes, rationale in the summary; migration notes updated
+- [ ] Breaking changes, rationale in the summary; changelog entry updated

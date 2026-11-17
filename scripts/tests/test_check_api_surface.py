@@ -165,12 +165,12 @@ class DifferTest(unittest.TestCase):
         removed, added = api.diff(surface_of("evolving-base"), surface_of("evolving-changed"))
         self.assertEqual(removed, ["fixture.Evolving: public T pick(java.util.List<T>)"])
         self.assertEqual(added, ["fixture.Evolving: public T pick(java.util.Collection<? extends T>)"])
-        self.assertFalse(api.evaluate(removed, api.migration_guides("0.3.0"), set()).passed)
+        self.assertFalse(api.evaluate(removed, ("CHANGELOG.md",), set()).passed)
 
     def test_additions_alone_pass_and_are_listed(self):
         removed, added = api.diff(surface_of("evolving-base"), surface_of("evolving-added"))
         self.assertEqual((removed, added), ([], ["fixture.Evolving: public T pickOr(java.util.List<T>, T)"]))
-        verdict = api.evaluate(removed, api.migration_guides("0.3.0"), set())
+        verdict = api.evaluate(removed, ("CHANGELOG.md",), set())
         self.assertTrue(verdict.passed)
         report = api.render("0123456789abcdef", removed, added, verdict)
         self.assertIn("+ fixture.Evolving: public T pickOr(java.util.List<T>, T)", report)
@@ -187,36 +187,12 @@ class DifferTest(unittest.TestCase):
 
 
 class GateTest(unittest.TestCase):
-    GUIDES = ("docs/en/migration-v0.3.md", "docs/zh/migration-v0.3.md")
-
-    def test_a_removal_needs_both_migration_guides(self):
+    def test_a_removal_needs_the_changelog(self):
         removed = ["fixture.Evolving: public T pick(java.util.List<T>)"]
-        self.assertFalse(api.evaluate(removed, self.GUIDES, set()).passed)
-        for one in self.GUIDES:
-            verdict = api.evaluate(removed, self.GUIDES, {one})
-            self.assertFalse(verdict.passed)
-            self.assertIn(next(g for g in self.GUIDES if g != one), verdict.message)
-        self.assertTrue(api.evaluate(removed, self.GUIDES, set(self.GUIDES)).passed)
-
-    def test_the_version_selects_the_release_line_guides(self):
-        self.assertEqual(api.migration_guides("0.3.0-SNAPSHOT"), self.GUIDES)
-        self.assertEqual(api.migration_guides("0.4.0"), ("docs/en/migration-v0.4.md", "docs/zh/migration-v0.4.md"))
-        self.assertEqual(api.migration_guides("1.12-rc1")[0], "docs/en/migration-v1.12.md")
-        for bad in ("${revision}", "v0.3.0", "0"):
-            with self.assertRaises(api.ApiSurfaceError):
-                api.migration_guides(bad)
-
-    def test_the_project_version_is_the_poms_own_not_the_parents(self):
-        pom = (b'<?xml version="1.0" encoding="UTF-8"?>\n<project xmlns="http://maven.apache.org/POM/4.0.0">'
-               b"<parent><version>9.9.9</version></parent><version> 0.3.0-SNAPSHOT </version></project>")
-        self.assertEqual(api.project_version(pom), "0.3.0-SNAPSHOT")
-        self.assertEqual(api.project_version(b"<project><version>0.4.0</version></project>"), "0.4.0")
-        for bad in (b"<project><parent><version>1.0</version></parent></project>", b"<project>"):
-            with self.assertRaises(api.ApiSurfaceError):
-                api.project_version(bad)
-
-
-POM = '<project xmlns="http://maven.apache.org/POM/4.0.0"><version>{}</version></project>\n'
+        verdict = api.evaluate(removed, ("CHANGELOG.md",), set())
+        self.assertFalse(verdict.passed)
+        self.assertIn("not updated: CHANGELOG.md", verdict.message)
+        self.assertTrue(api.evaluate(removed, ("CHANGELOG.md",), {"CHANGELOG.md"}).passed)
 
 
 class MainTest(unittest.TestCase):
@@ -230,9 +206,7 @@ class MainTest(unittest.TestCase):
         for key, value in (("user.email", "t@example.com"), ("user.name", "t"), ("commit.gpgsign", "false"),
                            ("gc.auto", "0"), ("core.fsmonitor", "false")):
             git(self.repo, "config", key, value)
-        self.write("pom.xml", POM.format("0.3.0-SNAPSHOT"))
-        self.write("docs/en/migration-v0.3.md", "# Migrating to v0.3\n")
-        self.write("docs/zh/migration-v0.3.md", "# 迁移到 v0.3\n")
+        self.write("CHANGELOG.md", "# Changelog\n")
         self.base = self.commit("base")
         self.summary = self.tmp / "summary.md"
 
@@ -274,31 +248,22 @@ class MainTest(unittest.TestCase):
         summary = self.summary.read_text(encoding="utf-8") if self.summary.exists() else ""
         return code, out.getvalue(), err.getvalue(), summary
 
-    def document(self, *guides):
-        notes = {"docs/en/migration-v0.3.md": "# Migrating to v0.3\n\n- pick takes a Collection\n",
-                 "docs/zh/migration-v0.3.md": "# 迁移到 v0.3\n\n- pick 改为接受 Collection\n"}
-        for guide in guides:
-            self.write(guide, notes[guide])
+    def document_changelog(self):
+        self.write("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n### Breaking changes\n\n- pick takes a Collection\n")
 
-    def test_a_removal_without_migration_notes_fails(self):
+    def test_a_removal_without_a_changelog_update_fails(self):
         code, out, err, summary = self.run_check("evolving-base", "evolving-changed")
         self.assertEqual(code, 1, err)
         self.assertIn("Result: fail", summary)
+        self.assertIn("not updated: CHANGELOG.md", summary)
         self.assertIn("- fixture.Evolving: public T pick(java.util.List<T>)", summary)
         self.assertIn("+ fixture.Evolving: public T pick(java.util.Collection<? extends T>)", summary)
         self.assertIn("old form under Removed and its new form under Added", summary)
         self.assertEqual(out, summary)
 
-    def test_a_removal_with_one_guide_changed_fails(self):
-        self.document("docs/en/migration-v0.3.md")
-        self.commit("document in English only")
-        code, _, err, summary = self.run_check("evolving-base", "evolving-changed")
-        self.assertEqual(code, 1, err)
-        self.assertIn("not updated: docs/zh/migration-v0.3.md", summary)
-
-    def test_a_removal_with_both_guides_changed_passes(self):
-        self.document("docs/en/migration-v0.3.md", "docs/zh/migration-v0.3.md")
-        self.commit("document both")
+    def test_a_removal_with_a_changelog_update_passes(self):
+        self.document_changelog()
+        self.commit("document the break")
         code, _, err, summary = self.run_check("evolving-base", "evolving-changed")
         self.assertEqual(code, 0, err)
         self.assertIn("Result: pass", summary)
@@ -310,30 +275,20 @@ class MainTest(unittest.TestCase):
         self.assertIn("- fixture.Evolving: public T pickOr(java.util.List<T>, T)", summary)
         self.assertNotIn("Added", summary)
 
-    def test_a_deleted_guide_is_not_a_migration_note(self):
-        self.document("docs/en/migration-v0.3.md")
-        (self.repo / "docs/zh/migration-v0.3.md").unlink()
-        self.commit("delete the Chinese guide")
+    def test_a_deleted_changelog_does_not_count(self):
+        (self.repo / "CHANGELOG.md").unlink()
+        self.commit("delete the changelog")
         code, _, err, summary = self.run_check("evolving-base", "evolving-changed")
         self.assertEqual(code, 1, err)
-        self.assertIn("not updated: docs/zh/migration-v0.3.md", summary)
+        self.assertIn("not updated: CHANGELOG.md", summary)
 
-    def test_a_guide_changed_and_reverted_in_the_pull_request_does_not_count(self):
-        self.document("docs/en/migration-v0.3.md", "docs/zh/migration-v0.3.md")
-        self.commit("document both")
-        self.write("docs/en/migration-v0.3.md", "# Migrating to v0.3\n")
-        self.write("docs/zh/migration-v0.3.md", "# 迁移到 v0.3\n")
-        self.commit("revert the notes")
+    def test_a_changelog_changed_and_reverted_in_the_pull_request_does_not_count(self):
+        self.document_changelog()
+        self.commit("document the break")
+        self.write("CHANGELOG.md", "# Changelog\n")
+        self.commit("revert the entry")
         code, _, err, _ = self.run_check("evolving-base", "evolving-changed")
         self.assertEqual(code, 1, err)
-
-    def test_the_guides_follow_the_head_version(self):
-        self.write("pom.xml", POM.format("0.4.0-SNAPSHOT"))
-        self.document("docs/en/migration-v0.3.md", "docs/zh/migration-v0.3.md")
-        self.commit("bump to 0.4 but document 0.3")
-        code, _, err, summary = self.run_check("evolving-base", "evolving-changed")
-        self.assertEqual(code, 1, err)
-        self.assertIn("update docs/en/migration-v0.4.md and docs/zh/migration-v0.4.md", summary)
 
     def test_pure_additions_pass_and_are_listed(self):
         code, _, err, summary = self.run_check("evolving-base", "evolving-added")
