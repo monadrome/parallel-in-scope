@@ -78,12 +78,6 @@ final class SlidingWindowSubmitter<V> {
      * @return the element views, positionally aligned with {@code tasks}
      */
     ImmutableList<Task<V>> viewsFor(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
-        /*
-         * Each view also pins its element's attribution when the element settles
-         * (Task.attributedOnSettle); building the views before the bind is what orders that pin
-         * ahead of the fail-fast commit the element's own failure triggers.
-         */
-
         ImmutableList.Builder<Task<V>> views = ImmutableList.builderWithExpectedSize(tasks.size());
         for (ExecutionPhaseHintFuture<V> task : tasks) {
             views.add(Task.attributedOnSettle(unit.name(), unit.cancellationToken(), task));
@@ -115,10 +109,6 @@ final class SlidingWindowSubmitter<V> {
         }
 
         RefillDriver driver = new RefillDriver(tasks, results);
-        // The initial window is claimed on this thread; on a direct executor or a saturated
-        // CallerRunsPolicy pool the completions arrive inline, and the guard inside the driver
-        // turns those nested completion events into iterations of its claim loop rather than
-        // recursion.
         driver.drain();
 
         int remaining = tasks.size() - Math.min(tasks.size(), parallelism());
@@ -128,10 +118,6 @@ final class SlidingWindowSubmitter<V> {
         }
 
         ListenableFuture<Integer> signal = driver.signal();
-        // A cancellation may win while a completion-triggered refill is between claiming an index
-        // and handing it off. The listener claims every unclaimed index first, so the refill sees
-        // the settled signal and disposes of its claimed index itself; the loop remains responsible
-        // for normal completion.
         signal.addListener(
                 () -> {
                     if (signal.isCancelled()) {
@@ -152,14 +138,6 @@ final class SlidingWindowSubmitter<V> {
      */
     private void failRemainingAsSubmissionFailures(
             List<? extends ExecutionPhaseHintFuture<V>> tasks, int fromIndex, Throwable failure) {
-        /*
-         * The token is bound before submission. Settling one failure synchronously cancels pending
-         * siblings, so no settlement order can preserve every affected element's verdict by itself.
-         * First claim every affected element and record its submission failure without settling;
-         * then settle them. A cascade between those passes cannot erase the recorded failure. See
-         * design/decision-log.md for the shared-verdict decision.
-         */
-
         int size = tasks.size();
         boolean[] claimed = new boolean[size - fromIndex];
         for (int pending = fromIndex; pending < size; pending++) {
@@ -216,8 +194,6 @@ final class SlidingWindowSubmitter<V> {
                                 + " during " + phase
                                 + "; the affected elements are failed as submission failures");
             } catch (Throwable ignored) {
-                // A user-installed log handler must not skip the shared-verdict failure of the
-                // remaining elements.
             }
         }
     }
@@ -236,14 +212,6 @@ final class SlidingWindowSubmitter<V> {
      * of it locally and never hands a cancelled batch's element to the pool.
      */
     private final class RefillDriver {
-        /*
-         * Instead of a framework thread parked in a completion queue (one per concurrently
-         * refilling batch), every submitted element's completion listener claims and hands off the
-         * next element itself. Claims are serialized by a single non-reentrant guard so that an
-         * inline completion — a direct executor or a saturated CallerRunsPolicy pool running the
-         * next execution on the completing thread — extends the guard holder's loop instead of
-         * recursing.
-         */
 
         private final List<? extends ExecutionPhaseHintFuture<V>> tasks;
         private final List<Task<V>> results;
@@ -296,9 +264,6 @@ final class SlidingWindowSubmitter<V> {
                 } finally {
                     draining.set(false);
                 }
-                // A completion may have released its slot just before the guard dropped; that
-                // event's own drain attempt lost the guard and returned, so retake it when
-                // claimable work is still left.
                 if (settled.get() || nextIndex.get() >= size || freeSlots.get() <= 0) {
                     return;
                 }
@@ -312,10 +277,6 @@ final class SlidingWindowSubmitter<V> {
          */
         private boolean handoff(int index) {
             if (index >= size) {
-                // The cancellation path's nextIndex.getAndSet(size) can land between the claim
-                // loop's range check and the increment, so the increment observes the phantom
-                // index size. No element exists for it; the batch is already settled and the claim
-                // loop's next range check exits.
                 return false;
             }
             freeSlots.decrementAndGet();
@@ -324,12 +285,9 @@ final class SlidingWindowSubmitter<V> {
                 try {
                     fallbackSubmit(tasks, index, this::onComplete);
                 } catch (Throwable failure) {
-                    // Catching Throwable, not only RuntimeException | Error: execute(Runnable)
-                    // declares no checked exceptions, but a hostile executor can still throw one
-                    // through generics erasure, and any handoff failure must terminate the batch
-                    // the same way. A handoff failure — rejection or the executor throwing
-                    // mid-handoff — is the batch's shared verdict for every element; wrapping it
-                    // keeps each element attributed as a submission failure rather than a user one.
+                    // Catching Throwable, not RuntimeException | Error: a hostile executor can
+                    // sneak a checked failure through generics erasure, and every handoff failure
+                    // must reach the same shared-verdict settlement.
                     logHandoffError(failure, index, "the initial window");
                     failRemainingAsSubmissionFailures(tasks, index, failure);
                     initialFailure = failure;
@@ -339,8 +297,6 @@ final class SlidingWindowSubmitter<V> {
                 return true;
             }
             if (settled.get() || task.isDone()) {
-                // Cancelled between the claim and the handoff, or already settled by the deadline
-                // cascade: never submitted, so abandon from this index on and stop claiming.
                 abandonRemaining(tasks, results, index, null);
                 settleSuccess();
                 return false;
@@ -350,10 +306,8 @@ final class SlidingWindowSubmitter<V> {
                 refillCount.incrementAndGet();
                 return true;
             } catch (Throwable failure) {
-                // Same Throwable audit as the initial window: a sneaky checked throwable must not
-                // escape into the completing thread that ran this listener. The signal retains the
-                // failure for diagnostics; unchecked types keep their identity, a checked one is
-                // wrapped.
+                // Same Throwable audit as the initial window; this catch runs on the completing
+                // element's thread, which must not take an escaped failure.
                 logHandoffError(failure, index, "the sliding-window refill");
                 abandonRemaining(tasks, results, index, failure);
                 settleFailure(failure);
@@ -388,6 +342,7 @@ final class SlidingWindowSubmitter<V> {
 
         private void settleFailure(Throwable failure) {
             if (settled.compareAndSet(false, true)) {
+                // Unchecked failures keep their identity for diagnostics; a checked one is wrapped.
                 signal.setException(
                         failure instanceof RuntimeException || failure instanceof Error
                                 ? failure
@@ -420,8 +375,6 @@ final class SlidingWindowSubmitter<V> {
             List<Task<V>> result,
             int fromIndex,
             @Nullable Throwable reason) {
-        // Settle the prepared future directly: its own phase CAS makes this idempotent and keeps
-        // the execution unentered, and the view over it reports the outcome to the caller.
         if (reason == null) {
             for (int i = fromIndex; i < result.size(); i++) {
                 tasks.get(i).skipExecution();
@@ -429,8 +382,6 @@ final class SlidingWindowSubmitter<V> {
             }
             return;
         }
-        // A reason means a handoff failure in the refill loop, which carries the same shared-verdict
-        // semantics as the initial window, so it takes the same two-pass treatment.
         int size = result.size();
         boolean[] claimed = new boolean[size - fromIndex];
         for (int i = fromIndex; i < size; i++) {
