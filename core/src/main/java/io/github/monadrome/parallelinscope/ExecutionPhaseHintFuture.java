@@ -154,7 +154,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         } catch (RejectedExecutionException rejected) {
             reject(rejected);
         } catch (Throwable failure) {
-            // Settle unclaimed tasks even on Error so waiters are not stranded.
             if (failure instanceof Error) {
                 try {
                     LOGGER.log(
@@ -163,7 +162,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                             () -> "executor handoff threw an Error; task '" + taskLabel()
                                     + "' never reached a worker and is failed as a submission failure");
                 } catch (Throwable ignored) {
-                    // A user-installed log handler must not skip the terminal publication.
                 }
             }
             reject(failure);
@@ -203,7 +201,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         submissionFailure = wrapped;
         TaskObservation<V> published = observation;
         if (published != null) {
-            // The first-writer-wins observation must precede cancellation from settlement.
             published.publishSkipped(TaskClassification.SUBMISSION_FAILURE, wrapped);
         }
         return true;
@@ -244,11 +241,9 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         if (!phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.RUNNING)) {
             return;
         }
-        // Inline execution borrows a thread: isolate its flag and restore the entry state on exit.
         boolean interruptedOnEntry = Thread.interrupted();
         MultiTaskContext borrowedScope = SubmissionScope.current();
         if (borrowedScope != null) {
-            // Nested submissions must not inherit the outer submission's enqueue policy.
             SubmissionScope.restore(null);
         }
         runner = Thread.currentThread();
@@ -258,7 +253,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
         try {
             if (inlineViolation) {
-                // The execution is already claimed; finally publishes its exit rather than skipping it.
                 setException(new SubmissionException(new RejectedExecutionException(
                         "task '" + taskLabel() + "' was run on the submitting thread by its executor's"
                                 + " RejectedExecutionHandler, but its contract permits only a worker of its"
@@ -267,11 +261,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                 set(taskCode.call());
             }
         } catch (Throwable failure) {
-            /*
-             * The level decision runs only when setException loses to a settled cancellation, so it
-             * can never change the result or its attribution; it chooses only how loudly to report
-             * a failure that no longer has a result to carry.
-             */
             if (!setException(failure) && isCancelled()) {
                 try {
                     LOGGER.log(
@@ -279,21 +268,15 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                             failure,
                             () -> "task '" + taskLabel() + "' failed after cancellation");
                 } catch (Throwable ignored) {
-                    // Diagnostics cannot break runner cleanup.
                 }
             }
         } finally {
-            // Release captures before the fallback execution-exit publication.
             releaseCallable();
-            // Fallback for paths where ScopedCallable did not publish exit; idempotent.
             releaseExecution();
             runner = null;
-            // Withdraw runner, then finish pending delivery before the thread can be reused.
             while (interruptDeliveryInProgress) {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
             }
-            // Restore only after delivery completes. External interrupts during inline execution
-            // are also discarded; see design/interruption-contract.md.
             try {
                 SubmissionScope.restore(borrowedScope);
                 if (interruptedOnEntry) {
@@ -322,28 +305,12 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
      * @return {@link Level#FINE} for a cancellation acknowledgement, else {@link Level#WARNING}
      */
     private Level lateFailureLevel(Throwable failure) {
-        /*
-         * Provenance, never exception type (design/synchronous-scope-exit.md section 4): the check
-         * reads only the exception object and this future's own delivery flag, never the token, so
-         * it cannot race the cancellation cascade. A suppressed exception is an independent failure,
-         * typically from close(), and keeps the warning.
-         */
         if (failure.getSuppressed().length != 0) {
             return Level.WARNING;
         }
         if (failure instanceof CheckpointCancellation) {
             return Level.FINE;
         }
-        /*
-         * Kernel delivery. interruptTask() writes cancellationInterruptDelivered before calling
-         * interrupt(); a JDK blocking call that throws because of that interrupt has observed it, and
-         * Thread.interrupt synchronizes-with that detection (JLS 17.4.4), so this read sees true.
-         * The JDK clears the flag when it throws; a flag that is still set means this exception was
-         * not that consumption (for example close() throwing a fresh InterruptedException after the
-         * execution restored the flag), so it stays a warning. Accepted residual risk: after delivery, an
-         * independent InterruptedException thrown with the flag clear is also FINE; cancellation has
-         * already committed and the result has already settled, so no outcome is hidden.
-         */
         if (failure instanceof InterruptedException
                 && cancellationInterruptDelivered
                 && !Thread.currentThread().isInterrupted()) {
@@ -358,12 +325,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         try {
             Thread executing = runner;
             if (executing != null) {
-                /*
-                 * Written only when a published runner is read, so a cancellation before runner
-                 * publication or after its withdrawal in run()'s finally never marks this run.
-                 * Written before interrupt() so a runner that observes the interrupt also observes
-                 * the flag.
-                 */
                 cancellationInterruptDelivered = true;
                 executing.interrupt();
             }
@@ -380,9 +341,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         if (phase.compareAndSet(ExecutionPhase.SUBMITTED, ExecutionPhase.CANCELLED_BEFORE_RUN)) {
             skipExecution();
         } else if (phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {
-            // Cancellation and the execution claim must compete on the same state machine. If run()
-            // has published RUNNING but has not claimed its execution slot yet, mark that slot
-            // skipped before publishing the cancellation so the worker cannot claim it afterwards.
             skipExecutionIfPending();
         }
     }

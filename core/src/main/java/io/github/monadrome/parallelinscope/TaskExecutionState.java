@@ -41,11 +41,6 @@ final class TaskExecutionState {
     private final ExecutionExitTracker tracker;
     private final String name;
 
-    /*
-     * Terminal signal of this slot: set exactly once, by the winning transition to EXITED or
-     * SKIPPED, before the shared tracker is released. Observation futures key on it so a waiter
-     * that observes execution exit through the tracker already finds this slot terminal.
-     */
     private final SettableFuture<@Nullable Void> terminal = SettableFuture.create();
 
     TaskExecutionState(ExecutionExitTracker tracker, String name) {

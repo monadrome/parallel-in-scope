@@ -19,14 +19,6 @@ import org.jspecify.annotations.Nullable;
  */
 final class ScopedCallable<V> implements Callable<V> {
 
-    /*
-     * The user task code (plus any decorator chain), held in a one-way releasable slot. call()'s finally
-     * clears it after the user task code's own finally has exited, so neither this wrapper nor anything
-     * retaining it (for example the TTL wrapper) keeps the user closure reachable once the execution has
-     * ended. Written by the worker thread only; read by the worker and by test probes, hence the
-     * volatile slot. Plain volatile reads and writes are enough: the slot only ever moves from set
-     * to cleared, so it needs no CAS.
-     */
     private volatile @Nullable Callable<V> delegate;
 
     private final Ticker ticker;
@@ -46,27 +38,16 @@ final class ScopedCallable<V> implements Callable<V> {
         try {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
-            // the delegate is released only after call() returns (releaseDelegate in finally)
             return callTimed(checkNotNull(delegate));
         } finally {
-            // delegate.call() has returned, so the user task code's finally has exited: release the
-            // one-way holder before publishing execution exit, and a waiter that observes EXITED never
-            // sees this wrapper still referencing the user closure.
             releaseDelegate();
             taskContext.markEnded(ticker.read());
-            // Publish execution exit after the user task code's finally: the end time marked above is then
-            // final before the observation barrier can publish. The outer future finally retries
-            // this as a fallback; the shared atomic state releases the slot exactly once.
             TaskExecutionState executionState = taskContext.executionState();
             if (executionState != null) {
                 executionState.exited();
             }
-            // Observation futures read the completed task explicitly and never inherit an implicit
-            // current-task identity, even when this callable ran inline inside another task.
             TaskExecutionContext.restore(null);
-            // The restore above already left the slot removed, so re-restoring a null previous
-            // task would just be a second ThreadLocalMap.remove on the common top-level path.
-            // A non-null previous task still restores the enclosing task.
+            // restore(null) already removed the slot, so a null previous task needs no second remove.
             if (previousTask != null) {
                 TaskExecutionContext.restore(previousTask);
             }
