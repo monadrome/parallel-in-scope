@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-adr-english",
+  "date": "2026-11-17",
+  "topic": "adr-english",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: translate the six Chinese ADRs to English"
+    ],
+    "files": 6,
+    "insertions": 469,
+    "deletions": 339
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "check-adr": 0
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "translate six Chinese ADRs (0005,0008,0010,0013,0014,0015) to English by meaning; doc gates pass; independent lightweight review clean (.agents/reviews/adr-english-2026-11-17/review.md)"
+}
