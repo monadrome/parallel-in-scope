@@ -280,8 +280,7 @@ public final class Par {
                     }
 
                     @Override
-                    public void onFailure(Throwable failure) {
-                    }
+                    public void onFailure(Throwable failure) {}
                 },
                 MoreExecutors.directExecutor());
         runtime.retainUntilComplete(completion);
