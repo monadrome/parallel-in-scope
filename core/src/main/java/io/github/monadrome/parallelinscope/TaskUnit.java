@@ -5,7 +5,6 @@ package io.github.monadrome.parallelinscope;
  * member, or a terminal combine.
  *
  * <p>A phantom tag, not a value type: nothing implements or instantiates it, and it exists only as
- * the type argument that separates {@code TaskId<TaskUnit>} from {@link TaskGroupRun}. See {@link
- * TaskId}.
+ * the type argument in {@code TaskId<TaskUnit>}. See {@link TaskId}.
  */
 public interface TaskUnit {}
