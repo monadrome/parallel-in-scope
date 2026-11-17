@@ -1,0 +1,19 @@
+core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java
+  s_0181f20e54f87b::t_d7f5630461d44c 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1a2588ea2294fa8fd17b0820437188aa3fab9306",
+  "prompts": {},
+  "sessions": {
+    "s_0181f20e54f87b": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_fe2a0a6b-f090-4af8-900e-c39ad48d1f4d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
