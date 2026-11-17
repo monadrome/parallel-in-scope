@@ -1,0 +1,21 @@
+core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_0181f20e54f87b::t_6a679c6ddaa083 309-310
+  s_0181f20e54f87b::t_937e0b2dd664e2 345
+  s_0181f20e54f87b::t_6c863aa9cd5d56 288-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ece9eb85724d0e739abdb837e357e4ee1b70ed11",
+  "prompts": {},
+  "sessions": {
+    "s_0181f20e54f87b": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_fe2a0a6b-f090-4af8-900e-c39ad48d1f4d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
