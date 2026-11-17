@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-taskid-hierarchy",
+  "date": "2026-11-17",
+  "topic": "taskid-hierarchy",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: propose TaskId closed hierarchy over phantom kind tags",
+      "refactor!: replace TaskId phantom kind tags with a closed TaskId hierarchy"
+    ],
+    "files": 21,
+    "insertions": 196,
+    "deletions": 105
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "taskid-hierarchy-0e07f2e1-20261117-085628-9918b3",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 7335,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 713541,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-taskid-hierarchy-2026-11-17",
+        "head": "0e07f2e192fe2dba0690ec302382033fd195d6df",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 2,
+      "check-design-routes": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "core/target/pit-reports/mutations.xml",
+      "statuses": {
+        "KILLED": 7,
+        "SURVIVED": 1
+      },
+      "total": 8,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": ""
+}
