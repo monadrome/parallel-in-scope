@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-guard-registration-warnings",
+  "date": "2026-11-17",
+  "topic": "guard-registration-warnings",
+  "routes": [
+    "defect"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "fix: guard the registration warnings with the announcements delivery",
+      "test: name the warning stations precisely in the guard test comment"
+    ],
+    "files": 6,
+    "insertions": 87,
+    "deletions": 28
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-dev-v0.5.0-2026-11-17",
+        "head": "9296e7d4cf680cd9f4289d68e524406071b2b7f1",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "route ParRuntime registration warnings through Announcements.deliver; reproduced via throwing JUL handler; reverse-verified by stashing the fix; semantic_reviewer lightweight review clean with two low notes (test comment fixed in 18075c6e, pre-existing design doc drift reported); PIT skipped (logging control-flow guard, AnnouncementsTest covers the mechanism); runtime-consumer matrix local on JDK 8/17/21/25 (11 unavailable locally)"
+}
