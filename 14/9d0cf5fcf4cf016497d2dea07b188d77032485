@@ -1,0 +1,19 @@
+ledger/2026-11-17-guard-registration-warnings.json
+  s_086a4075a81e44::t_8b98ac9247c8b8 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "149d0cf5fcf4cf016497d2dea07b188d77032485",
+  "prompts": {},
+  "sessions": {
+    "s_086a4075a81e44": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_6e703c6c-b80c-4b82-9efe-4a42a4aa2a76",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
