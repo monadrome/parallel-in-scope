@@ -80,11 +80,6 @@ final class TaskGroup<R> implements AutoCloseable {
     /** The same members as {@link #memberStates}, addressable by declaration position. */
     private final ImmutableList<MemberState> orderedMembers;
 
-    /*
-     * Every task the group waits on: the members in declaration order, then the combine when one is
-     * declared. Fixed at construction, so the cancel cascade in memberCompleted walks it without
-     * rebuilding it once per completing task.
-     */
     private final ImmutableList<MemberState> membersAndTerminal;
 
     private final ImmutableList<String> memberNames;
@@ -102,13 +97,6 @@ final class TaskGroup<R> implements AutoCloseable {
      */
     private final SettableFuture<GroupValues> values = SettableFuture.create();
 
-    /*
-     * The read-only view handed out by valuesFuture(). The sink stays reachable only from this
-     * object, so a caller cannot cancel the group's own value publication — cancelling the view
-     * returns false. Without the wrapper a caller could cancel the future while members were still
-     * running, and a group that then converged on SUCCESS would report CancellationException from
-     * valuesFuture().get() instead of its GroupValues.
-     */
     private final ListenableFuture<GroupValues> valuesView = TaskObservation.readOnly(values);
 
     private final Task<TaskGroupReport> completionTask;
@@ -170,11 +158,6 @@ final class TaskGroup<R> implements AutoCloseable {
                         .add(terminal)
                         .build();
         this.totalTasks = this.membersAndTerminal.size();
-        // The group's own terminal future is a task like any other: it carries the group name and
-        // the group token, so a caller waiting on convergence reads the same attribution vocabulary
-        // as on a member future. Its observation is the single group-level summary — the result is
-        // the TaskGroupReport itself and the timings are the group's own — which describes no
-        // additional task execution and is counted neither among the members nor as an executor wait.
         this.completionTask = Task.of(
                 groupName, groupToken, completion, TaskObservation.of(() -> groupSummary(completion), completion));
         Map<String, TaskFuture<?>> publicMembers = new LinkedHashMap<>();
@@ -473,10 +456,6 @@ final class TaskGroup<R> implements AutoCloseable {
         if (!executionExit.awaitExecutionExit(timeout)) {
             return false;
         }
-        // Executions exited, so every member observation is published or about to be: the publication
-        // barrier fires on the same signals, but a member future's get() waiters can wake before
-        // its observation listener runs. Wait out that window too, so a true result guarantees
-        // every member's completionFuture() already carries its final snapshot.
         long budgetNanos = Deadlines.saturatedNanos(timeout);
         for (MemberState member : membersAndTerminal) {
             if (!ExecutionExitTracker.awaitSettled(
@@ -558,23 +537,12 @@ final class TaskGroup<R> implements AutoCloseable {
                 definition.timeout(), "call group(String, Duration) with an explicit timeout");
         long start = System.nanoTime();
         Duration groupTimeout = definition.timeout();
-        // Deadlines resolve on the token tree's clock domain: a nested group inherits its parent's
-        // clock, a root group takes the runtime's. `start` stays on the system clock — it feeds
-        // submit times and the report, which are cross-thread real-time observations.
         Ticker domain = MultiTaskContext.domainFor(
                 structuralParent == null ? null : structuralParent.cancellationToken(), env.ticker());
         long deadlineNow = domain.read();
         long groupDeadline = MultiTaskContext.resolveDeadlineNanos(
                 groupTimeout, MultiTaskContext.deadlineCeilingFor(structuralParent), deadlineNow);
-        // A group with nothing to run completes immediately with SUCCESS and never executes or
-        // cancels a member, so it does not need a parent cancellation link. Skipping the link
-        // matters: the token of such a group is never bound, so a parent-linked one would hold a
-        // listener node on the parent scope for the parent's entire lifetime.
         boolean empty = definition.members().isEmpty() && definition.combineSlot() == null;
-        // The token stays in `domain` even when the empty-group shortcut drops the parent link:
-        // groupDeadline was resolved on that clock, so reading it back on env's clock would mix
-        // domains. The scheduler follows the same domain — inert for an empty group, which never
-        // binds, but the token tree's pair rule admits no exception.
         CancellationToken groupToken = new CancellationToken(
                 structuralParent == null || empty ? null : structuralParent.cancellationToken(),
                 groupDeadline,
@@ -582,8 +550,6 @@ final class TaskGroup<R> implements AutoCloseable {
                 structuralParent == null
                         ? env.timeoutScheduler()
                         : structuralParent.cancellationToken().timeoutScheduler());
-        // Every member and the terminal combine registers its execution exit slot here, before
-        // any submission, so the shared signal covers tasks that start late or never start.
         ExecutionExitTracker executionExit =
                 ExecutionExitTracker.create(definition.members().size() + (definition.combineSlot() == null ? 0 : 1));
         PreparationContext preparation = new PreparationContext(
@@ -693,22 +659,6 @@ final class TaskGroup<R> implements AutoCloseable {
         /** Prepares the deferred terminal combine over the already-prepared member registry. */
         private MemberState prepareTerminalCombine(
                 TaskGroupDefinition.Slot combineSlot, Map<String, MemberState> states) {
-            // The combine is prepared exactly like a member — token, context, TTL snapshot,
-            // structural parent — so its context capture happens on the submitting thread at
-            // submit time; only the executor submission is deferred to the join. The member
-            // states captured below are the frozen run registry created above, so the assembled
-            // values are read from already-settled futures. A rejected combine fails as
-            // SUBMISSION_FAILURE rather than running user code on the convergence callback thread:
-            // it is submitted by that callback at join time, not by the caller of submitAll(), so
-            // there is no caller thread for it to borrow in the first place.
-            //
-            // Declining a rejection is not enough on its own, because a pool whose
-            // RejectedExecutionHandler runs the task inside execute() — CallerRunsPolicy — reaches
-            // the execution without ever throwing RejectedExecutionException. There is nothing to
-            // decline, and the combine would run on the convergence callback thread in silence.
-            // forbidInlineExecution() closes that path for a TPE-backed target, where thread
-            // identity proves a handler ran the execution; see ExecutorRuntime for why it is scoped
-            // to a TPE and why an always-inline executor is left alone.
             Par par = combineSlot.runPar();
             MultiTaskContext unit = resolveUnit(combineSlot);
             par.diagnoseAdmission(unit);
@@ -764,7 +714,6 @@ final class TaskGroup<R> implements AutoCloseable {
         try {
             return Futures.getDone(member.future);
         } catch (ExecutionException | IllegalStateException failure) {
-            // CancellationException is an IllegalStateException and lands here too.
             throw new IllegalStateException("member '" + member.name + "' has not completed successfully", failure);
         }
     }
@@ -794,10 +743,6 @@ final class TaskGroup<R> implements AutoCloseable {
         CancellationToken.RequestCancellationLink cancellation = null;
         try {
             cancellation = definition.admitCancellation(groupToken);
-            // Group level: group deadline, unified fail-fast (any failure or member cancellation), and
-            // all-success detection, in one bind over the member futures. The terminal future joins the
-            // bind while still pending, so the group deadline and fail-fast reach the unsubmitted
-            // combine, and the group token cannot observe SUCCESS before the combine completes.
             groupToken.bind(observedFutures(), NO_SUBMISSION, global.timeoutScheduler());
             for (MemberState member : membersAndTerminal) {
                 bindMemberDeadline(member, global);
@@ -836,15 +781,6 @@ final class TaskGroup<R> implements AutoCloseable {
      * @param failure the startup failure the caller will rethrow
      */
     private void abandonStartup(Throwable failure) {
-        /*
-         * The caller never sees this group, so this method is the only owner of what prepare
-         * acquired. Cancelling the group token first terminates it, which severs its parent link and
-         * makes convergence attribute the cancelled members to the group. Cancelling every prepared
-         * future then skips each execution, releasing its exit slot, and drives the member listeners
-         * registered in start through convergence. Each step runs
-         * even when an earlier one throws, so one failing listener cannot leave later members
-         * pending.
-         */
         try {
             groupToken.cancel();
         } catch (RuntimeException | Error cleanupFailure) {
@@ -871,10 +807,6 @@ final class TaskGroup<R> implements AutoCloseable {
         for (MemberState member : orderedMembers) {
             member.submit();
         }
-        // An empty group satisfies the join condition immediately, so the combine submits inside
-        // the submit flow, on the submitting thread, exactly where members would have been. The API
-        // no longer admits an empty group with a combine, but the kernel keeps the branch so the
-        // invariant does not depend on the declaration layer.
         if (terminal != null && memberStates.isEmpty()) {
             submitTerminalOnce();
         }
@@ -900,10 +832,6 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     private void memberCompleted(MemberState member) {
-        // Classification reads only an already-terminal future and the tokens' own atomic state,
-        // so it needs no mutual exclusion. The counted CAS stays: this design depends on counting
-        // each member exactly once, and a duplicate increment would step over the barrier total
-        // and strand the convergence future.
         if (!member.counted.compareAndSet(false, true)) {
             return;
         }
@@ -912,10 +840,6 @@ final class TaskGroup<R> implements AutoCloseable {
                 member.reason = classifyCancelled(member);
             } else {
                 try {
-                    // The listener fires only on a done future, so read the result with
-                    // Futures.getDone: unlike get(), it never throws InterruptedException, and an
-                    // interrupted completing thread can no longer turn a success into a phantom
-                    // USER_FAILURE.
                     Futures.getDone(member.future);
                     member.reason = TaskClassification.SUCCESS;
                 } catch (ExecutionException failure) {
@@ -947,9 +871,6 @@ final class TaskGroup<R> implements AutoCloseable {
             }
 
             if (observedReason == TaskClassification.MEMBER_CANCELLED) {
-                // A directly cancelled member cascades to the whole group; the group token is
-                // cancelled first so members cancelled through their tokens read a terminal group
-                // state.
                 groupToken.cancel();
                 for (MemberState other : membersAndTerminal) {
                     if (!other.future.isDone()) {
@@ -959,25 +880,11 @@ final class TaskGroup<R> implements AutoCloseable {
             }
             if (observedReason == TaskClassification.USER_FAILURE
                     || observedReason == TaskClassification.SUBMISSION_FAILURE) {
-                // The combine is always the last task to complete, so its failure must commit
-                // FAIL_FAST synchronously: the cascade it triggers must observe a committed group
-                // state. Members keep the established rule and leave the commit to the group bind's
-                // asynchronous callback; convergence adopts the recorded failure either way.
                 if (member == terminal) {
                     groupToken.failFastCancel();
                 }
             }
         } finally {
-            // The barrier increment MUST stay last: everything ordered before it -- this member's
-            // classification, the cascade above, and fail-fast -- is then visible to the converging
-            // thread. Incrementing earlier lets one thread converge while another is still
-            // mid-cascade.
-            //
-            // It MUST also run when a step above throws. The steps above reach out of this object
-            // (the combine's executor, member token listeners, and through them a nested group's
-            // own convergence), and an Error escaping one of them would otherwise skip the one
-            // increment this task owes the barrier. The total is compared for exact equality, so a
-            // lost count strands the convergence future forever instead of surfacing the failure.
             if (completedTasks.incrementAndGet() == totalTasks) {
                 converge();
             }
@@ -1007,12 +914,6 @@ final class TaskGroup<R> implements AutoCloseable {
      * the group's cancellation state.
      */
     private TaskClassification classifyCancelled(MemberState member) {
-        /*
-         * The member token records its own deadline; otherwise the group token is authoritative.
-         * The group commits its state before cancelling member futures. A still-RUNNING group
-         * therefore identifies a direct member cancellation, rather than a framework cascade.
-         */
-
         return classifyCancelled(member, TaskClassification.MEMBER_CANCELLED);
     }
 
@@ -1038,37 +939,11 @@ final class TaskGroup<R> implements AutoCloseable {
      * future is terminal before the convergence future is published.
      */
     private void converge() {
-        /*
-         * The final barrier increment is a read-modify-write that acquires every preceding member's
-         * classification and timing writes. The winning thread sees a complete immutable view
-         * without a group state lock. Publish values first so a done convergence future always
-         * implies done values; direct listeners must not block that publication sequence.
-         */
-
-        /*
-         * The values future is published first, so a done convergence future always implies a done
-         * values future — a caller that reads both never has to consider a converged group whose
-         * values are still pending.
-         */
-
         TaskClassification decided = deriveOutcome();
         TaskGroupReport result = snapshot(decided, failedTaskName.get());
         try {
             publishValues(decided);
         } catch (Throwable failure) {
-            // Two things must hold after a failure here, and neither is free.
-            //
-            // First, the sink has to be terminal. A failure raised *before* `values.set(...)` — a
-            // member that was somehow not settled, an allocation failure — would otherwise leave the
-            // values future pending forever while the convergence future below reports SUCCESS,
-            // breaking the one-directional implication this class documents. Cancelling it is the
-            // right repair: the group has no values to hand out. When the failure instead came from a
-            // caller's listener, `values` is already terminal and this is a no-op.
-            //
-            // Second, nothing below may be skipped. Guava's listener fan-out catches
-            // RuntimeException but not Error, so an Error escaping a listener on the values future
-            // would otherwise reach this frame and strand convergenceFuture() forever for a group
-            // whose members have all settled.
             if (!values.isDone()) {
                 values.cancel(false);
             }
@@ -1086,7 +961,6 @@ final class TaskGroup<R> implements AutoCloseable {
         try {
             LOGGER.log(Level.SEVERE, "TaskGroup '" + groupName + "' could not publish its values", failure);
         } catch (Throwable ignored) {
-            // Deliberately swallowed: the convergence below matters more than the diagnostic.
         }
     }
 
@@ -1139,10 +1013,6 @@ final class TaskGroup<R> implements AutoCloseable {
                 if (recordedFailure != null) {
                     return Objects.requireNonNull(recordedFailure.reason);
                 }
-                // memberSuccesses is maintained incrementally in memberCompleted and covers members
-                // only. The barrier that won the completion count publishes every increment to this
-                // thread, so the all-success question is an O(1) comparison instead of a scan that
-                // allocates an iterator and a capturing lambda.
                 boolean allSuccess = memberSuccesses.get() == memberStates.size()
                         && (terminal == null || terminal.reason == TaskClassification.SUCCESS);
                 return allSuccess ? TaskClassification.SUCCESS : TaskClassification.MEMBER_CANCELLED;
@@ -1272,12 +1142,6 @@ final class TaskGroup<R> implements AutoCloseable {
         private final @Nullable Executor executor;
         private final @Nullable AdoptedSource adopted;
 
-        /*
-         * reason and failure are plain fields: memberCompleted writes them on the member's
-         * completing thread before its barrier increment of completedTasks, and readers run on the
-         * converging thread after the final increment or after completion publication, so that
-         * increment is their publishing edge.
-         */
         private @Nullable TaskClassification reason;
         private @Nullable Throwable failure;
 
