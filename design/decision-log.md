@@ -249,6 +249,25 @@ the former tuple representation was later removed because it made the public typ
 - A per-arity typed tuple family for index access: K-1 new generic types and overloads on every
   stage for less handle boilerplate; reopen only with repeated real callers and a decided arity cap.
 
+### Group declaration internals (recorded 2026-11-17)
+
+Rationale recovered from source comments removed by the comment-cleanup exercise under
+[ADR 0009](../adr/0009-comment-minimization-and-placement.md); the mechanisms stay in code, this
+records the rejected alternatives they encoded.
+
+- `GroupDraft` enforces one-shot linearity with a runtime stage counter that every mutating call
+  verifies and then advances, so a saved earlier-stage reference, a second submission, or a fork
+  off an old stage fails with `IllegalStateException`. Rejected: relying on the compile-time stage
+  separation alone — the interfaces partition operations but cannot express that a view has been
+  consumed, because the same draft is reachable from every stage object.
+- `TaskGroupDefinition` carries members and the combine as two separate parameters, so "at most one
+  combine" is structural. Rejected: one list of slots tagged by kind — the declaration layer holds
+  them separately already, nothing reads them as a single sequence, and the tag would only be
+  flattened on the way in and split apart again on arrival.
+- `TaskGroupDefinition` does not store the owning runtime. Rejected as duplicate state:
+  `checkPar` binds every `Par` to the draft's runtime at declaration and submission passes the
+  runtime explicitly, so a stored copy could only ever agree with the argument.
+
 ### Batch and group aggregate reads (2026-10-27, maintainer decision)
 
 Aggregate reads use the group's unchecked convention: `orThrow()` is the single failure gate of
