@@ -104,8 +104,8 @@
       "note": "The source end time is written before the mirror settles; the cited adopted-future tests fail when this ordering is reversed.",
       "mutations": [
         {
-          "find": "        prepared.markEnded(System.nanoTime());\n        try {\n            verifyNotNull(prepared.executionState()).exited();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }",
-          "replace": "        try {\n            verifyNotNull(prepared.executionState()).exited();\n        } finally {\n            /* After the end time: a convergence this settle triggers snapshots the final end time. */\n            mirror.settleFrom(source);\n        }\n        prepared.markEnded(System.nanoTime());"
+          "find": "        prepared.markEnded(System.nanoTime());\n        try {\n            verifyNotNull(prepared.executionState()).exited();\n        } finally {\n            mirror.settleFrom(source);\n        }",
+          "replace": "        try {\n            verifyNotNull(prepared.executionState()).exited();\n        } finally {\n            mirror.settleFrom(source);\n        }\n        prepared.markEnded(System.nanoTime());"
         }
       ]
     },
