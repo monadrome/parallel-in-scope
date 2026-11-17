@@ -25,13 +25,6 @@ import org.jspecify.annotations.Nullable;
  * contract.
  */
 final class WorkloadFit {
-    /*
-     * Each entry owns one Entry: an aggregate total and up to .UNIT_CAPACITY unit totals keyed by
-     * unit name and unit type. Every total is one immutable value replaced by compare-and-set, so a
-     * report reads each total in one consistent state and exactly one commit sees the transition
-     * that sets a verdict. An execution whose entry and unit are both undeclared or blocking reads no
-     * clock and touches no total.
-     */
 
     static final long EPOCH_EXECUTION_NANOS = 10_000_000_000L;
     static final int UNIT_CAPACITY = 256;

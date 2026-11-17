@@ -28,28 +28,12 @@ import org.jspecify.annotations.Nullable;
  * waiting thread (via {@link SettableFuture}).
  */
 final class ExecutionExitTracker {
-    /*
-     * The signal is a future rather than a bare latch so it composes with the rest of the library:
-     * the owning ParRuntime aggregates the signals of every admitted submission without dedicating
-     * a thread per wait, and a timed wait distinguishes "all executions exited" from "budget elapsed"
-     * instead of merging them.
-     *
-     * The tracker also carries the identity units needed by the self-await guard: the units of the
-     * group's members (and terminal combine) or of the batch. Registration happens on the single
-     * submitting thread before submission; the slot list and identity set are never mutated
-     * afterward, and publication to other threads rides the task-submission handoff.
-     */
 
     private final AtomicInteger outstanding;
     private final SettableFuture<@Nullable Void> executionExit = SettableFuture.create();
     private final Set<MultiTaskContext> identityUnits = Sets.newIdentityHashSet();
     private final List<TaskExecutionState> slots;
 
-    /*
-     * The unit of the most recent registration. Batch submissions register the same unit once per
-     * task, and only the first identity-set insert carries information; registration is confined to
-     * the single submitting thread, so a plain field suffices.
-     */
     private @Nullable MultiTaskContext lastRegisteredUnit;
 
     private ExecutionExitTracker(int taskCount) {
@@ -221,13 +205,6 @@ final class ExecutionExitTracker {
      *     budget is astronomical.
      */
     static long closeGraceBudgetNanos(@Nullable Duration configured, @Nullable CancellationToken token) {
-        /*
-         * The deadline lives in the token's clock domain, so the relative budget is derived from
-         * the token's own clock — never from System.nanoTime(), which a manual deadline clock must
-         * not be subtracted from. The derived budget is then spent as a real-time bounded wait:
-         * cleanup waits measure the actual passage of time, which no virtual clock may fabricate.
-         */
-
         if (configured != null) {
             return Deadlines.saturatedNanos(configured);
         }
@@ -255,14 +232,6 @@ final class ExecutionExitTracker {
     static boolean awaitSettled(
             ListenableFuture<?> future, long budgetNanos, long startNanos, @Nullable String cannotFail)
             throws InterruptedException {
-        /*
-         * awaitExecutionExit needs this twice over: execution exit and future settlement ride the same
-         * signals, but a future's get() waiters can wake before its listeners have run, so a caller
-         * that must see the published observation has to wait out that window too. The budget is
-         * the caller's total, measured from startNanos, so successive calls consume one shared
-         * allowance rather than each getting the full timeout.
-         */
-
         if (future.isDone()) {
             return true;
         }
@@ -277,7 +246,6 @@ final class ExecutionExitTracker {
             if (cannotFail != null) {
                 throw new AssertionError(cannotFail + " cannot fail", settled);
             }
-            // A terminal future is all this wait needs; the outcome is the report's business.
             return true;
         } catch (TimeoutException elapsed) {
             return false;
@@ -291,7 +259,6 @@ final class ExecutionExitTracker {
         } catch (TimeoutException elapsed) {
             return false;
         } catch (ExecutionException | CancellationException impossible) {
-            // The signal only ever completes normally; it cannot fail or be cancelled.
             throw new AssertionError("execution-exit signal cannot fail", impossible);
         }
     }

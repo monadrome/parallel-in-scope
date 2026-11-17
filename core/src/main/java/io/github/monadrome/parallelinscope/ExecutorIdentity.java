@@ -11,14 +11,6 @@ import java.util.concurrent.ExecutorService;
  * textual form is diagnostics only and must not be persisted or used as a graph key.
  */
 final class ExecutorIdentity {
-    /*
-     * Identity is always keyed on the supplied executor, never on a derived object. When the
-     * supplied executor is not already a Guava ListeningExecutorService, the framework submits
-     * through a listeningDecorator adapter that exists only to obtain ListenableFutures. That
-     * adapter is a per-registration view of the same resource, not a pool of its own, so keying on
-     * it would split one physical executor into several identities and corrupt identity-based
-     * runtime merging, executor-graph edges, and deadlock detection.
-     */
 
     private final ExecutorService supplied;
     private final int hash;

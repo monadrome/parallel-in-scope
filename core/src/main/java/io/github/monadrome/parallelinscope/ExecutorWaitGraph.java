@@ -36,15 +36,6 @@ import org.jspecify.annotations.Nullable;
  * Edges only accumulate, so the graph is bounded by the square of the registered executors.
  */
 final class ExecutorWaitGraph {
-    /*
-     * All state is one immutable State behind an AtomicReference. A known wait costs one volatile
-     * read and a table lookup. New waits of one admission are installed together by a
-     * compare-and-set retry loop; the thread whose installation succeeds compares the cyclic
-     * components of the state it installed with those of the state it replaced, so every newly
-     * formed component is announced by exactly the installation that formed it. Announcements are
-     * handed to the runtime's own executor: the admitting thread never calls a logging handler,
-     * which may block or re-enter. See design/task-graph.md.
-     */
 
     private static final Logger LOGGER = Logger.getLogger(ExecutorWaitGraph.class.getName());
 

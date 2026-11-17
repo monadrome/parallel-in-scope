@@ -9,11 +9,8 @@ import org.jspecify.annotations.Nullable;
  * reported as an unreadable CPU clock rather than a failure.
  */
 enum SystemWorkloadClock implements WorkloadClock {
-    /*
-     * Resolve ThreadMXBean lazily once: the JDK 8 factory is synchronized, and a runtime without
-     * java.management must remain usable without CPU screening.
-     */
 
+    // The JDK 8 MXBean factory is synchronized; defer the lookup to first use, off the class-init lock.
     INSTANCE;
 
     @Override
