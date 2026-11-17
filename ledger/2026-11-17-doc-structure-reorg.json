@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-doc-structure-reorg",
+  "date": "2026-11-17",
+  "topic": "doc-structure-reorg",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: retire superseded ADRs and drop migration-guide maintenance",
+      "docs: classify ADRs and contracts by stability and category",
+      "docs: complete migration-guide retirement in gates and contributor docs"
+    ],
+    "files": 46,
+    "insertions": 411,
+    "deletions": 731
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "check-local-links": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 3
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "docs-only reorg: retire 3 superseded ADRs, drop migration guides, add Stability/Category metadata + check-adr gate; lightweight independent review with one fix round; PIT skipped (no executable change)"
+}
