@@ -1,0 +1,22 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupRun.java
+  s_0a69b5cf40ed0d::t_ed3491a3083f44 7
+  s_0a69b5cf40ed0d::t_034a0fcec50ad0 8-9
+core/src/main/java/io/github/monadrome/parallelinscope/TaskUnit.java
+  s_0a69b5cf40ed0d::t_2bf9be11943d49 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f18b975dcc2149b2f1f3c80efd5092e9e0fda13c",
+  "prompts": {},
+  "sessions": {
+    "s_0a69b5cf40ed0d": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_51ffdcb2-ab9b-4fb1-82d3-6df595f38360",
+        "model": "kimi-k3"
+      },
+      "human_author": null
+    }
+  }
+}
