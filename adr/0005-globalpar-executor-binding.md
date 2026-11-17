@@ -1,4 +1,4 @@
-# ADR 0005: GlobalPar 执行器绑定与全局管理
+# ADR 0005: GlobalPar executor binding and global management
 
 - Status: Accepted
 - Date: 2026-08-22
@@ -7,120 +7,147 @@
 - Category: core
 - Supersedes: None
 - Partially superseded by: [execution future simplification](../design/execution-future-simplification.md)
-  （线程池级 purge 策略）；[decision-log](../design/decision-log.md) 的「Listener SPIs removed」条目
-  （全局 listener）；[ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)
-  （`TaskType` 不再影响排队与拒绝）
+  (the pool-level purge policy); the "Listener SPIs removed" entry in the
+  [decision-log](../design/decision-log.md) (global listeners); [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)
+  (`TaskType` no longer affects queueing or rejection)
 
-> 注记（2026-10-27）：`GlobalPar` 现名 `ParRuntime`（v0.3.0）；组装边界的字符串名称现为
-> 类型化的 `ParId`；单次调用输入现为 `BatchOptions`/`TaskOptions`。本文的 `GlobalExecutionPolicy`、
-> `BatchExecutionContext`、`ThreadRelay` 是决策时的设计形状，不在当前代码中，现行的选项、上下文与
-> 生命周期契约见 [task-group-api-and-options](../design/task-group-api-and-options.md) 与
-> [task-group-lifecycle](../design/task-group-lifecycle.md)。之后变化的事实：线程池级 purge 策略已
-> 删除，队列清理归 executor 所有者；全局 listener SPI 已删除，死锁检测改由 `ParRuntimeDeadlockPolicy`
-> 与请求级 `TaskGraphObservationScope` 报告；deadline 现由 `CancellationToken` 持有（取请求值与父
-> deadline 的较小者）；能力事实会看穿 TTL executor 包装器读取，资源身份仍不随之解包。
+> Note (2026-10-27): `GlobalPar` is now named `ParRuntime` (v0.3.0); the assembly boundary's string
+> name is now the typed `ParId`; the per-call input is now `BatchOptions`/`TaskOptions`. This
+> document's `GlobalExecutionPolicy`, `BatchExecutionContext`, and `ThreadRelay` are design shapes
+> from decision time and do not exist in current code; the current option, context, and lifecycle
+> contracts live in [task-group-api-and-options](../design/task-group-api-and-options.md) and
+> [task-group-lifecycle](../design/task-group-lifecycle.md). Facts that changed since: the pool-level
+> purge policy was removed and queue cleanup belongs to the executor owner; the global listener SPI
+> was removed and deadlock detection is now reported by `ParRuntimeDeadlockPolicy` and the
+> request-scoped `TaskGraphObservationScope`; the deadline now lives in the `CancellationToken` (the
+> smaller of the requested value and the parent deadline); capability facts are read through TTL
+> executor wrappers, while resource identity still does not unwrap with them.
 
 ## Context
 
-执行器选择、跨线程取消、批次 deadline 和 deadlock/purge 观测原先分散在旧配置与字符串绑定
-入口中，导致公共 API 同时暴露多套模型。项目需要在 Java 8 字节码约束下支持多个逻辑执行
-入口、稳定的 supplied-executor identity，以及可验证的嵌套批次语义。
+Executor selection, cross-thread cancellation, batch deadlines, and deadlock/purge observation were
+scattered across the old configuration and string-binding entry points, so the public API exposed
+several models at once. The project needed to support multiple logical execution entries, stable
+supplied-executor identity, and verifiable nested-batch semantics under the Java 8 bytecode
+constraint.
 
-根源是把三件事压进了同一个 `String executorName -> ExecutorBinding`：
+The root cause was compressing three concerns into a single `String executorName -> ExecutorBinding`:
 
 ```text
-查找键：应用组装时找到哪个 Par
-资源身份：用户传入 ExecutorService 的对象 identity
-诊断标签：日志中展示哪个业务名称
+lookup key: which Par the application finds at assembly time
+resource identity: the object identity of the ExecutorService the user supplied
+diagnostic label: which business name appears in logs
 ```
 
-名字同时承担这三种职责，于是同名不同池会被合并、同池不同名会被拆开，资源选择也和每次业务
-调用耦合在一起。
+With the name carrying all three responsibilities, same-name different-pool bindings were merged,
+same-pool different-name bindings were split, and resource selection became coupled to every
+business call.
 
 ## Decision
 
-采用不可变 `GlobalPar` 拓扑：每个 `Par` 在构建时绑定一个 supplied executor；单次调用使用
-`BatchExecutionOptions`，解析为只属于该批次的 `BatchExecutionContext`。`ExecutorRuntime` 仅是包内
-技术绑定；取消沿显式 parent context 向下传播；跨 Par 的任务图和 purge 观测由
-`GlobalPar`/observation scope 持有。旧 `ParConfig`、`ParOptions`、`ExecutorBinding` 入口不保留。
+Adopt an immutable `GlobalPar` topology: each `Par` binds one supplied executor at build time; a
+single call uses `BatchExecutionOptions`, resolved into a `BatchExecutionContext` owned by that
+batch alone. `ExecutorRuntime` is only a package-internal technical binding; cancellation propagates
+down along the explicit parent context; cross-Par task-graph and purge observation is held by
+`GlobalPar`/observation scope. The old `ParConfig`, `ParOptions`, and `ExecutorBinding` entry
+points are not retained.
 
-可执行规则：
+Enforceable rules:
 
-1. **一对一绑定**：一个 `Par` 绑定且只绑定一个 supplied `ExecutorService`；`Par.map` 不接收
-   executor、executor name 或公共 `ExecutionTarget`。选择执行器是构造 `Par` 的职责，不是一次批次
-   的职责。
-2. **三种职责分离**：字符串名称只在应用组装边界出现；资源身份是 supplied executor 的对象引用
-   （`ExecutorIdentity`，引用相等），`identityHashCode` 只用于诊断；Par label 只用于人类可读输出，
-   不保证唯一。
-3. **构建期注册、构建后不可变**：名称非空且不得重复，重复在 build 阶段失败；build 后不可增删或
-   替换 `Par`；一个 `Par` 不属于两个 `GlobalPar`。可选的静态全局入口只能安装一次，未安装时读取
-   明确失败，不支持 reset/replace。
-4. **不退化为 service locator**：`GlobalPar` 只出现在 composition root；业务组件注入 `Par`，业务
-   调用期不通过字符串查找全局对象。
-5. **supplied 与 submission executor 分离**：框架为获得 `ListenableFuture` 可能创建 listening
-   adapter，但实际提交之外的一切——资源身份、`ThreadPoolExecutor` 判断、队列检查、风险推导、
-   日志——都以 supplied executor 为准；adapter 永远不是资源节点。框架不反射解包不透明的第三方
-   decorator，探测不到的能力取保守值。
-6. **借用所有权**：谁创建 `ExecutorService` 谁负责 shutdown；`Par`、`GlobalPar` 与 adapter 都不得
-   隐式关闭它，`GlobalPar.close()` 只关闭框架自己创建的资源。
-7. **单次调用状态不进长期对象**：`Par` 不保存任何批次的 list、deadline 或 token；批次状态在批次
-   结束后可释放。
-8. **跨资源观测归运行时**：跨多个 `Par` 的任务图与死锁检测由 `GlobalPar` 统一持有，不由单个
-   `Par` 或单次调用决定；图节点按 executor identity 判等，两个 `Par` 绑定同一个有限池时识别为
-   同一节点（自环），而不是按名称误判为两个池。两个独立 `GlobalPar` 的观测不自动合并。
-9. **嵌套调用**：使用代码中显式引用的 `Par`，不自动继承父 `Par`；取消沿显式父 token 向下传播，
-   跨线程池不断开，子批次不隐式取消父批次；子 deadline 不晚于父 deadline。
-10. **`TaskType` 不路由**：`TaskType` 是可选的诊断声明，不影响排队、拒绝或任何执行行为，也不隐式
-    选择 `Par`（[ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)）。确需动态路由时，应设计显式的
-    应用层 resolver。
-11. **Java 8 与 Java 21**：公共 API 只依赖 `ExecutorService`；虚拟线程只是另一种 supplied
-    executor；Java 8 主源码不直接链接 Java 21 API，相关能力只能通过可选扩展注入。
+1. **One-to-one binding**: a `Par` binds exactly one supplied `ExecutorService`; `Par.map` accepts
+   no executor, executor name, or public `ExecutionTarget`. Choosing the executor is the
+   responsibility of constructing the `Par`, not of an individual batch.
+2. **Separate the three responsibilities**: string names appear only at the application assembly
+   boundary; resource identity is the object reference of the supplied executor
+   (`ExecutorIdentity`, reference equality), with `identityHashCode` used only for diagnostics; a
+   Par label is only for human-readable output and is not guaranteed unique.
+3. **Register at build time, immutable afterwards**: names must be non-empty and unique, duplicates
+   fail at build; after build, no `Par` can be added, removed, or replaced; a `Par` does not belong
+   to two `GlobalPar`s. The optional static global entry point can be installed exactly once;
+   reading it before installation fails explicitly; reset/replace is not supported.
+4. **No service-locator degradation**: `GlobalPar` appears only at the composition root; business
+   components are injected with `Par` and never look up global objects by string at call time.
+5. **Supplied vs submission executor separation**: the framework may create a listening adapter to
+   obtain `ListenableFuture`, but everything beyond the actual submission — resource identity,
+   `ThreadPoolExecutor` checks, queue inspection, risk derivation, logging — is based on the
+   supplied executor; the adapter is never a resource node. The framework does not reflectively
+   unwrap opaque third-party decorators; capabilities it cannot probe take conservative values.
+6. **Borrowed ownership**: whoever creates an `ExecutorService` shuts it down; neither `Par`,
+   `GlobalPar`, nor adapters may close it implicitly, and `GlobalPar.close()` closes only resources
+   the framework itself created.
+7. **Per-call state stays out of long-lived objects**: a `Par` holds no batch list, deadline, or
+   token; batch state is releasable once the batch ends.
+8. **Cross-resource observation belongs to the runtime**: task graphs and deadlock detection
+   spanning multiple `Par`s are held uniformly by `GlobalPar`, not decided by a single `Par` or a
+   single call; graph nodes compare by executor identity, so two `Par`s bound to the same bounded
+   pool are recognized as the same node (a self-loop) rather than misjudged as two pools by name.
+   Observations of two independent `GlobalPar`s are not merged automatically.
+9. **Nested calls**: use the `Par` explicitly referenced in code; do not auto-inherit the parent
+   `Par`; cancellation propagates down along the explicit parent token and does not break across
+   thread pools; a child batch does not implicitly cancel the parent batch; a child deadline is no
+   later than the parent deadline.
+10. **`TaskType` does not route**: `TaskType` is an optional diagnostic declaration that does not
+    affect queueing, rejection, or any execution behavior, and does not implicitly select a `Par`
+    ([ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)). When dynamic routing is truly needed,
+    design an explicit application-layer resolver.
+11. **Java 8 and Java 21**: the public API depends only on `ExecutorService`; virtual threads are
+    just another supplied executor; the Java 8 main sources do not link Java 21 APIs directly, and
+    such capabilities can only be injected through optional extensions.
 
-原决定另列两项明确不做（原文未给理由）：不默认使用 `ForkJoinPool.commonPool()`；不根据父任务
-上下文自动选择另一个 `Par`。
+The original decision also listed two explicit non-goals (the original text gave no reasons): not
+defaulting to `ForkJoinPool.commonPool()`; not automatically selecting another `Par` from the
+parent task's context.
 
 ## Alternatives Considered
 
-- **每次 `map` 传入 executor 或 executor name。** 拒绝：资源选择和业务调用耦合，重复选择资源，
-  也无法保证 identity、策略和生命周期的一致性。
-- **`ParConfig` 字符串注册表。** 拒绝：配置与资源混在一起，名字身兼查找键、身份与标签，类型
-  安全弱。
-- **公共 `ExecutionTarget`。** 拒绝：与 `Par` 和包内 binding 职责重叠，多一个公开概念却不多一种
-  能力。
-- **全局可变注册表。** 拒绝：表面调用最方便，但隔离、类型安全和生命周期都最弱；危险的不是
-  「全局」，而是「全局 + 可变 + 业务调用期字符串查找」。
-- **保留旧配置对象作为兼容层并让新模型并存。** 拒绝：两套默认值、listener 和上下文来源会重新
-  产生漂移。
-- **以 executor 名称作为任务图节点。** 拒绝：不同批次的同名任务会错误合并并制造假 cycle。
-- **按 `TaskType` 自动选池（`BLOCKING -> httpPar`）。** 拒绝：数据库和 HTTP 都是阻塞型，却需要不同的
-  隔离池；执行资源由 `Par` 表达，任务行为由选项表达。
-- **反射解包第三方 decorator 以合并身份。** 拒绝：没有通用、可靠的底层资源协议；希望共享身份
-  的应用应复用同一个 supplied executor 对象或同一个 `Par`。
+- **Passing an executor or executor name into every `map`.** Rejected: couples resource selection
+  to business calls, repeats resource selection, and cannot guarantee consistent identity, policy,
+  and lifecycle.
+- **A `ParConfig` string registry.** Rejected: mixes configuration with resources; the name serves
+  as lookup key, identity, and label at once; weak type safety.
+- **A public `ExecutionTarget`.** Rejected: overlaps the responsibilities of `Par` and the
+  package-internal binding; adds a public concept without adding a capability.
+- **A global mutable registry.** Rejected: the most convenient to call on the surface, but the
+  weakest in isolation, type safety, and lifecycle; the danger is not "global" but "global +
+  mutable + string lookup at business call time".
+- **Keeping the old configuration objects as a compatibility layer alongside the new model.**
+  Rejected: two sets of defaults, listeners, and context sources would re-introduce drift.
+- **Using executor names as task-graph nodes.** Rejected: same-named tasks from different batches
+  would merge incorrectly and create false cycles.
+- **Auto-selecting a pool by `TaskType` (`BLOCKING -> httpPar`).** Rejected: databases and HTTP are
+  both blocking yet need different isolation pools; execution resources are expressed by `Par`,
+  task behavior by options.
+- **Reflectively unwrapping third-party decorators to merge identities.** Rejected: there is no
+  general, reliable protocol for the underlying resource; applications that want shared identity
+  should reuse the same supplied executor object or the same `Par`.
 
 ## Consequences
 
-业务调用更简单，批次取消/deadline 和跨 executor 观测有单一事实来源；拓扑变更必须重新构建
-`GlobalPar`，旧 API 用户需要一次 breaking migration。borrowed supplied executor 仍由创建者
-负责关闭，框架只关闭自身 timer、purger 和提交器资源。
+Business calls get simpler, and batch cancellation/deadline plus cross-executor observation gain a
+single source of truth; topology changes require rebuilding `GlobalPar`, and users of the old API
+need one breaking migration. A borrowed supplied executor is still shut down by its creator; the
+framework closes only its own timer, purger, and submitter resources.
 
-传入不透明包装器会降低能力探测精度；需要完整诊断时，应传入原始 `ExecutorService`，由框架创建
-listening adapter。同一个池被两个独立 `GlobalPar` 使用时，两个组装作用域各自观测，不合并。
+Passing in an opaque wrapper degrades capability probing; when full diagnostics are needed, pass
+the raw `ExecutorService` and let the framework create the listening adapter. When the same pool is
+used by two independent `GlobalPar`s, each assembly scope observes on its own, without merging.
 
 ## Reconsider When
 
-下列任一事实改变时，必须写后继 ADR 并说明被替代的规则：
+A successor ADR must be written, naming the superseded rules, when any of these facts changes:
 
-- `Par` 不再一对一绑定 supplied executor；
-- 运行时不再是跨资源观测的唯一 owner；
-- 取消不再沿显式 parent 向下传播；
-- borrowed executor 的 shutdown owner 不再是创建者；
-- Java 8 核心不再与 Java 21 能力解耦。
+- a `Par` no longer binds one supplied executor one-to-one;
+- the runtime is no longer the sole owner of cross-resource observation;
+- cancellation no longer propagates down along the explicit parent;
+- the shutdown owner of a borrowed executor is no longer its creator;
+- the Java 8 core is no longer decoupled from Java 21 capabilities.
 
 ## History
 
-2026-10-27 蒸馏。删除：
+Distilled 2026-10-27. Removed: field and API sketches of
 `GlobalExecutionPolicy`/`BatchExecutionOptions`/`BatchExecutionContext`/`TaskExecutionContext`/
-`ExecutorRuntime` 的字段与 API 草图、`ThreadRelay` 传播项与 `TaskEdge` 字段、purge registry 与
-purge 策略、错误模型与观测字段清单、典型使用示例、现有概念处理表、W0–W6 实施任务拆解、验收标准、
-最终模型，以及第 18–19 节的变更检查清单（其中仍有效的不变量已并入上面的规则，现行权威在
-`design/` 契约）。
+`ExecutorRuntime`, the `ThreadRelay` propagation items and `TaskEdge` fields, the purge registry and
+purge policy, the error model and observation field inventory, the typical-usage example, the
+existing-concept disposition table, the W0–W6 implementation task breakdown, the acceptance
+criteria, the final model, and the sections 18–19 change checklists (invariants that remain valid
+were merged into the rules above; the current authority is the `design/` contracts).

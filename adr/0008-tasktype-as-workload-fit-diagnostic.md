@@ -1,100 +1,130 @@
-# ADR 0008: `TaskType` 改为任务与线程池的负载匹配诊断声明
+# ADR 0008: `TaskType` as a workload-fit diagnostic declaration between task and pool
 
 - Status: Accepted
 - Date: 2026-10-27
-- Decision scope: `TaskType` 的取值、缺省、声明位置与消费者；它与入队拒绝的关系
+- Decision scope: the values, default, declaration sites, and consumers of `TaskType`; its
+  relationship to enqueue rejection
 - Stability: stable
 - Category: core
-- Supersedes: [decision-log](../design/decision-log.md) 的「`TaskType` semantics (v0.3)」条目
-  （`TaskType.MIXED` 保留、不重开）；[ADR 0005](0005-globalpar-executor-binding.md) 规则 10 中
-  「可影响排队与拒绝策略」；ADR 0006（已退役）规则 2 中 `TaskType` 的
-  排队/拒绝语义
-- Partially superseded by: [ADR 0010](0010-always-on-workload-fit-screening.md)（运行时低 CPU 筛查改为
-  runtime 级常开、按条目判定，不再复用线程池饥饿观测窗口）
+- Supersedes: the "`TaskType` semantics (v0.3)" entry in the [decision-log](../design/decision-log.md)
+  (`TaskType.MIXED` retained, never reopened); "may affect queueing and rejection policy" in
+  [ADR 0005](0005-globalpar-executor-binding.md) rule 10; the `TaskType` queueing/rejection
+  semantics in ADR 0006 (retired) rule 2
+- Partially superseded by: [ADR 0010](0010-always-on-workload-fit-screening.md) (the runtime low-CPU
+  screen became always-on at runtime level and judged per entry, no longer reusing the pool
+  starvation observation window)
 
 ## Context
 
-`TaskType { IO_BOUND, CPU_BOUND, MIXED }` 随 v0.2.0 发布，缺省 `IO_BOUND`。它唯一的行为是：
-`SmartBlockingQueue.offer` 在 `CPU_BOUND || rejectEnqueue` 时拒绝入队；`MIXED` 与 `IO_BOUND`
-行为相同。2026-09 曾拍板把它保留为"意图声明"并不再重开。重新审视时，这个保留站不住：
+`TaskType { IO_BOUND, CPU_BOUND, MIXED }` shipped with v0.2.0, defaulting to `IO_BOUND`. Its only
+behavior: `SmartBlockingQueue.offer` rejects enqueueing when `CPU_BOUND || rejectEnqueue`; `MIXED`
+behaves the same as `IO_BOUND`. In 2026-09 it was decided to keep it as an "intent declaration" and
+never reopen. On re-examination, that retention does not hold up:
 
-- **声明没有消费者。** 除入队拒绝外没有任何代码读它，`MIXED` 连行为都没有；没有消费者的声明
-  无人校验，会随代码漂移，变成"看起来有文档、其实可能是错的"元数据。
-- **诊断标签兼任行为开关。** 用户为了写清楚任务性质而加的 `CPU_BOUND`，在 `SmartBlockingQueue`
-  上会让元素被拒绝入队。标签选错一次，同时错掉文档和执行语义；用户因此不敢随手声明。
-- **缺省是替用户做的断言。** 没写的人也被记成 `IO_BOUND`，任务图报告里打印的类型是假的。
-- **它本该服务的问题无人发现。** 阻塞任务进了计算池（线程数约等于核数）会让同池工作饿死，
-  而 CPU 却是空的；最常见的成因是开发者不知道任务会阻塞（藏着的 JDBC、同步日志、后来加的 RPC）。
-  库对这种误用没有任何信号。
+- **A declaration with no consumer.** No code reads it except for enqueue rejection, and `MIXED`
+  has no behavior at all; a declaration nobody consumes goes unchecked, drifts with the code, and
+  becomes metadata that "looks documented but may actually be wrong".
+- **A diagnostic label doubling as a behavior switch.** A `CPU_BOUND` added to describe a task's
+  nature causes elements to be rejected at `SmartBlockingQueue`. Pick the wrong label once and both
+  the documentation and the execution semantics are wrong; users therefore dare not declare
+  casually.
+- **The default is an assertion made on the user's behalf.** Those who write nothing are recorded
+  as `IO_BOUND`; the types printed in task-graph reports are fabricated.
+- **The problem it should serve goes undetected.** A blocking task entering a compute pool (threads
+  ≈ cores) starves the pool's other work while the CPU sits idle; the most common cause is a
+  developer who does not know the task blocks (hidden JDBC, synchronous logging, an RPC added
+  later). The library had no signal for this misuse.
 
-检测"任务与池不匹配"需要两侧的事实：任务的性质和池的用途。只声明任务时没有可比对的另一侧；
-只靠声明又抓不到"不知道会阻塞"，必须观测实际行为。
+Detecting "task does not match pool" needs facts from both sides: the task's nature and the pool's
+purpose. Declaring only the task leaves nothing to compare against; relying on declarations alone
+cannot catch "didn't know it blocks" — actual behavior must be observed.
 
 ## Decision
 
-`TaskType` 改为任务与线程池两侧共用的**可选诊断声明**，不再影响任何执行行为，一步落地。
+`TaskType` becomes an **optional diagnostic declaration** shared by the task and pool sides,
+affecting no execution behavior, landed in one step.
 
-1. 取值为 `COMPUTE`、`BLOCKING`、`UNKNOWN`；删除 `IO_BOUND`、`CPU_BOUND`、`MIXED`。刻意改名，
-   让依赖旧拒绝行为的代码编译失败，而不是静默改变行为。`BLOCKING` 指任何阶段会阻塞线程
-   （IO、锁、sleep、join、等待其他任务），覆盖原 `MIXED`。
-2. 任务（批次、组成员、combine）与线程池（注册时）两侧都可选，缺省都是 `UNKNOWN`，`UNKNOWN`
-   可显式书写；嵌套单元不继承父单元的类型。
-3. `TaskType` MUST NOT 改变准入、入队、拒绝、取消、deadline、归因或任务 outcome。拒绝入队只由
-   `rejectEnqueue` 表达。
-4. 两个消费者：
-   - **提交时比对**（始终开启）：两侧都声明且不一致时，按 `(Par, 单元名, 方向)` 告警一次；
-     任一侧为 `UNKNOWN` 不告警。
-   - **运行时低 CPU 筛查**：runtime 级常开，测量条目或单元声明为 `COMPUTE` 的库准入任务体，按条目
-     判定，单元只用于归因与漂移（[ADR 0010](0010-always-on-workload-fit-screening.md)）。该比值只是
-     筛查线索，不是阻塞的证明。
-5. 诊断只记录日志或进入报告，MUST NOT 让任务失败。
+1. Values are `COMPUTE`, `BLOCKING`, `UNKNOWN`; `IO_BOUND`, `CPU_BOUND`, and `MIXED` are deleted.
+   The rename is deliberate, so code relying on the old rejection behavior fails to compile instead
+   of silently changing behavior. `BLOCKING` means blocking the thread at any stage (IO, locks,
+   sleep, join, waiting on other tasks) and covers the old `MIXED`.
+2. Both sides are optional — tasks (batch, group member, combine) and pools (at registration) —
+   both default to `UNKNOWN`, and `UNKNOWN` may be written explicitly; nested units do not inherit
+   the parent unit's type.
+3. `TaskType` MUST NOT change admission, queueing, rejection, cancellation, deadline, attribution,
+   or task outcome. Enqueue rejection is expressed only by `rejectEnqueue`.
+4. Two consumers:
+   - **Submission-time comparison** (always on): when both sides declare and disagree, warn once
+     per `(Par, unit name, direction)`; no warning when either side is `UNKNOWN`.
+   - **Runtime low-CPU screen**: always on at runtime level; times the library-admitted executions
+     whose entry or unit declares `COMPUTE`, judged per entry, with the unit used only for
+     attribution and drift ([ADR 0010](0010-always-on-workload-fit-screening.md)). The ratio is
+     only a screening clue, not proof of blocking.
+5. Diagnostics are only logged or reported and MUST NOT fail tasks.
 
-机制细节、阈值、告警文案与契约条目已于 2026-10-30 落地到活契约：
-[API 与选项 §3.2.1](../design/task-group-api-and-options.md) 与
-[负载匹配筛查契约](../design/workload-fit-screening.md)，以活契约为准（`proposal:P0025`）。
+Mechanism details, thresholds, warning wording, and contract clauses landed in the live contracts
+on 2026-10-30: [API and options §3.2.1](../design/task-group-api-and-options.md) and the
+[workload-fit screening contract](../design/workload-fit-screening.md); the live contracts are
+authoritative (`proposal:P0025`).
 
 ## Alternatives Considered
 
-- **维持现状（保留三值与入队拒绝）。** 拒绝：上面四个问题都不解决，`MIXED` 继续是没有行为
-  也没有诊断的取值。
-- **整体删除 `TaskType`，只保留 `rejectEnqueue`。** 这是重新审视时的第一结论，两位独立分析者
-  （Kiro、Kimi）都得出过。拒绝：它让"阻塞任务进计算池"彻底没有声明可依，而池侧的用途声明与
-  任务侧声明共用一个枚举时，概念成本最低。
-- **只在线程池上声明，不在任务上声明。** 拒绝：抓不到"依赖注入接错池"这类两侧都清楚、只是接错的
-  错误；任务侧声明是可选的，不用的人没有成本。
-- **两侧声明做成必填。** 拒绝：缺省不危险，只是少一项诊断；项目只在缺省会导致危险时强制显式
-  选择（如 timeout）。必填只换来随手乱填，比不填更糟。
-- **沿用 `CPU_BOUND`/`IO_BOUND` 名称，只改语义。** 拒绝：依赖旧拒绝行为的代码会静默改变行为。
-- **按池的结构（线程数约等于核数、`ForkJoinPool`）推断用途后告警。** 拒绝：核数大小的池用于限制
-  下游并发是合理用法，推断出的告警会很吵。
-- **以线程状态采样为运行时主信号。** 拒绝：阻塞式 socket 读在 JVM 中显示为 `RUNNABLE`，恰好漏掉
-  最常见的 IO 阻塞。
-- **以 CPU 饱和判定计算任务过订阅阻塞池。** 拒绝：CPU 饱和不等于可运行线程过多，Java 8 上
-  `availableProcessors` 也不能可靠反映容器配额。这一方向只由提交时比对覆盖。
-- **分两步落地（先池侧与观测，再任务侧）。** 拒绝：维护者要求一步落地；两侧共用同一枚举，
-  分步只多一次迁移。
+- **Keep the status quo (three values plus enqueue rejection).** Rejected: none of the four
+  problems above is solved, and `MIXED` remains a value with neither behavior nor diagnostics.
+- **Delete `TaskType` entirely, keeping only `rejectEnqueue`.** This was the first conclusion at
+  re-examination; both independent analysts (Kiro, Kimi) reached it. Rejected: it leaves "blocking
+  task in a compute pool" with no declaration to rely on, and the concept cost is lowest when the
+  pool-side purpose declaration and the task-side declaration share one enum.
+- **Declare on pools only, not on tasks.** Rejected: misses "dependency injection wired to the
+  wrong pool" mistakes where both sides are clear and only the wiring is wrong; the task-side
+  declaration is optional, so non-users pay nothing.
+- **Make both declarations mandatory.** Rejected: the default is not dangerous, it only loses one
+  diagnostic; the project mandates explicit choice only when a default is dangerous (as with
+  timeout). Mandatory fields only invite careless answers, which are worse than none.
+- **Keep the `CPU_BOUND`/`IO_BOUND` names and change only the semantics.** Rejected: code relying
+  on the old rejection behavior would silently change behavior.
+- **Infer pool purpose from pool structure (threads ≈ cores, `ForkJoinPool`) and warn.** Rejected:
+  a core-sized pool is a legitimate way to bound downstream concurrency, and inferred warnings
+  would be noisy.
+- **Use thread-state sampling as the primary runtime signal.** Rejected: a blocking socket read
+  shows as `RUNNABLE` in the JVM, which misses exactly the most common IO blocking.
+- **Use CPU saturation to detect compute tasks oversubscribing a blocking pool.** Rejected: CPU
+  saturation does not imply too many runnable threads, and on Java 8 `availableProcessors` does not
+  reliably reflect container quotas. This direction is covered only by submission-time comparison.
+- **Land in two steps (pool side and observation first, task side later).** Rejected: the
+  maintainer required one landing; both sides share the same enum, so splitting only adds one more
+  migration.
 
 ## Consequences
 
-正面：
+Positive:
 
-- 阻塞任务进计算池第一次有了库内信号，且覆盖"不知道会阻塞"的情况。
-- 声明有了真实消费者；声明与实测不符时以疑似漂移报出，标签不再无人校验。
-- 声明与执行语义解耦，用户可以放心标注；缺省 `UNKNOWN` 不再替用户编造事实。
+- A blocking task entering a compute pool gets a library-internal signal for the first time,
+  covering even the "didn't know it blocks" case.
+- Declarations gain real consumers; when a declaration disagrees with measurement it is reported as
+  suspected drift, so labels no longer go unchecked.
+- Declarations decouple from execution semantics, so users can annotate freely; the `UNKNOWN`
+  default no longer fabricates facts on the user's behalf.
 
-代价与风险：
+Costs and risks:
 
-- 破坏性变更：三个常量删除，`CPU_BOUND` 的拒绝入队语义需要改写为 `rejectEnqueue(true)`，
-  迁移条目进 v0.4 迁移指南。
-- 运行时筛查是启发式的：GC、safepoint、CPU 配额限流会压低比值，自旋会抬高比值；阈值需实测校准，
-  不承诺跨环境稳定。
-- 计算任务进阻塞池只在两侧都声明时被发现。
-- 条目或单元声明为 `COMPUTE` 的任务体多两次线程 CPU 计时读取（[ADR 0010](0010-always-on-workload-fit-screening.md)）；
-  JVM 不支持或未开启线程 CPU 计时时，筛查不可用。
-- 动态拼接的单元名会让提交时告警按名字分别记录，直到去重上限；单元名应使用固定业务名。
+- Breaking change: three constants are deleted, and the `CPU_BOUND` enqueue-rejection semantics
+  must be rewritten as `rejectEnqueue(true)`; a migration entry goes into the v0.4 migration guide.
+- The runtime screen is heuristic: GC, safepoints, and CPU-quota throttling depress the ratio,
+  while spinning inflates it; thresholds need empirical calibration and are not promised stable
+  across environments.
+- A compute task entering a blocking pool is detected only when both sides declare.
+- Executions whose entry or unit declares `COMPUTE` pay two extra thread-CPU-time reads
+  ([ADR 0010](0010-always-on-workload-fit-screening.md)); when the JVM does not support or enable
+  thread CPU timing, the screen is unavailable.
+- Dynamically concatenated unit names make submission-time warnings recorded per name until the
+  dedup cap; unit names should be fixed business names.
 
 ## Reconsider When
 
-- 实测表明低 CPU 筛查在常见部署中误报率过高，无法用固定阈值校准；
-- 出现可在 Java 8 上可靠获取的可运行并发度或上下文切换信号，使反向误用可被运行时判定；
-- 线程 CPU 计时在主流目标 JVM 上普遍不可用或开销不可接受。
+- measurements show the low-CPU screen's false-positive rate in common deployments is too high to
+  calibrate with fixed thresholds;
+- a runnable-concurrency or context-switch signal reliably available on Java 8 appears, making
+  reverse misuse decidable at runtime;
+- thread CPU timing becomes generally unavailable or unacceptably expensive on mainstream target
+  JVMs.

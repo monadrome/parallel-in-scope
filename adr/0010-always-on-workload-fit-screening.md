@@ -1,78 +1,107 @@
-# ADR 0010: 负载匹配筛查改为 runtime 级常开、按条目判定
+# ADR 0010: Workload-fit screening becomes always-on at runtime level, judged per entry
 
 - Status: Accepted
 - Date: 2026-10-30
-- Decision scope: `TaskType` 运行时消费者的生命周期、判定粒度与报告形状；提交时比对去重表的可观测面
+- Decision scope: the lifecycle, judgment granularity, and report shape of the `TaskType` runtime
+  consumer; the observable surface of the submission-time comparison dedup table
 - Stability: stable
 - Category: core
-- Supersedes: [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) 决定 4 中「运行时低 CPU 筛查
-  复用线程池饥饿观测窗口」，及其后果中「观测窗口内每个任务体多两次线程 CPU 计时读取」
+- Supersedes: "the runtime low-CPU screen reuses the pool starvation observation window" in
+  [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) decision 4, and "two extra thread CPU
+  time reads per execution within the observation window" in its consequences
 
 ## Context
 
-ADR 0008 让运行时低 CPU 筛查复用线程池饥饿观测窗口。按 `design/first-principles.md` 复核，这个形状
-有五个问题：
+ADR 0008 made the runtime low-CPU screen reuse the pool starvation observation window. Reviewed
+against `design/first-principles.md`, that shape has five problems:
 
-- **要靠记得打开窗口。** 公理 2 说用户出错的方式是"忘记"。筛查要抓的恰恰是没人怀疑会阻塞的代码，
-  这种代码最不会有人专门开窗口去查。同一条 0.4 开发线上，executor wait graph 刚因同样的理由从请求级
-  scope 改成 runtime 级常开。
-- **判定落在单元上。** 样本门槛和判定都按"条目 + 单元名 + 单元类型"分别计算，受害的却是池。阻塞
-  分散在许多小单元时，每个单元都不够样本：探针在一个 `COMPUTE` 条目上跑 30 个单元、每个 10 个任务体，
-  池整体 CPU/执行时间比 0.1，报告仍是 `NO_ISSUE`。
-- **两个正交信号共用一个状态。** 饥饿和负载匹配合进一个 `Status` 后必须人为排优先级；从未声明
-  `TaskType`、只关心饥饿的 runtime，在 CPU 计时不可读时从 `NO_ISSUE` 变成了 `INSUFFICIENT_VISIBILITY`
-  （探针复现）。评审里的一条措辞矛盾也出在这条优先级上。
-- **窗口边界带来一整套机制。** seal、跨窗口排除、多窗口重叠都只为窗口存在；窗口内按单元名累计又没有
-  上限（BACKLOG O-17）。
-- **诊断的诊断。** `ParRuntimeSnapshot.suppressedTaskTypeMismatches()` 只在单元名按调用拼接、去重表
-  记满时增长，记满那一刻已有一条汇总告警；为了它，snapshot 从排空状态扩成了"排空状态加诊断计数"。
+- **It depends on remembering to open the window.** Axiom 2 says the way users err is
+  "forgetting". The code the screen exists to catch is exactly the code nobody suspects of
+  blocking, and that is the code nobody will open a window to inspect. On the same 0.4 development
+  line, the executor wait graph had just changed from a request-scoped scope to always-on at
+  runtime level for the same reason.
+- **Judgment lands on the unit.** Sample thresholds and judgment were computed per "entry + unit
+  name + unit type", yet the victim is the pool. When blocking is spread over many small units, no
+  unit reaches the sample threshold: a probe ran 30 units of 10 executions each on one `COMPUTE`
+  entry, the pool-wide CPU/execution-time ratio was 0.1, and the report still said `NO_ISSUE`.
+- **Two orthogonal signals share one state.** With starvation and workload fit merged into one
+  `Status`, a priority had to be invented; a runtime that never declared `TaskType` and cares only
+  about starvation went from `NO_ISSUE` to `INSUFFICIENT_VISIBILITY` when CPU time was unreadable
+  (reproduced by the probe). A wording contradiction in review also came from this priority.
+- **Window boundaries bring a whole mechanism.** Sealing, cross-window exclusion, and multi-window
+  overlap exist only for the window; per-unit-name accumulation within a window had no cap
+  (BACKLOG O-17).
+- **Diagnostics of the diagnostics.** `ParRuntimeSnapshot.suppressedTaskTypeMismatches()` only
+  grows when unit names are concatenated per call and the dedup table fills up, and by the time it
+  fills a summary warning has already been logged; for it, the snapshot grew from "drain state" to
+  "drain state plus diagnostic counters".
 
 ## Decision
 
-运行时低 CPU 筛查与线程池饥饿观测分开，改为 runtime 级常开，按条目判定。
+The runtime low-CPU screen separates from pool starvation observation and becomes always-on at
+runtime level, judged per entry.
 
-1. 只给条目或单元声明为 `COMPUTE` 的库准入任务体计时；其他任务体不读任何时钟。
-2. 按条目汇总，每 10 秒执行时间为一个周期：CPU 时间低于执行时间一半的周期使该条目的 issue 在
-   runtime 生命周期内为真，并在 runtime 自有线程上记一次 `WARNING`。按周期判定，长时间健康之后的退化
-   不会被历史稀释。
-3. 单元只用于归因与漂移：每个条目至多归因 256 个"单元名 + 单元类型"，其余任务体只计入条目的未归因数。
-   声明为 `COMPUTE` 的单元按同样的周期判定漂移，记一次 `INFO`；漂移从不设置条目的 issue。
-4. 报告经 `ParRuntime.workloadFitReport()` 读取，计数只增不减；两次读数相减即一段时间的测量值。
-5. 线程池饥饿观测及其报告回到 `TaskType` 之前的形状，不再携带负载匹配测量或状态。
-6. 提交时比对保留按 `(Par, 单元名)` 去重、1024 对上限与一次汇总告警，删除被压下告警的计数及其
-   snapshot 访问器。
+1. Only library-admitted executions whose entry or unit declares `COMPUTE` are timed; other
+   executions read no clock.
+2. Aggregate per entry, with every 10 seconds of execution time as one epoch: an epoch whose CPU
+   time is below half of its execution time makes that entry's issue true for the runtime's
+   lifetime, and logs one `WARNING` on the runtime's own thread. Judging per epoch, a regression
+   after long health is not diluted by history.
+3. Units are used only for attribution and drift: each entry attributes at most 256 "unit name +
+   unit type" pairs; other executions count only toward the entry's unattributed total. Units
+   declared `COMPUTE` are judged for drift over the same epochs, logging one `INFO`; drift never
+   sets an entry's issue.
+4. The report is read via `ParRuntime.workloadFitReport()`; counters only increase; subtracting two
+   readings gives the measurement of an interval.
+5. Pool starvation observation and its report return to their pre-`TaskType` shape, carrying no
+   workload-fit measurement or state.
+6. The submission-time comparison keeps dedup by `(Par, unit name)`, the 1024-pair cap, and one
+   summary warning; the count of suppressed warnings and its snapshot accessor are deleted.
 
-阈值与周期长度是内部校准值，机制与契约条目见
-[负载匹配筛查契约](../design/workload-fit-screening.md)。
+Thresholds and epoch length are internal calibration values; the mechanism and contract clauses
+live in the [workload-fit screening contract](../design/workload-fit-screening.md).
 
 ## Alternatives Considered
 
-- **保留 opt-in 窗口。** 拒绝：上面的"要靠记得"、状态耦合与窗口机制都不解决。
-- **测量所有任务体。** 拒绝：未声明的代码产生不了判定，原始数字无人消费，却让每个任务体都付时钟
-  读取；"声明即开启筛查"把成本限制在有人想要判定的地方。
-- **按比例抽样。** 拒绝：给低流量单元的归因引入随机误差，且只测声明入口已经限制了成本。
-- **按 runtime 生命周期的累计比值判定。** 拒绝：长时间健康会稀释之后的退化。
-- **按时间滚动窗口判定。** 拒绝：需要计时器或衰减状态；按执行时间推进的周期由提交自己推进。
-- **继续按单元判定。** 拒绝：分散在小单元里的阻塞会漏报。
-- **每个 Par 只告警一次不一致。** 拒绝：一个先出现、被容忍的不一致会遮住之后真正接错的单元。
+- **Keep the opt-in window.** Rejected: the "depends on remembering" problem, the state coupling,
+  and the window mechanism above all remain.
+- **Time every execution.** Rejected: undeclared code yields no judgment and the raw numbers have
+  no consumer, yet every execution pays clock reads; "declaring enables screening" confines the
+  cost to where someone wants a judgment.
+- **Sample by ratio.** Rejected: introduces random error into the attribution of low-traffic
+  units, and timing only declared entries already bounds the cost.
+- **Judge by the cumulative ratio over the runtime lifetime.** Rejected: long health dilutes later
+  regression.
+- **Judge by a rolling time window.** Rejected: needs a timer or decay state; epochs advanced by
+  execution time are driven by the submissions themselves.
+- **Keep judging per unit.** Rejected: blocking spread over small units escapes.
+- **Warn only once per Par on mismatch.** Rejected: an early, tolerated mismatch would hide a unit
+  that is genuinely wired wrong later.
 
 ## Consequences
 
-正面：
+Positive:
 
-- 筛查不再依赖任何人记得打开什么；池的饥饿在池这一级判定。
-- 饥饿报告回到单一信号；O-17 随窗口一起消失，内存随注册拓扑乘以 256 的归因上限有界。
-- 条目和单元都未声明 `COMPUTE` 的任务体没有任何筛查开销。
+- Screening no longer depends on anyone remembering to open anything; pool starvation is judged at
+  the pool level.
+- The starvation report returns to a single signal; O-17 disappears with the window, and memory is
+  bounded by the registered topology times the attribution cap of 256.
+- Executions whose entry and unit are both undeclared `COMPUTE` pay no screening cost.
 
-代价与风险：
+Costs and risks:
 
-- 常开的 `WARNING` 在生产环境可能有噪声；周期长度与阈值未经真实负载校准（BACKLOG O-16）。
-- 每个被筛查任务体多两次线程 CPU 读取、两次墙钟读取和两次原子更新。
-- 周期判定最多滞后 10 秒执行时间；issue 是粘滞的，恢复后要比较两次报告的累计值才能看到当前状态。
-- 不再按单元判定：某个单元的轻微阻塞若在条目层面被稀释，不会被判为 issue，只在单元测量值里可见。
+- An always-on `WARNING` may be noisy in production; epoch length and thresholds are not yet
+  calibrated against real load (BACKLOG O-16).
+- Each screened execution pays two extra thread CPU reads, two wall-clock reads, and two atomic
+  updates.
+- Epoch judgment lags by at most 10 seconds of execution time; the issue is sticky, so after
+  recovery the current state is visible only by comparing two report readings.
+- No more per-unit judgment: mild blocking in one unit, if diluted at entry level, is not judged an
+  issue and is visible only in the unit's measurements.
 
 ## Reconsider When
 
-- 常开 `WARNING` 在常见部署中噪声过高，无法用固定周期与阈值校准；
-- 长期运行的进程需要粘滞判定之外的"当前状态"信号；
-- 256 的归因上限在真实拓扑中明显不够。
+- the always-on `WARNING` proves too noisy in common deployments to calibrate with a fixed epoch
+  and threshold;
+- long-running processes need a "current state" signal beyond the sticky judgment;
+- the attribution cap of 256 proves clearly insufficient in real topologies.

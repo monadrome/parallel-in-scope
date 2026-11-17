@@ -1,42 +1,50 @@
-# ADR 0015: blocking-queues 迁出本仓库
+# ADR 0015: blocking-queues moves out of this repository
 
 - Status: Accepted
 - Date: 2026-11-15
-- Decision scope: `io.github.monadrome:blocking-queues` 的源码归属与版本节奏
+- Decision scope: the source ownership and version cadence of `io.github.monadrome:blocking-queues`
 - Stability: beta
 - Category: non-core
-- Supersedes: [ADR 0013](0013-standalone-blocking-queues-artifact.md) 的同仓库 reactor 与版本同步部分
+- Supersedes: the same-repository reactor and version-synchronization parts of
+  [ADR 0013](0013-standalone-blocking-queues-artifact.md)
 
 ## Context
 
-ADR 0013 把通用阻塞队列拆为独立 artifact，但源码仍留在本仓库的 Maven reactor 中，与 core 共用版本号。
-此后队列已拥有独立仓库 [monadrome/blocking-queues](https://github.com/monadrome/blocking-queues)，
-并从该仓库向 Central 发布了 `0.1.0` 正式版；该发布版的源码与本仓库模块逐字节一致。
-同一套队列源码由两个仓库维护会产生两个真值源：本仓库模块的每次改动都要手工同步到独立仓库，
-且 reactor 的 `0.5.0-SNAPSHOT` 版本线与独立仓库的 `0.1.x` 版本线已经分叉。
+ADR 0013 split the general-purpose blocking queues into a standalone artifact, but their sources
+stayed in this repository's Maven reactor, sharing core's version number. Since then the queues
+gained their own repository, [monadrome/blocking-queues](https://github.com/monadrome/blocking-queues),
+and released a `0.1.0` final version to Central from it; that release's sources are byte-identical
+to this repository's module. Maintaining the same queue sources in two repositories creates two
+sources of truth: every change to this repository's module has to be hand-synced to the standalone
+repository, and the reactor's `0.5.0-SNAPSHOT` version line has already diverged from the
+standalone repository's `0.1.x` line.
 
 ## Decision
 
-- 删除本仓库的 `blocking-queues/` 模块；队列源码、测试、契约
-  （`design/draining-queue-contract.md`）与发布流程唯一归属
-  [monadrome/blocking-queues](https://github.com/monadrome/blocking-queues)。
-- core 以普通外部依赖消费该 artifact：父 POM 的 `blocking-queues.version` 属性固定版本
-  （当前 `0.1.0`）；升级是一次刻意的依赖变更，按依赖审计路线执行。
-- ADR 0013 的 artifact 与包边界决策不变：坐标 `io.github.monadrome:blocking-queues`、
-  包名 `io.github.monadrome.queues`、该 artifact 不得依赖 core、
-  `SubmissionAwareBlockingQueue` 留在 core。
+- Delete this repository's `blocking-queues/` module; the queue sources, tests, contract
+  (`design/draining-queue-contract.md`), and release process belong solely to
+  [monadrome/blocking-queues](https://github.com/monadrome/blocking-queues).
+- Core consumes the artifact as an ordinary external dependency: the parent POM's
+  `blocking-queues.version` property pins the version (currently `0.1.0`); an upgrade is a
+  deliberate dependency change following the dependency-audit route.
+- ADR 0013's artifact and package boundary decisions are unchanged: the coordinates
+  `io.github.monadrome:blocking-queues`, the package `io.github.monadrome.queues`, the artifact
+  must not depend on core, and `SubmissionAwareBlockingQueue` stays in core.
 
 ## Alternatives Considered
 
-- 保留 reactor 模块直到 0.5.0 发布：两个真值源继续并存，模块改动仍需双向同步。
-- core 依赖 `0.5.0-SNAPSHOT` snapshot：把 core 的构建耦合到 snapshot 仓库；`0.1.0` 正式版源码
-  与模块完全一致，没有理由引入 snapshot 依赖。
+- Keeping the reactor module until the 0.5.0 release: two sources of truth keep coexisting, and
+  module changes still need two-way synchronization.
+- Core depending on the `0.5.0-SNAPSHOT` snapshot: couples core's build to the snapshot
+  repository; the `0.1.0` final release's sources are identical to the module, so there is no
+  reason to introduce a snapshot dependency.
 
 ## Consequences
 
-正面：队列回到单一真值源；本仓库的构建、CI 与评审范围不再携带队列代码；两个 artifact
-各自按自己的节奏发布。
+Positive: the queues return to a single source of truth; this repository's build, CI, and review
+scope no longer carry queue code; each artifact releases at its own cadence.
 
-代价：`mvn test` 不再运行队列测试（它们在独立仓库运行）；core 消费队列修复需要等待独立仓库
-发布，然后做一次 `blocking-queues.version` 升级；本仓库文档指向队列契约的链接改为跨仓库
-绝对链接。
+Costs: `mvn test` no longer runs the queue tests (they run in the standalone repository); core
+consuming a queue fix waits for a standalone-repository release followed by a
+`blocking-queues.version` upgrade; this repository's documentation links to the queue contract
+become cross-repository absolute links.

@@ -1,69 +1,84 @@
-# ADR 0013: 通用阻塞队列独立发布
+# ADR 0013: Standalone publication of the general-purpose blocking queues
 
 - Status: Accepted
 - Date: 2026-11-07
-- Decision scope: `DrainingBlockingQueue` 与 `ResizableBlockingQueue` 的产物和包边界
+- Decision scope: the artifact and package boundary of `DrainingBlockingQueue` and
+  `ResizableBlockingQueue`
 - Stability: beta
 - Category: non-core
-- Supersedes: ADR 0006（queue 与 core 同产物发布，已退役；其结论与否决理由见
-  [decision-log](../design/decision-log.md)）
-- Partially superseded by: [ADR 0015](0015-blocking-queues-standalone-repository.md)（源码归属与版本节奏；artifact 与包边界、`SubmissionAwareBlockingQueue` 归属不变）
+- Supersedes: ADR 0006 (queues published in the same artifact as core, retired; its conclusions and
+  rejection reasons are in the [decision-log](../design/decision-log.md))
+- Partially superseded by: [ADR 0015](0015-blocking-queues-standalone-repository.md) (source
+  ownership and version cadence; the artifact and package boundary and the
+  `SubmissionAwareBlockingQueue` ownership are unchanged)
 
 ## Context
 
-`DrainingBlockingQueue` 与 `ResizableBlockingQueue` 不依赖结构化并发内核、取消、任务上下文或执行器所有权。
-它们实现的是可安装到任意 `BlockingQueue` 消费者上的通用队列能力，尤其是动态容量调整和排干式关闭。
-把它们绑定在 `parallel-in-scope` artifact 中，会让只需要队列的应用引入无关的 core 入口和依赖。
+`DrainingBlockingQueue` and `ResizableBlockingQueue` do not depend on the structured-concurrency
+kernel, cancellation, task context, or executor ownership. They implement general-purpose queue
+capabilities installable onto any `BlockingQueue` consumer, notably dynamic capacity adjustment and
+draining shutdown. Binding them inside the `parallel-in-scope` artifact forces applications that
+only need the queues to pull in unrelated core entry points and dependencies.
 
-`SubmissionAwareBlockingQueue` 不属于本次拆分：它读取 `SubmissionScope` 和 `MultiTaskContext`，其入队拒绝语义是 core 提交协议的一部分。
+`SubmissionAwareBlockingQueue` is not part of this split: it reads `SubmissionScope` and
+`MultiTaskContext`, and its enqueue-rejection semantics are part of core's submission protocol.
 
 ## Decision
 
-发布独立 artifact：
+Publish a standalone artifact:
 
 ```text
 io.github.monadrome:blocking-queues
 ```
 
-公开 Java 包迁移为：
+The public Java package becomes:
 
 ```text
 io.github.monadrome.queues
 ```
 
-该 artifact 包含：
+The artifact contains:
 
-- `DrainingBlockingQueue`；
-- `ResizableBlockingQueue`。
+- `DrainingBlockingQueue`;
+- `ResizableBlockingQueue`.
 
-`parallel-in-scope` 以 compile 依赖使用 `blocking-queues`，并继续在根包提供 `SubmissionAwareBlockingQueue`。
-独立队列 artifact 不得依赖 `parallel-in-scope`。
+`parallel-in-scope` consumes `blocking-queues` as a compile dependency and continues to provide
+`SubmissionAwareBlockingQueue` in the root package. The standalone queue artifact must not depend
+on `parallel-in-scope`.
 
-队列版本节奏已独立：`blocking-queues` 由独立仓库发布并走自己的版本线，core 通过父 POM 的
-`blocking-queues.version` 属性固定所依赖的版本（ADR 0015）。
+Queue versioning is now independent: `blocking-queues` is released from its own repository on its
+own version line, and core pins the consumed version through the parent POM's
+`blocking-queues.version` property (ADR 0015).
 
 ## Consequences
 
-正面：只需要通用队列的用户可以依赖更小、更明确的 artifact；队列可以独立维护契约、测试和文档；
-`ResizableBlockingQueue` 不再被当前项目名称限制。
+Positive: users who only need the general-purpose queues can depend on a smaller, clearer artifact;
+the queues can maintain their contract, tests, and documentation independently;
+`ResizableBlockingQueue` is no longer constrained by the current project name.
 
-代价：仓库改为 Maven reactor；需要维护两个构件的 source、Javadoc、签名和发布元数据；
-core 与 queue 的版本在初期仍保持同步。
+Costs: the repository becomes a Maven reactor; source, Javadoc, signing, and release metadata must
+be maintained for two artifacts; core and queue versions stay in sync initially.
 
-（2026-11-15 注：模块已随 ADR 0015 迁出本仓库，reactor 恢复单模块，上述 reactor
-与同步成本随之消失。）
+(Note 2026-11-15: the module moved out of this repository with ADR 0015, the reactor returned to a
+single module, and the reactor and synchronization costs above disappeared with them.)
 
-`SubmissionAwareBlockingQueue` 仍然依赖 `ResizableBlockingQueue`，因此 core 仍会传递依赖 `blocking-queues`。
-本次拆分解决的是独立使用入口和产品定位，不承诺完全解耦 core 的构建或发布节奏。
+`SubmissionAwareBlockingQueue` still depends on `ResizableBlockingQueue`, so core still depends
+transitively on `blocking-queues`. This split solves the standalone consumption entry point and
+product positioning; it does not promise full decoupling of core's build or release cadence.
 
 ## Alternatives Considered
 
-- 保留 `parallel-in-scope-queues`：它仍把通用队列绑定在结构化并发项目名称下，不符合队列作为独立产品的定位。
-- 只改 artifact 不改 Java 包：会让独立构件继续暴露 `parallelinscope` 命名空间，增加长期品牌和迁移歧义。
-- 把 `SubmissionAwareBlockingQueue` 一并移出：会把 core 的提交上下文协议变成通用队列公共 SPI，扩大 API 和并发语义边界。
+- Keeping `parallel-in-scope-queues`: it still binds the general-purpose queues to the
+  structured-concurrency project name, which does not fit the queues' positioning as a standalone
+  product.
+- Changing the artifact but not the Java package: the standalone artifact would keep exposing the
+  `parallelinscope` namespace, adding long-term brand and migration ambiguity.
+- Moving `SubmissionAwareBlockingQueue` out as well: it would turn core's submission-context
+  protocol into a general queue public SPI, widening the API and concurrency-semantics boundary.
 
 ## History
 
-- 2026-11-15：ADR 0015 部分取代本记录。原决定包含"两个队列与 core 使用同一版本号，直到有
-  证据表明它们需要不同的发布节奏"，以及以本仓库 Maven reactor 承载队列源码的前提；
-  ADR 0015 以独立仓库与独立版本线取代了它们。
+- 2026-11-15: ADR 0015 partially supersedes this record. The original decision included "the two
+  queues use the same version number as core until evidence shows they need a different release
+  cadence" and the premise of hosting the queue sources in this repository's Maven reactor; ADR
+  0015 replaced them with a standalone repository and an independent version line.
