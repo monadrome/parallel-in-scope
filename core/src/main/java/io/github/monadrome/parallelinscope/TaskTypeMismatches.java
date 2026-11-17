@@ -19,11 +19,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * new pairs are silent.
  */
 final class TaskTypeMismatches {
-    /*
-     * An entry has one declared type, so a pair needs no direction in its key. The immutable set is
-     * replaced by CAS: only the admission whose insertion wins reports the pair; a separate
-     * overflow marker similarly assigns one admission the overflow report.
-     */
 
     static final int CAPACITY = 1024;
 

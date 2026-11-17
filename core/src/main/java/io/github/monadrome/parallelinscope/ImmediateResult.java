@@ -235,8 +235,6 @@ public final class ImmediateResult<T> {
             Throwable cause = Verify.verifyNotNull(failure.getCause());
             return fromFailure(task, outcome, cause, disposition);
         } catch (CancellationException failure) {
-            // Guava creates this exception when reading a cancelled future. Freeze it once, with
-            // task identity and attribution, so subsequent reads share a useful stable cause.
             LeanCancellationException cancellation =
                     new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
             cancellation.initCause(failure);

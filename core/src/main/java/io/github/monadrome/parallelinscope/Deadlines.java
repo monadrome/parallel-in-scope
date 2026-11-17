@@ -10,11 +10,6 @@ import java.time.Duration;
  * resolve to finite deadlines through {@link MultiTaskContext#resolveDeadlineNanos}.
  */
 final class Deadlines {
-    /*
-     * System.nanoTime may be negative. A far-future deadline minus a far-past clock reading can
-     * wrap negative and look expired; remaining() saturates that difference. Explicit execution
-     * deadline resolution reserves the no-deadline sentinel after saturating the sum.
-     */
 
     /**
      * The latest finite deadline, one below the {@link Long#MAX_VALUE} no-deadline sentinel. An
@@ -34,15 +29,6 @@ final class Deadlines {
      *     Long#MAX_VALUE} when it does not fit
      */
     static long saturatedNanos(Duration duration) {
-        /*
-         * Duration.toNanos() throws ArithmeticException past about 292 years in either direction.
-         * Positive overflow produces a saturated duration, not a declaration that an execution has
-         * no deadline; deadline resolution preserves that distinction. A negative budget means
-         * "already elapsed" to every caller: each blocking primitive reads a non-positive nanos
-         * timeout as elapsed, so the negative end saturation keeps that meaning instead of turning
-         * it into a ~292-year wait.
-         */
-
         try {
             return duration.toNanos();
         } catch (ArithmeticException overflow) {
@@ -68,8 +54,6 @@ final class Deadlines {
             return 0L;
         }
         long remaining = deadlineNanos - nowNanos;
-        // The deadline is in the future and yet the difference is negative: the subtraction
-        // wrapped, so the two readings are further apart than a long can express.
         return remaining < 0 ? Long.MAX_VALUE : remaining;
     }
 

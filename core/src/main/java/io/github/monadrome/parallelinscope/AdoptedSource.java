@@ -114,7 +114,6 @@ final class AdoptedSource {
         try {
             verifyNotNull(prepared.executionState()).exited();
         } finally {
-            /* After the end time: a convergence this settle triggers snapshots the final end time. */
             mirror.settleFrom(source);
         }
     }
@@ -135,7 +134,6 @@ final class AdoptedSource {
                         "a listener of adopted member '" + name + "' failed while the group cancelled it",
                         listenerFailure);
             } catch (Throwable ignored) {
-                // A user-installed log handler must not stop the group's cancellation cascade.
             }
         }
         if (connected && source.isDone()) {

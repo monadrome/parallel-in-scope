@@ -480,16 +480,6 @@ public final class Checkpoints {
         checkCancellationToken();
     }
 
-    /*
-     * Acknowledgement policy. Every checkpoint and every interrupt translation in this class goes
-     * through cancellation(token, message, cause), the single marking point: it constructs the
-     * library-marked CheckpointCancellation only after reading the token as committed, and an
-     * ordinary LeanCancellationException otherwise. The shared future kernel lowers the late-failure
-     * log level for the mark alone (design/synchronous-scope-exit.md section 4), so marking an
-     * uncommitted token would silence a failure the kernel must report. Attribution never reads the
-     * mark: it reads the token (TokenOutcomes).
-     */
-
     private static void checkCancellationToken() {
         CancellationToken token = currentToken();
         if (token == null) {
@@ -554,10 +544,6 @@ public final class Checkpoints {
      */
     private static LeanCancellationException cancellation(
             @Nullable CancellationToken token, String message, @Nullable Throwable cause) {
-        /*
-         * Re-read after the backstop: timeoutCancel() can lose to a terminal state that is not a
-         * cancellation, and the mark requires a committed cancellation, not an expired clock.
-         */
         if (token != null && token.state().shouldInterruptCurrentThread()) {
             return CheckpointCancellation.acknowledge(message, cause);
         }

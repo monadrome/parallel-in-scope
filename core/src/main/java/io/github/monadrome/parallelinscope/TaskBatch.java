@@ -91,12 +91,6 @@ final class TaskBatch<T> implements AutoCloseable {
      */
     private static <T> ListenableFuture<List<TaskExitObservation<T>>> aggregateObservations(
             List<ListenableFuture<TaskExitObservation<T>>> observations) {
-        /*
-         * Each element observation waits for both future settlement and execution exit. The aggregate
-         * therefore needs no additional execution-exit check. The element observation futures only fail
-         * on a publication defect; ordinary task failure is carried as observation data.
-         */
-
         SettableFuture<List<TaskExitObservation<T>>> sink = SettableFuture.create();
         Futures.addCallback(
                 Futures.allAsList(observations),
@@ -184,7 +178,6 @@ final class TaskBatch<T> implements AutoCloseable {
         try {
             Uninterruptibles.getUninterruptibly(submitCanceller);
         } catch (ExecutionException | CancellationException settled) {
-            // A cancelled submission loop is already stopped; prepared tasks cannot start late.
         }
     }
 
@@ -456,10 +449,6 @@ final class TaskBatch<T> implements AutoCloseable {
                 return false;
             }
         }
-        // Executions exited and futures settled, so every element observation is published or about to
-        // be: the publication barrier fires on the same signals this method just waited out, but a
-        // future's get() waiters can wake before its listeners run. Wait out that window too, so a
-        // true result guarantees observationsFuture() already carries the final snapshots.
         return ExecutionExitTracker.awaitSettled(
                 observationsFuture(), budgetNanos, startNanos, "batch observation signal");
     }
