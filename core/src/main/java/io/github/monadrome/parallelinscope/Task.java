@@ -96,26 +96,6 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
      * caller-visible handle from creation on; the pin only adds read-only information.
      */
     static <T> Task<T> attributedOnSettle(String taskName, CancellationToken token, ListenableFuture<T> delegate) {
-        /*
-         * A batch shares one token across its elements, and an element's own failure commits that
-         * token's FAIL_FAST through the bind's aggregate listener on the same delegate. Reading the
-         * token later — when the batch freezes — would let that commit reattribute the element that
-         * caused it: an execution that raised its own java.util.concurrent.CancellationException or
-         * InterruptedException reads TaskClassification.USER_FAILURE while the token is still running and
-         * TaskClassification.FAIL_FAST once its own failure committed the cascade. The pin fixes the read
-         * to completion time, the moment a group member is classified in TaskGroup.memberCompleted.
-         *
-         * Classification of a settled delegate reads only immutable future state and the token's
-         * atomic state, so it does not throw; should it ever fail, the pin carries that failure
-         * instead of staying pending, and the freeze surfaces it as a broken invariant rather than
-         * hanging.
-         */
-
-        /*
-         * Guava AbstractFuture runs listeners in registration order. Registering the pin before
-         * bind's listeners lets it read the token before this element's failure commits fail-fast
-         * on that token.
-         */
         SettableFuture<TaskClassification> attribution = SettableFuture.create();
         SettableFuture<TaskTermination<T>> termination = SettableFuture.create();
         Task<T> view = new Task<>(
@@ -162,10 +142,6 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public TaskClassification outcome() {
-        // A recorded submission failure outranks the future's own state. A batch element failed by
-        // a handoff failure is claimed before it is settled, and the token's fail-fast cascade can
-        // cancel it in between; without this the element would report that cancellation instead of
-        // the submission failure that actually ended it.
         if (recordedSubmissionFailure() != null) {
             return TaskClassification.SUBMISSION_FAILURE;
         }
@@ -176,9 +152,6 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
             return TokenOutcomes.forCancelled(token, TaskClassification.MEMBER_CANCELLED);
         }
         try {
-            // The delegate is done here, so read it with Futures.getDone: unlike get(), it never
-            // throws InterruptedException, and a caller thread that happens to carry the
-            // interrupt flag can no longer turn a success into a phantom USER_FAILURE.
             Futures.getDone(delegate);
             return TaskClassification.SUCCESS;
         } catch (ExecutionException failure) {
@@ -214,8 +187,6 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public @Nullable Throwable failure() {
-        // Read the recorded failure directly: a claimed element may have been cancelled by the
-        // cascade before it was settled, and exceptionNow() rejects a cancelled future.
         SubmissionException recorded = recordedSubmissionFailure();
         if (recorded != null) {
             return recorded;

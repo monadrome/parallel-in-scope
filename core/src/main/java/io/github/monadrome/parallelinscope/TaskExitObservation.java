@@ -332,15 +332,6 @@ public final class TaskExitObservation<T> {
         return neverStarted() ? Duration.ZERO : Duration.ofNanos(Math.max(0L, laterNanos - earlierNanos));
     }
 
-    /*
-     * A never-started task records zero for both start and end. The zero sentinel — never the sign
-     * of the clock — decides started-ness, because ticker readings may legally be negative.
-     *
-     * The sentinel is the pair (0, 0), so a genuinely started task whose two readings both happened
-     * to be zero is reported as never started. That requires the monotonic clock to read exactly
-     * zero at both the start and end samples, which is unambiguous within a single tick; the
-     * factory convention is that (0, 0) means "never started".
-     */
     private boolean neverStarted() {
         return startTimeNanos == 0L && endTimeNanos == 0L;
     }

@@ -20,12 +20,6 @@ import org.jspecify.annotations.Nullable;
  * without making child failure cancel its parent.
  */
 final class MultiTaskContext {
-    /*
-     * The unit's descriptive facts — id, name, task count, parallelism, type, and executor — live
-     * in the TaskNode created once here; this context adds the execution state around it. The node
-     * never points back, so the task graph holds nodes without keeping tokens or parent chains
-     * alive.
-     */
 
     /** Process-local unit identities: graph keys and diagnostics only, never persisted. */
     private static final AtomicLong UNIT_SEQUENCE = new AtomicLong();
@@ -189,17 +183,11 @@ final class MultiTaskContext {
         UnitSpec spec = resolution.spec;
         Validation.requireNonNegative(resolution.taskCount, "taskCount");
         MultiTaskContext parent = resolution.structuralParent;
-        // Inheriting a deadline requires something to inherit from: a structural parent or an
-        // explicitly supplied ceiling (a task-group member takes the group deadline even at the
-        // top level, where it has no structural parent).
         if (spec.timeout() == null && parent == null && resolution.deadlineCeilingNanos == null) {
             throw new IllegalArgumentException("no enclosing deadline to inherit; call timeout(Duration)");
         }
         CancellationToken cancellationParent = resolution.effectiveCancellationParent();
         long deadlineCeiling = resolution.effectiveDeadlineCeilingNanos();
-        // The deadline domain follows the cancellation parent's clock; only a root unit takes the
-        // resolution's own clock (the owning ParRuntime's). This keeps a nested runtime's units on
-        // the ancestor's clock instead of mixing domains inside one token tree.
         Ticker domain = resolution.domain(cancellationParent);
         long resolutionTime = resolution.effectiveResolutionTimeNanos(domain);
         int requested = Validation.requirePositive(spec.requestedParallelism(), "requestedParallelism");
@@ -233,16 +221,6 @@ final class MultiTaskContext {
      * sentinel.
      */
     static long resolveDeadlineNanos(@Nullable Duration timeout, long ceilingNanos, long nowNanos) {
-        /*
-         * The explicit sum goes through Deadlines.after because both ends can be extreme — a
-         * saturated timeout and a negative System.nanoTime() reading — and a wrapped sum would read
-         * as already expired. Where that sum saturates, the deadline is clamped to
-         * Deadlines.LATEST_FINITE_DEADLINE: a declared timeout keeps arming its timer and deriving
-         * its cleanup budget from the remaining deadline instead of turning into the sentinel,
-         * which arms no timer and waits for no execution exit. A clock reading already at that latest
-         * deadline leaves the clamped deadline expired; no real nanoTime() gets there.
-         */
-
         if (timeout == null) {
             return ceilingNanos;
         }

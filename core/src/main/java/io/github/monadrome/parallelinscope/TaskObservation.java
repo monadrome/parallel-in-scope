@@ -33,12 +33,6 @@ import org.jspecify.annotations.Nullable;
  * @param <T> the task result type
  */
 final class TaskObservation<T> {
-    /*
-     * The two barrier signals arrive on arbitrary threads (the worker, a cancelling thread, or a
-     * rejecting submitter); an atomic countdown publishes on whichever signal arrives last, and the
-     * happens-before edges of the countdown make the other signal's writes — the final end time,
-     * the terminal future state — visible to the publishing thread.
-     */
 
     private static final Logger LOGGER = Logger.getLogger(TaskObservation.class.getName());
 
@@ -135,13 +129,6 @@ final class TaskObservation<T> {
      * the task's listener fan-out.
      */
     private void signal() {
-        /*
-         * The settle listener precedes the batch attribution pin and the token's fail-fast bind.
-         * Guava stops listener fan-out on Error, so a snapshot-construction failure escaping here
-         * could leave the attribution pin pending and freeze waiting forever. Build the snapshot
-         * inside the guard and end the observation exceptionally on failure.
-         */
-
         if (pendingSignals.decrementAndGet() == 0) {
             TaskExitObservation<T> snapshot;
             try {
@@ -178,16 +165,6 @@ final class TaskObservation<T> {
      * that runs this.
      */
     private void publish(TaskExitObservation<T> snapshot) {
-        /*
-         * The sink is caller-reachable through TaskFuture.completionFuture(), and a listener
-         * registered with a direct executor runs inline here, on whichever thread completed the
-         * task. Guava's listener fan-out catches RuntimeException but not Error, and this method is
-         * itself a listener on the task future — registered before the framework's own completion
-         * listener — so an Error escaping a caller's listener would abort the rest of the fan-out
-         * and the task would never be counted by its group. The snapshot is committed before Guava
-         * runs any listener, so swallowing here cannot lose it.
-         */
-
         try {
             sink.set(snapshot);
         } catch (Throwable failure) {
@@ -200,7 +177,6 @@ final class TaskObservation<T> {
         try {
             LOGGER.log(Level.SEVERE, "an observation listener failed", failure);
         } catch (Throwable ignored) {
-            // Deliberately swallowed: the publication above matters more than the diagnostic.
         }
     }
 
@@ -263,8 +239,6 @@ final class TaskObservation<T> {
                     null);
         }
         try {
-            // The future is terminal here, so read it with Futures.getDone: unlike get(), it never
-            // throws InterruptedException on a thread that happens to carry the interrupt flag.
             return TaskExitObservation.snapshot(
                     taskName,
                     unitId,
