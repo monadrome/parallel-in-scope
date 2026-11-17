@@ -1,0 +1,19 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimePoliciesTest.java
+  s_05def8cf091a05::t_2d63638c9d9044 176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "18075c6ea86a59b7e0466a36e266198c71799de4",
+  "prompts": {},
+  "sessions": {
+    "s_05def8cf091a05": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e0c08e1-62ac-4962-9988-b2b649ec67de",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
