@@ -1,0 +1,31 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimePoliciesTest.java
+  s_05def8cf091a05::t_5d4775c62f4d8e 16
+  s_05def8cf091a05::t_adc1e6e639ffac 151-156
+  s_05def8cf091a05::t_6b0cefe9945b68 171-214
+CHANGELOG.md
+  s_05def8cf091a05::t_4dd0baefa803ed 5-8
+core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java
+  s_05def8cf091a05::t_89a8f664553c80 259-262,294
+core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_05def8cf091a05::t_02fc844c4fcb8b 140-141,148-149,164-165
+  s_05def8cf091a05::t_863e5e470c7392 169,179-189
+  s_05def8cf091a05::t_c0cc95e5c737bc 216-221
+core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java
+  s_05def8cf091a05::t_2bd7593755f238 98-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "9296e7d4cf680cd9f4289d68e524406071b2b7f1",
+  "prompts": {},
+  "sessions": {
+    "s_05def8cf091a05": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e0c08e1-62ac-4962-9988-b2b649ec67de",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
