@@ -1,0 +1,21 @@
+.github/workflows/release.yml
+  s_6089cce8990783::t_3988a4d019468b 57
+.github/workflows/ci.yml
+  s_6089cce8990783::t_6638c3821a5eaa 45-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f84ad1938aad91c59f3b4c1d2534d19b040231e5",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
