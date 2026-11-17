@@ -168,6 +168,7 @@
 | 提案 | 摘要 |
 |---|---|
 | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | 用 `FuturePath` 的分阶段 API 统一 Future/Result 的结果处理，隐藏状态查询并以编译期链式阶段保证四类公共终态穷尽处理 |
+| [proposal/P0039-taskid-closed-hierarchy.md](proposal/P0039-taskid-closed-hierarchy.md) | Closed `TaskId` hierarchy (`Unit`/`GroupRun` nested final classes) replacing the phantom-tag + Kind-enum dual kind source; includes the migration path |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | 灰度评测中的复杂度注意力路由证据；不设质量分或 CI 门禁 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |
