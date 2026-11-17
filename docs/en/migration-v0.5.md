@@ -46,6 +46,36 @@ Use the lifecycle layers for the corresponding question:
 `ImmediateResult.asFuture()` keeps its name and remains a read-only, already-completed Guava adapter;
 it does not represent execution exit or runtime quiescence. `TaskTermination` is now the canonical task result. New code reads its kind, cause, cancellation reason, and claim disposition directly; scope results use `ScopeTermination`.
 
+## TaskId closed hierarchy
+
+The `TaskId<K>` phantom kind tags are replaced by a closed `TaskId` hierarchy: the runtime class
+now carries the identity kind. Source- and binary-breaking; recompile consumers.
+
+| Before | v0.5 replacement |
+|---|---|
+| `TaskId<TaskUnit>` | `TaskId.Unit` |
+| `TaskId<TaskGroupRun>` | `TaskId.GroupRun` |
+| `TaskUnit` / `TaskGroupRun` marker interfaces | removed |
+
+Before:
+
+```java
+TaskId<TaskUnit> unitId = snapshot.unitId();
+Map<TaskId<TaskUnit>, TaskExitObservation<?>> byUnit = new HashMap<>();
+TaskId<TaskGroupRun> runId = result.groupId();
+```
+
+After:
+
+```java
+TaskId.Unit unitId = snapshot.unitId();
+Map<TaskId.Unit, TaskExitObservation<?>> byUnit = new HashMap<>();
+TaskId.GroupRun runId = result.groupId();
+```
+
+Factory calls (`TaskId.unit("7")` / `TaskId.group("3")`), equality semantics (kind plus label),
+and the `unit-7` / `group-3` rendering are unchanged.
+
 ## TaskGroup member values
 
 The v0.5 development line also removes the recursive `Tuple2` member shape. `GroupStep` and

@@ -26,8 +26,8 @@ public final class TaskExitObservation<T> {
     private static final long ENQUEUE_THRESHOLD_NANOS = 3_000_000L;
 
     private final String taskName;
-    private final @Nullable TaskId<TaskUnit> unitId;
-    private final @Nullable TaskId<TaskGroupRun> groupId;
+    private final TaskId.@Nullable Unit unitId;
+    private final TaskId.@Nullable GroupRun groupId;
     private final int taskIndex;
     private final long submitTimeNanos;
     private final long startTimeNanos;
@@ -39,8 +39,8 @@ public final class TaskExitObservation<T> {
 
     private TaskExitObservation(
             String taskName,
-            @Nullable TaskId<TaskUnit> unitId,
-            @Nullable TaskId<TaskGroupRun> groupId,
+            TaskId.@Nullable Unit unitId,
+            TaskId.@Nullable GroupRun groupId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,
@@ -70,7 +70,7 @@ public final class TaskExitObservation<T> {
      */
     static TaskExitObservation<Object> memberSnapshot(
             String memberName,
-            TaskId<TaskUnit> unitId,
+            TaskId.Unit unitId,
             TaskClassification outcome,
             @Nullable Throwable failure,
             long submitTimeNanos,
@@ -93,7 +93,7 @@ public final class TaskExitObservation<T> {
     /** Creates a member snapshot with the authoritative claim disposition. */
     static TaskExitObservation<Object> memberSnapshot(
             String memberName,
-            TaskId<TaskUnit> unitId,
+            TaskId.Unit unitId,
             TaskClassification outcome,
             @Nullable Throwable failure,
             long submitTimeNanos,
@@ -121,7 +121,7 @@ public final class TaskExitObservation<T> {
      */
     static <T> TaskExitObservation<T> snapshot(
             String taskName,
-            @Nullable TaskId<TaskUnit> unitId,
+            TaskId.@Nullable Unit unitId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,
@@ -208,7 +208,7 @@ public final class TaskExitObservation<T> {
      * run's own summary, which carries {@link #groupId()} instead, and a derived fluent view, whose
      * task name is a name and not an identity.
      */
-    public @Nullable TaskId<TaskUnit> unitId() {
+    public TaskId.@Nullable Unit unitId() {
         return unitId;
     }
 
@@ -219,7 +219,7 @@ public final class TaskExitObservation<T> {
      * <p>A group run is not a task unit: it has no execution of its own, so its identity is never
      * returned by {@link #unitId()}.
      */
-    public @Nullable TaskId<TaskGroupRun> groupId() {
+    public TaskId.@Nullable GroupRun groupId() {
         return groupId;
     }
 

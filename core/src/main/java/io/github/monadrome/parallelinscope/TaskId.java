@@ -1,53 +1,34 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.errorprone.annotations.Immutable;
-import java.util.Objects;
 
 /**
- * Immutable identity of one admitted work unit, typed by the kind of unit it names.
+ * Immutable identity of one admitted work unit or one task-group run.
  *
- * <p>The type parameter {@code K} is a phantom tag: it carries no data and appears in no signature,
- * but it makes the identity spaces disjoint at compile time. A {@code TaskId<TaskUnit>} names a
- * task unit — a single task, a {@code Par.map} batch, a group member, or a terminal combine — and a
- * {@code TaskId<TaskGroupRun>} names one run of a task group. Neither converts to the other, so
- * maps typed for one kind reject ids of the other kind at compile time.
+ * <p>The hierarchy is closed: the base constructor is private, so {@link Unit} and {@link
+ * GroupRun} are the only kinds, and the two identity spaces are disjoint at compile time. A {@code
+ * Unit} id names a task unit — a single task, a {@code Par.map} batch, a group member, or a
+ * terminal combine — and a {@code GroupRun} id names one run of a task group. Neither converts to
+ * the other, so maps typed for one kind reject ids of the other kind at compile time.
  *
- * <p>Equality is on the kind <em>and</em> the label, so {@code TaskId.unit("1")} and {@code
- * TaskId.group("1")} are never equal even though they share a label. Instances are therefore usable
- * as map keys. Both parts are process-local and for diagnostics only: an id must never be
- * persisted, parsed, or used as a wire format, and {@link #toString()} is a rendering rather than
- * an exchange format.
+ * <p>Equality is on the kind and the label: the runtime class carries the kind, so a unit id and
+ * a group-run id are never equal even when they share a label. Instances are therefore usable as
+ * map keys. Both parts are process-local and for diagnostics only: an id must never be persisted,
+ * parsed, or used as a wire format, and {@link #toString()} is a rendering rather than an exchange
+ * format.
  *
- * <p>The factories build an id with a given label, for example to compare against an id the library
- * recorded; an id minted that way carries no claim that any unit ever ran, and a label is never
- * null or blank.
- *
- * @param <K> the kind of unit this id names: {@link TaskUnit} or {@link TaskGroupRun}
+ * <p>The factories build an id with a given label, for example to compare against an id the
+ * library recorded; an id minted that way carries no claim that any unit ever ran, and a label is
+ * never null or blank.
  */
 @Immutable
-@SuppressWarnings("UnusedTypeParameter")
-public final class TaskId<K> {
+public abstract class TaskId {
 
-    /**
-     * The identity spaces this library mints; part of the value so cross-kind ids never compare
-     * equal.
-     */
-    private enum Kind {
-        TASK_UNIT("unit-"),
-        TASK_GROUP_RUN("group-");
-
-        private final String prefix;
-
-        Kind(String prefix) {
-            this.prefix = prefix;
-        }
-    }
-
-    private final Kind kind;
+    private final String prefix;
     private final String label;
 
-    private TaskId(Kind kind, String label) {
-        this.kind = kind;
+    private TaskId(String prefix, String label) {
+        this.prefix = prefix;
         this.label = label;
     }
 
@@ -55,43 +36,61 @@ public final class TaskId<K> {
      * Creates the identity of a task unit.
      *
      * @param label the process-local label distinguishing this unit from other units
-     * @return the unit id, equal only to another {@code TaskId} of this kind and label
+     * @return the unit id, equal only to another unit id with the same label
      * @throws NullPointerException if {@code label} is null
      * @throws IllegalArgumentException if {@code label} is blank
      */
-    public static TaskId<TaskUnit> unit(String label) {
-        return new TaskId<>(Kind.TASK_UNIT, Validation.requireName(label, "Task unit id"));
+    public static Unit unit(String label) {
+        return new Unit(Validation.requireName(label, "Task unit id"));
     }
 
     /**
      * Creates the identity of a task-group run.
      *
      * @param label the process-local label distinguishing this run from other runs
-     * @return the group id, equal only to another {@code TaskId} of this kind and label
+     * @return the group-run id, equal only to another group-run id with the same label
      * @throws NullPointerException if {@code label} is null
      * @throws IllegalArgumentException if {@code label} is blank
      */
-    public static TaskId<TaskGroupRun> group(String label) {
-        return new TaskId<>(Kind.TASK_GROUP_RUN, Validation.requireName(label, "Task group id"));
+    public static GroupRun group(String label) {
+        return new GroupRun(Validation.requireName(label, "Task group id"));
     }
 
     @Override
-    public boolean equals(Object other) {
-        if (!(other instanceof TaskId)) {
-            return false;
-        }
-        TaskId<?> id = (TaskId<?>) other;
-        return kind == id.kind && label.equals(id.label);
+    public final boolean equals(Object other) {
+        return other instanceof TaskId && getClass() == other.getClass() && label.equals(((TaskId) other).label);
     }
 
     @Override
-    public int hashCode() {
-        return 31 * Objects.hashCode(kind) + label.hashCode();
+    public final int hashCode() {
+        return 31 * getClass().hashCode() + label.hashCode();
     }
 
     /** Diagnostics only; a rendering, never a persisted or exchanged format. */
     @Override
-    public String toString() {
-        return kind.prefix + label;
+    public final String toString() {
+        return prefix + label;
+    }
+
+    /**
+     * The identity of a task unit: a single task, a {@code Par.map} batch, a group member, or a
+     * terminal combine — anything with its own execution.
+     */
+    @Immutable
+    public static final class Unit extends TaskId {
+        private Unit(String label) {
+            super("unit-", label);
+        }
+    }
+
+    /**
+     * The identity of one task-group run: a coordination scope with no execution of its own, so
+     * its identity is never filed among unit ids.
+     */
+    @Immutable
+    public static final class GroupRun extends TaskId {
+        private GroupRun(String label) {
+            super("group-", label);
+        }
     }
 }

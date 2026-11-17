@@ -28,6 +28,7 @@ ADR named here, so this log does not repeat them.
 | `proposal:P0025` internal cancellation token | [cancellation-propagation.md](cancellation-propagation.md) §5.3 |
 | `proposal:P0025` `TaskType` as a workload-fit diagnostic | [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md), [workload-fit-screening.md](workload-fit-screening.md) |
 | `proposal:P0026` runtime executor wait graph | [task-graph.md](task-graph.md) (rejected: request scope, static queries and policy switch, enumerating all cycles, aging by time, refusing on a cycle) |
+| `proposal:P0039` TaskId closed hierarchy | [task-identity.md](task-identity.md) (rejected: phantom tags + Kind enum, value-only single class, two independent top-level classes) |
 | `proposal:P0033` adopted future members | [task-group-adopted-futures.md](task-group-adopted-futures.md) |
 | `proposal:P0034` checkpoint cancellation acknowledgement | [interruption-contract.md](interruption-contract.md) §3, [synchronous-scope-exit.md](synchronous-scope-exit.md) §4 |
 | `proposal:P0024`, `proposal:P0028` comment and Javadoc layers | [ADR 0012](../adr/0012-contract-and-implementation-comment-layers.md); remaining work in [P0029](proposal/P0029-test-comment-maintenance.md) and [P0030](proposal/P0030-annotation-followups.md) |

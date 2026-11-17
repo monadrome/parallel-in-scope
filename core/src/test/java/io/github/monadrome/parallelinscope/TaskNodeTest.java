@@ -48,7 +48,7 @@ class TaskNodeTest {
     void aNodeDescribesOnlyItselfAndHoldsNoNeighbourGraphOrExecutionState() {
         Set<Class<?>> ownFacts = new HashSet<>(Arrays.asList(
                 String.class,
-                TaskId.class,
+                TaskId.Unit.class,
                 ExecutorIdentity.class,
                 boolean.class,
                 TaskType.class,

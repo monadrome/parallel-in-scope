@@ -33,7 +33,7 @@ class TaskIdentityTest {
             List<@Nullable TaskExitObservation<String>> completions = batch.completions();
 
             assertThat(completions).hasSize(2);
-            TaskId<TaskUnit> unitId = completions.get(0).unitId();
+            TaskId.Unit unitId = completions.get(0).unitId();
             assertThat(unitId).isNotNull();
             assertThat(completions).allSatisfy(completion -> {
                 assertThat(completion.unitId()).isEqualTo(unitId);

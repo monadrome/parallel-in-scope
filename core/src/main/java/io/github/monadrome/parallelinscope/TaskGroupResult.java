@@ -69,7 +69,7 @@ public final class TaskGroupResult<R> {
      * own completion summary, and it is never equal to any member's {@code unitId}: a group run is
      * not a task unit and the two identity spaces do not convert.
      */
-    public TaskId<TaskGroupRun> groupId() {
+    public TaskId.GroupRun groupId() {
         return report.groupId();
     }
 

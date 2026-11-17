@@ -105,6 +105,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [task-graph.md](task-graph.md) | **执行器等待图契约**：运行时所有、常开、只增不减的执行器 waits-for 图；只有同步等待成边、两端须为本运行时注册的执行器、一次准入的边原子安装、热路径只读、CAS 安装；报告有环强连通分量与一个具体环、准入线程不打日志、「曾经观测到的结构性风险」语义；被排除的替代方案（请求级 scope、静态查询与策略开关、枚举全部简单环、按时间老化、遇环拒绝） |
+| [task-identity.md](task-identity.md) | **Task identity contract**: the disjoint unit/group-run identity spaces and their minting, the closed `TaskId` hierarchy as the single kind source, kind+label equality as reconciliation, ids as process-local diagnostics only; rejected alternatives (phantom tags + Kind enum, value-only single class, two independent top-level classes) |
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
 | [workload-fit-screening.md](workload-fit-screening.md) | **负载匹配筛查契约**：runtime 级常开，只给条目或单元声明为 `COMPUTE` 的库准入任务代码计时；按条目、每 10 秒执行时间一个周期判定，粘滞 issue 与一次 `WARNING`；单元只归因（每条目至多 256）与判漂移；累计计数经 `workloadFitReport()` 读取；不包装或改变用户任务，与饥饿观测不共享状态（ADR 0010） |
 
@@ -168,7 +169,6 @@
 | 提案 | 摘要 |
 |---|---|
 | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | 用 `FuturePath` 的分阶段 API 统一 Future/Result 的结果处理，隐藏状态查询并以编译期链式阶段保证四类公共终态穷尽处理 |
-| [proposal/P0039-taskid-closed-hierarchy.md](proposal/P0039-taskid-closed-hierarchy.md) | Closed `TaskId` hierarchy (`Unit`/`GroupRun` nested final classes) replacing the phantom-tag + Kind-enum dual kind source; includes the migration path |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | 灰度评测中的复杂度注意力路由证据；不设质量分或 CI 门禁 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |

@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
 
 /** Immutable terminal snapshot for a parallel task group. */
 final class TaskGroupReport {
-    private final TaskId<TaskGroupRun> groupId;
+    private final TaskId.GroupRun groupId;
     private final String groupName;
     private final long startTimeNanos;
     private final long endTimeNanos;
@@ -26,7 +26,7 @@ final class TaskGroupReport {
     private final ScopeTermination termination;
 
     TaskGroupReport(
-            TaskId<TaskGroupRun> groupId,
+            TaskId.GroupRun groupId,
             String groupName,
             long startTimeNanos,
             long endTimeNanos,
@@ -58,7 +58,7 @@ final class TaskGroupReport {
                 : scopeTermination;
     }
 
-    TaskId<TaskGroupRun> groupId() {
+    TaskId.GroupRun groupId() {
         return groupId;
     }
 

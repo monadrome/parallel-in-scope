@@ -155,14 +155,14 @@ class TaskExitObservationTest {
     }
 
     private static <T> TaskExitObservation<T> succeeded(
-            String name, TaskId<TaskUnit> unitId, int index, long submit, long start, long end, @Nullable T result) {
+            String name, TaskId.Unit unitId, int index, long submit, long start, long end, @Nullable T result) {
         return TaskExitObservation.snapshot(
                 name, unitId, index, submit, start, end, TaskClassification.SUCCESS, result, null);
     }
 
     private static <T> TaskExitObservation<T> failed(
             String name,
-            TaskId<TaskUnit> unitId,
+            TaskId.Unit unitId,
             int index,
             long submit,
             long start,

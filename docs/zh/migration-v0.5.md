@@ -48,6 +48,36 @@ runtime 静止。`TaskTermination` 也保持原名，作为继续消费旧 outco
 归因的新代码应读取 `TaskTermination`、`FailureCause`、`CancellationReason` 和
 `ExecutionDisposition`。
 
+## TaskId 封闭层级
+
+`TaskId<K>` 的 phantom 类别标签替换为封闭 `TaskId` 层级：身份类别改由运行时类携带。源码和二进制
+不兼容；请重新编译消费方。
+
+| 改前 | v0.5 替换名 |
+|---|---|
+| `TaskId<TaskUnit>` | `TaskId.Unit` |
+| `TaskId<TaskGroupRun>` | `TaskId.GroupRun` |
+| `TaskUnit` / `TaskGroupRun` 标记接口 | 已删除 |
+
+改前：
+
+```java
+TaskId<TaskUnit> unitId = snapshot.unitId();
+Map<TaskId<TaskUnit>, TaskExitObservation<?>> byUnit = new HashMap<>();
+TaskId<TaskGroupRun> runId = result.groupId();
+```
+
+改后：
+
+```java
+TaskId.Unit unitId = snapshot.unitId();
+Map<TaskId.Unit, TaskExitObservation<?>> byUnit = new HashMap<>();
+TaskId.GroupRun runId = result.groupId();
+```
+
+工厂调用（`TaskId.unit("7")` / `TaskId.group("3")`）、判等语义（类别加标签）和
+`unit-7` / `group-3` 渲染均不变。
+
 ## TaskGroup 成员值
 
 v0.5 开发线同时删除递归 `Tuple2` 成员形状。`GroupStep`、`CombinedGroupStep` 不再携带随成员数变化的

@@ -20,8 +20,8 @@ class TaskIdTest {
 
     @Test
     void theKindIsPartOfTheValueSoLabelsNeverLeakAcrossSpaces() {
-        TaskId<TaskUnit> unit = TaskId.unit("7");
-        TaskId<TaskGroupRun> group = TaskId.group("7");
+        TaskId.Unit unit = TaskId.unit("7");
+        TaskId.GroupRun group = TaskId.group("7");
 
         assertThat(unit).isNotEqualTo(group);
         assertThat(group).isNotEqualTo(unit);
@@ -44,7 +44,7 @@ class TaskIdTest {
 
     @Test
     void idsAreUsableAsMapKeysWithoutMergingSpaces() {
-        Map<TaskId<TaskUnit>, String> units = new HashMap<>();
+        Map<TaskId.Unit, String> units = new HashMap<>();
         units.put(TaskId.unit("7"), "unit");
         units.put(TaskId.unit("7"), "replaced");
 

@@ -50,7 +50,7 @@ final class TaskObservation<T> {
     /** Identity for {@link #publishSkipped}; null on the shapes no unit backs. */
     private final @Nullable String taskName;
 
-    private final @Nullable TaskId<TaskUnit> unitId;
+    private final TaskId.@Nullable Unit unitId;
     private final int taskIndex;
     private final long submitTimeNanos;
 
@@ -58,7 +58,7 @@ final class TaskObservation<T> {
             Supplier<TaskExitObservation<T>> settledSnapshot,
             int pendingSignals,
             @Nullable String taskName,
-            @Nullable TaskId<TaskUnit> unitId,
+            TaskId.@Nullable Unit unitId,
             int taskIndex,
             long submitTimeNanos) {
         this.settledSnapshot = settledSnapshot;
@@ -243,7 +243,7 @@ final class TaskObservation<T> {
 
     private static <T> TaskExitObservation<T> settledSnapshot(
             String taskName,
-            @Nullable TaskId<TaskUnit> unitId,
+            TaskId.@Nullable Unit unitId,
             int taskIndex,
             long submitTimeNanos,
             long startTimeNanos,

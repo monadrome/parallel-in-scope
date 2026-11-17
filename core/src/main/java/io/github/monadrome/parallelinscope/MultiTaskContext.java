@@ -260,7 +260,7 @@ final class MultiTaskContext {
     }
 
     /** Stable identity for this one unit instance; never use name as graph identity. */
-    TaskId<TaskUnit> unitId() {
+    TaskId.Unit unitId() {
         return node.id();
     }
 
