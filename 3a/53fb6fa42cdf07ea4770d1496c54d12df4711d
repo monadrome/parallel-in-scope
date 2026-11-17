@@ -1,0 +1,19 @@
+ledger/2026-11-17-backlog-failedtask-cleanup.json
+  s_102e7d1e390dcb::t_bc289a6fad4002 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "3a53fb6fa42cdf07ea4770d1496c54d12df4711d",
+  "prompts": {},
+  "sessions": {
+    "s_102e7d1e390dcb": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d047ab09-f83f-4b8b-a9a5-195add219a15",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
