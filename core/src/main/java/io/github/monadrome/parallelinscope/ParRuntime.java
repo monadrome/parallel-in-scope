@@ -79,12 +79,6 @@ public final class ParRuntime implements AutoCloseable {
     private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
     private final WorkloadClock workloadClock;
 
-    /*
-     * Satisfied once shutdown has completed and no tracked task execution remains in flight. A waiter on
-     * this guard is re-evaluated whenever a thread occupies and releases the monitor, so each state
-     * change that can satisfy it is followed by an enter/leave pair rather than a hand-built
-     * wait/notify protocol.
-     */
     private final Monitor.Guard quiescent = new Monitor.Guard(quiescenceMonitor) {
         @Override
         public boolean isSatisfied() {
@@ -92,13 +86,6 @@ public final class ParRuntime implements AutoCloseable {
         }
     };
 
-    /*
-     * The root clock domain for tokens this runtime creates without a cancellation parent.
-     * Package-private and defaulted to the system clock; tests inject a manual clock together with
-     * a manual timeoutScheduler so deadline detection becomes deterministic. A unit with a
-     * cancellation parent inherits that parent's clock instead, so nested runtimes share the
-     * ancestor's domain (see MultiTaskContext).
-     */
     private final Ticker ticker;
 
     private final ScheduledExecutorService timerService;
@@ -108,11 +95,6 @@ public final class ParRuntime implements AutoCloseable {
     /** The runtime-owned executor that delivers diagnostic log messages; see {@link Announcements}. */
     private final Executor announcements;
 
-    /*
-     * Deadline scheduler handed to every CancellationToken.bind. Immutable and stateless over its
-     * two services, so one instance serves every bind: a group allocated one per member plus one
-     * for itself when this was built per call.
-     */
     private final ScheduledExecutorService timeoutScheduler;
 
     private ParRuntime(Builder builder) {
@@ -167,15 +149,8 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalArgumentException if the physical executor silently discards rejected tasks
      */
     private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor, Executor announcements) {
-        // A TTL wrapper hides the physical pool, so every structural fact below is read
-        // through it. Without this the wrapper is indistinguishable from a foreign
-        // executor: blocking-risk detection silently downgrades, and the
-        // discarding-policy guard below never runs at all.
         ExecutorService introspectable = TtlUnwrap.unwrap(executor);
         if (!(introspectable instanceof ThreadPoolExecutor)) {
-            // Detection that silently downgrades is worse than a diagnostic: a decorated
-            // or foreign executor hides the physical pool from deadlock-risk
-            // classification, so say so once at the composition root.
             Announcements.deliver(
                     announcements,
                     () -> LOGGER.warning(
@@ -188,17 +163,9 @@ public final class ParRuntime implements AutoCloseable {
                                     + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
                                     + " cannot be starved by a child queued on the same pool, so this feature does not apply to it."));
         } else {
-            // A discarding policy never reports rejection: DiscardPolicy drops the new
-            // task outright, and DiscardOldestPolicy drops the oldest queued task to make
-            // room for it. Either way the framework would keep waiting on a future whose
-            // execution may never run. Refuse to register such a pool at all.
             RejectedExecutionHandler policy = ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
             if (policy instanceof ThreadPoolExecutor.DiscardPolicy
                     || policy instanceof ThreadPoolExecutor.DiscardOldestPolicy) {
-                // CallerRunsPolicy is legitimate and not refused, but only AbortPolicy is
-                // named: rejection as a thrown exception is the more direct contract, and
-                // running the execution on the submitting thread carries consequences a caller
-                // has to opt into knowingly — see ADR-0007.
                 throw new IllegalArgumentException("Par '" + id + "' is registered with "
                         + introspectable.getClass().getName() + " using "
                         + policy.getClass().getName()
@@ -209,10 +176,6 @@ public final class ParRuntime implements AutoCloseable {
             }
         }
         if (TtlUnwrap.isWrapper(executor)) {
-            // The facts above survive because they are read through the wrapper. What a
-            // wrapper still costs is a second TTL capture: the executor boundary adds one
-            // on top of the one prepare already performs. That boundary is the caller's
-            // executor, so it is named rather than unwrapped.
             Announcements.deliver(
                     announcements,
                     () -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
@@ -250,9 +213,6 @@ public final class ParRuntime implements AutoCloseable {
             throw new IllegalStateException("ParRuntime is already installed");
         }
         if (runtime.closed.get()) {
-            // close() won the race between the liveness check and the slot claim; its own
-            // compareAndSet only uninstalls from close()'s first-run branch, so undo the install
-            // here — the slot must not retain a shut-down instance.
             INSTALLED.compareAndSet(runtime, null);
             throw new IllegalStateException("ParRuntime is closed");
         }
@@ -447,10 +407,6 @@ public final class ParRuntime implements AutoCloseable {
      * @throws IllegalStateException if this {@code ParRuntime} has begun shutdown
      */
     TaskGroup<?> submitPreparedGroup(TaskGroupDefinition definition, TaskGroup.RunBindings payloads) {
-        // The whole startup — preparation, binds, and submission — is one admission against
-        // close(): the runtime's services stay alive for every bind, so a close racing startup
-        // cannot retire the deadline scheduler between the group bind and a tighter member bind.
-        // Batches already hold their admission through submission; groups now match them.
         return whileOpen(() -> {
             TaskGroup<?> group = TaskGroup.prepare(this, definition, payloads);
             group.start(this, definition);
@@ -513,8 +469,6 @@ public final class ParRuntime implements AutoCloseable {
             throw new InterruptedException();
         }
         if (remainingNanos <= 0) {
-            // An elapsed budget still gets one state check; enterWhen would skip it whenever the
-            // monitor is momentarily held by a signaller.
             quiescenceMonitor.enter();
             try {
                 return quiescent.isSatisfied();
@@ -525,7 +479,6 @@ public final class ParRuntime implements AutoCloseable {
         if (!quiescenceMonitor.enterWhen(quiescent, remainingNanos, TimeUnit.NANOSECONDS)) {
             return false;
         }
-        // enterWhen returns still holding the monitor; release it before reporting quiescence.
         quiescenceMonitor.leave();
         return true;
     }
@@ -630,7 +583,6 @@ public final class ParRuntime implements AutoCloseable {
             timerService.shutdown();
             starvationScheduler.shutdown();
             timeoutActionPool.shutdown();
-            // Monitor re-evaluates its guards when a thread leaves, waking awaitQuiescence.
             quiescenceMonitor.enter();
             quiescenceMonitor.leave();
         }
@@ -670,9 +622,6 @@ public final class ParRuntime implements AutoCloseable {
         ListenableFuture<@Nullable Void> signal = tracker.executionExit();
         if (signal.isDone()) return;
         liveExecutionSignals.add(signal);
-        // directExecutor: the listener runs inside the signal's completion, so a completed
-        // signal is always removed before the completing thread returns — the quiescence check
-        // never sees a stale entry.
         signal.addListener(
                 () -> {
                     liveExecutionSignals.remove(signal);

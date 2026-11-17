@@ -32,12 +32,6 @@ import org.jspecify.annotations.Nullable;
  * enclosing deadline. New executions are rejected once the owning runtime begins shutdown.
  */
 public final class Par {
-    /*
-     * Admission resolves the batch, prepares its task futures and views, and binds cancellation
-     * before any executor handoff. Submission may execute an execution inline, so binding first is
-     * required for deadline enforcement on that path. SlidingWindowSubmitter then limits handoffs
-     * to the resolved parallelism; TaskSubmissions supplies the shared task instrumentation.
-     */
 
     private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
 
@@ -238,21 +232,7 @@ public final class Par {
             BatchOptions options,
             Par combinePar,
             Combiner<List<@Nullable R>, C> combiner) {
-        /*
-         * The batch bind includes the still-pending terminal, so success cannot commit early and
-         * cancellation reaches a combine that has not been submitted. Both share one execution tracker.
-         * The combine has its own unit, structurally under the batch; its token is not bound
-         * because the batch bind supplies its deadline and cascade. It declares UNKNOWN task type
-         * and no enqueue refusal, so it needs no admission diagnostic.
-         *
-         * Wait edges follow synchronous waits, not structural parentage: the caller waits for the
-         * batch and the combine; the batch only feeds values into the combine. A combine on the
-         * batch's pool adds no self-loop unless that pool is also the waiting caller's pool.
-         */
-
         ImmutableList<T> list = snapshotInputs(elements, unit);
-        // The tracker covers the elements and the terminal combine alike, so the execution-exit barrier
-        // and the frozen execution exit diagnostics report on the whole run.
         ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size() + 1);
         List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
                 .mapToObj(index -> TaskSubmissions.prepare(
@@ -268,9 +248,6 @@ public final class Par {
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), executionExit.register(terminalUnit));
-        // The terminal execution reads the settled element futures at run time; the success gate below
-        // guarantees they all completed successfully before the combine is ever submitted. TTL
-        // capture happens here, on the admission thread, inside prepare.
         ExecutionPhaseHintFuture<C> terminalFuture =
                 TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
         if (combinePar.executorRuntime().threadPoolBacked()) {
@@ -284,16 +261,10 @@ public final class Par {
                 options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         SettableFuture<Object> submitCanceller = SettableFuture.create();
-        // Bind before submitting, with the still-pending terminal in the bound set: the token's
-        // SUCCESS then requires the combine too, and the fail-fast/deadline cascade cancels an
-        // unsubmitted combine before its execution can ever be entered.
         List<ListenableFuture<?>> bound = new ArrayList<>(views.size() + 1);
         bound.addAll(views);
         bound.add(terminalView);
         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, bound, submitCanceller);
-        // Armed before submitAll: an inline executor can complete every element inside the initial
-        // window. Only an all-successful element aggregate triggers the combine; the callback's
-        // failure path leaves the combine to the cascade.
         AtomicBoolean terminalSubmitted = new AtomicBoolean();
         Futures.addCallback(
                 Futures.allAsList(views),
@@ -310,8 +281,6 @@ public final class Par {
 
                     @Override
                     public void onFailure(Throwable failure) {
-                        // Element failure or cancellation: the token's cascade cancels the pending
-                        // combine; there is nothing to submit.
                     }
                 },
                 MoreExecutors.directExecutor());
@@ -351,8 +320,6 @@ public final class Par {
             try {
                 values.add(Futures.getDone(tasks.get(index)));
             } catch (ExecutionException impossible) {
-                // The combine runs only after every element succeeded; anything else is a broken
-                // kernel invariant, not user input.
                 throw new IllegalStateException("element " + index + " has not completed successfully", impossible);
             }
         }
@@ -400,8 +367,6 @@ public final class Par {
                 new TaskExecutionContext(unit, 0, System.nanoTime(), executionExit.register(unit));
         ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(taskContext, task);
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
-        // Bind before submitting: a deadline expiring during submission cancels the prepared
-        // future, whose phase claim then never lets it enter user code.
         ListenableFuture<?> completion = unit.cancellationToken()
                 .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
         runtime.retainUntilComplete(completion);
@@ -417,11 +382,6 @@ public final class Par {
         int taskCount = elements == null ? 0 : elements.size();
         MultiTaskContext parent =
                 MultiTaskContext.requireDeadlineSource(options.timeout().orElse(null), "call timeout(Duration)");
-        // An empty collection submits nothing, so it must not resolve a unit: resolving builds a
-        // child token whose constructor registers a cancellation listener on the parent, and a
-        // batch that never runs never completes that token -- so the listener node would stay
-        // reachable from the parent for the parent's whole lifetime, one per call.
-        // The deadline check above stays first so the documented @throws contract is unchanged.
         if (elements == null || elements.isEmpty()) return emptyBatchResult();
         MultiTaskContext unit = admitUnit(options.spec(), taskCount, parent);
         return executeGlobal(elements, item -> () -> function.apply(item), unit, options);
@@ -446,8 +406,6 @@ public final class Par {
                 executionExit,
                 options.closeGrace().orElse(null));
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
-        // Bind before submitting; the temporary submission canceller is linked to the real one
-        // after submitAll so early cancellation still reaches the submission loop.
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
         runtime.retainUntilComplete(completion);
@@ -471,19 +429,6 @@ public final class Par {
      * Reports once per Par that a requested enqueue refusal cannot take effect here.
      */
     private void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
-        /*
-         * Only SubmissionAwareBlockingQueue.offer reads rejectEnqueue, so on any other queue the option is
-         * inert: nothing tells the caller that the protection they opted into is not running. The
-         * diagnostic belongs on the submission path rather than at registration because options are
-         * per task and per batch: registration cannot know whether the option will ever be used. It
-         * stays a warning: throwing would fail every caller that legitimately runs on a plain pool.
-         *
-         * The message claims only what the library knows. It cannot say what the executor will do
-         * with an element that cannot start immediately — an inline executor runs it, a bounded
-         * queue with an abort policy rejects it, a buffering queue holds it — so it reports the
-         * inert option and the fix, not the executor's behavior.
-         */
-
         if (!unit.rejectEnqueue() || executorRuntime.enqueueRefusalEffective()) {
             return;
         }
