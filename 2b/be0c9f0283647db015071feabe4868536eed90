@@ -1,0 +1,19 @@
+core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+  s_0181f20e54f87b::t_70c848ae6030df 191-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2bbe0c9f0283647db015071feabe4868536eed90",
+  "prompts": {},
+  "sessions": {
+    "s_0181f20e54f87b": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_fe2a0a6b-f090-4af8-900e-c39ad48d1f4d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
