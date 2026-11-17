@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-backlog-failedtask-cleanup",
+  "date": "2026-11-17",
+  "topic": "backlog-failedtask-cleanup",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: drop the covered failedTask item and streamline the link flip",
+      "docs: correct the early-flip rationale per review"
+    ],
+    "files": 1,
+    "insertions": 7,
+    "deletions": 12
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "delete failedTask() backlog item as covered (failedTaskResult public member-or-combine, javadoc redirect, TaskGroupFailedTaskResultTest member+combine pins, en/zh guides); streamline link-flip to 7 links in two index files; semantic_reviewer verified deletion clean, one minor wording finding on the early-flip rationale fixed in 73dab593; PIT skipped (docs-only); refactoring-review skipped (docs-only diff)"
+}
