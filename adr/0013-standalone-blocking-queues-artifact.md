@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-07
 - Decision scope: `DrainingBlockingQueue` 与 `ResizableBlockingQueue` 的产物和包边界
+- Stability: beta
+- Category: non-core
 - Supersedes: ADR 0006（queue 与 core 同产物发布，已退役；其结论与否决理由见
   [decision-log](../design/decision-log.md)）
 - Partially superseded by: [ADR 0015](0015-blocking-queues-standalone-repository.md)（源码归属与版本节奏；artifact 与包边界、`SubmissionAwareBlockingQueue` 归属不变）
@@ -54,7 +56,7 @@ core 与 queue 的版本在初期仍保持同步。
 `SubmissionAwareBlockingQueue` 仍然依赖 `ResizableBlockingQueue`，因此 core 仍会传递依赖 `blocking-queues`。
 本次拆分解决的是独立使用入口和产品定位，不承诺完全解耦 core 的构建或发布节奏。
 
-## Rejected alternatives
+## Alternatives Considered
 
 - 保留 `parallel-in-scope-queues`：它仍把通用队列绑定在结构化并发项目名称下，不符合队列作为独立产品的定位。
 - 只改 artifact 不改 Java 包：会让独立构件继续暴露 `parallelinscope` 命名空间，增加长期品牌和迁移歧义。

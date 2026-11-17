@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-08
 - Decision scope: 核心库的日志 API、日志后端依赖与应用侧集成边界
+- Stability: stable
+- Category: non-core
 - Supersedes: None
 
 ## Context

@@ -1,5 +1,8 @@
 # Task identity contract
 
+> Stability: beta — this contract governs behavior that exists only on the `0.5.0-SNAPSHOT`
+> development line; it is not part of the stable `0.4.1` release.
+
 Attribution identity for observations and the executor wait graph: two disjoint identity spaces,
 each a label the library mints and records, never a handle for reading results. Landed from
 `proposal:P0039`; the rejected-alternatives section keeps the superseded shapes.

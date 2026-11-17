@@ -13,7 +13,20 @@ principle 10); this file governs only the ADR format.
 
 - Name new records `NNNN-kebab-case-title.md` using the next sequential number.
 - Use one record for one decision.
-- Include `Status`, `Date`, `Decision scope`, and `Supersedes` metadata.
+- Include `Status`, `Date`, `Decision scope`, `Stability`, `Category`, and `Supersedes`
+  metadata.
+- `Stability` marks whether the governed subject exists in the latest published release:
+  `stable` when it does (or when the decision is release-independent project practice),
+  `beta` when it exists only on the current development line. When a release ships, flip
+  the records it publishes from `beta` to `stable` in the same delivery.
+- `Category` is `core` for decisions that govern the library's runtime behavior or public
+  concurrency contract, `non-core` for decisions that govern the artifact or repository
+  boundary, testing methodology, documentation practice, build tooling, or dependency
+  policy. A `core` record is rationale: current behavior authority lives in `design/`
+  live contracts, and a `core` record whose authority has moved names the holding
+  contract in a dated note. A `non-core` record remains the authority for its question
+  unless superseded. Category is descriptive metadata, not part of the decision;
+  reclassifying a record edits only that line and is not a supersedure.
 - Use these statuses: `Proposed`, `Accepted`, `Deprecated`, or `Superseded`.
   A record whose decision only partly changed stays `Accepted` and adds a
   `Partially superseded by` line naming what changed and where it now lives.
@@ -79,4 +92,5 @@ future maintainers apply or revisit the decision.
 ## Validation
 
 - Check relative links and referenced files.
+- Run `python3 scripts/check-adr.py` for metadata and section conformance.
 - Java tests are not required for documentation-only ADR edits.

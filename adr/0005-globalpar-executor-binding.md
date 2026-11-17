@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-08-22
 - Decision scope: GlobalPar executor topology, per-batch context, and cross-resource observation
+- Stability: stable
+- Category: core
 - Supersedes: None
 - Partially superseded by: [execution future simplification](../design/execution-future-simplification.md)
   （线程池级 purge 策略）；[decision-log](../design/decision-log.md) 的「Listener SPIs removed」条目

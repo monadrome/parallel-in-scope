@@ -16,6 +16,8 @@ SUMMARY_RE = re.compile(r"^## 蒸馏摘要\s*\n(.*?)(?=^#{1,2} |\Z)", re.MULTILI
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)")
+BETA_TAG = "[beta]"
+BETA_MARKER_RE = re.compile(r"^>\s*Stability:\s*beta\b", re.MULTILINE)
 
 
 def route_targets(text: str) -> dict[PurePosixPath, str]:
@@ -85,6 +87,39 @@ def check_routes(documents: set[PurePosixPath], targets: dict[PurePosixPath, str
     return errors
 
 
+def beta_routed_documents(text: str) -> set[PurePosixPath]:
+    """Live-contract documents whose route-table row is tagged [beta]."""
+    documents = set()
+    section = None
+    for line in unfenced_lines(text):
+        if line.startswith("## "):
+            section = line[3:].strip()
+        elif section == "活契约" and line.startswith("|") and BETA_TAG in line:
+            document_column = INLINE_CODE_RE.sub("", line.split("|", 2)[1])
+            documents.update(route_targets(document_column))
+    return documents
+
+
+def check_beta_markers(text: str, documents: set[PurePosixPath]) -> list[str]:
+    errors = []
+    tagged = beta_routed_documents(text)
+    for document in sorted(documents):
+        path = ROUTE_DOC.parent / document
+        if not path.is_file():
+            continue
+        has_marker = BETA_MARKER_RE.search(path.read_text(encoding="utf-8")) is not None
+        if document in tagged and not has_marker:
+            errors.append(
+                f"design/{document}: route row is tagged {BETA_TAG} "
+                "but the document has no beta stability marker"
+            )
+        if has_marker and document not in tagged:
+            errors.append(
+                f"design/{document}: beta stability marker without a {BETA_TAG} route tag"
+            )
+    return errors
+
+
 def check_adr_ids() -> list[str]:
     adr_root = ROOT / "adr"
     if not adr_root.is_dir():
@@ -138,6 +173,7 @@ def main() -> int:
         target for target in tables["活契约"]
         if len(target.parts) == 1 and target.suffix == ".md" and target.name != "AGENTS.md"
     )
+    errors.extend(check_beta_markers(text, live_documents))
     for document in sorted(live_documents):
         path = ROUTE_DOC.parent / document
         if not path.is_file():

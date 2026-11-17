@@ -11,6 +11,7 @@ from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 SCAN_ROOTS = (
+    ROOT / "AGENTS.md",
     ROOT / "README.md",
     ROOT / "README.zh-CN.md",
     ROOT / "CHANGELOG.md",

@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-31
 - Decision scope: Separating callable contracts, implementation notes, and local correctness proofs
+- Stability: stable
+- Category: non-core
 - Supersedes: [ADR 0009](0009-comment-minimization-and-placement.md), only its exclusion of implementation notes from generated API documentation and the statement-only reading of local comments
 
 ## Context

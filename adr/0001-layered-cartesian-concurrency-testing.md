@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-07-26
 - Decision scope: Concurrency test architecture
+- Stability: stable
+- Category: non-core
 - Supersedes: None
 - Partially superseded by: [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) (`TaskType` as a
   declaration that never changes scheduling)

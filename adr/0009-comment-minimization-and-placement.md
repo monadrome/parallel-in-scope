@@ -4,6 +4,8 @@
 - Date: 2026-10-27
 - Partially superseded by: [ADR 0012](0012-contract-and-implementation-comment-layers.md), implementation-note and local-block placement
 - Decision scope: Retention and placement of explanatory comments in source, Javadoc, tests, and design documents
+- Stability: stable
+- Category: non-core
 - Supersedes: [decision-log](../design/decision-log.md), `inline-comment-audit-2026-10-09`, only its rejection of qualitative comment principles; rejection of numeric thresholds and mechanical gates remains in force
 
 ## Context

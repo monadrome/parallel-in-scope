@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-09-29
 - Decision scope: batch admission handles, cancellation-wiring order, and thread state on inline execution
+- Stability: stable
+- Category: core
 - Supersedes: [ADR 0002](0002-separate-task-execution-and-future-lifecycle.md), placeholder admission and late binding only
 
 > Note (2026-10-27): two facts in the context below changed after this decision; the decision

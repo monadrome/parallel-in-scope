@@ -1,5 +1,7 @@
 # 任务终止与 scope 原因契约
 
+> Stability: beta —— 本契约约束的行为只存在于 `0.5.0-SNAPSHOT` 开发线，不在稳定版 `0.4.1` 中。
+
 > 本文是 `TaskTermination`、Batch/Group scope termination、execution claim 和实时任务状态的当前契约。
 > 它把逻辑终止、执行退出和退出后观测分成三个层次；取消原因与 execution disposition 不能互相替代。
 

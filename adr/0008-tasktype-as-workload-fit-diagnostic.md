@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-27
 - Decision scope: `TaskType` 的取值、缺省、声明位置与消费者；它与入队拒绝的关系
+- Stability: stable
+- Category: core
 - Supersedes: [decision-log](../design/decision-log.md) 的「`TaskType` semantics (v0.3)」条目
   （`TaskType.MIXED` 保留、不重开）；[ADR 0005](0005-globalpar-executor-binding.md) 规则 10 中
   「可影响排队与拒绝策略」；ADR 0006（已退役）规则 2 中 `TaskType` 的

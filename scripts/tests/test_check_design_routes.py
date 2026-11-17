@@ -104,6 +104,18 @@ class DesignRoutesTest(unittest.TestCase):
         self.assertIn("duplicate proposal id: P0001", errors)
         self.assertIn("missing or empty distillation summary", errors)
 
+    def test_beta_tag_requires_marker_and_marker_requires_tag(self):
+        self.routes(live="| [contract](contract.md) | `[beta]` Contract |\n")
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("no beta stability marker", result.stderr)
+        self.write("design/contract.md", "# Contract\n\n> Stability: beta — unreleased\n")
+        self.assertEqual(self.check().returncode, 0)
+        self.routes()
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("without a [beta] route tag", result.stderr)
+
     def test_duplicate_adr_ids_fail(self):
         self.write("adr/0013-first.md", "# ADR 0013: First\n")
         self.write("adr/0013-second.md", "# ADR 0013: Second\n")

@@ -42,6 +42,7 @@ mvn spotless:check                    # verify formatting without writing; CI ru
 mvn clean verify                      # tests + package checks; not a release build
 mvn -Pspotbugs -Dmaven.test.skip=true verify  # opt-in SpotBugs High gate; not in default CI
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
+python3 scripts/check-adr.py          # ADR metadata fields and required sections
 python3 scripts/check-java-conventions.py  # new library-source convention violations; see verification/java-conventions.md
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
@@ -619,7 +620,12 @@ Load documents when their subject affects the task:
   for design tradeoffs and previously rejected ideas when proposing capabilities.
 - `adr/` - Historical decision rationale; decisions are never rewritten, and
   records are condensed only per `adr/AGENTS.md`. New records only for
-  decisions `design/AGENTS.md` principle 10 routes there.
+  decisions `design/AGENTS.md` principle 10 routes there. Each record carries
+  `Stability` and `Category` lines: `beta` marks a decision whose governed
+  subject is unreleased; `core` records are rationale for kernel behavior whose
+  current authority sits in `design/` contracts, while `non-core` records
+  (boundary, process) remain the authority for their question. Retired records
+  keep no full text; their conclusions live in `design/decision-log.md`.
 - `BACKLOG.md` - Changes planned before a specific release: breaking API
   changes, release tooling, and small fixes. Landed items are removed rather
   than struck through; verify each entry against current sources before

@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-15
 - Decision scope: `io.github.monadrome:blocking-queues` 的源码归属与版本节奏
+- Stability: beta
+- Category: non-core
 - Supersedes: [ADR 0013](0013-standalone-blocking-queues-artifact.md) 的同仓库 reactor 与版本同步部分
 
 ## Context
@@ -24,7 +26,7 @@ ADR 0013 把通用阻塞队列拆为独立 artifact，但源码仍留在本仓�
   包名 `io.github.monadrome.queues`、该 artifact 不得依赖 core、
   `SubmissionAwareBlockingQueue` 留在 core。
 
-## Rejected alternatives
+## Alternatives Considered
 
 - 保留 reactor 模块直到 0.5.0 发布：两个真值源继续并存，模块改动仍需双向同步。
 - core 依赖 `0.5.0-SNAPSHOT` snapshot：把 core 的构建耦合到 snapshot 仓库；`0.1.0` 正式版源码

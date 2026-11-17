@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-31
 - Decision scope: JUnit major and test runtime for the root suite, the demo, and the verification consumer
+- Stability: stable
+- Category: non-core
 - Supersedes: none
 
 ## Context

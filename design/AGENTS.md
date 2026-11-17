@@ -5,7 +5,10 @@
 需要理解决策背景、否决方案或后果时，再读主题下链接的 ADR。`Accepted` ADR 的未取代部分仍然有效，
 `Partially superseded` ADR 须连同其后继阅读，`Superseded` ADR 只用于理解为什么换了方向，不得作为当前
 实现依据。需要永久关闭重提的边界问题可由 ADR 持有权威结论，其余当前行为、生命周期与并发不变量均由
-活契约持有，不在 ADR 中复制。
+活契约持有，不在 ADR 中复制。ADR 头部带 `Stability` 与 `Category` 行：`Stability: beta` 表示其约束的
+对象尚未随正式版发布；`Category: core` 的记录是核心行为决策的背景，现行行为权威在活契约；`non-core`
+记录（产物/仓库边界、测试方法、文档实践、构建工具、依赖政策）在未取代前仍是其问题的权威。已退役的
+ADR 不保留全文，其结论与否决理由在 [decision-log.md](decision-log.md)。
 
 本目录只保留当前视图，有三类内容：**活契约**（tracked，约束当前实现）、**在途提案**（tracked，位于
 `proposal/`，已写出但尚未落地）和**分析稿**（临时输入，收割后删除；默认不入库，用户要求时才入库到
@@ -92,7 +95,7 @@
 | [batch-terminal-combine.md](batch-terminal-combine.md) | `Par.mapAndCombine` 批次终端汇总契约：一次准入准备并 bind、恰好一次的成功门控提交、共享 deadline/取消生命周期、图边诚实、空输入拒绝 |
 | [batch-settle-attribution.md](batch-settle-attribution.md) | 批次元素与终端汇总按**落定时刻**归因：bind 前注册的钉子监听器、冻结等待钉子而非 cleanup budget、执行自抛 CE/IE 为 `USER_FAILURE`、与冻结时分类的差异范围与接受的残余 |
 | [task-group-adopted-futures.md](task-group-adopted-futures.md) | **组成员收养外部 future 契约**：`adopt` 把在途 `ListenableFuture` 声明为成员；组 token 以同一取消意图取消 source、先 bind 后连接、准入失败放弃 source；值进入普通组合与冻结结果，资源由外部管道或接收方管理；生产者 `Par` 让嵌套等待进入执行器等待图，与线程池饥饿观测互补 |
-| [task-termination-and-scope.md](task-termination-and-scope.md) | **任务终止与 scope 原因契约**：逻辑终止、execution claim、实时状态、退出后观测和 Batch/Group 单一 primary cause 的统一模型 |
+| [task-termination-and-scope.md](task-termination-and-scope.md) | `[beta]` **任务终止与 scope 原因契约**：逻辑终止、execution claim、实时状态、退出后观测和 Batch/Group 单一 primary cause 的统一模型 |
 
 相关决策（仅在任务涉及对应决策背景或边界时加载）：
 
@@ -105,7 +108,7 @@
 | 文档 | 摘要 |
 |---|---|
 | [task-graph.md](task-graph.md) | **执行器等待图契约**：运行时所有、常开、只增不减的执行器 waits-for 图；只有同步等待成边、两端须为本运行时注册的执行器、一次准入的边原子安装、热路径只读、CAS 安装；报告有环强连通分量与一个具体环、准入线程不打日志、「曾经观测到的结构性风险」语义；被排除的替代方案（请求级 scope、静态查询与策略开关、枚举全部简单环、按时间老化、遇环拒绝） |
-| [task-identity.md](task-identity.md) | **Task identity contract**: the disjoint unit/group-run identity spaces and their minting, the closed `TaskId` hierarchy as the single kind source, kind+label equality as reconciliation, ids as process-local diagnostics only; rejected alternatives (phantom tags + Kind enum, value-only single class, two independent top-level classes) |
+| [task-identity.md](task-identity.md) | `[beta]` **Task identity contract**: the disjoint unit/group-run identity spaces and their minting, the closed `TaskId` hierarchy as the single kind source, kind+label equality as reconciliation, ids as process-local diagnostics only; rejected alternatives (phantom tags + Kind enum, value-only single class, two independent top-level classes) |
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **非结构化线程池观测契约**：显式作用域、连续饱和/积压/无进度采样、风险信号与可见性状态、执行器所有权和关闭顺序；不包装或改变用户任务 |
 | [workload-fit-screening.md](workload-fit-screening.md) | **负载匹配筛查契约**：runtime 级常开，只给条目或单元声明为 `COMPUTE` 的库准入任务代码计时；按条目、每 10 秒执行时间一个周期判定，粘滞 issue 与一次 `WARNING`；单元只归因（每条目至多 256）与判漂移；累计计数经 `workloadFitReport()` 读取；不包装或改变用户任务，与饥饿观测不共享状态（ADR 0010） |
 

@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-07-26
 - Decision scope: Callable, Runnable, and Future execution architecture
+- Stability: stable
+- Category: core
 - Supersedes: None
 - Partially superseded by: [ADR 0007](0007-bind-before-submit-and-borrowed-thread-isolation.md)
   (placeholder admission and late binding); [execution future simplification](../design/execution-future-simplification.md)

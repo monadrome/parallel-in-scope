@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-30
 - Decision scope: `TaskType` 运行时消费者的生命周期、判定粒度与报告形状；提交时比对去重表的可观测面
+- Stability: stable
+- Category: core
 - Supersedes: [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) 决定 4 中「运行时低 CPU 筛查
   复用线程池饥饿观测窗口」，及其后果中「观测窗口内每个任务体多两次线程 CPU 计时读取」
 
