@@ -237,9 +237,9 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   to library, tests, and demo.
 - Use American English in code and prose, except the doubled-`l` family:
   `cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`, `labelled`.
-  Respelled public members need changelog and migration-guide entries. Preserve
-  third-party names and original spellings in dated records (released changelogs,
-  `migration-v0.2` tables, accepted ADRs).
+  Respelled public members need changelog entries that name the replacement.
+  Preserve third-party names and original spellings in dated records (released
+  changelogs, published migration guides, accepted ADRs).
 - Write all newly added project-authored agent-facing and maintainer-facing
   documentation in English. This includes new content in `AGENTS.md`, `design/`,
   `adr/`, `verification/`, `refactoring-review/`, repository scripts and tooling
@@ -283,16 +283,19 @@ mechanisms, from no sharing down to hand-built protocols, lives in
 - Public APIs and SPI may break between `0.x` releases without compatibility
   shims for meaningful improvements with documented rationale.
 - For public API renames or signature changes, update the implementation,
-  tests, user documentation, and migration notes as one change. Keep the
+  tests, user documentation, and the changelog entry as one change. Keep the
   rationale explicit so future maintainers can distinguish intentional API
   evolution from accidental breakage.
+- The project does not maintain migration guides: each breaking change carries
+  its migration action in its changelog entry, which must be self-contained.
+  Migration guides published for released versions are frozen dated records.
 
 ## Documentation Audiences
 
 Documentation has two top-level audiences; keep their entry points and responsibilities distinct:
 
 - **User-facing documentation** explains supported usage and observable behavior: `README*.md`,
-  `docs/`, `demo/`, `integrations/`, migration guides, and public contributor instructions.
+  `docs/`, `demo/`, `integrations/`, and public contributor instructions.
   `docs/{en,zh}/quickstart.md` is the canonical development-line quickstart. The README provides
   a minimal stable-release example; demo articles provide detailed examples rather than a second
   quickstart.
@@ -341,7 +344,7 @@ Documentation must stay readable and correct without the Git object database:
 ## Autonomous Completion
 
 - A request to change something authorizes the whole route this file prescribes:
-  implementation, tests, formatting, documentation and migration notes, the
+  implementation, tests, formatting, documentation and changelog notes, the
   review-and-fix loop, commit, and delivery. Do not wait for confirmation between
   these steps. Stop only for:
   - a direction the request leaves undecided: public API shape, contract
@@ -354,7 +357,7 @@ Documentation must stay readable and correct without the Git object database:
   list each open decision with your recommendation and what it changes.
 - Settle implementation choices yourself instead of presenting options. Design
   for the best end state; in `0.x`, compatibility and migration cost are not
-  selection criteria, and migration notes record the break.
+  selection criteria, and the changelog records the break.
 - A request for analysis authorizes the analysis, not applying its proposals.
 - Start new work from the freshly fetched development line named under Current
   Development Line, not from a stale local branch or `main`.
@@ -538,8 +541,8 @@ investigating review or test blind spots.
   when extended reasoning is needed, a `design/` document.
 - Every public API or documented-contract proposal and PR must show the best
   user code today, the same code after the change, and the failure mode removed.
-  Breaking changes must name the migration path; PRs missing this rationale
-  are not mergeable.
+  Breaking changes must name the migration path in their changelog entry; PRs
+  missing this rationale are not mergeable.
 - Open issues for public input, downstream discoverability, or deferred work.
   Use `.github/ISSUE_TEMPLATE/`: `design_proposal.yml` for capabilities/contracts,
   `bug_report.yml` for defects, `documentation.yml` for guides/Javadoc.
@@ -603,7 +606,7 @@ Load documents when their subject affects the task:
   input, not contract.
   Current `design/` contracts take precedence over historical ADRs, except for
   boundary questions held by ADRs — `adr/0013` holds the current standalone queue
-  artifact boundary and supersedes `adr/0006`. Its principle 10 decides where decision
+  artifact boundary. Its principle 10 decides where decision
   rationale lands: ADR, a contract's rejected-alternatives section, or the decision log.
 - `design/decision-log.md` - Conclusions and rejection reasons of retired
   directions; read before reopening an old direction.
@@ -612,8 +615,6 @@ Load documents when their subject affects the task:
   principles, tiers, lenses (including the concurrency-mechanism ladder), and the
   config the planner reads. Read before running the step or changing its rules.
 - `docs/en/user-guide.md` - Update when user-facing behavior changes.
-- `docs/en/migration-v0.2.md` - Update for public API renames, signature changes,
-  or other breaking changes from `0.1.x`.
 - `docs/zh/design/philosophy.md` and `docs/zh/design/idea-graveyard.md` - Consult
   for design tradeoffs and previously rejected ideas when proposing capabilities.
 - `adr/` - Historical decision rationale; decisions are never rewritten, and

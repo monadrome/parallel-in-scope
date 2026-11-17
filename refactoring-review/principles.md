@@ -23,9 +23,8 @@ already modifies.
 
 The sources listed under Precedence in [AGENTS.md](AGENTS.md) override every lens rule. Examples:
 the root package deliberately co-locates the public API with the package-private kernel, so
-"split into subpackages" is never a finding; `adr/0006-queues-ship-with-core.md` closes the queue
-artifact boundary; queue code keeps parity with JDK `LinkedBlockingQueue` per the queue
-`AGENTS.md`.
+"split into subpackages" is never a finding; `adr/0013-standalone-blocking-queues-artifact.md`
+closes the queue artifact boundary.
 
 ## R4 Findings are judgement calls with a cited rule and a concrete move
 

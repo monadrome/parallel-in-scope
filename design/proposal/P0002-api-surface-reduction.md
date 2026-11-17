@@ -209,7 +209,7 @@ if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 | `ParRuntime` purge 运行期旋钮与 `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()` | 维持 09-27 结论：故意暴露的可变运行状态与双通道查询；`inFlight`/`awaitQuiescence` 有 user-guide 记载 | `ParRuntimePoliciesTest`、user-guide en:274 |
 | `TaskBatchResult.reportString()` | demo 高频（约 17 处），batch 报告是演示与排障主路径；`report()` 已随批次读取统一删除 | demo |
 | `TaskType.MIXED` | 已删除：0.4 改为 `COMPUTE`/`BLOCKING`/`UNKNOWN` 诊断声明 | [ADR 0008](../../adr/0008-tasktype-as-workload-fit-diagnostic.md) |
-| `queue` 两个类保持 public | 产物边界已关闭 | [adr/0006](../../adr/0006-queues-ship-with-core.md) |
+| `queue` 两个类保持 public | 产物边界已关闭 | adr/0006（已退役；结论见 [decision-log](../decision-log.md)） |
 | `ParId.value()` | 值类型唯一显式取值口 | — |
 | `LeanCancellationException` | 穿越用户 lambda 的可观察异常类型，双异常策略的一半 | 哲学文档 §四 |
 

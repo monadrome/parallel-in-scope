@@ -110,8 +110,8 @@ Profile value = profile.terminalValueOrThrow();
 ```
 
 `runAll()` 一次性消费声明并返回冻结结果，没有需要关闭的句柄。首个成员失败会取消其余成员，
-成员超时则取消整个组。聚合读取使用冻结结果模型；从 v0.4 升级请参见
-[v0.5 迁移指南](docs/zh/migration-v0.5.md)。
+成员超时则取消整个组。聚合读取使用冻结结果模型；开发线上的破坏性变更及其迁移方式见
+[CHANGELOG](CHANGELOG.md)。
 
 仍在使用稳定版 `0.2.0`？它的 API 不同（`GlobalPar` / `ParName`），请参阅
 [v0.2.0 使用指南](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/zh/user-guide.md)。

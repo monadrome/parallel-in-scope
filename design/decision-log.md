@@ -398,9 +398,20 @@ Reopen only by explicit user decision.
 
 ## Queues
 
-- The queue package ships with the core artifact; the boundary is closed by
-  [ADR 0006](../adr/0006-queues-ship-with-core.md). Do not reopen it in reviews, triage, or
-  refactor proposals.
+- The queue boundary is held by [ADR 0013](../adr/0013-standalone-blocking-queues-artifact.md)
+  (standalone artifact) and [ADR 0015](../adr/0015-blocking-queues-standalone-repository.md)
+  (standalone repository); do not reopen merging the queues back into core in reviews, triage, or
+  refactor proposals. History: the queues shipped with core from 2026-09 to 2026-11 under
+  ADR 0006 (retired), which ADR 0013 superseded.
+- The queue lifecycle's abrupt-close recovery model (ADR 0004, retired) was replaced by the
+  draining-close model whose contract lives in the blocking-queues repository. Isolating queued
+  elements at shutdown made the query channel report an empty queue that still held data, and that
+  paradox forced a recovery channel; draining keeps queued elements consumable until the queue is
+  empty, so no recovery channel is needed.
+- Automatic cancelled-task purge (ADR 0003, retired) was removed from the main line in 0.3.0:
+  queue cleanup belongs to the executor owner (`ThreadPoolExecutor.purge()` at the application's
+  own maintenance boundary), and the coalesced-purge design is preserved on `dev/experimental`
+  should it return.
 - Resizable blocking queue experiment (three variants: condition, monitor, future-coordinated):
   removed on the v0.2 line; the removal commit called them exploratory and not referenced by the
   engine. None entered a contract. The removal commit names a preservation branch that does not exist; the

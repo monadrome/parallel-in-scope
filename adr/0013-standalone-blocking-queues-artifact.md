@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-07
 - Decision scope: `DrainingBlockingQueue` 与 `ResizableBlockingQueue` 的产物和包边界
-- Supersedes: [ADR 0006](0006-queues-ship-with-core.md)
+- Supersedes: ADR 0006（queue 与 core 同产物发布，已退役；其结论与否决理由见
+  [decision-log](../design/decision-log.md)）
 - Partially superseded by: [ADR 0015](0015-blocking-queues-standalone-repository.md)（源码归属与版本节奏；artifact 与包边界、`SubmissionAwareBlockingQueue` 归属不变）
 
 ## Context

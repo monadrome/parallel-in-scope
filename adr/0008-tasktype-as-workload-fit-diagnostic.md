@@ -5,7 +5,7 @@
 - Decision scope: `TaskType` 的取值、缺省、声明位置与消费者；它与入队拒绝的关系
 - Supersedes: [decision-log](../design/decision-log.md) 的「`TaskType` semantics (v0.3)」条目
   （`TaskType.MIXED` 保留、不重开）；[ADR 0005](0005-globalpar-executor-binding.md) 规则 10 中
-  「可影响排队与拒绝策略」；[ADR 0006](0006-queues-ship-with-core.md) 规则 2 中 `TaskType` 的
+  「可影响排队与拒绝策略」；ADR 0006（已退役）规则 2 中 `TaskType` 的
   排队/拒绝语义
 - Partially superseded by: [ADR 0010](0010-always-on-workload-fit-screening.md)（运行时低 CPU 筛查改为
   runtime 级常开、按条目判定，不再复用线程池饥饿观测窗口）

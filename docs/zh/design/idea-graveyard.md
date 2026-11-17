@@ -325,6 +325,18 @@ par.map("io-pool", urls, url -> {
 
 ---
 
+## 自动清理已取消任务（Automatic Purge）
+
+**请求：** 任务取消后，由库自动从用户 executor 队列里清除已取消的 Future。
+
+**为什么不做：** 已取消的 Future 在 worker 消费前会一直留在 `ThreadPoolExecutor` 队列里，但让库来清扫，就要在取消这条延迟敏感路径上挂一套每池维护协议——合并延迟、准入阈值和顺序保证的成本超过它清除的过期引用。该能力曾实现过，于 0.3.0 移除：队列清理归 executor 所有者。
+
+**替代方案：** 应用在自己的维护边界调用 `ThreadPoolExecutor.purge()`；取消路径保持常数时间。
+
+**状态：** 0.3.0 移除。事件合并 purge 的设计保留在 `dev/experimental` 分支，若未来恢复自动 purge，从该设计起步。
+
+---
+
 ## 不会有的东西
 
 以下特性与 parallel-in-scope 的定位有根本冲突，不会被考虑：

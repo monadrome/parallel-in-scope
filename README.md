@@ -131,8 +131,8 @@ Profile value = profile.terminalValueOrThrow();
 
 `runAll()` consumes the declaration once and returns frozen results; there is no handle to close.
 The first member failure cancels its siblings, and a member timeout cancels the group. Batch
-aggregate reads are unchecked; group reads use the same frozen-result model. See the
-[v0.5 migration guide](docs/en/migration-v0.5.md) when upgrading from the v0.4 line.
+aggregate reads are unchecked; group reads use the same frozen-result model. Breaking changes on
+the development line carry their migration actions in the [changelog](CHANGELOG.md).
 
 Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName`); use the
 [v0.2.0 user guide](https://github.com/monadrome/parallel-in-scope/tree/v0.2.0/docs/en/user-guide.md).

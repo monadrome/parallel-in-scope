@@ -17,18 +17,19 @@
   `TaskCompletion<T>` becomes `TaskExitObservation<T>`, `TaskStatus.TERMINATED` becomes
   `TaskStatus.RESULT_SETTLED`, and `ExecutionDisposition.ENTERED` / `NOT_ENTERED` become
   `CLAIMED` / `NOT_CLAIMED`. The package-private group and batch aggregate futures are now
-  `convergenceFuture()` and `observationsFuture()`. `ImmediateResult.asFuture()` and the legacy
-  `TaskOutcome` projection keep their names; use `executionExitConfirmed()` before releasing
-  resources shared with direct executions. See the [v0.5 migration guide](docs/en/migration-v0.5.md).
+  `convergenceFuture()` and `observationsFuture()`. `ImmediateResult.asFuture()` keeps its name;
+  the public `TaskOutcome` type is removed — read `TaskTermination` and `ScopeTermination` instead
+  of `outcome()`. Use `executionExitConfirmed()` before releasing
+  resources shared with direct executions.
 - Change `ContextExecutors.directContextExecutor()` to capture Alibaba TransmittableThreadLocal (TTL)
   context at each `execute` call so the
   default direct executor follows the calling context when reused. Replace the former creation-time
   behavior with `ContextExecutors.registrationContextExecutor()` when a Future listener or callback
   must retain its registration context. `lazyDirectExecutor()` is removed; use `directContextExecutor()` for
   execution-time capture.
-- Rename `SmartBlockingQueue` to `SubmissionAwareBlockingQueue` and `VariableLinkedBlockingQueue` to `ResizableBlockingQueue`. The queue admission, dynamic-capacity, and `DrainingBlockingQueue` contracts are unchanged. `DrainingBlockingQueue` and `ResizableBlockingQueue` now ship from `io.github.monadrome:blocking-queues` in `io.github.monadrome.queues`; update the dependency and imports as described in the [v0.5 migration guide](docs/en/migration-v0.5.md).
-- Replace recursive TaskGroup `Tuple2` member values with keyed `GroupValues`; `TaskGroupResult<V,R>` becomes `TaskGroupResult<R>`, and `typedValues()` plus tuple-input combines are removed. See the [v0.5 migration guide](docs/en/migration-v0.5.md).
-- Replace the `TaskId<K>` phantom kind tags with a closed `TaskId` hierarchy: `TaskId<TaskUnit>` becomes `TaskId.Unit`, `TaskId<TaskGroupRun>` becomes `TaskId.GroupRun`, and the `TaskUnit` and `TaskGroupRun` marker interfaces are removed. The runtime class now carries the identity kind; factory calls, equality semantics (kind plus label), and the `unit-7` / `group-3` rendering are unchanged. See the [v0.5 migration guide](docs/en/migration-v0.5.md).
+- Rename `SmartBlockingQueue` to `SubmissionAwareBlockingQueue` and `VariableLinkedBlockingQueue` to `ResizableBlockingQueue`. The queue admission, dynamic-capacity, and `DrainingBlockingQueue` contracts are unchanged. `DrainingBlockingQueue` and `ResizableBlockingQueue` now ship from `io.github.monadrome:blocking-queues` in `io.github.monadrome.queues`; add the `io.github.monadrome:blocking-queues:0.1.0` dependency when using either standalone queue and update imports. `SubmissionAwareBlockingQueue` remains in `parallel-in-scope`.
+- Replace recursive TaskGroup `Tuple2` member values with keyed `GroupValues`; `TaskGroupResult<V,R>` becomes `TaskGroupResult<R>`, and `typedValues()` plus tuple-input combines are removed. Read members with `GroupValues.valueOf(TaskKey)` for compile-time type safety, or `valueAt(int)`/`valueOf(String)` for dynamic access; terminal combines use `combineValues`.
+- Replace the `TaskId<K>` phantom kind tags with a closed `TaskId` hierarchy: `TaskId<TaskUnit>` becomes `TaskId.Unit`, `TaskId<TaskGroupRun>` becomes `TaskId.GroupRun`, and the `TaskUnit` and `TaskGroupRun` marker interfaces are removed. The runtime class now carries the identity kind; factory calls, equality semantics (kind plus label), and the `unit-7` / `group-3` rendering are unchanged.
 
 
 ## [0.4.1] - 2026-11-07
