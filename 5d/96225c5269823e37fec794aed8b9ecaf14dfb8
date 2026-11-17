@@ -1,0 +1,69 @@
+scripts/tests/test_check_adr.py
+  s_6089cce8990783::t_e29985d8917f63 1-87
+adr/0014-logging-backend-boundary.md
+  s_6089cce8990783::t_144ffdf8a48a7c 6-7
+adr/0013-standalone-blocking-queues-artifact.md
+  s_6089cce8990783::t_9ff77a6617ad14 6-7
+  s_6089cce8990783::t_88c57f57a2fa22 59
+design/task-termination-and-scope.md
+  s_6089cce8990783::t_2b2274f41c1ad6 3-4
+adr/0009-comment-minimization-and-placement.md
+  s_6089cce8990783::t_e1af2b78ced4b4 7-8
+adr/0012-contract-and-implementation-comment-layers.md
+  s_6089cce8990783::t_fe4166bc5a775a 6-7
+scripts/check-adr.py
+  s_6089cce8990783::t_57835bcaee72ec 1-68
+adr/0002-separate-task-execution-and-future-lifecycle.md
+  s_6089cce8990783::t_04f74b7f0c6035 6-7
+adr/0005-globalpar-executor-binding.md
+  s_6089cce8990783::t_c2091f6446a8e5 6-7
+design/AGENTS.md
+  s_6089cce8990783::t_5baee0ebb2388c 98
+  s_6089cce8990783::t_d2c0275a035bc5 111
+  s_6089cce8990783::t_983aaf4ffadd69 8-11
+adr/0011-demo-and-verification-stay-on-junit-5.md
+  s_6089cce8990783::t_47525bb8d47d7b 6-7
+adr/0007-bind-before-submit-and-borrowed-thread-isolation.md
+  s_6089cce8990783::t_07a66ede681245 6-7
+AGENTS.md
+  s_6089cce8990783::t_dd2a4020053110 45
+  s_6089cce8990783::t_2dd60e81702a63 623-628
+scripts/check-design-routes.py
+  s_6089cce8990783::t_87d303c4044f42 19-20
+  s_6089cce8990783::t_73c3c3340aaa5e 90-122
+  s_6089cce8990783::t_892c880642b481 176
+scripts/tests/test_check_design_routes.py
+  s_6089cce8990783::t_03efe8ef338533 107-118
+adr/0010-always-on-workload-fit-screening.md
+  s_6089cce8990783::t_66f6986d2be1c1 6-7
+adr/AGENTS.md
+  s_6089cce8990783::t_d19303d49733b0 16-29
+  s_6089cce8990783::t_e5220d99fa4c84 95
+adr/0015-blocking-queues-standalone-repository.md
+  s_6089cce8990783::t_effe6d02771590 6-7
+  s_6089cce8990783::t_b56fa2ba83791a 29
+adr/0001-layered-cartesian-concurrency-testing.md
+  s_6089cce8990783::t_d556d4d5268e06 6-7
+scripts/check-local-links.py
+  s_6089cce8990783::t_f788983326cde1 14
+adr/0008-tasktype-as-workload-fit-diagnostic.md
+  s_6089cce8990783::t_17092525cf9f4a 6-7
+design/task-identity.md
+  s_6089cce8990783::t_abb9cdcdc1e527 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "5d96225c5269823e37fec794aed8b9ecaf14dfb8",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
