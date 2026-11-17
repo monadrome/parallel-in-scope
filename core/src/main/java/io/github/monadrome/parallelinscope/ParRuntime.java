@@ -137,14 +137,16 @@ public final class ParRuntime implements AutoCloseable {
                 ? builder.timeoutScheduler
                 : new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
         this.defaultId = builder.defaultId;
+        Executor announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
+        this.announcements = announcements;
         Map<ParId, Par> builtPars = new LinkedHashMap<>();
         Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
         ImmutableSetMultimap.Builder<ExecutorIdentity, ParId> aliases = ImmutableSetMultimap.builder();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
             ExecutorIdentity identity = new ExecutorIdentity(entry.getValue());
-            ExecutorRuntime runtime =
-                    identityRuntimes.computeIfAbsent(identity, ignored -> runtimeFor(entry.getKey(), entry.getValue()));
+            ExecutorRuntime runtime = identityRuntimes.computeIfAbsent(
+                    identity, ignored -> runtimeFor(entry.getKey(), entry.getValue(), announcements));
             aliases.put(identity, entry.getKey());
             builtRuntimes.put(entry.getKey(), runtime);
             TaskType taskType = verifyNotNull(builder.taskTypes.get(entry.getKey()), "task type of %s", entry.getKey());
@@ -153,17 +155,18 @@ public final class ParRuntime implements AutoCloseable {
         this.runtimes = ImmutableMap.copyOf(builtRuntimes);
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
         this.pars = ImmutableMap.copyOf(builtPars);
-        this.announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
         this.executorWaits = new ExecutorWaitGraph(aliases.build(), announcements);
     }
 
     /**
      * Inspects {@code executor} and creates its runtime. The caller's identity registry invokes this
      * factory only for the first alias, so its warnings and rejection checks run once per identity.
+     * Warnings go through the guarded delivery in {@link Announcements}, like every other log
+     * station: a logging handler that throws must not alter what {@code build()} observes.
      *
      * @throws IllegalArgumentException if the physical executor silently discards rejected tasks
      */
-    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor) {
+    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor, Executor announcements) {
         // A TTL wrapper hides the physical pool, so every structural fact below is read
         // through it. Without this the wrapper is indistinguishable from a foreign
         // executor: blocking-risk detection silently downgrades, and the
@@ -173,14 +176,17 @@ public final class ParRuntime implements AutoCloseable {
             // Detection that silently downgrades is worse than a diagnostic: a decorated
             // or foreign executor hides the physical pool from deadlock-risk
             // classification, so say so once at the composition root.
-            LOGGER.warning("Par '" + id + "' is registered with "
-                    + executor.getClass().getName()
-                    + ", which this library cannot see through:"
-                    + " blocking-risk detection is disabled for it. If this executor only"
-                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
-                    + " instead of the wrapper to keep it. An executor that starts a fresh"
-                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
-                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it.");
+            Announcements.deliver(
+                    announcements,
+                    () -> LOGGER.warning(
+                            "Par '" + id + "' is registered with "
+                                    + executor.getClass().getName()
+                                    + ", which this library cannot see through:"
+                                    + " blocking-risk detection is disabled for it. If this executor only"
+                                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
+                                    + " instead of the wrapper to keep it. An executor that starts a fresh"
+                                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+                                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it."));
         } else {
             // A discarding policy never reports rejection: DiscardPolicy drops the new
             // task outright, and DiscardOldestPolicy drops the oldest queued task to make
@@ -207,10 +213,12 @@ public final class ParRuntime implements AutoCloseable {
             // wrapper still costs is a second TTL capture: the executor boundary adds one
             // on top of the one prepare already performs. That boundary is the caller's
             // executor, so it is named rather than unwrapped.
-            LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
-                    + executor.getClass().getName()
-                    + "; register the physical pool instead. TTL capture then happens twice"
-                    + " for every task: once at the executor boundary and once at prepare.");
+            Announcements.deliver(
+                    announcements,
+                    () -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
+                            + executor.getClass().getName()
+                            + "; register the physical pool instead. TTL capture then happens twice"
+                            + " for every task: once at the executor boundary and once at prepare."));
         }
         return new ExecutorRuntime(executor);
     }

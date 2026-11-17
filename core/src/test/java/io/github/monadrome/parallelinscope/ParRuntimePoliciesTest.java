@@ -13,6 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -147,8 +148,12 @@ class ParRuntimePoliciesTest {
         };
         runtimeLogger.addHandler(capture);
         try {
-            ParRuntime runtime =
-                    ParRuntime.builder().register(ParId.of("orders"), wrapped).build();
+            // Registration warnings are delivered on the runtime's announcements executor; a
+            // direct executor keeps the capture synchronous with the build.
+            ParRuntime runtime = ParRuntime.builder()
+                    .register(ParId.of("orders"), wrapped)
+                    .announcements(Runnable::run)
+                    .build();
             runtime.close();
 
             assertThat(records).hasSize(1);
@@ -159,6 +164,50 @@ class ParRuntimePoliciesTest {
                     .doesNotContain("cannot see through");
         } finally {
             runtimeLogger.removeHandler(capture);
+            physical.shutdownNow();
+        }
+    }
+
+    @Test
+    void aThrowingLogHandlerCannotAlterTheBuild() {
+        // Both registration warnings go through the guarded announcements path, so a user JUL
+        // handler that throws cannot reach the thread building the runtime. A direct
+        // announcements executor keeps delivery synchronous with the build, and the attempt
+        // count proves both handlers ran inside the guard rather than not running at all.
+        Logger runtimeLogger = Logger.getLogger(ParRuntime.class.getName());
+        AtomicInteger publishAttempts = new AtomicInteger();
+        Handler throwing = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                publishAttempts.incrementAndGet();
+                throw new IllegalStateException("user handler failure");
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        runtimeLogger.addHandler(throwing);
+        // A delegated executor service is not a ThreadPoolExecutor, so it triggers the
+        // "cannot see through" warning; the TTL wrapper triggers the double-capture warning.
+        ExecutorService foreign = Executors.newSingleThreadExecutor();
+        ThreadPoolExecutor physical =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);
+        try {
+            ParRuntime runtime = ParRuntime.builder()
+                    .register(ParId.of("foreign"), foreign)
+                    .register(ParId.of("wrapped"), wrapped)
+                    .announcements(Runnable::run)
+                    .build();
+            runtime.close();
+
+            assertThat(publishAttempts).hasValue(2);
+        } finally {
+            runtimeLogger.removeHandler(throwing);
+            foreign.shutdownNow();
             physical.shutdownNow();
         }
     }

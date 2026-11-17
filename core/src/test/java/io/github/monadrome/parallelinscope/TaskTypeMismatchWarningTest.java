@@ -256,9 +256,10 @@ class TaskTypeMismatchWarningTest {
     /**
      * A delivery the announcement executor cannot start, such as a failure creating its thread on the
      * admitting thread, drops the message instead of failing admission, whether the failure is an
-     * exception or an {@link OutOfMemoryError}; both the mismatch warning and the inert-refusal
-     * warning go through that path. Admission runs inside {@code assertThatCode}, so an error that
-     * escapes fails this test instead of the test JVM.
+     * exception or an {@link OutOfMemoryError}; the registration warning for the queueless
+     * executor, the mismatch warning, and the inert-refusal warning all go through that path.
+     * Admission runs inside {@code assertThatCode}, so an error that escapes fails this test
+     * instead of the test JVM.
      */
     @Test
     void anAnnouncementExecutorThatCannotStartADeliveryNeverChangesTheOutcome() {
@@ -290,7 +291,7 @@ class TaskTypeMismatchWarningTest {
             }
 
             assertThat(values).as("%s", failure).containsExactly(1, 2);
-            assertThat(attempts).as("%s", failure).hasValue(2);
+            assertThat(attempts).as("%s", failure).hasValue(3);
         }
         assertThat(records).isEmpty();
     }

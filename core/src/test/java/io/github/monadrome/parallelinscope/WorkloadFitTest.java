@@ -95,6 +95,9 @@ class WorkloadFitTest {
                 .workloadClock(clock)
                 .announcements(announcements::add)
                 .build()) {
+            // The registration diagnostic for the queueless executor is delivered at build
+            // time; this test counts only the verdict announcement.
+            announcements.clear();
             List<MultiTaskContext> units = new ArrayList<>(unitCount);
             for (int u = 0; u < unitCount; u++) {
                 units.add(MultiTaskContext.resolve(MultiTaskContext.resolution(

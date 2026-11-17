@@ -19,9 +19,3 @@ retired inventory ids once for traceability.
   merges to `main`: live contracts and guides point at `main`, dated notes
   may keep the dev snapshot. There is no link-flip automation; decide per
   link in the release PR (was O-18).
-
-## Small fixes
-
-- Route the `ParRuntime` registration warnings through the guarded
-  `announce` idiom used by the other log stations, so a throwing user JUL
-  handler cannot alter control flow (audit follow-up, 2026-10-04).
