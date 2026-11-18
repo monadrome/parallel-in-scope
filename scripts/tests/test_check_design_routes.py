@@ -172,6 +172,18 @@ class DesignRoutesTest(unittest.TestCase):
         self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")
         self.assertIn("missing or empty distillation summary", self.check().stderr)
 
+    def test_english_distillation_summary_heading_counts(self):
+        self.proposal(summary="## Distillation summary\n- Purpose and constraints\n")
+        self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_archived_proposals_enter_neither_route_table(self):
+        self.write("design/archive/proposal/P0009-dormant.md", "# Dormant\nNo summary.\n")
+        self.git("add", "design/archive/proposal/P0009-dormant.md")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

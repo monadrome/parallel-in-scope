@@ -41,7 +41,7 @@ SCAN_PREFIXES = (
     "mkdocs/",
     "refactoring-review/",
 )
-EXEMPT_PREFIXES = ("design/analysis/",)
+EXEMPT_PREFIXES = ("design/analysis/", "design/archive/")
 EXEMPT_FILES = {
     "CHANGELOG.md",
     "todo.md",

@@ -12,7 +12,7 @@ ROUTE_DOC = ROOT / "design" / "AGENTS.md"
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)\s]+)(?:\s+['\"][^)]*['\"])?\)")
 PROPOSAL_RE = re.compile(r"(P[0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md")
 BACK_REFERENCE_RE = re.compile(r"\bproposal:(P[0-9]{4})(?![a-zA-Z0-9])")
-SUMMARY_RE = re.compile(r"^## 蒸馏摘要\s*\n(.*?)(?=^#{1,2} |\Z)", re.MULTILINE | re.DOTALL)
+SUMMARY_RE = re.compile(r"^## (?:蒸馏摘要|Distillation summary)\s*\n(.*?)(?=^#{1,2} |\Z)", re.MULTILINE | re.DOTALL)
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)")

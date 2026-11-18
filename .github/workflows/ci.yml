@@ -45,6 +45,9 @@ jobs:
       - name: Check ADR conformance
         run: python3 scripts/check-adr.py
 
+      - name: Check proposal conformance
+        run: python3 scripts/check-proposal.py
+
       - name: Check documentation references
         run: python3 scripts/check-doc-refs.py
 

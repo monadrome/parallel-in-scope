@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Check proposal identity, distillation summaries, and content bans.
+
+In-flight proposals live in ``design/proposal/`` and archived dormant proposals in
+``design/archive/proposal/``. Both locations are checked for filename shape and id
+uniqueness, so an archived id blocks reuse. In-flight proposals additionally need a
+non-empty distillation summary as a real section and must not carry line-number
+citations; archived files are checked for identity only. Line counts are printed as
+a review signal and never fail the gate.
+"""
+
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+PROPOSAL_ROOT = ROOT / "design" / "proposal"
+ARCHIVE_ROOT = ROOT / "design" / "archive" / "proposal"
+
+NAME_RE = re.compile(r"^P(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+SUMMARY_RE = re.compile(
+    r"^## (?:蒸馏摘要|Distillation summary)\s*\n(.*?)(?=^#{1,2} |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
+CLASS_LINE_RE = re.compile(r"(?<![\w./-])[A-Z][A-Za-z0-9_]*:\d+(?:[-,]\d+)*")
+
+
+def unfenced_lines(text: str):
+    """Visible lines with HTML comments and code fences removed, 1-indexed."""
+    fence = None
+    for number, line in enumerate(COMMENT_RE.sub("", text).splitlines(), 1):
+        match = FENCE_RE.match(line)
+        if fence is not None:
+            if (match and match[1][0] == fence[0] and len(match[1]) >= len(fence)
+                    and not match[2].strip()):
+                fence = None
+            continue
+        if match:
+            fence = match[1]
+            continue
+        yield number, line
+
+
+def check_active(document: Path, label: str, text: str) -> list[str]:
+    errors = []
+    visible = list(unfenced_lines(text))
+    match = SUMMARY_RE.search("\n".join(line for _, line in visible))
+    if match is None:
+        errors.append(f"{label}: missing distillation summary section")
+    elif not match.group(1).strip():
+        errors.append(f"{label}: empty distillation summary section")
+    for number, line in visible:
+        if CLASS_LINE_RE.search(line):
+            errors.append(f"{label}:{number}: line-number citation: {line.strip()}")
+    return errors
+
+
+def main() -> int:
+    errors = []
+    counts = []
+    ids = {}
+    for root, active in ((PROPOSAL_ROOT, True), (ARCHIVE_ROOT, False)):
+        if not root.is_dir():
+            continue
+        for document in sorted(root.glob("*.md")):
+            label = document.relative_to(ROOT).as_posix()
+            text = document.read_text(encoding="utf-8")
+            match = NAME_RE.match(document.name)
+            if match is None:
+                errors.append(f"{label}: invalid proposal filename")
+            else:
+                proposal_id = match.group(1)
+                if proposal_id in ids:
+                    errors.append(
+                        f"{label}: duplicate proposal id: P{proposal_id}"
+                        f" (also {ids[proposal_id]})"
+                    )
+                else:
+                    ids[proposal_id] = label
+            if active:
+                errors.extend(check_active(document, label, text))
+            counts.append((label, len(text.splitlines())))
+    if errors:
+        print("Proposal conformance failed:", file=sys.stderr)
+        print("\n".join(f"- {error}" for error in errors), file=sys.stderr)
+        return 1
+    print("Proposal conformance: OK")
+    if counts:
+        print("Line counts (review signal, not a gate):")
+        print("\n".join(f"- {label}: {count}" for label, count in counts))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

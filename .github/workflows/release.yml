@@ -55,6 +55,7 @@ jobs:
           python3 scripts/check-local-links.py
           python3 scripts/check-design-routes.py
           python3 scripts/check-adr.py
+          python3 scripts/check-proposal.py
           python3 scripts/check-doc-refs.py
           python3 scripts/check-demo-articles.py
           mkdocs build --strict --config-file mkdocs/mkdocs.yml
