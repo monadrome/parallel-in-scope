@@ -1,0 +1,38 @@
+docs/en/user-guide.md
+  s_ba444ba790e5cc::t_dfa961d9364323 42
+  s_ba444ba790e5cc::t_3d5d6a715ff81c 36,40-41,322,325,596-610
+mkdocs/mkdocs.yml
+  s_ba444ba790e5cc::t_4b5043076bbe05 167-168
+  s_ba444ba790e5cc::t_36a071cc17b4e4 24-25
+docs/en/reference/executor-registration.md
+  s_ba444ba790e5cc::t_55d5f6eb1f70e6 1-28
+docs/zh/user-guide.md
+  s_ba444ba790e5cc::t_3d5d6a715ff81c 26,30,283,517,519,521-525
+  s_ba444ba790e5cc::t_1f65fea4f1d157 9
+docs/en/index.md
+  s_ba444ba790e5cc::t_39ecb4e6c7baf6 28-29
+docs/zh/index.md
+  s_ba444ba790e5cc::t_b6fe0ec109a082 28-29
+docs/zh/reference/diagnostics.md
+  s_ba444ba790e5cc::t_55d5f6eb1f70e6 1-146
+docs/en/reference/diagnostics.md
+  s_ba444ba790e5cc::t_55d5f6eb1f70e6 1-179
+docs/zh/reference/executor-registration.md
+  s_ba444ba790e5cc::t_55d5f6eb1f70e6 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "32e8700708e282528251a01394181011c4c0c039",
+  "prompts": {},
+  "sessions": {
+    "s_ba444ba790e5cc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_9bb0abae-4a7b-46db-8301-5a82a71118ea",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
