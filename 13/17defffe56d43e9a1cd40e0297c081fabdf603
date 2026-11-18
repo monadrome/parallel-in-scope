@@ -1,0 +1,22 @@
+BACKLOG.md
+  s_0181f20e54f87b::t_7465cb1603858b 99-104
+  s_0181f20e54f87b::t_22dd4255cc220f 20-21
+verification/comment-burn-down-2026-11.md
+  s_0181f20e54f87b::t_cf4f64df41df7a 1-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1317defffe56d43e9a1cd40e0297c081fabdf603",
+  "prompts": {},
+  "sessions": {
+    "s_0181f20e54f87b": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_fe2a0a6b-f090-4af8-900e-c39ad48d1f4d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
