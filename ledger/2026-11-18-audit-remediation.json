@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-audit-remediation",
+  "date": "2026-11-18",
+  "topic": "audit-remediation",
+  "routes": [
+    "defect",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: close the audit findings on review model, doc gates, and contract route",
+      "refactor: share gate primitives and the gate-test harness (R1, R4, R5, R6)",
+      "fix: tolerate refactoring ledger entries without a head in the report",
+      "docs: record the retroactive refactoring-review in the ledger and backlog"
+    ],
+    "files": 14,
+    "insertions": 250,
+    "deletions": 129
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-audit-remediation-2026-11-17",
+        "head": "83877cebff51d5694aac13af77081b5d52e60973",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "scripts-tests": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "audit remediations: review-model rule + doc-gate commands + governance-contract route line in AGENTS.md; retroactive refactoring-review closed for doc-governance (7 findings: 5 applied/1 rejected/1 deferred) and doc-vocabulary (1 applied), reports under .agents/reviews/; process-metrics head-fallback fix; own pass clean"
+}
