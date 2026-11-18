@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-comment-burn-down-record",
+  "date": "2026-11-17",
+  "topic": "comment-burn-down-record",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: record the comment burn-down adjudications and re-run trigger",
+      "docs: correct the kept-comment site in the burn-down record"
+    ],
+    "files": 2,
+    "insertions": 100,
+    "deletions": 2
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "burn-down adjudication record plus re-run trigger; lightweight review via semantic_reviewer agent, one finding fixed"
+}
