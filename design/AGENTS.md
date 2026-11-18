@@ -17,14 +17,14 @@ not yet landed), **analysis drafts** (temporary inputs, deleted after harvest; c
 (tracked, in `archive/proposal/`, dormant directions kept as full text for human reflection and
 history analysis; agents MUST NOT load them by default, live documents MUST NOT link to or depend
 on them, and their outbound links and claims are frozen as of the archive date). Landed proposals
-are distilled into live contracts; conclusions and rejection reasons of rejected or superseded
+are harvested into live contracts; conclusions and rejection reasons of rejected or superseded
 directions go to [decision-log.md](decision-log.md). The repository keeps no full-text archive
 beyond `archive/proposal/`: superseded full text, review transcripts, and verification records are
-deleted once their conclusions and rejection reasons are distilled, and current documents must not
+deleted once their conclusions and rejection reasons are harvested, and current documents must not
 depend on them. **Do not cite commit hashes or line numbers to locate content.**
 
 新能力与契约变更无需先开 issue：提案直接写进 `proposal/`、加入在途路由并提交，不区分草稿、
-已接受或进行中。落地时将蒸馏摘要并入活契约、写下历史回指并在同一提交删除提案与路由行；
+已接受或进行中。落地时将摘要并入活契约、写下历史回指并在同一提交删除提案与路由行；
 细则见 [proposal-lifecycle.md](proposal-lifecycle.md)。是否同步开 issue 公开讨论由维护者判断（见根
 [AGENTS.md](../AGENTS.md) 的 Issue Tracking）。凡涉及公开 API 或契约的提案与 PR 必须带具体
 说明：改前用户能写出的最好代码、改后的同一段代码、被消除的失败模式；破坏性变更另附迁移路径。
@@ -34,13 +34,13 @@ archived proposals are not routed.** Related ADRs sit under their subject's cont
 ADR index or second navigation is built. CI's `scripts/check-design-routes.py` validates both
 sections bidirectionally: table links must exist, and every tracked top-level live document and
 every proposal in `proposal/` must have a row; `analysis/` and `archive/` are outside the check.
-`scripts/check-proposal.py` additionally gates proposal identity, distillation summaries, and the
+`scripts/check-proposal.py` additionally gates proposal identity, abstracts, and the
 content bans; archived proposals are checked for identity only, `check-doc-refs.py` and
 `check-local-links.py` skip them as sources, and `check-local-links.py` rejects links from live
 documents into the archive. When picking up work, read the matching route first, then check
 `git status --short design/` for uncommitted analysis inputs.
 
-对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿蒸馏时，保留的发现并入
+对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿收割时，保留的发现并入
 契约规则，驳回与降级的发现连同理由浓缩为「已排除的替代方案与原因」或「评审中驳回的主张」并入正文
 或 [decision-log.md](decision-log.md)；反向验证、PIT 分类与轮次流水不入库，提交说明记录本次结果。
 后续评审轮次的基线读取：先读 decision-log 与文档正文。
@@ -66,13 +66,13 @@ documents into the archive. When picking up work, read the matching route first,
    decision-log residue (rejected or superseded), or as an archived dormant file under
    `archive/proposal/`; the archive standard and re-entry are defined in
    [proposal-lifecycle.md](proposal-lifecycle.md). Material that no longer constrains
-   implementation keeps no full text outside the archive and is deleted after distillation.
-   蒸馏摘要随提案写出并随论证更新；落地时编辑并入
-   契约，写下历史回指，与实现、提案及路由行的删除同一提交。蒸馏保留核心出发点、设计原则与
+   implementation keeps no full text outside the archive and is deleted after harvest.
+   摘要随提案写出并随论证更新；落地时编辑并入
+   契约，写下历史回指，与实现、提案及路由行的删除同一提交。收割保留核心出发点、设计原则与
    不变量、被否决方向及理由；可保留核心代码（状态机骨架、协议顺序这类代码比文字更精确的
    表达）；删除行号、类/方法清单、签名枚举、测试计数、命令输出、多轮评审流水。
    **禁止「文件:行号」与提交 hash**——引用机制名、符号名或章节标题。
-   既有活文档不强制立即重写，下次被相关变更触碰时顺手蒸馏。
+   既有活文档不强制立即重写，下次被相关变更触碰时顺手精简。
 6. **契约与实现同一提交**，两者互为评审校验。行为变更的 commit message 或 PR 描述列出本次
    改变/新增的 MUST/MUST NOT 条目，防止漏节漂移。
 7. **去留判据**：「删了它，决策质量会下降吗？」代码、测试、git 能回答的问题，写下来
@@ -88,7 +88,7 @@ documents into the archive. When picking up work, read the matching route first,
     - **ADR**（[adr/](../adr/)）：跨模块、难以逆转，或需要关闭重提的决定（产物边界、核心协议
       顺序、「不要在评审、缺陷分诊或重构提案中重提」一类结论）。ADR 的决定不改写：决定改变时写
       后继 ADR 并把旧篇标 `Superseded`；过时的非决策内容按 [adr/AGENTS.md](../adr/AGENTS.md)
-      蒸馏删除。ADR 状态或后继关系变化时，同一提交更新所属主题的路由链接。
+      精简删除。ADR 状态或后继关系变化时，同一提交更新所属主题的路由链接。
     - **活契约正文的「被排除的替代方案」**：只影响单一契约的取舍，随契约原地改写。
     - **[decision-log.md](decision-log.md)**：入库提案被否决、被取代或分析稿收割后的残值
       （结论、否决理由、落点）；只防重提，不定义当前行为。日志结论需要关闭重提时同时写
@@ -166,7 +166,7 @@ documents into the archive. When picking up work, read the matching route first,
 |---|---|
 | [issue-automation.md](issue-automation.md) | 可选的 issue→triage→agent 机制：信任边界（执行只读可信身份文本、不在 issue 事件上跑执行型 agent）、标签状态机与否决、triage 只管自己打的标签、选取与背压、runner 强制执行的门禁（干净导出构建、反向验证、PIT 时效、独立复审、按 SHA 等 CI）、只合入 dev 线、需人工合并的路径 |
 | [llm-review-benchmark.md](llm-review-benchmark.md) | **LLM 评审基准活契约**：日常 `/multi-review` 走 TypeScript CLI；不可变原始证据、版本化 clusters/verdicts/gold 与可复算指标；四态判定、open-world recall 边界、51m 分层预算、gold 隔离与安全边界；被排除的纯 Skill/Python 核心/文本去重/单总分/首期服务方案 |
-| [proposal-lifecycle.md](proposal-lifecycle.md) | 提案入库、蒸馏摘要、落地与否决的删除前提、历史回指、路由及残留门禁；维护提案或收割分析稿时读取 |
+| [proposal-lifecycle.md](proposal-lifecycle.md) | 提案入库、摘要、落地与否决的删除前提、历史回指、路由及残留门禁；维护提案或收割分析稿时读取 |
 
 相关决策与工程入口：
 

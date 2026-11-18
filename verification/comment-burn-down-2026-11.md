@@ -27,7 +27,7 @@ the stronger variant.
 
 150 internal comment blocks in 9 feature groups: 144 deleted (707 lines), 6
 restored-tightened (10 lines), 121 derivation questions, zero behavior change, final CI green
-on the cumulative tip. Durable rationale surfaced by deleted comments was distilled into
+on the cumulative tip. Durable rationale surfaced by deleted comments was harvested into
 `design/decision-log.md` as part of the run.
 
 | Group | Files | Blocks | Deleted | Restored |

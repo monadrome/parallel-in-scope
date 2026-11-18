@@ -12,7 +12,7 @@ ROUTE_DOC = ROOT / "design" / "AGENTS.md"
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)\s]+)(?:\s+['\"][^)]*['\"])?\)")
 PROPOSAL_RE = re.compile(r"(P[0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md")
 BACK_REFERENCE_RE = re.compile(r"\bproposal:(P[0-9]{4})(?![a-zA-Z0-9])")
-SUMMARY_RE = re.compile(r"^## (?:蒸馏摘要|Distillation summary)\s*\n(.*?)(?=^#{1,2} |\Z)", re.MULTILINE | re.DOTALL)
+SUMMARY_RE = re.compile(r"^## (?:摘要|Abstract)\s*\n(.*?)(?=^#{1,2} |\Z)", re.MULTILINE | re.DOTALL)
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)")
@@ -168,7 +168,7 @@ def main() -> int:
         content = (ROUTE_DOC.parent / document).read_text(encoding="utf-8")
         summary = SUMMARY_RE.search("\n".join(unfenced_lines(content)))
         if not summary or not summary[1].strip():
-            errors.append(f"design/{document}: missing or empty distillation summary")
+            errors.append(f"design/{document}: missing or empty abstract")
     live_documents.update(
         target for target in tables["活契约"]
         if len(target.parts) == 1 and target.suffix == ".md" and target.name != "AGENTS.md"

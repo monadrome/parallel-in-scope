@@ -146,7 +146,7 @@ check covers their members.
 Direction discussions happen either in a design proposal issue (form above) or
 in a tracked proposal under `design/proposal/` — the maintainer chooses the
 venue. Drafts enter the repository and the proposal route table immediately;
-the [proposal lifecycle](design/proposal-lifecycle.md) defines distillation and
+the [proposal lifecycle](design/proposal-lifecycle.md) defines the abstract and
 removal when the implementation lands. Whether in an issue or a PR, a proposal
 that touches public API or a documented contract must state specifically: the best code a user can write
 today, the same code with the change applied, and the failure mode the change

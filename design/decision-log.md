@@ -20,7 +20,7 @@ Rules for entries:
 
 ## Landed proposals whose rejected alternatives live in contracts
 
-These proposals landed; their rejected directions and reasons were distilled into the contract or
+These proposals landed; their rejected directions and reasons were harvested into the contract or
 ADR named here, so this log does not repeat them.
 
 | Proposal | Current home of the rationale |
@@ -556,13 +556,13 @@ a successor, not voted out by search results (harvested from `P0022`).
 ### Full-text archives retired (2026-11-04, maintainer decision)
 
 The tracked archive directories for retired proposals, harvested analyses, review records, and
-pre-condensation ADR text were deleted after their conclusions and rejection reasons were distilled
+pre-condensation ADR text were deleted after their conclusions and rejection reasons were harvested
 into this log, the owning contracts, and the ADR `History` sections. The maintainer's reason: only
 the current view is needed, plus the reasons behind rejections; commit-hash references must go
 because a changed hash forces chained edits. The implementer added two observations: repository-wide
 searches surfaced obsolete contracts as if they were current, and links into frozen files needed
 upkeep. Rejected: keeping the archives as frozen read-only trees, because those costs remain while
-the distilled reasons already answer "why not".
+the harvested reasons already answer "why not".
 
 ### Process decisions: edit links, commit autonomy, proposal mechanism
 
@@ -577,8 +577,8 @@ the distilled reasons already answer "why not".
   `agent/ready` already is the task description, and a new claim-and-resume path would redo the
   runner's reviewed guards); splitting the routing data out of `design/AGENTS.md` (it affects only
   unattended merges, which still need a human); a standing metrics table (no consumer).
-- Proposal mechanism (2026-10-12): distilled into [proposal-lifecycle.md](proposal-lifecycle.md).
-  No `distill-proposal.py`, because placing and wording a distillation needs judgment and the
+- Proposal mechanism (2026-10-12): harvested into [proposal-lifecycle.md](proposal-lifecycle.md).
+  No `harvest-proposal.py`, because placing and wording a harvest needs judgment and the
   existing gates already check the mechanical steps.
 
 ### TaskGroup member values use keyed snapshots (2026-11-08)

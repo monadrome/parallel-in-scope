@@ -1,6 +1,6 @@
 # 未提交取消的 deadline 归因政策
 
-## 蒸馏摘要
+## 摘要
 
 - 核心出发点：预算已过但 token 尚未提交取消时，是否将取消形状结果读为 TIMEOUT 仍是政策选择。
 - 不变量与拟议 MUST：规则若改变 MUST 同时覆盖 batch、group 与 terminal，读取 token 自己的

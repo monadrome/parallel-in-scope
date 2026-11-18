@@ -35,7 +35,7 @@ class DesignRoutesTest(unittest.TestCase):
     def routes(self, live="| [contract](contract.md) | Contract |\n", proposals="", prose=""):
         self.write("design/AGENTS.md", f"# Routes\n{prose}\n## 活契约\n{live}\n## 在途提案\n{proposals}")
 
-    def proposal(self, name="P0001-request.md", summary="## 蒸馏摘要\n- Purpose and constraints\n"):
+    def proposal(self, name="P0001-request.md", summary="## 摘要\n- Purpose and constraints\n"):
         self.write(f"design/proposal/{name}", f"# Proposal\n{summary}")
 
     def check(self):
@@ -66,7 +66,7 @@ class DesignRoutesTest(unittest.TestCase):
         self.assertEqual(historical.stdout.strip(), "Design route table: OK")
 
     def test_proposal_and_analysis_references_do_not_mark_a_landing(self):
-        self.proposal(summary="## 蒸馏摘要\nSee proposal:P0001\n")
+        self.proposal(summary="## 摘要\nSee proposal:P0001\n")
         self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")
         self.write("design/analysis.md", "# Input\nproposal:P0001\n")
         self.assertEqual(self.check().returncode, 0)
@@ -98,11 +98,11 @@ class DesignRoutesTest(unittest.TestCase):
 
     def test_invalid_and_duplicate_ids_and_empty_summaries_fail(self):
         for name in ("request.md", "P0001-first.md", "P0001-second.md", "nested/P0002-child.md"):
-            self.proposal(name, "## 蒸馏摘要\n\n## Details\nSome details\n")
+            self.proposal(name, "## 摘要\n\n## Details\nSome details\n")
         errors = self.check().stderr
         self.assertIn("invalid proposal filename", errors)
         self.assertIn("duplicate proposal id: P0001", errors)
-        self.assertIn("missing or empty distillation summary", errors)
+        self.assertIn("missing or empty abstract", errors)
 
     def test_beta_tag_requires_marker_and_marker_requires_tag(self):
         self.routes(live="| [contract](contract.md) | `[beta]` Contract |\n")
@@ -149,12 +149,12 @@ class DesignRoutesTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("proposal/P0001-request.md: document missing", result.stderr)
 
-    def test_fenced_summary_template_is_not_a_distillation_summary(self):
-        self.proposal(summary="```markdown\n## 蒸馏摘要\nCopy this template\n```\n")
+    def test_fenced_summary_template_is_not_an_abstract(self):
+        self.proposal(summary="```markdown\n## 摘要\nCopy this template\n```\n")
         self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")
         result = self.check()
         self.assertEqual(result.returncode, 1)
-        self.assertIn("missing or empty distillation summary", result.stderr)
+        self.assertIn("missing or empty abstract", result.stderr)
 
     def test_commented_routes_and_inline_code_are_not_links(self):
         self.proposal()
@@ -168,12 +168,12 @@ class DesignRoutesTest(unittest.TestCase):
                 self.assertIn("proposal/P0001-request.md: document missing", result.stderr)
 
     def test_commented_summary_template_is_not_a_summary(self):
-        self.proposal(summary="<!--\n## 蒸馏摘要\nCopy this template\n-->\n")
+        self.proposal(summary="<!--\n## 摘要\nCopy this template\n-->\n")
         self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")
-        self.assertIn("missing or empty distillation summary", self.check().stderr)
+        self.assertIn("missing or empty abstract", self.check().stderr)
 
-    def test_english_distillation_summary_heading_counts(self):
-        self.proposal(summary="## Distillation summary\n- Purpose and constraints\n")
+    def test_english_abstract_heading_counts(self):
+        self.proposal(summary="## Abstract\n- Purpose and constraints\n")
         self.routes(proposals="| [request](proposal/P0001-request.md) | Request |\n")
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stderr)

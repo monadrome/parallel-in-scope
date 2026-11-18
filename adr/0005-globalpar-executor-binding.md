@@ -144,7 +144,7 @@ A successor ADR must be written, naming the superseded rules, when any of these 
 
 ## History
 
-Distilled 2026-10-27. Removed: field and API sketches of
+Condensed 2026-10-27. Removed: field and API sketches of
 `GlobalExecutionPolicy`/`BatchExecutionOptions`/`BatchExecutionContext`/`TaskExecutionContext`/
 `ExecutorRuntime`, the `ThreadRelay` propagation items and `TaskEdge` fields, the purge registry and
 purge policy, the error model and observation field inventory, the typical-usage example, the

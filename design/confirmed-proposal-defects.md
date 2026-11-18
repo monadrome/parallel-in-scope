@@ -47,9 +47,9 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0011 | Concrete recipes, IO prose, and test name fixed; broader history/navigation/ADR/changelog/BACKLOG maintenance continues in [BACKLOG.md](../BACKLOG.md) (from `P0022`) |
 | P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; core comment contracts and implementation notes are reconciled under ADR 0012; test-comment follow-ups remain in [BACKLOG.md](../BACKLOG.md) (from `P0029`) without a demonstrated runtime failure |
 | P0013 | Deferred: SDK/agent compatibility requires fixed-version external verification; manual Context recipe is already corrected |
-| P0014 | Fully implemented, distilled into interruption-contract |
+| P0014 | Fully implemented, harvested into interruption-contract |
 | P0015 | Confirmed propagation fixed; uncommitted RUNNING-clock attribution choice continues in P0020 |
-| P0016 | Fully implemented, distilled into task-graph; nonreturning listeners remain outside the liveness promise |
+| P0016 | Fully implemented, harvested into task-graph; nonreturning listeners remain outside the liveness promise |
 | P0017 | Deferred: selection/support/public artifact claims need current external evidence or a policy choice |
 | P0018 | Publication summary fixed; artifact identity/cache/source/consumer verification continues in [BACKLOG.md](../BACKLOG.md) (from `P0023`); cache replacement has no current reproduced mismatch |
 | P0019 | Landed as `ImmediateResult.fold`/`successful()` (contract in synchronous-scope-exit §3); the unary convenience API was rejected (decision-log); the interruption defect was fixed through P0014 |

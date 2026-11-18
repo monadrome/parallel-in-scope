@@ -41,7 +41,7 @@ principle 10); this file governs only the ADR format.
   sentence in the `History` section, so a reader can see what the record
   originally decided without a copy of the old file.
 - A `Superseded` record may be retired: delete it once its conclusion and
-  rejection reasons are distilled into `design/decision-log.md`, the owning
+  rejection reasons are harvested into `design/decision-log.md`, the owning
   contract, or the idea graveyard, and rewrite every inbound link in the same
   commit. Successors and notes cite a retired record by title and date in
   prose, never by link.

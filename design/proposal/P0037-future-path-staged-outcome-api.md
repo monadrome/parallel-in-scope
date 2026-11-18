@@ -1,6 +1,6 @@
 # FuturePath 分阶段结果处理 API
 
-## 蒸馏摘要
+## 摘要
 
 - 核心出发点：用分阶段 API 取代调用方直接读取 `Future.State`、`resultNow()`、`exceptionNow()` 等状态查询方法，把一次结果处理表达为编译期可检查的完整路径。
 - 形状：`FuturePath` 可以从 `ListenableFuture<T>` 或 `ImmediateResult<T>` 创建；两种入口共享结果分派阶段，但分别以异步 Future 或同步 Result 作为终点，不能互相伪装。

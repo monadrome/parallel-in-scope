@@ -12,7 +12,7 @@ SCRIPT = Path(__file__).resolve().parents[1] / "check-proposal.py"
 
 VALID = """# P0001: Title
 
-## 蒸馏摘要
+## 摘要
 
 - Motivation, invariants, and rejected directions with reasons.
 
@@ -21,7 +21,7 @@ VALID = """# P0001: Title
 More detail.
 """
 
-VALID_EN = VALID.replace("## 蒸馏摘要", "## Distillation summary")
+VALID_EN = VALID.replace("## 摘要", "## Abstract")
 
 
 class ProposalConformanceTest(unittest.TestCase):
@@ -59,17 +59,17 @@ class ProposalConformanceTest(unittest.TestCase):
         self.write("design/proposal/P0002-other.md",
                    VALID.replace("- Motivation, invariants, and rejected directions with reasons.\n", ""))
         errors = self.check().stderr
-        self.assertIn("P0001-title.md: missing distillation summary section", errors)
-        self.assertIn("P0002-other.md: empty distillation summary section", errors)
+        self.assertIn("P0001-title.md: missing abstract section", errors)
+        self.assertIn("P0002-other.md: empty abstract section", errors)
 
     def test_summary_heading_inside_fence_or_comment_does_not_count(self):
         self.write("design/proposal/P0001-title.md",
-                   "# P0001: Title\n\n```\n## 蒸馏摘要\n\nBody.\n```\n")
+                   "# P0001: Title\n\n```\n## 摘要\n\nBody.\n```\n")
         self.write("design/proposal/P0002-other.md",
-                   "# P0002: Title\n\n<!-- ## 蒸馏摘要\n\nBody.\n-->\n")
+                   "# P0002: Title\n\n<!-- ## 摘要\n\nBody.\n-->\n")
         errors = self.check().stderr
-        self.assertIn("P0001-title.md: missing distillation summary section", errors)
-        self.assertIn("P0002-other.md: missing distillation summary section", errors)
+        self.assertIn("P0001-title.md: missing abstract section", errors)
+        self.assertIn("P0002-other.md: missing abstract section", errors)
 
     def test_line_number_citation_fails(self):
         self.write("design/proposal/P0001-title.md",

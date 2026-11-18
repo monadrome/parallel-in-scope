@@ -19,7 +19,7 @@ Four locations hold design material; an agent's default reading path covers only
 - **Decision residue** ([decision-log.md](decision-log.md)): conclusions and rejection reasons of
   landed, rejected, superseded, or harvested directions.
 
-States move one way: in-flight → landed (distilled into contracts), in-flight → rejected (residue
+States move one way: in-flight → landed (harvested into contracts), in-flight → rejected (residue
 in the decision log), in-flight → archived (dormant). Archiving is not a verdict; re-entry moves a
 file back to in-flight.
 
@@ -37,7 +37,7 @@ file back to in-flight.
   back-reference or the decision log, or the next intake cannot see it.
 - A proposal MUST have one summary row in the in-flight table of [AGENTS.md](AGENTS.md); that
   table lists unlanded directions and MUST NOT be read as an approved implementation list.
-- Every proposal MUST contain a non-empty `## 蒸馏摘要` or `## Distillation summary` section with
+- Every proposal MUST contain a non-empty `## 摘要` or `## Abstract` section with
   the core motivation, the invariants and proposed MUST/MUST NOT items, and the rejected
   directions with reasons (or a statement that there are none). The summary evolves with the
   argument; it is not a one-shot template. The section MUST be a real section: a template heading
@@ -56,7 +56,7 @@ file back to in-flight.
 Landing is decided by the implementation satisfying the proposal's goals, not by a document still
 being called a proposal. A landing commit MUST, in the same commit:
 
-1. Edit the final distillation summary into the receiving `design/` live contract, preserving the
+1. Edit the final abstract into the receiving `design/` live contract, preserving the
    motivation, invariants, and rejection reasons in current wording; candidate MUSTs MUST NOT be
    passed off as established constraints.
 2. Write a `proposal:P<NNNN>` historical back-reference in each receiving contract at the point
@@ -70,7 +70,7 @@ landing time the motivation, invariants, and rejection reasons already live in t
 after deletion neither commit hashes nor a retrieval path for the full text may be cited.
 
 When part of a proposal has landed and the rest has not, the remaining direction MUST first be
-split into a new-numbered proposal with a route row; only then is the original distilled and
+split into a new-numbered proposal with a route row; only then is the original harvested and
 deleted. One id MUST NOT stand for both a landed source and remaining work.
 
 Rejection or supersession is not landing: the conclusion, complete reasons, and the landing spots
@@ -91,15 +91,15 @@ back-references into behavior contracts.
    move.
 3. **Text worth keeping**: the full text carries analysis, evidence, or rejected alternatives
    that decision-log residue cannot hold and that would be expensive to reconstruct. If the
-   durable content is only a conclusion plus reasons, distill it into the decision log and delete
+   durable content is only a conclusion plus reasons, harvest it into the decision log and delete
    the file instead.
 
 **Anti-criteria.** Archiving MUST NOT substitute for:
 
 - rejection — a direction judged wrong gets its reasons in the decision log; archiving it loses
   the do-not-reopen record and invites re-proposal;
-- landing — implemented means distilled and deleted, always;
-- slimming — verbose-but-active stays active and is distilled in place;
+- landing — implemented means harvested and deleted, always;
+- slimming — verbose-but-active stays active and is condensed in place;
 - work-tracking — a checklist with no open design choice goes to `BACKLOG.md` or the decision log
   and the file is deleted; that is reclassification, not archiving.
 
@@ -157,7 +157,7 @@ sources, and `scripts/check-local-links.py` rejects links from live documents in
 The gates cannot prove that a summary's semantics entered a contract, that an implementation met
 its goals, that a deletion shipped in the same commit as the implementation, or that an id was
 never used historically. Pre-commit review MUST check those against the diff; a gate pass MUST
-NOT be reported as distillation-quality or implementation-correctness verification.
+NOT be reported as harvest-quality or implementation-correctness verification.
 
 ## 6. Analysis inputs and non-goals
 
@@ -169,7 +169,7 @@ the open items reported. Converting a draft into a proposal keeps the problem, t
 limits, the actionable goals, and the rejection reasons; a historical probe MUST NOT be cited as
 proof of the current implementation.
 
-There is no `distill-proposal.py`: choosing where and how to edit a contract takes judgment, and
+There is no `harvest-proposal.py`: choosing where and how to edit a contract takes judgment, and
 moving the summary, deleting the file, and removing the route row are already directly checkable
 by the existing gates. A script cannot prove semantic harvest, so a second edit path is not worth
 its cost. The lifecycle keeps no draft/accepted/implementing states, maintains no landed-proposal

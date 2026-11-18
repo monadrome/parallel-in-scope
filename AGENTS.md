@@ -323,7 +323,7 @@ Documentation must stay readable and correct without the Git object database:
 
 - Keep only the current view. The repository keeps no full-text archive of
   retired proposals, harvested analyses, review transcripts, or superseded ADR
-  wording. Before deleting such material, distill its conclusions into the owning
+  wording. Before deleting such material, harvest its conclusions into the owning
   contract, ADR, or `design/decision-log.md`, with at least one reason for every
   rejected or superseded direction so the rejection can later be revisited.
 - Do not cite commit hashes in documentation, not even as provenance: a hash

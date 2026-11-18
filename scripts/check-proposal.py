@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Check proposal identity, distillation summaries, and content bans.
+"""Check proposal identity, abstracts, and content bans.
 
 In-flight proposals live in ``design/proposal/`` and archived dormant proposals in
 ``design/archive/proposal/``. Both locations are checked for filename shape and id
 uniqueness, so an archived id blocks reuse. In-flight proposals additionally need a
-non-empty distillation summary as a real section and must not carry line-number
+non-empty abstract as a real section and must not carry line-number
 citations; archived files are checked for identity only. Line counts are printed as
 a review signal and never fail the gate.
 """
@@ -19,7 +19,7 @@ ARCHIVE_ROOT = ROOT / "design" / "archive" / "proposal"
 
 NAME_RE = re.compile(r"^P(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 SUMMARY_RE = re.compile(
-    r"^## (?:蒸馏摘要|Distillation summary)\s*\n(.*?)(?=^#{1,2} |\Z)",
+    r"^## (?:摘要|Abstract)\s*\n(.*?)(?=^#{1,2} |\Z)",
     re.MULTILINE | re.DOTALL,
 )
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
@@ -49,9 +49,9 @@ def check_active(document: Path, label: str, text: str) -> list[str]:
     visible = list(unfenced_lines(text))
     match = SUMMARY_RE.search("\n".join(line for _, line in visible))
     if match is None:
-        errors.append(f"{label}: missing distillation summary section")
+        errors.append(f"{label}: missing abstract section")
     elif not match.group(1).strip():
-        errors.append(f"{label}: empty distillation summary section")
+        errors.append(f"{label}: empty abstract section")
     for number, line in visible:
         if CLASS_LINE_RE.search(line):
             errors.append(f"{label}:{number}: line-number citation: {line.strip()}")

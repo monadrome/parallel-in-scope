@@ -8,7 +8,7 @@ Reference styles that silently rot or force chained edits are rejected:
 - a line number appended to a file path;
 - wording that sends the reader to git history for content.
 
-The repository keeps only the current view: retired material is distilled into
+The repository keeps only the current view: retired material is harvested into
 live documents and deleted. See the "Documentation References" section of the
 root AGENTS.md.
 """
