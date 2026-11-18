@@ -1,0 +1,32 @@
+scripts/process-metrics.py
+  s_4fe370431dda23::t_68e29c947e4033 471-477
+scripts/tests/test_check_proposal.py
+  s_4fe370431dda23::t_33feccdf12e495 108-112
+scripts/tests/test_check_design_routes.py
+  s_4fe370431dda23::t_5051def0835275 169-173
+scripts/tests/test_process_metrics.py
+  s_4fe370431dda23::t_d4f7a19a530162 192-208
+scripts/proposal_md.py
+  s_4fe370431dda23::t_53a77d57335765 12
+design/proposal-lifecycle.md
+  s_4fe370431dda23::t_6eee60010f3144 31
+AGENTS.md
+  s_4fe370431dda23::t_03479837e26488 501-502
+  s_4fe370431dda23::t_f078313be4b964 132-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "4f05d1b9ec39c7f4e055964a204736de388cee9f",
+  "prompts": {},
+  "sessions": {
+    "s_4fe370431dda23": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7fe8a7cd-c52c-4a45-a23e-5347ca58de73",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
