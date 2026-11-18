@@ -15,7 +15,7 @@ ImmediateResult<T> 类似 Either<Throwable,T>，不实现 Future；asFuture 提�
 
 逻辑终止由 `TaskTermination`/`ImmediateResult.termination()` 表达，包含 `kind`、
 `FailureCause`/`CancellationReason` 和由 execution-claim CAS 决定的 `ExecutionDisposition`。它不等待
-执行退出；实时的 `TaskStatus` 与 `executionExitConfirmed()` 负责诊断和资源释放判断。
+执行退出；实时的 `TaskState` 与 `executionExitConfirmed()` 负责诊断和资源释放判断。
 
 取消可能先完成结果而执行仍在关闭资源。Java 不能强制停止任意 Callable/close，
 因此没有硬性“资源一定关闭”或墙钟耗时上限；executor.execute 也可能同步阻塞在用户执行。

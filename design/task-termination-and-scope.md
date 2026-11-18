@@ -43,9 +43,14 @@ Cancelled(CancellationReason, disposition)
 - claim CAS 失败时，取消或提交拒绝使用 `NOT_CLAIMED`，用户 callable 不得执行；
 - `ExecutionPhaseHintFuture.phase()` 只是非阻塞诊断 hint，不能单独决定 disposition，也不能证明线程退出。
 
-任务的实时状态通过 `TaskStatus` 查询：`PENDING`、`CLAIMED`、`RESULT_SETTLED`、`EXITED`。`RESULT_SETTLED`
+任务的实时状态通过 `TaskState` 查询：`PENDING`、`CLAIMED`、`RESULT_SETTLED`、`EXITED`。`RESULT_SETTLED`
 允许逻辑终止已经发布而用户代码仍在 finally 中展开；`EXITED` 只在执行退出或原子确定不会进入后出现。
 状态查询不改写已经发布的 `TaskTermination`。
+
+命名按项目的 state/status 原则：`State` 命名过程中的阶段（一种境况，蕴含接下来可能进入的阶段），
+`Status` 命名操作的结果（最终、定论性的状况）。本类型的四个值都是执行过程的阶段而非操作结果，故名
+`TaskState`；旧名 `TaskStatus` 被否决，因为 status 留给操作结果（如 `ThreadPoolStarvationReport.Status`
+的观测结论），阶段查询不是结果。任务的最终结果继续由 `TaskTermination` 持有，不占用 status 一词。
 
 ## 3. 三个完成层次
 

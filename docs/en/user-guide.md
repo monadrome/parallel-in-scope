@@ -389,8 +389,8 @@ legacy `outcome()` method remains an adapter for older callers.
 
 Logical termination and execution exit are separate. A cancellation can settle the result while user
 code is still unwinding after interruption. Check `executionExitConfirmed()` and
-`unexitedExecutions()` before releasing resources shared with direct task executions. `TaskStatus` is
-the live status view for internal task diagnostics; it does not rewrite a published termination.
+`unexitedExecutions()` before releasing resources shared with direct task executions. `TaskState` is
+the live state view for internal task diagnostics; it does not rewrite a published termination.
 `outcome()` never returns RUNNING; SUCCESS may hold null, and every non-success holds a throwable.
 `failure()` reads it and `valueOrThrow()` wraps it in ExecutionException with the original cause,
 including cancellation. Container reads never block or consume an interrupt.

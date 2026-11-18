@@ -234,9 +234,9 @@ Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
 `FailureCause` 区分 `USER_CODE_FAILURE` 与 `SUBMISSION_REJECTED` 并保留原始异常；
 `CancellationReason` 区分 caller、parent scope、deadline、fail-fast 和 member，并携带 source identity。
 `ExecutionDisposition` 只由 execution claim 的原子 CAS 决定，不能由 `ExecutionPhaseHintFuture.phase()`
-单独推断。`TaskStatus` 单独表达实时的 pending、claim、逻辑终止和退出状态。
+单独推断。`TaskState` 单独表达实时的 pending、claim、逻辑终止和退出状态。
 
-冻结任务结果读取 `TaskTermination<T>` 的 `kind()`、`failureCause()`、`cancellationReason()` 和 `disposition()`；其 kind 只有 `SUCCESS`、`FAILED`、`CANCELLED`。实时执行状态读取 `TaskStatus`，作用域聚合读取 `ScopeTermination`。
+冻结任务结果读取 `TaskTermination<T>` 的 `kind()`、`failureCause()`、`cancellationReason()` 和 `disposition()`；其 kind 只有 `SUCCESS`、`FAILED`、`CANCELLED`。实时执行状态读取 `TaskState`，作用域聚合读取 `ScopeTermination`。
 
 完整模型见[任务终止与 scope 原因契约](task-termination-and-scope.md)。
 

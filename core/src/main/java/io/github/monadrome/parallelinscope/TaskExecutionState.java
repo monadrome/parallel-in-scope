@@ -58,16 +58,16 @@ final class TaskExecutionState {
         return Verify.verifyNotNull(state.get());
     }
 
-    /** Returns the public live status represented by this claim state. */
-    TaskStatus status() {
+    /** Returns the public live task state represented by this claim state. */
+    TaskState taskState() {
         switch (Verify.verifyNotNull(state.get())) {
             case PENDING:
-                return TaskStatus.PENDING;
+                return TaskState.PENDING;
             case RUNNING:
-                return TaskStatus.CLAIMED;
+                return TaskState.CLAIMED;
             case EXITED:
             case SKIPPED:
-                return TaskStatus.EXITED;
+                return TaskState.EXITED;
             default:
                 throw new AssertionError("unknown task execution state");
         }

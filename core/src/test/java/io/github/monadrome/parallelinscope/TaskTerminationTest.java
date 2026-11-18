@@ -83,18 +83,18 @@ class TaskTerminationTest {
                             BatchOptions.timeout("slow", Duration.ofSeconds(30)));
             TaskFuture<Void> task = batch.results().get(0);
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
-            await().atMost(Duration.ofSeconds(2)).until(() -> task.status() == TaskStatus.CLAIMED);
+            await().atMost(Duration.ofSeconds(2)).until(() -> task.state() == TaskState.CLAIMED);
 
             task.cancel(true);
             await().atMost(Duration.ofSeconds(2)).until(task::isDone);
             TaskTermination<Void> cancelled = Verify.verifyNotNull(task.termination());
             assertThat(cancelled.kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
             assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
-            assertThat(task.status()).isEqualTo(TaskStatus.RESULT_SETTLED);
+            assertThat(task.state()).isEqualTo(TaskState.RESULT_SETTLED);
 
             release.countDown();
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
-            assertThat(task.status()).isEqualTo(TaskStatus.EXITED);
+            assertThat(task.state()).isEqualTo(TaskState.EXITED);
         } finally {
             release.countDown();
             runtime.close();

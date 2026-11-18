@@ -76,8 +76,8 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     @Nullable
     TaskTermination<T> termination();
 
-    /** Returns the live execution status without waiting or changing the future. */
-    TaskStatus status();
+    /** Returns the live execution state without waiting or changing the future. */
+    TaskState state();
 
     /**
      * Returns the observation future of this task: a {@code ListenableFuture} of the task's final

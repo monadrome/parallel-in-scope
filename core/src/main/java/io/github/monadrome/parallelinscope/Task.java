@@ -228,14 +228,14 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     @Override
-    public TaskStatus status() {
+    public TaskState state() {
         if (delegate instanceof ExecutionPhaseHintFuture) {
-            return ((ExecutionPhaseHintFuture<?>) delegate).status();
+            return ((ExecutionPhaseHintFuture<?>) delegate).state();
         }
         if (!delegate.isDone()) {
-            return TaskStatus.PENDING;
+            return TaskState.PENDING;
         }
-        return TaskStatus.EXITED;
+        return TaskState.EXITED;
     }
 
     private void pinTermination() {

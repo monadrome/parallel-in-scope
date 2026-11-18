@@ -206,8 +206,8 @@ class ImmediateResultTest {
             }
 
             @Override
-            public TaskStatus status() {
-                return TaskStatus.RESULT_SETTLED;
+            public TaskState state() {
+                return TaskState.RESULT_SETTLED;
             }
 
             @Override

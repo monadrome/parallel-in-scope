@@ -177,7 +177,7 @@ restore the flag, or translate with the original cause and restore the flag.
 The thread owner chooses post-interruption policy, so blocking APIs propagate
 `InterruptedException`. Clear a flag only immediately before throwing that
 exception or when the method is the documented sole consumer of the signal;
-otherwise inspect with `isInterrupted()`. Read-only status methods must not
+otherwise inspect with `isInterrupted()`. Read-only query methods must not
 change their result or throw merely because the calling thread is interrupted.
 Exception: synchronous `Par.map` / group `runAll` deliberately wait uninterruptibly
 and restore the flag, including their bounded cleanup waits. Caller interruption
@@ -281,6 +281,13 @@ mechanisms, from no sharing down to hand-built protocols, lives in
   package-private scopes may be stack-installed); `Context` is a data carrier;
   `Step` is a one-shot builder stage (`GroupStart` opens the chain); `Id` is an
   immutable logical-entry identifier.
+- `State` names a stage in a process: one situation inside an encompassing
+  lifecycle that implies what may come next. Machine-position enums
+  (`CancellationToken.State`), aggregate carriers in the GoF State pattern sense
+  (`TaskExecutionState`), and live stage projections (`TaskState`) all use it.
+  `Status` names the outcome of an operation: a final, resulting condition
+  (`ThreadPoolStarvationReport.Status`). Terminal task outcomes keep their own
+  type (`TaskTermination`); live stage views are `State`, never `Status`.
 - Public APIs and SPI may break between `0.x` releases without compatibility
   shims for meaningful improvements with documented rationale.
 - For public API renames or signature changes, update the implementation,

@@ -13,6 +13,12 @@
 
 ### Breaking changes
 
+- Rename the live execution view to match the state/status naming principle (`State` names a
+  stage in a process, `Status` names the outcome of an operation): public `TaskStatus` becomes
+  `TaskState`, and `TaskFuture.status()` / `Task.status()` become `state()`. The four values
+  (`PENDING`, `CLAIMED`, `RESULT_SETTLED`, `EXITED`) and the read semantics are unchanged;
+  rename type and method references at call sites. `ThreadPoolStarvationReport.Status` keeps
+  its name: it reports the outcome of an observation, not a stage.
 - Rename the termination and exit-observation vocabulary without compatibility aliases: public
   `TaskCompletion<T>` becomes `TaskExitObservation<T>`, `TaskStatus.TERMINATED` becomes
   `TaskStatus.RESULT_SETTLED`, and `ExecutionDisposition.ENTERED` / `NOT_ENTERED` become

@@ -13,7 +13,7 @@
 
 成员有两个独立的可观察值：逻辑终止由 `ImmediateResult.termination()` 在 future 终态时冻结，退出后
 观测由 `TaskExitObservation` 在 execution-exit 信号后发布。逻辑终止可能先于用户线程退出；调用方必须用
-`executionExitConfirmed()` 或 `TaskStatus.EXITED` 判断直接执行是否已退出。
+`executionExitConfirmed()` 或 `TaskState.EXITED` 判断直接执行是否已退出。
 
 成员完成时发布统一的 `TaskExitObservation` 终态快照（成员 future 终态与执行退出两个信号汇合），
 最终经 `TaskGroupResult.members()`/`terminal()` 可见：
