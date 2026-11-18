@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-rename-task-state",
+  "date": "2026-11-18",
+  "topic": "rename-task-state",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "refactor!: rename TaskStatus to TaskState per the state/status principle",
+      "refactor: guard-clause state() and complete TaskState javadoc",
+      "test: cover untracked state() lifecycle and plain-delegate Task.state"
+    ],
+    "files": 19,
+    "insertions": 110,
+    "deletions": 47
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "rename-task-state-601fbfab-20261118-091251-0af3fb",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 18267,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 665945,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-rename-task-state-2026-11-18",
+        "head": "0c3ec92107cc2138516bc71013ee94876f57f39a",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "T03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "T05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1,
+      "refactoring-review detect": 2
+    }
+  },
+  "pit": [
+    {
+      "source": ".agents/tasks/pit-rename-task-state-2026-11-18/mutations.xml",
+      "statuses": {
+        "KILLED": 140,
+        "NO_COVERAGE": 15,
+        "SURVIVED": 36,
+        "TIMED_OUT": 1
+      },
+      "total": 192,
+      "inconclusive": 1,
+      "inconclusiveRate": 0.0052
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "public API rename TaskStatus->TaskState per maintainer state/status principle; codex reviewer blocked by local cmux hook, kiro gpt-5.6-terra completed 0 findings; focused PIT green after untracked-path contract tests; corrections=1 is the pre-implementation principle correction"
+}
