@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-user-guide-split",
+  "date": "2026-11-18",
+  "topic": "user-guide-split",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: split user guide diagnostics and executor registration into reference pages",
+      "docs: point task-graph contract at the executor registration reference page",
+      "docs: align diagnostics count between locales"
+    ],
+    "files": 10,
+    "insertions": 419,
+    "deletions": 342
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "docs-only split; lightweight review by semantic_reviewer on gpt-5.6-terra (first launch failed on unserved model id gpt-terra); 1 finding (locale count mismatch) fixed; no PIT or refactoring run"
+}
