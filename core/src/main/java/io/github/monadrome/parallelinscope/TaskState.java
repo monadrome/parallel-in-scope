@@ -1,8 +1,10 @@
 package io.github.monadrome.parallelinscope;
 
 /**
- * Non-terminal execution state used for live diagnosis: the task's current stage in the
- * execution process, implying what may come next.
+ * Live execution state used for diagnosis: the task's current stage in the execution process,
+ * implying what may come next. The stages cover the whole execution life, including the
+ * result-settled and exited stages; {@link TaskTermination} remains the terminal outcome
+ * authority.
  *
  * <p>This state is separate from {@link TaskTermination}: a task may be logically terminated while
  * its user code is still unwinding after cancellation. The state never rewrites a published

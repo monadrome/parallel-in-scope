@@ -103,15 +103,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     TaskState state() {
         TaskExecutionState taskCode = executionState;
         if (!isDone()) {
-            return taskCode == null && phase() == ExecutionPhase.RUNNING
-                    ? TaskState.CLAIMED
-                    : taskCode == null ? TaskState.PENDING : taskCode.taskState();
-        }
-        if (taskCode != null && taskCode.isOutstanding()) {
-            return TaskState.RESULT_SETTLED;
+            if (taskCode != null) {
+                return taskCode.taskState();
+            }
+            return phase() == ExecutionPhase.RUNNING ? TaskState.CLAIMED : TaskState.PENDING;
         }
         if (taskCode != null) {
-            return TaskState.EXITED;
+            return taskCode.isOutstanding() ? TaskState.RESULT_SETTLED : TaskState.EXITED;
         }
         return phase() == ExecutionPhase.RUNNING || phase() == ExecutionPhase.CANCEL_REQUESTED_RUNNING
                 ? TaskState.RESULT_SETTLED

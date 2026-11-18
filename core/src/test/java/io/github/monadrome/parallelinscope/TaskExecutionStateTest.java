@@ -96,7 +96,7 @@ class TaskExecutionStateTest {
     }
 
     @Test
-    void stateAndStatusReflectEachLifecyclePhase() {
+    void stateAndTaskStateReflectEachLifecyclePhase() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         TaskExecutionState slot = tracker.register(context());
 
