@@ -56,7 +56,7 @@ Comments added or modified after this record are unadjudicated by definition.
 3. `SlidingWindowSubmitter.settleFailure`: "Unchecked failures keep their identity for
    diagnostics; a checked one is wrapped." The wrap's purpose is a diagnostics decision, not
    readable from the conditional.
-4. `CancellationToken` constructor: "Fallback for tokens without a domain scheduler and for a
+4. `CancellationToken.bind`: "Fallback for tokens without a domain scheduler and for a
    retired one: a retired manual clock can no longer advance, so the caller's timer fires no
    later than the domain would." Depends on the retired manual clock's semantics.
 5. `ScopedCallable` teardown: "restore(null) already removed the slot, so a null previous
