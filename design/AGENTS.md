@@ -10,11 +10,18 @@
 记录（产物/仓库边界、测试方法、文档实践、构建工具、依赖政策）在未取代前仍是其问题的权威。已退役的
 ADR 不保留全文，其结论与否决理由在 [decision-log.md](decision-log.md)。
 
-本目录只保留当前视图，有三类内容：**活契约**（tracked，约束当前实现）、**在途提案**（tracked，位于
-`proposal/`，已写出但尚未落地）和**分析稿**（临时输入，收割后删除；默认不入库，用户要求时才入库到
-`analysis/`，见维护原则第 9 条）。已落地的提案蒸馏为活契约；已否决、已被取代方向的结论与否决理由
-写在 [decision-log.md](decision-log.md)。仓库不保留全文归档：被取代的全文、评审流水与验证记录在
-蒸馏出结论与否决理由之后删除，现行文档不得依赖它们。**不得引用提交 hash 或行号来定位内容。**
+This directory keeps only the current view, in four classes: **live contracts** (tracked,
+constrain current implementation), **in-flight proposals** (tracked, in `proposal/`, written but
+not yet landed), **analysis drafts** (temporary inputs, deleted after harvest; committed to
+`analysis/` only at the user's request, see maintenance principle 9), and **archived proposals**
+(tracked, in `archive/proposal/`, dormant directions kept as full text for human reflection and
+history analysis; agents MUST NOT load them by default, live documents MUST NOT link to or depend
+on them, and their outbound links and claims are frozen as of the archive date). Landed proposals
+are distilled into live contracts; conclusions and rejection reasons of rejected or superseded
+directions go to [decision-log.md](decision-log.md). The repository keeps no full-text archive
+beyond `archive/proposal/`: superseded full text, review transcripts, and verification records are
+deleted once their conclusions and rejection reasons are distilled, and current documents must not
+depend on them. **Do not cite commit hashes or line numbers to locate content.**
 
 新能力与契约变更无需先开 issue：提案直接写进 `proposal/`、加入在途路由并提交，不区分草稿、
 已接受或进行中。落地时将蒸馏摘要并入活契约、写下历史回指并在同一提交删除提案与路由行；
@@ -22,10 +29,15 @@ ADR 不保留全文，其结论与否决理由在 [decision-log.md](decision-log
 [AGENTS.md](../AGENTS.md) 的 Issue Tracking）。凡涉及公开 API 或契约的提案与 PR 必须带具体
 说明：改前用户能写出的最好代码、改后的同一段代码、被消除的失败模式；破坏性变更另附迁移路径。
 
-**本表分为活契约与在途提案两节，分析稿不入表。** 相关 ADR 按主题附在活契约下，
-不另建 ADR 编号索引或第二套主题导航。CI 中的 `scripts/check-design-routes.py` 对两节共用双向校验：
-表内链接必须存在，已跟踪且仍存在的顶层活文档、`proposal/` 中的全部提案必须分别入表；
-`analysis/` 不在校验范围内。接手工作时先读相应路由，再用 `git status --short design/` 查未入库的分析输入。
+**This table has two routed sections, live contracts and in-flight proposals; analysis drafts and
+archived proposals are not routed.** Related ADRs sit under their subject's contracts; no separate
+ADR index or second navigation is built. CI's `scripts/check-design-routes.py` validates both
+sections bidirectionally: table links must exist, and every tracked top-level live document and
+every proposal in `proposal/` must have a row; `analysis/` and `archive/` are outside the check.
+`scripts/check-proposal.py` additionally gates proposal identity, distillation summaries, and the
+content bans; archived proposals are checked for identity only and are exempt from
+`check-doc-refs.py` and `check-local-links.py`. When picking up work, read the matching route
+first, then check `git status --short design/` for uncommitted analysis inputs.
 
 对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿蒸馏时，保留的发现并入
 契约规则，驳回与降级的发现连同理由浓缩为「已排除的替代方案与原因」或「评审中驳回的主张」并入正文
@@ -49,7 +61,11 @@ ADR 不保留全文，其结论与否决理由在 [decision-log.md](decision-log
    不算理由。已入库提案被否决或被取代时，结论与否决理由写进 [decision-log.md](decision-log.md)
    （需要关闭重提的按第 10 条写进 ADR，日志留指针）是删除提案文件与路由行的前置条件；
    这不算实现落地，不向行为契约写落地回指。
-5. **生命周期两态且单向**：入库提案 → 活契约。不再约束实现的材料不留全文，蒸馏后删除。
+5. **Lifecycle exits are one-way**: an in-flight proposal ends as a live contract (landed), as
+   decision-log residue (rejected or superseded), or as an archived dormant file under
+   `archive/proposal/`; the archive standard and re-entry are defined in
+   [proposal-lifecycle.md](proposal-lifecycle.md). Material that no longer constrains
+   implementation keeps no full text outside the archive and is deleted after distillation.
    蒸馏摘要随提案写出并随论证更新；落地时编辑并入
    契约，写下历史回指，与实现、提案及路由行的删除同一提交。蒸馏保留核心出发点、设计原则与
    不变量、被否决方向及理由；可保留核心代码（状态机骨架、协议顺序这类代码比文字更精确的

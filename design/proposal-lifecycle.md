@@ -1,81 +1,186 @@
-# 提案生命周期契约
+# Proposal Lifecycle Contract
 
-提案是已写出但尚未落地的变更方向，活契约约束当前实现。目录位置区分两者，
-无需状态字段。实现入口为 `scripts/check-design-routes.py`，CI 使用同一脚本。
+A proposal is a change direction that has been written down but not yet landed; live contracts
+constrain current implementation. Directory location distinguishes the states, so proposals carry
+no status field. The enforcement entry points are `scripts/check-design-routes.py` and
+`scripts/check-proposal.py`; CI runs the same scripts.
 
-## 1. 入库与身份
+## 1. Locations and states
 
-- 提案 MUST 存放在 `design/proposal/P<NNNN>-<kebab-slug>.md` 并进入版本库；
-  草稿、已接受、正在实施一律使用相同规则。MUST NOT 引入 status 字段或头部状态行。
-- 编号 MUST 是四位十进制数，slug MUST 是小写字母或数字组成的短横线词组；
-  同一编号 MUST NOT 对应多份提案，MUST NOT 重用已删除提案的编号。
-  新编号取当前已用最大编号加一：在 `design/proposal/` 的文件名、活契约中的 `proposal:P<NNNN>`
-  回指与 [decision-log.md](decision-log.md) 中查最大值；不维护额外编号登记簿。编号只增不减，
-  因此低于最大值的编号即使已无文件也不重用。提案删除时其编号 MUST 留在活契约回指或决策日志中，
-  否则下一次取号看不到它。
-- 提案 MUST 在 `design/AGENTS.md` 的「在途提案」表中有一行摘要；该表表示尚未落地的
-  方向，MUST NOT 被解释成已经批准的实施清单。提案 MUST NOT 约束当前行为。
-- 每份提案 MUST 包含非空的 `## 蒸馏摘要`，写下核心出发点、不变量与拟议 MUST/MUST NOT
-  条目、被否决方向及理由。没有否决方向时写明尚无；摘要随论证更新，不是一次性模板。
-- 公开 API 或契约提案 MUST 带改前最佳用户代码、改后同一段代码、被消除的失败模式；
-  破坏性变更 MUST 写明迁移路径。依据 [first-principles.md](first-principles.md) 评估收益。
+Four locations hold design material; an agent's default reading path covers only the first two:
 
-## 2. 落地与删除
+- **Live contracts** (`design/*.md`): the authority on current behavior.
+- **In-flight proposals** (`design/proposal/`): directions written down but not yet landed. They
+  MUST NOT constrain current behavior.
+- **Archived proposals** (`design/archive/proposal/`): dormant directions kept as full text for
+  human reflection and history analysis. Agents MUST NOT load them by default; live documents
+  MUST NOT link to or depend on archived content. An archived file is frozen as of its archive
+  date; its outbound links and factual claims are not maintained.
+- **Decision residue** ([decision-log.md](decision-log.md)): conclusions and rejection reasons of
+  landed, rejected, superseded, or harvested directions.
 
-落地由实现满足提案目标决定，不由一段稿子仍被称为「提案」决定。落地提交 MUST 同时：
+States move one way: in-flight → landed (distilled into contracts), in-flight → rejected (residue
+in the decision log), in-flight → archived (dormant). Archiving is not a verdict; re-entry moves a
+file back to in-flight.
 
-1. 把最终蒸馏摘要编辑并入对应的 `design/` 活契约；保留出发点、不变量与否决理由，
-   用现行措辞融入正文，MUST NOT 把候选 MUST 原样冒充已经成立的约束。
-2. 在承接的活契约中写下 `proposal:P<NNNN>` 历史回指；涉及多份契约时在各自承接处回指。
-3. 删除提案文件与在途路由行，与实现及契约一并提交。
+## 2. Intake and identity
 
-回指 MUST 是普通文本或行内代码，MUST NOT 写成文件链接。提案删除后回指故意没有当前
-文件目标，这是合法历史标记；MUST NOT 把它当死链。提案全文不另存：落地时出发点、不变量与
-否决理由已在活契约中，删除后 MUST NOT 引用提交 hash，也不提供全文的取回路径。
+- A proposal MUST live at `design/proposal/P<NNNN>-<kebab-slug>.md` and be committed; drafts,
+  accepted, and in-progress proposals all follow the same rules. Proposals MUST NOT carry a
+  status field or header status line.
+- The id MUST be four decimal digits and the slug MUST be a lowercase hyphenated word group. One
+  id maps to exactly one proposal; an id MUST NOT be reused, including ids of deleted or archived
+  proposals. The next id is the current maximum plus one, where the maximum is taken from
+  `design/proposal/` filenames, `design/archive/` filenames, `proposal:P<NNNN>` back-references
+  in live contracts, and [decision-log.md](decision-log.md); no separate registry is kept. Ids
+  only increase. When a proposal is deleted, its id MUST remain visible in a contract
+  back-reference or the decision log, or the next intake cannot see it.
+- A proposal MUST have one summary row in the in-flight table of [AGENTS.md](AGENTS.md); that
+  table lists unlanded directions and MUST NOT be read as an approved implementation list.
+- Every proposal MUST contain a non-empty `## 蒸馏摘要` or `## Distillation summary` section with
+  the core motivation, the invariants and proposed MUST/MUST NOT items, and the rejected
+  directions with reasons (or a statement that there are none). The summary evolves with the
+  argument; it is not a one-shot template. The section MUST be a real section: a template heading
+  inside a code fence or HTML comment does not satisfy it.
+- A public API or contract proposal MUST show the best user code before, the same code after, and
+  the failure mode removed; a breaking change MUST name the migration path. Evaluate benefits
+  against [first-principles.md](first-principles.md).
+- **Verbosity.** A proposal carries decision content only. It MUST NOT contain `file:line`
+  citations, commit hashes, member or class inventories, test counts, command output, multi-round
+  review transcripts, or implementation checklists; cite mechanism names, symbol names, or section
+  headings instead. Working evidence lives in the implementing PR or is harvested into contracts
+  and the decision log; it is not parked in the proposal.
 
-一部分内容已实现而其余仍未落地时，MUST 先将剩余方向拆到新编号的提案并加入路由，
-再蒸馏并删除原提案。MUST NOT 同一编号既代表落地来源又代表剩余工作。
-被否决或被取代不算实现落地：MUST 先在 [decision-log.md](decision-log.md) 保留结论、
-完整理由及剩余方向的落点，再同一提交删除提案和路由行；MUST NOT 伪造行为契约的落地回指。
+## 3. Landing and deletion
 
-## 3. 门禁及其边界
+Landing is decided by the implementation satisfying the proposal's goals, not by a document still
+being called a proposal. A landing commit MUST, in the same commit:
 
-`python3 scripts/check-design-routes.py` MUST 使用同一份路由校验逻辑检查：
+1. Edit the final distillation summary into the receiving `design/` live contract, preserving the
+   motivation, invariants, and rejection reasons in current wording; candidate MUSTs MUST NOT be
+   passed off as established constraints.
+2. Write a `proposal:P<NNNN>` historical back-reference in each receiving contract at the point
+   that receives the content.
+3. Delete the proposal file and its route row.
 
-- A：活契约表覆盖已跟踪且工作树仍存在的顶层 `design/*.md`（不含 AGENTS）；
-  在途表覆盖工作树中 `design/proposal/` 的全部 Markdown 提案，包括未暂存的新文件。
-  两节 MUST 分别双向匹配，正文中的随手链接不能代替路由行；所有本地链接 MUST 存在。
-  路由身份只来自表格第一列；摘要列交叉引用、代码示例与 HTML 注释 MUST NOT 算独立路由。
-- 身份前提：提案文件名、编号唯一性及非空蒸馏摘要 MUST 可机械检查。
-  摘要 MUST 是正文中的节，代码围栏或 HTML 注释中的模板标题 MUST NOT 满足该条件。
-- B：当前活契约中出现历史回指且同编号提案文件仍存在时 MUST 失败；
-  没有同编号提案文件的回指 MUST 通过。扫描范围不包含提案与分析稿（含按用户要求入库于
-  `design/analysis/` 的）。
+A back-reference MUST be plain text or inline code and MUST NOT be a file link. After deletion
+the back-reference intentionally has no current file target; it is a legal history marker and
+MUST NOT be treated as a dead link. The proposal's full text is not preserved elsewhere: at
+landing time the motivation, invariants, and rejection reasons already live in the contract, so
+after deletion neither commit hashes nor a retrieval path for the full text may be cited.
 
-A 与 B 独立：删路由会触发 A，保留路由及已落地提案会触发 B。二者都检查当前树，
-不解析提交 diff，不建立状态机。Markdown 示例里的完整历史回指也会被 B 视为标记，
-机制说明使用 `proposal:P<NNNN>` 占位符。
+When part of a proposal has landed and the rest has not, the remaining direction MUST first be
+split into a new-numbered proposal with a route row; only then is the original distilled and
+deleted. One id MUST NOT stand for both a landed source and remaining work.
 
-门禁不能证明摘要的语义已经进入契约、实现已经满足目标、删除曾与实现同一提交，
-或编号从未在历史中使用。这些 MUST 由提交前评审对照检查；MUST NOT 把门禁通过报告成
-蒸馏质量或实现正确性验证通过。
+Rejection or supersession is not landing: the conclusion, complete reasons, and the landing spots
+of any remaining direction MUST be recorded in [decision-log.md](decision-log.md) first, and the
+proposal file and route row are deleted in the same commit. A rejection MUST NOT write landing
+back-references into behavior contracts.
 
-## 4. 分析输入与不做的部分
+## 4. Archive
 
-分析稿不是提案或活契约：发现 MUST 逐条收割到修复、决策日志、BACKLOG 或独立提案后
-才删除，不另存全文；决策日志写下结论与理由，不链接已删除的分析稿。未跟踪文件
-没有仓库内副本时，不能确认收割时 MUST 保留并报告未决结论。
-转换为提案时保留问题、证据限制、可操作目标和否决理由，MUST NOT 把历史探针当当前实现证明。
+**Standard.** A proposal is archivable only when all three conditions hold:
 
-不提供 `distill-proposal.py`：编辑契约的位置、措辞与取舍需要判断；移动摘要、删除文件和
-删除路由行已可直接完成并被现有门禁核对。脚本无法证明语义收割，不值得增加第二条编辑路径。
-不建立草稿/接受/实施状态、不维护已落地提案目录、不承诺生成契约正文、不另建门禁脚本。
+1. **Open**: no conclusion has been reached — the direction is neither implemented nor decided
+   against. A concluded proposal takes the landing or rejection path instead.
+2. **Dormant**: no work or decision is expected from it in the current development line. Evidence
+   is any of: the maintainer explicitly parks it; the question it carried moved elsewhere while
+   its analysis remains worth keeping; an inactivity review finds it untouched and unreferenced
+   by current work for roughly a release cycle. Inactivity triggers a review, never an automatic
+   move.
+3. **Text worth keeping**: the full text carries analysis, evidence, or rejected alternatives
+   that decision-log residue cannot hold and that would be expensive to reconstruct. If the
+   durable content is only a conclusion plus reasons, distill it into the decision log and delete
+   the file instead.
 
-## 5. 评审取舍
+**Anti-criteria.** Archiving MUST NOT substitute for:
 
-独立只读评审的结构识别与收割发现均保留并修复：围栏表行、摘要列链接和围栏摘要模板
-不能满足必需结构，路由与摘要共用围栏及 HTML 注释过滤，第一列中的有效链接决定路由身份。
-复审补出的 HTML 注释和行内代码假路由同样保留并修复。相应反例先复现失败，
-再确认修正后的门禁拒绝它们；不引入新的 Markdown 依赖或第二份判断逻辑。
-分析输入逐项承接到 P0002 的浅配置候选、P0006 的轻量收敛记录和 P0011 的测试命名问题，
-避免以宽泛“已进入后续维护”代替可寻址落点。没有将这些后续候选报告成实现已经修复。
+- rejection — a direction judged wrong gets its reasons in the decision log; archiving it loses
+  the do-not-reopen record and invites re-proposal;
+- landing — implemented means distilled and deleted, always;
+- slimming — verbose-but-active stays active and is distilled in place;
+- work-tracking — a checklist with no open design choice goes to `BACKLOG.md` or the decision log
+  and the file is deleted; that is reclassification, not archiving.
+
+**Bias.** When uncertain between active and archived, archive: the in-flight reading path costs
+attention on every design task, and re-entry is one commit. When uncertain between archive and
+reject, reject: the rejection record is the durable asset.
+
+**Move.** The maintainer confirms each archive; an agent proposes it with the evidence (which
+dormant signal fired, why the text is worth keeping). An archive move is one commit: move the
+file to `design/archive/proposal/`, add the banner, and remove the route row. The banner is a
+blockquote at the top of the file:
+
+```text
+> Archived <YYYY-MM-DD>. Reason: <one line naming the dormant signal>. Direction
+> remains open; re-entry is a maintainer decision: move back to
+> design/proposal/ and restore the route row in one commit. Content and
+> links are as of the archive date and are not maintained.
+```
+
+**Re-entry.** A maintainer decision moves the file back to `design/proposal/`, removes the
+banner, and restores the route row in one commit.
+
+## 5. Gates and their boundaries
+
+`python3 scripts/check-design-routes.py` MUST check, with one shared route-validation logic:
+
+- A: the live-contract table covers every tracked, still-existing top-level `design/*.md`
+  (excluding AGENTS), and the in-flight table covers every Markdown proposal in
+  `design/proposal/`, including unstaged new files; the two sections MUST match their sets
+  bidirectionally, casual links in prose do not replace route rows, and all local links MUST
+  exist. Route identity comes only from a table's first column; cross-references in the summary
+  column, code samples, and HTML comments MUST NOT count as routes. `design/analysis/` and
+  `design/archive/` are outside both tables.
+- Identity premise: proposal filename shape, id uniqueness, and the non-empty summary MUST be
+  mechanically checkable.
+- B: a live contract that carries a `proposal:P<NNNN>` back-reference whose same-id proposal file
+  still exists in `design/proposal/` MUST fail; a back-reference with no same-id in-flight
+  proposal MUST pass. The scan excludes proposals and analysis drafts (including those committed
+  to `design/analysis/` at the user's request).
+
+A and B are independent: removing a route row triggers A, and keeping both a route row and a
+landed proposal triggers B. Both inspect the current tree, parse no commit diff, and build no
+state machine. A full back-reference inside a Markdown example still counts as a marker to B;
+mechanism prose uses the `proposal:P<NNNN>` placeholder.
+
+`python3 scripts/check-proposal.py` MUST check: filename shape and id uniqueness across
+`design/proposal/` and `design/archive/proposal/` (an archived id blocks reuse); on in-flight
+proposals only, the non-empty summary as a real section and the content bans of section 2
+(`file:line` patterns, commit hashes). Archived files are checked for identity only.
+`scripts/check-doc-refs.py` and `scripts/check-local-links.py` exempt `design/archive/`.
+
+The gates cannot prove that a summary's semantics entered a contract, that an implementation met
+its goals, that a deletion shipped in the same commit as the implementation, or that an id was
+never used historically. Pre-commit review MUST check those against the diff; a gate pass MUST
+NOT be reported as distillation-quality or implementation-correctness verification.
+
+## 6. Analysis inputs and non-goals
+
+Analysis drafts are inputs, not documents: their findings MUST be harvested item by item into
+fixes, the decision log, `BACKLOG.md`, or standalone proposals before deletion, and no full text
+is kept; the decision log records conclusions and reasons and does not link deleted drafts. When
+an untracked file has no in-repo copy and its harvest cannot be confirmed, it MUST be kept and
+the open items reported. Converting a draft into a proposal keeps the problem, the evidence
+limits, the actionable goals, and the rejection reasons; a historical probe MUST NOT be cited as
+proof of the current implementation.
+
+There is no `distill-proposal.py`: choosing where and how to edit a contract takes judgment, and
+moving the summary, deleting the file, and removing the route row are already directly checkable
+by the existing gates. A script cannot prove semantic harvest, so a second edit path is not worth
+its cost. The lifecycle keeps no draft/accepted/implementing states, maintains no landed-proposal
+catalog, generates no contract text, and adds no further gate scripts beyond the two named in
+section 5. The archive directory is the single exception to the repository's no-full-text-archive
+rule, and it holds dormant proposals only; landed or rejected proposals still leave no full text.
+
+## 7. Review trade-offs
+
+Structural-recognition and harvest findings from independent read-only review were kept and
+fixed: fenced table rows, summary-column links, and fenced summary templates cannot satisfy the
+required structure, and route recognition and summary recognition share one fence and
+HTML-comment filter, with valid links in the first column deciding route identity. Each
+counterexample is reproduced failing first, then the fixed gate is confirmed to reject it; no new
+Markdown dependency and no second judgment logic was introduced. Follow-up candidates harvested
+from analysis inputs are recorded at their addressable landing spots rather than under a blanket
+"carried into maintenance" claim.

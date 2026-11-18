@@ -462,7 +462,8 @@ Documentation must stay readable and correct without the Git object database:
   blocker is recorded.
 - Delivery includes documentation maintenance and in-flight proposals. Proposals
   are tracked under `design/proposal/`; their lifecycle is defined in
-  `design/proposal-lifecycle.md`. Analysis drafts are temporary inputs: do not
+  `design/proposal-lifecycle.md`. Dormant proposals are archived under
+  `design/archive/proposal/` and are not loaded by default. Analysis drafts are temporary inputs: do not
   commit them on your own initiative; commit one only when the user asks, under
   `design/analysis/` per `design/AGENTS.md` principle 9. Harvest their
   conclusions before deleting them either way.
