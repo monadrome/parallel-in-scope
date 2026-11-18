@@ -1,0 +1,32 @@
+design/proposal/P0002-api-surface-reduction.md
+  s_6089cce8990783::t_ea5e872f06e76e 9,12-33,36-38,47-51,86-89,94,96,104-105
+design/proposal/P0036-complexity-review-signals.md
+  s_6089cce8990783::t_39e6ec3816a4bd 3
+scripts/check-proposal.py
+  s_6089cce8990783::t_172044b8a992c6 28
+  s_6089cce8990783::t_c1a7b6393f1831 58-59
+design/proposal-lifecycle.md
+  s_6089cce8990783::t_3ea3ab65b5ed0e 151-152
+scripts/tests/test_check_proposal.py
+  s_6089cce8990783::t_05e7e559c81437 103-110
+design/decision-log.md
+  s_6089cce8990783::t_66cd910f3968d2 369-370,372-374,376-401
+  s_6089cce8990783::t_6cfd703426dc56 12-15
+  s_6089cce8990783::t_dc0ff53fa2d1b0 371,375
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1962e3f80dad50f9a36d2acd0bdb1098335cdcd9",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
