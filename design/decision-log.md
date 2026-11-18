@@ -9,9 +9,10 @@ Rules for entries:
 
 - Every rejected or superseded direction carries at least one reason, so a later maintainer who
   wants to revoke the rejection knows which argument to overturn. "Superseded" alone is not a reason.
-- Entries are self-contained. The repository keeps no full-text archive of retired proposals,
-  review transcripts, or verification logs, and an entry never points at a commit hash or git
-  history to retrieve one.
+- Entries are self-contained. Beyond the dormant proposals kept under `design/archive/` (see
+  [proposal-lifecycle.md](proposal-lifecycle.md)), the repository keeps no full-text archive of
+  retired proposals, review transcripts, or verification logs, and an entry never points at a
+  commit hash or git history to retrieve one.
 - A conclusion that must stay closed against re-proposal in reviews or triage belongs in an ADR;
   the entry then keeps one sentence and the ADR link.
 - `proposal:P<NNNN>` is a plain-text marker for a retired proposal number. Numbers only grow; see
@@ -364,6 +365,39 @@ possible double close of the same value. Intermediate resources belong in a `Clo
 its `DeferredCloser`, or with the recipient that reads the value. This is a scope boundary, not a claim of equivalence:
 `ClosingFuture.from` does not close an ordinary future's unregistered value, and `finishToFuture()` settlement does not
 wait for asynchronous close. Reopen only with a concrete use case that cannot be expressed under that boundary.
+
+## Public API surface
+
+### API surface reduction: retained after evaluation (2026-10, from [P0002](proposal/P0002-api-surface-reduction.md))
+
+The 2026-10 refresh of the public-surface inventory evaluated each item below for removal and
+kept it. Do not re-propose a removal without overturning the stated reason. Open reduction
+candidates that remain undecided live in the active proposal, not here.
+
+- `Tuple2.of`: users writing unit tests for the public `Combiner` SPI must be able to construct
+  `Tuple2` inputs; the factory is half of the SPI's testability.
+- `ImmediateResult.succeeded`/`failed`: semantics documented in the user guide and used by the
+  kernel's group implementation.
+- `ImmediateResult.asFuture()`: the demo's highest-frequency reference form and the escape hatch
+  for Guava composition.
+- `Checkpoints` blocking adapters and `rawCheckpoint`: they remove the "forgot to restore the
+  interrupt flag / misread `InterruptedException`" failure modes and are part of the attribution
+  contract.
+- The remaining `TaskGroupResult` accessors (metadata, the `resultAt`/`resultOf` family,
+  `members()`, `terminal()`, `orThrow()`, `terminationKindCounts()`, `reportString()`,
+  `executionExitConfirmed()`/`unexitedExecutions()`): a consistent frozen-snapshot record mirroring
+  the package-private group report; cherry-picking accessors buys less than the asymmetry costs.
+- `GroupValues` full family (including `typeAt`/`typeOf`): positional and named dual access plus
+  type introspection is the complete read surface of group results.
+- `ParRuntime` purge runtime knobs and `find`/`pars`/`inFlight`/`awaitQuiescence`/`purgePolicy()`:
+  deliberately exposed mutable runtime state and dual-channel queries; `inFlight` and
+  `awaitQuiescence` are documented in the user guide.
+- `TaskBatchResult.reportString()`: the batch report is the demo and troubleshooting main path.
+- The queue classes staying public: the artifact boundary is closed and held by
+  [ADR 0013](../adr/0013-standalone-blocking-queues-artifact.md).
+- `ParId.value()`: the value type's only explicit accessor.
+- `LeanCancellationException`: the observable exception type crossing user lambdas; half of the
+  dual-exception policy.
 
 ## Observation and diagnostics
 

@@ -100,6 +100,14 @@ class ProposalConformanceTest(unittest.TestCase):
         self.assertEqual(errors.count("duplicate proposal id: P0001"), 1, errors)
         self.assertEqual(errors.count("duplicate proposal id: P0002"), 1, errors)
 
+    def test_status_section_fails(self):
+        self.write("design/proposal/P0001-title.md",
+                   VALID + "\n## 状态\n\n灰度验证中。\n")
+        self.write("design/proposal/P0002-other.md",
+                   VALID + "\n## Status\n\nIn review.\n")
+        errors = self.check().stderr
+        self.assertEqual(errors.count("status section not allowed"), 2, errors)
+
     def test_archived_files_are_identity_only(self):
         self.write("design/archive/proposal/P0001-old.md",
                    "# P0001: Old\n\nNo summary; SynchronousExecutionTest:222 is history.\n")

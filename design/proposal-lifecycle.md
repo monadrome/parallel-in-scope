@@ -148,7 +148,8 @@ mechanism prose uses the `proposal:P<NNNN>` placeholder.
 `python3 scripts/check-proposal.py` MUST check: filename shape and id uniqueness across
 `design/proposal/` and `design/archive/proposal/` (an archived id blocks reuse); on in-flight
 proposals only, the non-empty summary as a real section and the content bans of section 2
-(`file:line` patterns, commit hashes). Archived files are checked for identity only.
+(line-number citations, status sections; commit hashes are covered by
+`scripts/check-doc-refs.py`). Archived files are checked for identity only.
 `scripts/check-doc-refs.py` and `scripts/check-local-links.py` exempt `design/archive/`.
 
 The gates cannot prove that a summary's semantics entered a contract, that an implementation met

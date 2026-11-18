@@ -25,6 +25,7 @@ SUMMARY_RE = re.compile(
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 CLASS_LINE_RE = re.compile(r"(?<![\w./-])[A-Z][A-Za-z0-9_]*:\d+(?:[-,]\d+)*")
+STATUS_SECTION_RE = re.compile(r"^## (?:状态|Status)\s*$")
 
 
 def unfenced_lines(text: str):
@@ -54,6 +55,8 @@ def check_active(document: Path, label: str, text: str) -> list[str]:
     for number, line in visible:
         if CLASS_LINE_RE.search(line):
             errors.append(f"{label}:{number}: line-number citation: {line.strip()}")
+        if STATUS_SECTION_RE.match(line):
+            errors.append(f"{label}:{number}: status section not allowed: {line.strip()}")
     return errors
 
 
