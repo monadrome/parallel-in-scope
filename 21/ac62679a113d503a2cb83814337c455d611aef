@@ -1,0 +1,39 @@
+scripts/tests/test_check_local_links.py
+  s_4fe370431dda23::t_6145971d5ae353 5-8,11-12,14
+scripts/tests/gatecase.py
+  s_4fe370431dda23::t_bf0f746bb10947 1-47
+scripts/check-proposal.py
+  s_4fe370431dda23::t_6576c47e1bf373 16-18,27
+  s_4fe370431dda23::t_7dec12827fbf6a 66
+scripts/proposal_md.py
+  s_4fe370431dda23::t_7d8ac5513d3c17 1-11,13-34
+scripts/check-local-links.py
+  s_4fe370431dda23::t_af7d630d27504c 61
+scripts/check-design-routes.py
+  s_4fe370431dda23::t_53c5141a290d17 15-17
+  s_4fe370431dda23::t_e78c121215414c 37
+  s_4fe370431dda23::t_660aaba3203503 78
+  s_4fe370431dda23::t_54277212de5749 144
+  s_4fe370431dda23::t_aa18cfd3ee2f54 148
+  s_4fe370431dda23::t_ede39d5aef858b 153
+scripts/tests/test_check_proposal.py
+  s_4fe370431dda23::t_9cf1c54586785c 5-8,24-25,27
+scripts/tests/test_check_design_routes.py
+  s_4fe370431dda23::t_e9b4252c7bc2fb 5-8,11-12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "21ac62679a113d503a2cb83814337c455d611aef",
+  "prompts": {},
+  "sessions": {
+    "s_4fe370431dda23": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7fe8a7cd-c52c-4a45-a23e-5347ca58de73",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

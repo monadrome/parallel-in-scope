@@ -1,0 +1,21 @@
+scripts/tests/test_process_metrics.py
+  s_4fe370431dda23::t_88328df637e049 179-191
+scripts/process-metrics.py
+  s_4fe370431dda23::t_fdc20f4becc943 464
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "fe907077f2a71a74ef1fe2e0574b76c0f53855fe",
+  "prompts": {},
+  "sessions": {
+    "s_4fe370431dda23": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7fe8a7cd-c52c-4a45-a23e-5347ca58de73",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

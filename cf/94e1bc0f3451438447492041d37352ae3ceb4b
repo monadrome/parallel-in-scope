@@ -1,0 +1,40 @@
+AGENTS.md
+  s_4fe370431dda23::t_5cce32ff48e2c2 46-49
+  s_4fe370431dda23::t_43c4ed7640f073 107-112
+  s_4fe370431dda23::t_70c95c41ec50f4 131
+  s_4fe370431dda23::t_f078313be4b964 132-136
+  s_4fe370431dda23::t_03479837e26488 508-509
+scripts/proposal_md.py
+  s_4fe370431dda23::t_7d8ac5513d3c17 1-11,13-34
+  s_4fe370431dda23::t_53a77d57335765 12
+scripts/tests/test_check_proposal.py
+  s_4fe370431dda23::t_9cf1c54586785c 5-8,24-25,27
+  s_4fe370431dda23::t_33feccdf12e495 108-112
+scripts/process-metrics.py
+  s_4fe370431dda23::t_fdc20f4becc943 464
+  s_4fe370431dda23::t_68e29c947e4033 471-477
+scripts/tests/test_check_design_routes.py
+  s_4fe370431dda23::t_e9b4252c7bc2fb 5-8,11-12,14
+  s_4fe370431dda23::t_5051def0835275 169-173
+design/proposal-lifecycle.md
+  s_4fe370431dda23::t_6eee60010f3144 31
+scripts/tests/test_process_metrics.py
+  s_4fe370431dda23::t_88328df637e049 179-191
+  s_4fe370431dda23::t_d4f7a19a530162 192-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "cf94e1bc0f3451438447492041d37352ae3ceb4b",
+  "prompts": {},
+  "sessions": {
+    "s_4fe370431dda23": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7fe8a7cd-c52c-4a45-a23e-5347ca58de73",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
