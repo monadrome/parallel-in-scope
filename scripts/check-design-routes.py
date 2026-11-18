@@ -10,12 +10,11 @@ from urllib.parse import unquote, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 ROUTE_DOC = ROOT / "design" / "AGENTS.md"
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)\s]+)(?:\s+['\"][^)]*['\"])?\)")
-PROPOSAL_RE = re.compile(r"(P[0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md")
 BACK_REFERENCE_RE = re.compile(r"\bproposal:(P[0-9]{4})(?![a-zA-Z0-9])")
-SUMMARY_RE = re.compile(r"^## (?:摘要|Abstract)\s*\n(.*?)(?=^#{1,2} |\Z)", re.MULTILINE | re.DOTALL)
-FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
-COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)")
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from proposal_md import NAME_RE, SUMMARY_RE, unfenced_lines  # noqa: E402
 BETA_TAG = "[beta]"
 BETA_MARKER_RE = re.compile(r"^>\s*Stability:\s*beta\b", re.MULTILINE)
 
@@ -32,25 +31,10 @@ def route_targets(text: str) -> dict[PurePosixPath, str]:
     return targets
 
 
-def unfenced_lines(text: str):
-    fence = None
-    for line in COMMENT_RE.sub("", text).splitlines():
-        match = FENCE_RE.match(line)
-        if fence is not None:
-            if (match and match[1][0] == fence[0] and len(match[1]) >= len(fence)
-                    and not match[2].strip()):
-                fence = None
-            continue
-        if match:
-            fence = match[1]
-            continue
-        yield line
-
-
 def route_tables(text: str) -> dict[str, dict[PurePosixPath, str]]:
     tables = {"活契约": {}, "在途提案": {}}
     section = None
-    for line in unfenced_lines(text):
+    for _, line in unfenced_lines(text):
         if line.startswith("## "):
             section = line[3:].strip()
         elif section in tables and line.startswith("|"):
@@ -91,7 +75,7 @@ def beta_routed_documents(text: str) -> set[PurePosixPath]:
     """Live-contract documents whose route-table row is tagged [beta]."""
     documents = set()
     section = None
-    for line in unfenced_lines(text):
+    for _, line in unfenced_lines(text):
         if line.startswith("## "):
             section = line[3:].strip()
         elif section == "活契约" and line.startswith("|") and BETA_TAG in line:
@@ -157,16 +141,16 @@ def main() -> int:
         errors.extend(check_routes(documents, tables[section], section == "在途提案"))
     proposals_by_id = {}
     for document in sorted(proposal_documents):
-        match = PROPOSAL_RE.fullmatch(document.name) if len(document.parts) == 2 else None
+        match = NAME_RE.match(document.name) if len(document.parts) == 2 else None
         if not match:
             errors.append(f"design/{document}: invalid proposal filename")
         else:
-            proposal_id = match[1]
+            proposal_id = f"P{match[1]}"
             if proposal_id in proposals_by_id:
                 errors.append(f"design/{document}: duplicate proposal id: {proposal_id}")
             proposals_by_id[proposal_id] = document
         content = (ROUTE_DOC.parent / document).read_text(encoding="utf-8")
-        summary = SUMMARY_RE.search("\n".join(unfenced_lines(content)))
+        summary = SUMMARY_RE.search("\n".join(line for _, line in unfenced_lines(content)))
         if not summary or not summary[1].strip():
             errors.append(f"design/{document}: missing or empty abstract")
     live_documents.update(

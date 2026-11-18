@@ -51,9 +51,6 @@ def target_exists(source: Path, path: Path, raw_path: str) -> bool:
     return localized_path.with_suffix(".md").exists() or (localized_path / "index.md").exists()
 
 
-EXCLUDED_ROOTS = (
-    ROOT / "design" / "archive",
-)
 ARCHIVE_ROOT = ROOT / "design" / "archive"
 
 
@@ -61,7 +58,7 @@ def main() -> int:
     errors: list[str] = []
     for scan_root in SCAN_ROOTS:
         for source in markdown_files(scan_root):
-            if any(source.is_relative_to(excluded) for excluded in EXCLUDED_ROOTS):
+            if source.is_relative_to(ARCHIVE_ROOT):
                 continue
             for raw_target in LINK_RE.findall(source.read_text(encoding="utf-8")):
                 target = unquote(raw_target)

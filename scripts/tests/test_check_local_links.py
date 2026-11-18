@@ -1,33 +1,18 @@
 """Exercise the local-link gate against disposable working trees."""
 
-import shutil
-import subprocess
-import sys
-import tempfile
 import unittest
-from pathlib import Path
+
+try:
+    from gatecase import GateCase
+except ImportError:  # unittest discover with -t scripts imports this as tests.*
+    from tests.gatecase import GateCase
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "check-local-links.py"
+class LocalLinksTest(GateCase):
+    SCRIPT = "check-local-links.py"
 
-
-class LocalLinksTest(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
-        (self.root / "scripts").mkdir()
+    def prepare(self):
         (self.root / "design" / "archive" / "proposal").mkdir(parents=True)
-        shutil.copyfile(SCRIPT, self.root / "scripts" / SCRIPT.name)
-
-    def write(self, relative, text):
-        path = self.root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-
-    def check(self):
-        return subprocess.run([sys.executable, "scripts/check-local-links.py"], cwd=self.root,
-                              capture_output=True, text=True)
 
     def test_live_document_linking_into_the_archive_fails(self):
         self.write("design/archive/proposal/P0001-dormant.md", "# Dormant\n")

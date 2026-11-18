@@ -1,46 +1,28 @@
 """Exercise the design gate against disposable Git working trees."""
 
-import shutil
-import subprocess
-import sys
-import tempfile
 import unittest
-from pathlib import Path
+
+try:
+    from gatecase import GateCase
+except ImportError:  # unittest discover with -t scripts imports this as tests.*
+    from tests.gatecase import GateCase
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "check-design-routes.py"
+class DesignRoutesTest(GateCase):
+    SCRIPT = "check-design-routes.py"
 
-
-class DesignRoutesTest(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
-        (self.root / "scripts").mkdir()
+    def prepare(self):
         (self.root / "design" / "proposal").mkdir(parents=True)
-        shutil.copyfile(SCRIPT, self.root / "scripts" / SCRIPT.name)
         self.git("init", "-q")
         self.write("design/contract.md", "# Contract\n")
         self.git("add", "design/contract.md")
         self.routes()
-
-    def git(self, *args):
-        subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True)
-
-    def write(self, path, text):
-        target = self.root / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
 
     def routes(self, live="| [contract](contract.md) | Contract |\n", proposals="", prose=""):
         self.write("design/AGENTS.md", f"# Routes\n{prose}\n## 活契约\n{live}\n## 在途提案\n{proposals}")
 
     def proposal(self, name="P0001-request.md", summary="## 摘要\n- Purpose and constraints\n"):
         self.write(f"design/proposal/{name}", f"# Proposal\n{summary}")
-
-    def check(self):
-        return subprocess.run([sys.executable, "scripts/check-design-routes.py"], cwd=self.root,
-                              capture_output=True, text=True)
 
     def test_routes_cover_untracked_proposals_and_tracked_contracts(self):
         self.proposal()

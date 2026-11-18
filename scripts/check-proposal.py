@@ -13,38 +13,18 @@ from pathlib import Path
 import re
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from proposal_md import NAME_RE, SUMMARY_RE, unfenced_lines  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 PROPOSAL_ROOT = ROOT / "design" / "proposal"
 ARCHIVE_ROOT = ROOT / "design" / "archive" / "proposal"
 
-NAME_RE = re.compile(r"^P(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
-SUMMARY_RE = re.compile(
-    r"^## (?:摘要|Abstract)\s*\n(.*?)(?=^#{1,2} |\Z)",
-    re.MULTILINE | re.DOTALL,
-)
-FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
-COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 CLASS_LINE_RE = re.compile(r"(?<![\w./-])[A-Z][A-Za-z0-9_]*:\d+(?:[-,]\d+)*")
 STATUS_SECTION_RE = re.compile(r"^## (?:状态|Status)\s*$")
 
 
-def unfenced_lines(text: str):
-    """Visible lines with HTML comments and code fences removed, 1-indexed."""
-    fence = None
-    for number, line in enumerate(COMMENT_RE.sub("", text).splitlines(), 1):
-        match = FENCE_RE.match(line)
-        if fence is not None:
-            if (match and match[1][0] == fence[0] and len(match[1]) >= len(fence)
-                    and not match[2].strip()):
-                fence = None
-            continue
-        if match:
-            fence = match[1]
-            continue
-        yield number, line
-
-
-def check_active(document: Path, label: str, text: str) -> list[str]:
+def check_active(label: str, text: str) -> list[str]:
     errors = []
     visible = list(unfenced_lines(text))
     match = SUMMARY_RE.search("\n".join(line for _, line in visible))
@@ -83,7 +63,7 @@ def main() -> int:
                 else:
                     ids[proposal_id] = label
             if active:
-                errors.extend(check_active(document, label, text))
+                errors.extend(check_active(label, text))
             counts.append((label, len(text.splitlines())))
     if errors:
         print("Proposal conformance failed:", file=sys.stderr)

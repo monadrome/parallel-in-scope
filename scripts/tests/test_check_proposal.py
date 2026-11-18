@@ -1,14 +1,11 @@
 """Exercise the proposal gate against disposable working trees."""
 
-import shutil
-import subprocess
-import sys
-import tempfile
 import unittest
-from pathlib import Path
 
-
-SCRIPT = Path(__file__).resolve().parents[1] / "check-proposal.py"
+try:
+    from gatecase import GateCase
+except ImportError:  # unittest discover with -t scripts imports this as tests.*
+    from tests.gatecase import GateCase
 
 VALID = """# P0001: Title
 
@@ -24,23 +21,11 @@ More detail.
 VALID_EN = VALID.replace("## 摘要", "## Abstract")
 
 
-class ProposalConformanceTest(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
-        (self.root / "scripts").mkdir()
+class ProposalConformanceTest(GateCase):
+    SCRIPT = "check-proposal.py"
+
+    def prepare(self):
         (self.root / "design" / "proposal").mkdir(parents=True)
-        shutil.copyfile(SCRIPT, self.root / "scripts" / SCRIPT.name)
-
-    def write(self, relative, text):
-        path = self.root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-
-    def check(self):
-        return subprocess.run([sys.executable, "scripts/check-proposal.py"], cwd=self.root,
-                              capture_output=True, text=True)
 
     def test_valid_proposal_passes_and_reports_line_counts(self):
         self.write("design/proposal/P0001-title.md", VALID)
