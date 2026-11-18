@@ -109,8 +109,9 @@ reject, reject: the rejection record is the durable asset.
 
 **Move.** The maintainer confirms each archive; an agent proposes it with the evidence (which
 dormant signal fired, why the text is worth keeping). An archive move is one commit: move the
-file to `design/archive/proposal/`, add the banner, and remove the route row. The banner is a
-blockquote at the top of the file:
+file to `design/archive/proposal/`, add the banner, remove the route row, and rewrite inbound
+links from live documents as plain-text archived references. The banner is a blockquote
+immediately after the title:
 
 ```text
 > Archived <YYYY-MM-DD>. Reason: <one line naming the dormant signal>. Direction
@@ -150,7 +151,8 @@ mechanism prose uses the `proposal:P<NNNN>` placeholder.
 proposals only, the non-empty summary as a real section and the content bans of section 2
 (line-number citations, status sections; commit hashes are covered by
 `scripts/check-doc-refs.py`). Archived files are checked for identity only.
-`scripts/check-doc-refs.py` and `scripts/check-local-links.py` exempt `design/archive/`.
+`scripts/check-doc-refs.py` and `scripts/check-local-links.py` exempt `design/archive/` as scan
+sources, and `scripts/check-local-links.py` rejects links from live documents into the archive.
 
 The gates cannot prove that a summary's semantics entered a contract, that an implementation met
 its goals, that a deletion shipped in the same commit as the implementation, or that an id was

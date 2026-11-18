@@ -54,6 +54,7 @@ def target_exists(source: Path, path: Path, raw_path: str) -> bool:
 EXCLUDED_ROOTS = (
     ROOT / "design" / "archive",
 )
+ARCHIVE_ROOT = ROOT / "design" / "archive"
 
 
 def main() -> int:
@@ -72,6 +73,11 @@ def main() -> int:
                     path.relative_to(ROOT)
                 except ValueError:
                     errors.append(f"{source.relative_to(ROOT)}: link escapes repository: {raw_target}")
+                    continue
+                if path.is_relative_to(ARCHIVE_ROOT):
+                    errors.append(
+                        f"{source.relative_to(ROOT)}: live document links into the design"
+                        f" archive: {raw_target}")
                     continue
                 if not target_exists(source, path, parsed.path):
                     errors.append(f"{source.relative_to(ROOT)}: missing target: {raw_target}")

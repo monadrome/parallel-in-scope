@@ -35,9 +35,10 @@ ADR index or second navigation is built. CI's `scripts/check-design-routes.py` v
 sections bidirectionally: table links must exist, and every tracked top-level live document and
 every proposal in `proposal/` must have a row; `analysis/` and `archive/` are outside the check.
 `scripts/check-proposal.py` additionally gates proposal identity, distillation summaries, and the
-content bans; archived proposals are checked for identity only and are exempt from
-`check-doc-refs.py` and `check-local-links.py`. When picking up work, read the matching route
-first, then check `git status --short design/` for uncommitted analysis inputs.
+content bans; archived proposals are checked for identity only, `check-doc-refs.py` and
+`check-local-links.py` skip them as sources, and `check-local-links.py` rejects links from live
+documents into the archive. When picking up work, read the matching route first, then check
+`git status --short design/` for uncommitted analysis inputs.
 
 对抗性评审的发现与处置在评审期间暂存所归属提案文档的末尾；随实现定稿蒸馏时，保留的发现并入
 契约规则，驳回与降级的发现连同理由浓缩为「已排除的替代方案与原因」或「评审中驳回的主张」并入正文

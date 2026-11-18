@@ -40,18 +40,18 @@ summary script across gate/deploy outcomes; they do not deploy or verify a publi
 | P0004 | Deferred: new shared-budget API and clock-domain choice |
 | P0005 | Deferred: subtree confirmation is a new capability; current direct-execution boundary is explicitly contracted |
 | P0006 | Deferred: protocol/live-surface refactors lack a measured failure; its interruption concern is covered by P0014 |
-| P0007 | Batch failure selection uses one scan before collecting successful values; the fused single-pass alternative regressed medium batches and failed reads in local measurements. Remaining statistics, projection, and lookup measurements continue in P0027 |
+| P0007 | Batch failure selection uses one scan before collecting successful values; the fused single-pass alternative regressed medium batches and failed reads in local measurements. Remaining statistics, projection, and lookup measurements continue in [BACKLOG.md](../BACKLOG.md) (from `P0027`) |
 | P0008 | Deferred: new diagnostic identity/lifetime capability |
 | P0009 | Deferred: new named terminal input API without a demonstrated failing use case |
-| P0010 | Null mapper fixed; shutdown quick failure, wrapper identity, and resource measurements continue in P0021 |
-| P0011 | Concrete recipes, IO prose, and test name fixed; broader history/navigation/ADR/changelog/BACKLOG maintenance continues in P0022 |
-| P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; core comment contracts and implementation notes are reconciled under ADR 0012; test-comment follow-ups remain in P0029 without a demonstrated runtime failure |
+| P0010 | Null mapper fixed; shutdown quick failure, wrapper identity, and resource measurements continue in [BACKLOG.md](../BACKLOG.md) (from `P0021`) |
+| P0011 | Concrete recipes, IO prose, and test name fixed; broader history/navigation/ADR/changelog/BACKLOG maintenance continues in [BACKLOG.md](../BACKLOG.md) (from `P0022`) |
+| P0012 | Concrete obsolete pointer and caller-responsibility prose fixed; core comment contracts and implementation notes are reconciled under ADR 0012; test-comment follow-ups remain in [BACKLOG.md](../BACKLOG.md) (from `P0029`) without a demonstrated runtime failure |
 | P0013 | Deferred: SDK/agent compatibility requires fixed-version external verification; manual Context recipe is already corrected |
 | P0014 | Fully implemented, distilled into interruption-contract |
 | P0015 | Confirmed propagation fixed; uncommitted RUNNING-clock attribution choice continues in P0020 |
 | P0016 | Fully implemented, distilled into task-graph; nonreturning listeners remain outside the liveness promise |
 | P0017 | Deferred: selection/support/public artifact claims need current external evidence or a policy choice |
-| P0018 | Publication summary fixed; artifact identity/cache/source/consumer verification continues in P0023; cache replacement has no current reproduced mismatch |
+| P0018 | Publication summary fixed; artifact identity/cache/source/consumer verification continues in [BACKLOG.md](../BACKLOG.md) (from `P0023`); cache replacement has no current reproduced mismatch |
 | P0019 | Landed as `ImmediateResult.fold`/`successful()` (contract in synchronous-scope-exit §3); the unary convenience API was rejected (decision-log); the interruption defect was fixed through P0014 |
 
 ## Review And Verification
@@ -91,7 +91,7 @@ The existing external consumer was clean-compiled and ran nine tests on Corretto
 the final locally installed 0.3.0-SNAPSHOT. Its actual Surefire classpath artifact SHA-256 matches
 the built JAR. This is local-artifact verification, not Central download verification. Normal JAR,
 sources, and Javadoc packaging succeeded; Javadoc emitted 100 existing accessor/queue documentation
-warnings, which remain separate maintenance in P0029 and P0030. No deploy or remote consumer verification was
+warnings, which remain separate maintenance in [BACKLOG.md](../BACKLOG.md) (from `P0029` and `P0030`). No deploy or remote consumer verification was
 run. The pre-commit read-only review and follow-up findings above are independent of these checks.
 
 Reverse verification in an independent checkout removed only the four production fixes: all 17
@@ -109,7 +109,7 @@ member MEMBER_CANCELLED. The separate no-recorded-failure FAIL_FAST fallback is 
 The summary MUST base a Published claim on the deploy step's successful outcome, MUST NOT infer
 success from the gate decision, and MUST distinguish deployment failure/skipping from a skipped gate.
 This does not claim that Central already serves a byte-identical artifact. Historical source:
-`proposal:P0018`; remaining verification directions are in P0023.
+`proposal:P0018`; remaining verification directions are in [BACKLOG.md](../BACKLOG.md) (from `P0023`).
 
 ## Documentation Recipe Contract
 
@@ -118,9 +118,9 @@ TTL/MDC bridges MUST restore original context on the same thread, including nest
 the established restore rule is in [extension-and-wrapping](extension-and-wrapping.md). IO teaching
 MUST distinguish interrupt delivery, client wait timeouts, and the independent execution-exit boundary.
 Targeted test selection by the documented file's class name MUST address the intended test class.
-Historical source: `proposal:P0011`; remaining maintenance directions are in P0022.
+Historical source: `proposal:P0011`; remaining maintenance directions are in [BACKLOG.md](../BACKLOG.md) (from `P0022`).
 
 Concrete Javadoc responsibility and obsolete reference corrections came from `proposal:P0012`.
 They change teaching only, preserving Checkpoints.remaining as a read-only query and
 propagateCancellation's existing cancellation-only control behavior. General maintenance remains
-in P0029.
+in [BACKLOG.md](../BACKLOG.md) (from `P0029`).

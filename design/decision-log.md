@@ -511,6 +511,17 @@ no gate requiring every pointer to resolve.
 state qualitative comment principles; count, density, and length gates stay rejected. Do not
 reopen comment gates in reviews, triage, or refactor proposals.
 
+### Test comment cleanup discipline (harvested from `P0029`)
+
+- Comment cleanup ships alone: helper refactors and sleep replacements are separate changes with
+  their own verification, never smuggled into a wording pass.
+- Deterministic interleavings are never rewritten for shorter text; moving or deleting a comment
+  preserves every valid claim.
+- Placeholder negative assertions are ruled against the real emitter and neighboring behavior
+  assertions, not a historical audit's "intentional" claim.
+
+The remaining verification tasks are in [BACKLOG.md](../BACKLOG.md).
+
 ### Annotations not adopted (`proposal:P0028`)
 
 The annotation pilot added immutability, return-value, lock-ownership, and test-visibility
@@ -518,7 +529,10 @@ annotations. Not adopted: `@LazyInit` (the code has no lazy-initialization field
 `@ThreadSafe` (it cannot prove cross-method protocols), and `@CompileTimeConstant`, `@FormatMethod`,
 `@Var`, `@StrictlyNonNullGeneric`, `@WeakOuter`, `@ParametricNullness`, `@GwtIncompatible`, `@Beta`,
 `@DoNotCall` (limited benefit; they are shaped by GWT, Android, Checker Framework, or Guava
-compatibility constraints that this project does not have).
+compatibility constraints that this project does not have). Also not adopted: `@Contended` to
+express races (it documents contention, not protocol), annotations as a substitute for local
+correctness proofs, and package-level return-value checks taken to reduce comments
+(harvested from `P0030`).
 
 ### JSpecify null safety (v0.3)
 
@@ -535,6 +549,9 @@ catalogs, work plans, acceptance lists, examples, contract-style rules whose aut
 `design/`) is deleted, while the decision, reasons, alternatives, consequences, and reconsideration
 criteria keep their original meaning. Reason: outdated text in the tree is executed by agents as if
 it were current. The procedure is in [adr/AGENTS.md](../adr/AGENTS.md).
+
+Zero symbol-search hits never declare an ADR invalid: a dated record is condensed or superseded by
+a successor, not voted out by search results (harvested from `P0022`).
 
 ### Full-text archives retired (2026-11-04, maintainer decision)
 

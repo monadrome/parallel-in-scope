@@ -52,6 +52,12 @@ maintenance task, not an open design question.
 - Co-source compilable documentation examples with the demo/consumer where a
   narrow sample shows real value, instead of a full-surface API cache
   (was P0022).
+- Re-check user-guide wording that names the removed executor tags and the
+  package-private `SubmissionException`; user docs must not present
+  package-private types as user-facing API (was P0022).
+- Handle the zh philosophy int-code narrative, the frontmatter and duplicate
+  graveyard overlap, and the docs bilingual length differences by content
+  value (was P0022).
 - Verify jar identity in the CI Java 8 job across the JDK 25 install and the
   JDK 8 switch (SHA-256 output and cache-restore order); the historical
   cache-overwrite explanation needs current runs, not old logs (was P0023).
