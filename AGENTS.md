@@ -110,6 +110,11 @@ entry replaced by the maintainer's explicit direction, such as an approved plan;
 their commits carry the `MUST:`/`MUST NOT:` body lines from Verification And
 Completion.
 
+When the maintainer settles the direction of a public API or documented-contract
+change in session and the change lands immediately, the change may update the
+owning contract directly, recording rejected alternatives there per
+`design/AGENTS.md` principle 10, without a transient `design/proposal/` entry.
+
 If the request crosses into a gated route mid-task, stop and reclassify instead
 of finishing under the old route. A request for analysis authorizes the analysis,
 not implementation.
