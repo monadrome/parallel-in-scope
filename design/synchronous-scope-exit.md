@@ -153,8 +153,7 @@ checked 时包成 `CompletionException`（消息含作用域名与任务定位�
 未发现执行失败才抛取消。成功值在失败闸门通过后另行收集。排除边检查边收集的单遍方案：
 它会在后续元素失败或取消时先分配并丢弃整个值列表，且本地测量未显示中等批量的稳定收益。
 减少失败检查的重复扫描即可缩短大列表读取，同时保持失败读取不投机分配值列表；不加缓存或索引。
-历史来源：`proposal:P0007`；统计、值投影与查询的测量候选在
-[P0027](proposal/P0027-result-projection-measurement.md)。
+历史来源：`proposal:P0007`；统计、值投影与查询的测量候选在 [BACKLOG](../BACKLOG.md)（源自 `P0027`）。
 
 asFuture 返回 ListenableFuture<@Nullable T>：始终 done、cancel=false、isCancelled=false。
 库执行产生的取消是 failed future：无已记录失败时 cause 为归一化取消异常；组聚合已有记录失败时

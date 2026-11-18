@@ -119,8 +119,7 @@ TaskSubmissions.submitScoped(prepared, unit, executor); // executor.execute outs
 以带参数名的 NullPointerException 表达 caller violation；MUST NOT 把它包装成 USER_FAILURE。
 校验先 options 再 function，之后才进入 runtime 准入与 inherited-timeout 校验，和
 mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批次。
-历史来源：`proposal:P0010`；其余执行器诊断方向见
-[P0021](proposal/P0021-executor-boundary-diagnostics.md)。
+历史来源：`proposal:P0010`；其余执行器诊断方向见 [BACKLOG](../BACKLOG.md)（源自 `P0021`）。
 
 ## 9. 单任务运行内核的复用边界
 

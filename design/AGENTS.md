@@ -191,9 +191,3 @@ first, then check `git status --short design/` for uncommitted analysis inputs.
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | 灰度评测中的复杂度注意力路由证据；不设质量分或 CI 门禁 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
 | [proposal/P0020-deadline-attribution-policy.md](proposal/P0020-deadline-attribution-policy.md) | P0015 剩余的 RUNNING-clock 后备政策选择；不覆盖真实事件、first-wins 与当前落定归因 |
-| [proposal/P0021-executor-boundary-diagnostics.md](proposal/P0021-executor-boundary-diagnostics.md) | P0010 剩余的 shutdown CallerRuns、wrapper 身份与准备/timeout action 资源测量 |
-| [proposal/P0022-documentation-maintenance.md](proposal/P0022-documentation-maintenance.md) | P0011 剩余的历史/契约、站点示例、BACKLOG、ADR 与索引维护；具体配方已修 |
-| [proposal/P0023-artifact-verification.md](proposal/P0023-artifact-verification.md) | P0018 剩余的构件身份、Java 8 消费与下载源码追溯；发布摘要已按实际 deploy 结果修复 |
-| [proposal/P0029-test-comment-maintenance.md](proposal/P0029-test-comment-maintenance.md) | 测试 helper/交错说明、旧词汇与 placeholder 负断言的独立核实；核心注释分层见 ADR 0012 |
-| [proposal/P0027-result-projection-measurement.md](proposal/P0027-result-projection-measurement.md) | P0007 剩余的冻结结果统计、值投影与名称查询测量；先测量再选缓存或共享索引 |
-| [proposal/P0030-annotation-followups.md](proposal/P0030-annotation-followups.md) | 注解试点的剩余测试诊断、RestrictedApi、包级返回值规则与等待结果语义；局部证明保留 |

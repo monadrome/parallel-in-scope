@@ -32,7 +32,7 @@ ADR named here, so this log does not repeat them.
 | `proposal:P0039` TaskId closed hierarchy | [task-identity.md](task-identity.md) (rejected: phantom tags + Kind enum, value-only single class, two independent top-level classes) |
 | `proposal:P0033` adopted future members | [task-group-adopted-futures.md](task-group-adopted-futures.md) |
 | `proposal:P0034` checkpoint cancellation acknowledgement | [interruption-contract.md](interruption-contract.md) §3, [synchronous-scope-exit.md](synchronous-scope-exit.md) §4 |
-| `proposal:P0024`, `proposal:P0028` comment and Javadoc layers | [ADR 0012](../adr/0012-contract-and-implementation-comment-layers.md); remaining work in [P0029](proposal/P0029-test-comment-maintenance.md) and [P0030](proposal/P0030-annotation-followups.md) |
+| `proposal:P0024`, `proposal:P0028` comment and Javadoc layers | [ADR 0012](../adr/0012-contract-and-implementation-comment-layers.md); remaining work in [BACKLOG.md](../BACKLOG.md) (from `P0029` and `P0030`) |
 
 `proposal:P0035` (execution / execution exit naming) landed in
 [interruption-contract.md](interruption-contract.md) §1.2. Its rejected names are kept here because
@@ -108,6 +108,10 @@ difference between entries is intentional.
   gains no guarantee.
 - Accepting `Function<T, Callable<R>>`: rejected because callers still write an extra
   `x -> () -> io(x)` layer, moving the ceremony instead of removing it.
+- A throwing-callback family across nested reads to unify the batch checked and group unchecked
+  exception surfaces: rejected because the difference is explained in the contracts with concrete
+  consuming code, and a uniform throwing surface adds public API without removing a failure mode
+  (harvested from `P0022`).
 
 Reopen only if the user explicitly restarts the decision. The user-facing summary is in the
 [idea graveyard](../docs/en/design/idea-graveyard.md).
@@ -144,8 +148,8 @@ and [interruption-contract.md](interruption-contract.md).
   and while its pool is shut down it neither runs nor rejects the task, so the task is silently
   dropped.
 - Benchmark probes for this decision are not kept or maintained: their numbers were measured on
-  code that no longer exists, and [P0027](proposal/P0027-result-projection-measurement.md) requires
-  current measurements for any performance claim.
+  code that no longer exists, and any performance claim requires
+  current measurements (see [BACKLOG.md](../BACKLOG.md)).
 
 ### `TaskType` semantics (v0.3)
 
@@ -449,6 +453,16 @@ request) is harvested into this entry and the graveyard.
 
 Reopen only by explicit user decision.
 
+### Executor boundary diagnostics: rejected shortcuts (harvested from `P0021`)
+
+- No fixed pool for timeout actions: a blocked callback could starve later cancellations.
+- No lazy preparation to save memory: it breaks the TTL capture point and the prepared-future
+  identity.
+- No blanket ban on normal `CallerRunsPolicy`: inline execution on saturation is documented JDK
+  behavior; the misuse to fix is reading a silent discard after shutdown as a business timeout.
+
+The remaining verification tasks are in [BACKLOG.md](../BACKLOG.md).
+
 ## Queues
 
 - The queue boundary is held by [ADR 0013](../adr/0013-standalone-blocking-queues-artifact.md)
@@ -578,6 +592,18 @@ semantics and leave the recursive shape in the public API that this change is in
 - Comment density and zero call sites are not evidence for deleting concurrency knowledge or
   public capability.
 
+### Artifact verification discipline (harvested from `P0023`)
+
+- A consumer must verify the artifact it claims to verify and distinguish a local build from a
+  Central download; a same-name install must not hide a public-API mismatch.
+- A release summary must reflect actual results; a successful deploy is not evidence that Central
+  serves the same source tree. File existence, signature files, badges, or a CodeQL job are not
+  verification.
+- Rejected: rebuilding what already exists (snapshot publishing, API diff), writing the
+  cache-overwrite guess as fact before confirming the mechanism, and any automatic deploy.
+
+The remaining verification tasks are in [BACKLOG.md](../BACKLOG.md).
+
 ## Harvested analysis inputs
 
 ### Commit-date rewrite not pursued (2026-11-15)
@@ -611,15 +637,15 @@ Historical observations are not current defect evidence, and a carried item is n
 
 | Input | Where its conclusions went |
 |---|---|
-| Core concept, source-only, and contract-informed audits (2026-10-04, 2026-10-06) | Runner interrupt handoff, refill thread, terminal submission, negative clocks, and log recovery are fixed in the current contracts. Public API counter-evidence went to [P0002](proposal/P0002-api-surface-reduction.md); executor lifecycle and wrapper identity to [P0021](proposal/P0021-executor-boundary-diagnostics.md); internal protocol candidates to `P0006` (archived); documentation items to [P0022](proposal/P0022-documentation-maintenance.md) |
+| Core concept, source-only, and contract-informed audits (2026-10-04, 2026-10-06) | Runner interrupt handoff, refill thread, terminal submission, negative clocks, and log recovery are fixed in the current contracts. Public API counter-evidence went to [P0002](proposal/P0002-api-surface-reduction.md); executor lifecycle and wrapper identity to [BACKLOG.md](../BACKLOG.md) (from `P0021`); internal protocol candidates to `P0006` (archived); documentation items to [BACKLOG.md](../BACKLOG.md) (from `P0022`) |
 | Core enhancement and design opportunity reviews (2026-10-06, 2026-10-08) | Request cancellation landed as `cancelOn`; shared budget is `P0004` (archived), subtree confirmation `P0005` (archived), drain diagnostics `P0008` (archived), named terminal input `P0009` (archived) |
-| Documentation, doc-value, and decision-brief audits (2026-10-08, 2026-10-09) | Concrete defects fixed per [confirmed-proposal-defects.md](confirmed-proposal-defects.md); remaining maintenance in [P0022](proposal/P0022-documentation-maintenance.md). Reduction verdicts from an audit do not decide for the maintainer |
-| Comment and Javadoc audits (2026-10-09) | Gates rejected above; layering in [ADR 0012](../adr/0012-contract-and-implementation-comment-layers.md); test remainder in [P0029](proposal/P0029-test-comment-maintenance.md). Comment density and zero call sites are not evidence for deleting concurrency knowledge or public capability |
+| Documentation, doc-value, and decision-brief audits (2026-10-08, 2026-10-09) | Concrete defects fixed per [confirmed-proposal-defects.md](confirmed-proposal-defects.md); remaining maintenance in [BACKLOG.md](../BACKLOG.md) (from `P0022`). Reduction verdicts from an audit do not decide for the maintainer |
+| Comment and Javadoc audits (2026-10-09) | Gates rejected above; layering in [ADR 0012](../adr/0012-contract-and-implementation-comment-layers.md); test remainder in [BACKLOG.md](../BACKLOG.md) (from `P0029`). Comment density and zero call sites are not evidence for deleting concurrency knowledge or public capability |
 | Task-graph snapshot and convergence-lock drafts (2026-10-27) | Both implemented. Rejected: inlining TTL capture-replay-restore into `ScopedCallable` (it would hand-write the TTL contract and lose the `TtlEnhanced` marker) and letting `Transmitter.registerThreadLocal` manage `TaskExecutionContext` / `SubmissionScope` (both deliberately do not cross threads; automatic replay would let an inner task inherit the outer context) |
 | Over-design analyses (2026-09-28, 2026-10-02) | Landed deletions include task-side cycle queries, the label-graph fallback, the resident refill thread, `ActionGate`, executor tags, and forwarding layers. Internal F6-F8 residue is in `P0006` (archived) |
 | Session issue candidates (2026-10-10) | The two-read contradiction exists only on package-private live types, while the frozen `ImmediateResult` is consistent, so it is not filed |
 | Kimi review of the 0.3.0 snapshot and the follow-up verification (2026-10-14) | Handled by issues #45-#47 and #49; the throwing-`Function` item was rejected above; the residue is BACKLOG O-13 |
 | OpenTelemetry sessions (2026-10-09/10) | Unexecuted SDK and agent verification is `P0013` (archived). Withdrawn as unproven: "the agent works everywhere", "propagation always duplicates spans", "OTel necessarily violates TTL I3" |
-| PR #56 reland branches | The checkpoint `TIMEOUT` escalation gap was reproduced and fixed in [task-group-cancellation.md](task-group-cancellation.md); the RUNNING-clock fallback is a new policy choice in [P0020](proposal/P0020-deadline-attribution-policy.md), not a proven defect. Failure-read and interruption regressions were fixed in [interruption-contract.md](interruption-contract.md); a single classification carrier remains a `P0006` (archived) candidate. The O-13/O-14 teaching items (empty `failedTaskResult()` for a pure timeout, ambiguous `FAIL_FAST` history) are in [P0022](proposal/P0022-documentation-maintenance.md) with current semantics kept |
-| OSS audits (2026-10-09) | Adoption path in `P0017` (archived), artifact verification in [P0023](proposal/P0023-artifact-verification.md). Benchmarks stay deferred until a real downstream threshold exists; `closeAndAwait` only joins two existing steps without removing a failure mode, so no new API |
+| PR #56 reland branches | The checkpoint `TIMEOUT` escalation gap was reproduced and fixed in [task-group-cancellation.md](task-group-cancellation.md); the RUNNING-clock fallback is a new policy choice in [P0020](proposal/P0020-deadline-attribution-policy.md), not a proven defect. Failure-read and interruption regressions were fixed in [interruption-contract.md](interruption-contract.md); a single classification carrier remains a `P0006` (archived) candidate. The O-13/O-14 teaching items (empty `failedTaskResult()` for a pure timeout, ambiguous `FAIL_FAST` history) are in [BACKLOG.md](../BACKLOG.md) (from `P0022`) with current semantics kept |
+| OSS audits (2026-10-09) | Adoption path in `P0017` (archived), artifact verification in [BACKLOG.md](../BACKLOG.md) (from `P0023`). Benchmarks stay deferred until a real downstream threshold exists; `closeAndAwait` only joins two existing steps without removing a failure mode, so no new API |
 | SSOT audit, question 2 (2026-10-29) | MkDocs `edit_uri` stays `edit/main/docs/`, because the site is published only from `main`; the follow-up about publishing-time link flipping is BACKLOG O-18 |
