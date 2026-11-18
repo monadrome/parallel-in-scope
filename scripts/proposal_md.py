@@ -9,7 +9,7 @@ diverge where their granularity differs by design.
 
 import re
 
-NAME_RE = re.compile(r"^P(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+NAME_RE = re.compile(r"^P([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 SUMMARY_RE = re.compile(
     r"^## (?:摘要|Abstract)\s*\n(.*?)(?=^#{1,2} |\Z)",
     re.MULTILINE | re.DOTALL,

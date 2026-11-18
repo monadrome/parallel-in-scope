@@ -166,6 +166,11 @@ class DesignRoutesTest(GateCase):
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_unicode_digits_are_not_ascii_ids(self):
+        self.proposal("P١٢٣٤-request.md")
+        self.routes(proposals="| [request](proposal/P١٢٣٤-request.md) | Request |\n")
+        self.assertIn("invalid proposal filename", self.check().stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

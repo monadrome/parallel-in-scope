@@ -105,6 +105,11 @@ class ProposalConformanceTest(GateCase):
         errors = self.check().stderr
         self.assertIn("invalid proposal filename", errors)
 
+    def test_unicode_digits_are_not_ascii_ids(self):
+        self.write("design/proposal/P١٢٣٤-title.md", VALID)
+        errors = self.check().stderr
+        self.assertIn("invalid proposal filename", errors)
+
 
 if __name__ == "__main__":
     unittest.main()

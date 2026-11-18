@@ -189,6 +189,23 @@ class RankingTest(unittest.TestCase):
         report = metrics.build_report([record], ([], []), {})
         self.assertEqual(report["unrecordedRuns"], {"adversarial": 0, "refactoring": 0})
 
+    def test_legacy_entry_matches_its_scanned_run_by_run_label(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            refactoring_run(root / "rr", "legacy", "h1", FINDINGS)
+            scanned = metrics.scan_runs([root], root)
+            legacy_entry = metrics.refactoring_snapshot(root / "rr" / "legacy", root)
+            del legacy_entry["head"]  # records from before the head field carry only the run label
+            record = {
+                "id": "x", "routes": ["other"], "change": {"commits": ["chore: x"]},
+                "reviews": {"adversarial": [], "refactoring": [legacy_entry]},
+                "gates": {"failures": {}}, "pit": [],
+                "interventions": {"asks": 0, "corrections": 0},
+                "usage": {"totalTokens": None, "cost": None, "currency": None},
+            }
+            report = metrics.build_report([record], scanned, {})
+        self.assertEqual(report["unrecordedRuns"], {"adversarial": 0, "refactoring": 0})
+
 
 class MarkdownTest(unittest.TestCase):
     REPORT = {

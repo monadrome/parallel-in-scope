@@ -28,7 +28,7 @@ file back to in-flight.
 - A proposal MUST live at `design/proposal/P<NNNN>-<kebab-slug>.md` and be committed; drafts,
   accepted, and in-progress proposals all follow the same rules. Proposals MUST NOT carry a
   status field or header status line.
-- The id MUST be four decimal digits and the slug MUST be a lowercase hyphenated word group. One
+- The id MUST be four ASCII decimal digits and the slug MUST be a lowercase hyphenated word group. One
   id maps to exactly one proposal; an id MUST NOT be reused, including ids of deleted or archived
   proposals. The next id is the current maximum plus one, where the maximum is taken from
   `design/proposal/` filenames, `design/archive/` filenames, `proposal:P<NNNN>` back-references

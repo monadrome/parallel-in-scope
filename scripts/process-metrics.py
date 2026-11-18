@@ -468,7 +468,13 @@ def merge_runs(records: list[dict], kind: str, scanned: list[dict], identity: Ca
     """Return (recorded runs followed by unrecorded scanned runs, the unrecorded scanned runs)."""
     recorded = [run for record in records for run in record["reviews"][kind]]
     known = {identity(run) for run in recorded}
-    extra = [run for run in scanned if identity(run) not in known]
+    if kind == "refactoring":
+        # A legacy recorded entry may lack the plan head that identity() prefers,
+        # so its scanned copy must also match on the run label alone.
+        known |= {run["run"] for run in recorded}
+        extra = [run for run in scanned if identity(run) not in known and run.get("run") not in known]
+    else:
+        extra = [run for run in scanned if identity(run) not in known]
     return recorded + extra, extra
 
 

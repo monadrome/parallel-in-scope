@@ -129,10 +129,11 @@ Every non-empty change requires an independent review by someone other than the
 implementer before delivery. This includes documentation, tests, scripts, build
 configuration, instruction files, and generated or checked-in metadata. The review
 must read the changed files from the commit diff and remain read-only. The reviewer
-runs on a different model or harness than the implementer, for lightweight and full
-reviews alike, and launching the review agent is part of the prescribed delivery
-route. When no different model is available for the reviewer seat, say so and mark
-the review accordingly instead of silently running a same-model review.
+runs on a different model than the implementer, for lightweight and full reviews
+alike; a different harness alone does not satisfy this. Launching the review agent
+is part of the prescribed delivery route. When no different model is available for
+the reviewer seat, say so and mark the review accordingly instead of silently
+running a same-model review.
 
 - A mechanical or documentation-only change uses a lightweight review of the diff,
   referenced paths, cited commands, and route classification. It does not require
@@ -504,7 +505,8 @@ otherwise high-risk changes, run the full independent review with its own budget
 after the initial commit. Use the commit diff as the review baseline so review and
 fixes can continue in later sessions:
 
-- Use a different model or harness than the implementer. Run it through
+- Use a different model than the implementer; a different harness alone does not
+  satisfy this. Run it through
   `/multi-review` (`.agents/skills/multi-review/SKILL.md`) on the commit range,
   which keeps reviewers read-only on a snapshot; when no reviewer CLI can run,
   use a fresh-context agent on another model in a clone without a remote. The
