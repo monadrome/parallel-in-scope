@@ -1,6 +1,6 @@
 # Diagnostics
 
-The runtime ships four diagnostics — the executor wait report, workload-fit screening fed by
+The runtime ships three diagnostics — the executor wait report, workload-fit screening fed by
 optional task-type declarations, and the starvation observation scope — plus per-task telemetry
 frozen into results. They only observe; they never change admission, queueing, rejection,
 cancellation, deadlines, or outcomes.
