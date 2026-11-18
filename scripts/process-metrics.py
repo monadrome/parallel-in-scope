@@ -461,7 +461,7 @@ def bench_identity(run: dict) -> str:
 
 
 def refactoring_identity(run: dict) -> str:
-    return run["head"] or run["run"]
+    return run.get("head") or run["run"]
 
 
 def merge_runs(records: list[dict], kind: str, scanned: list[dict], identity: Callable[[dict], str]) -> tuple[list[dict], list[dict]]:

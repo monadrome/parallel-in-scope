@@ -176,6 +176,19 @@ class RankingTest(unittest.TestCase):
         self.assertEqual(report["changes"][0]["reviewRounds"], 1)
         self.assertEqual(report["localGateFailures"], {"mvn test": 2})
 
+    def test_report_tolerates_refactoring_entries_without_a_head(self):
+        record = {
+            "id": "old", "routes": ["other"], "change": {"commits": ["chore: x"]},
+            "reviews": {"adversarial": [],
+                        "refactoring": [{"run": "old-run", "incompleteAgents": 0,
+                                         "findings": []}]},
+            "gates": {"failures": {}}, "pit": [],
+            "interventions": {"asks": 0, "corrections": 0},
+            "usage": {"totalTokens": None, "cost": None, "currency": None},
+        }
+        report = metrics.build_report([record], ([], []), {})
+        self.assertEqual(report["unrecordedRuns"], {"adversarial": 0, "refactoring": 0})
+
 
 class MarkdownTest(unittest.TestCase):
     REPORT = {
