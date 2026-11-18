@@ -1,0 +1,21 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureTest.java
+  s_f8d05b73a8e6c5::t_d8c776ee7b8d46 211-243
+core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_f8d05b73a8e6c5::t_dd0d8eb1a4042c 488-495
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "601fbfab78dd204fc0bcecadf07b3e7b9ddbc528",
+  "prompts": {},
+  "sessions": {
+    "s_f8d05b73a8e6c5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d18b9ff5-f0ac-4363-b897-d9b0d3bf39fd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
