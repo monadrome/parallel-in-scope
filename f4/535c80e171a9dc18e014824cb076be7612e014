@@ -1,0 +1,19 @@
+docs/en/reference/diagnostics.md
+  s_ba444ba790e5cc::t_ae2862fe79df85 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f4535c80e171a9dc18e014824cb076be7612e014",
+  "prompts": {},
+  "sessions": {
+    "s_ba444ba790e5cc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_9bb0abae-4a7b-46db-8301-5a82a71118ea",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
