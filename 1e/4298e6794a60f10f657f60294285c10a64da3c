@@ -1,0 +1,19 @@
+ledger/2026-11-18-user-guide-split.json
+  s_ba444ba790e5cc::t_38136672733af7 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "1e4298e6794a60f10f657f60294285c10a64da3c",
+  "prompts": {},
+  "sessions": {
+    "s_ba444ba790e5cc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_9bb0abae-4a7b-46db-8301-5a82a71118ea",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
