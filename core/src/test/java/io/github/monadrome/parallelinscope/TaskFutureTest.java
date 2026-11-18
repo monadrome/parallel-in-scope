@@ -485,6 +485,15 @@ class TaskFutureTest {
     }
 
     @Test
+    void stateReadsPendingAndExitedFromAPlainDelegate() {
+        SettableFuture<String> delegate = SettableFuture.create();
+        Task<String> view = Task.of("orders", new CancellationToken(), delegate);
+        assertThat(view.state()).isEqualTo(TaskState.PENDING);
+        delegate.set("ok");
+        assertThat(view.state()).isEqualTo(TaskState.EXITED);
+    }
+
+    @Test
     void unsubmittedElementDeliversListenersRegisteredBeforeItRuns() {
         ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> "done");
         Task<String> element = Task.of("orders", new CancellationToken(), prepared);
