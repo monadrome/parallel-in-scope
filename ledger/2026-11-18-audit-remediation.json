@@ -16,11 +16,13 @@
       "docs: close the audit findings on review model, doc gates, and contract route",
       "refactor: share gate primitives and the gate-test harness (R1, R4, R5, R6)",
       "fix: tolerate refactoring ledger entries without a head in the report",
-      "docs: record the retroactive refactoring-review in the ledger and backlog"
+      "docs: record the retroactive refactoring-review in the ledger and backlog",
+      "chore: record delivery audit-remediation",
+      "fix: address the independent review findings on the audit remediation"
     ],
-    "files": 14,
-    "insertions": 250,
-    "deletions": 129
+    "files": 16,
+    "insertions": 340,
+    "deletions": 132
   },
   "reviews": {
     "adversarial": [],
@@ -48,5 +50,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "audit remediations: review-model rule + doc-gate commands + governance-contract route line in AGENTS.md; retroactive refactoring-review closed for doc-governance (7 findings: 5 applied/1 rejected/1 deferred) and doc-vocabulary (1 applied), reports under .agents/reviews/; process-metrics head-fallback fix; own pass clean"
+  "notes": "audit remediations: different-model rule + doc-gate commands + governance-contract route line; retroactive refactoring-review closed for doc-governance and doc-vocabulary; process-metrics head-fallback and legacy scan-match fixes; independent review on gpt-5.6-terra found 3 issues (review-model wording, scan duplication, Unicode id drift), all fixed; own refactoring pass clean"
 }
