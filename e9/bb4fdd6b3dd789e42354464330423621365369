@@ -1,0 +1,25 @@
+AGENTS.md
+  s_6089cce8990783::t_e4a0e1d66820cc 465-466
+design/AGENTS.md
+  s_6089cce8990783::t_2f2d3112b62382 64-68
+  s_6089cce8990783::t_cc0e57b8f43492 32-40
+  s_6089cce8990783::t_d36c897a1e01a1 13-24
+design/proposal-lifecycle.md
+  s_6089cce8990783::t_6d7a2efe20cbff 1-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e9bb4fdd6b3dd789e42354464330423621365369",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
