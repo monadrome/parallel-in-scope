@@ -21,6 +21,8 @@ nav:
   - API & Contracts:
       - Cooperative cancellation: reference/cooperative-cancellation.md
       - Nullability annotations: reference/nullability-annotations.md
+      - Executor registration: reference/executor-registration.md
+      - Diagnostics: reference/diagnostics.md
   - Implementation & Design:
       - Design philosophy: design/philosophy.md
       - Idea Graveyard: design/idea-graveyard.md
@@ -162,6 +164,8 @@ plugins:
                 - 协作式取消: reference/cooperative-cancellation.md
                 - 空值注解: reference/nullability-annotations.md
                 - 有界准入调度: reference/bounded-admission-scheduling.md
+                - 执行器注册: reference/executor-registration.md
+                - 诊断与观测: reference/diagnostics.md
             - 实现与设计:
                 - 设计哲学: design/philosophy.md
                 - Idea Graveyard: design/idea-graveyard.md
