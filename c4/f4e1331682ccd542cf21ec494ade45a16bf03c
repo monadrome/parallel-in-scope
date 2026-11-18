@@ -1,0 +1,27 @@
+scripts/check-local-links.py
+  s_6089cce8990783::t_667a5b70fd8e42 57
+  s_6089cce8990783::t_9f6e47980b26f9 77-81
+scripts/tests/test_check_local_links.py
+  s_6089cce8990783::t_515a32bf6d28c7 1-55
+design/proposal-lifecycle.md
+  s_6089cce8990783::t_8846fb9dc2d1e9 154-155
+  s_6089cce8990783::t_ac98c355dd46bb 112-114
+design/AGENTS.md
+  s_6089cce8990783::t_09b158ff83594b 38-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c4f4e1331682ccd542cf21ec494ade45a16bf03c",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
