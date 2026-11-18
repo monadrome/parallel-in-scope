@@ -1,0 +1,33 @@
+scripts/check-design-routes.py
+  s_6089cce8990783::t_86ea08eeec98ce 15
+scripts/check-local-links.py
+  s_6089cce8990783::t_dbe6edfa8c9eb8 54-58,63-64
+.github/workflows/ci.yml
+  s_6089cce8990783::t_08fbee4d16c7d1 48-50
+scripts/tests/test_check_proposal.py
+  s_6089cce8990783::t_b37f9194054358 1-117
+scripts/tests/test_check_design_routes.py
+  s_6089cce8990783::t_2b2bc5acd46984 175-186
+.github/workflows/release.yml
+  s_6089cce8990783::t_a1c0476c95f860 58
+scripts/check-proposal.py
+  s_6089cce8990783::t_78e423e6da4f9b 1-97
+scripts/check-doc-refs.py
+  s_6089cce8990783::t_fe4e68fee7e925 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "184c45b75448888c039dcda1c63e3e781611b66a",
+  "prompts": {},
+  "sessions": {
+    "s_6089cce8990783": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3bb6d5c5-3a63-4a90-8c8c-deb3cf8a2b56",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
