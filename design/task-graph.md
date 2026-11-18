@@ -28,7 +28,7 @@
 等待者，MUST NOT 产生边，也 MUST NOT 引入 `root` 哨兵或 `NA` 执行器。
 
 **P3 只看被等待端是否 starvation-prone。** 等待者占住一个线程，被等待的工作能否被挡在它后面取决于它进入的池；
-判定规则见 `ExecutorRuntime.starvationProne()` 与 [user-guide](../docs/en/user-guide.md) 的执行器注册一节。
+判定规则见 `ExecutorRuntime.starvationProne()` 与[执行器注册](../docs/en/reference/executor-registration.md)。
 看不透的执行器取保守值（不成边）。
 
 **P4 两端都必须属于本运行时。** 等待者或被等待者的执行器不是本运行时注册的执行器时 MUST NOT 记录：外部运行时
