@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-17-doc-vocabulary",
+  "date": "2026-11-17",
+  "topic": "doc-vocabulary",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: replace the distill vocabulary with plain words"
+    ],
+    "files": 18,
+    "insertions": 63,
+    "deletions": 63
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "ban distill word family; 摘要/Abstract section heading, harvest/收割 move-out, condense/精简 in-place; atomic rename across 18 files incl. gate scripts and tests; lightweight review clean (.agents/reviews/doc-vocabulary-2026-11-17/review.md)"
+}
