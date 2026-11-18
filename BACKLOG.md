@@ -17,8 +17,8 @@ retired inventory ids once for traceability.
 
 ## Maintenance and verification (no release target)
 
-Harvested from reclassified proposals; each entry is a verification or
-maintenance task, not an open design question.
+Each entry is a verification or maintenance task, not an open design question;
+entries harvested from reclassified proposals cite the retired proposal id.
 
 - Re-verify the bare-vs-TTL-wrapper identity probe against the current
   runtime-level executor wait graph: a same-pool NO_ISSUE report reflects
@@ -96,3 +96,9 @@ maintenance task, not an open design question.
 - Decide the annotation use for `submissionExecutorIsAdapter` and
   `TaskExecutionContext` timing queries, and the ignore policy for
   `awaitQuiescence`/`awaitExecutionExit` boolean results (was P0030).
+- Re-run the internal-comment burn-down on the core sources before the 1.0
+  release and after any large refactor of `core/src/main/java`: renames and
+  restructures change what is derivable from code, so deleted claims can
+  become load-bearing and kept ones derivable. The adjudication baseline
+  through 2026-11 is `verification/comment-burn-down-2026-11.md`; comments
+  added or modified since are unadjudicated.
