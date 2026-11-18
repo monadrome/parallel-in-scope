@@ -20,7 +20,25 @@
   },
   "reviews": {
     "adversarial": [],
-    "refactoring": []
+    "refactoring": [
+      {
+        "run": "refactoring-doc-vocabulary-retro-2026-11-17",
+        "head": "00c472d3a8535c2b725cc3ebb57a76073c90fd78",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
   },
   "gates": {
     "failures": {}
@@ -35,5 +53,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "ban distill word family; 摘要/Abstract section heading, harvest/收割 move-out, condense/精简 in-place; atomic rename across 18 files incl. gate scripts and tests; lightweight review clean (.agents/reviews/doc-vocabulary-2026-11-17/review.md)"
+  "notes": "ban distill word family; 摘要/Abstract section heading, harvest/收割 move-out, condense/精简 in-place; atomic rename across 18 files incl. gate scripts and tests; lightweight review clean (.agents/reviews/doc-vocabulary-2026-11-17/review.md) Retroactive refactoring-review run 2026-11-17 closed the missed gate; report in the run directory."
 }

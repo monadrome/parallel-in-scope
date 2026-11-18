@@ -26,7 +26,85 @@
   },
   "reviews": {
     "adversarial": [],
-    "refactoring": []
+    "refactoring": [
+      {
+        "run": "refactoring-doc-governance-retro-2026-11-17",
+        "head": "706af65265e32c7ab765baf50e96624331aae877",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S06"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "T02"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          }
+        ]
+      }
+    ]
   },
   "gates": {
     "failures": {
@@ -44,5 +122,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "proposal archive path + gates + distillation + 8 archived + 6 trackers converted; semantic_reviewer round 1 NEEDS_CHANGES (7 minor findings, all fixed); review report .agents/reviews/doc-governance-2026-11-17/review.md"
+  "notes": "proposal archive path + gates + distillation + 8 archived + 6 trackers converted; semantic_reviewer round 1 NEEDS_CHANGES (7 minor findings, all fixed); review report .agents/reviews/doc-governance-2026-11-17/review.md Retroactive refactoring-review run 2026-11-17 closed the missed gate; report in the run directory."
 }

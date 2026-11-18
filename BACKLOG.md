@@ -96,6 +96,10 @@ entries harvested from reclassified proposals cite the retired proposal id.
 - Decide the annotation use for `submissionExecutorIsAdapter` and
   `TaskExecutionContext` timing queries, and the ignore policy for
   `awaitQuiescence`/`awaitExecutionExit` boolean results (was P0030).
+- Replace the derived `VALID_EN = VALID.replace(...)` fixture in
+  `scripts/tests/test_check_proposal.py` with a literal English fixture, or
+  assert the replacement happened, so the English-heading case cannot
+  silently pin the Chinese fixture (was refactoring-review R7/T2).
 - Re-run the internal-comment burn-down on the core sources before the 1.0
   release and after any large refactor of `core/src/main/java`: renames and
   restructures change what is derivable from code, so deleted claims can
