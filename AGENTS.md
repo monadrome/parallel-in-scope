@@ -43,6 +43,10 @@ mvn clean verify                      # tests + package checks; not a release bu
 mvn -Pspotbugs -Dmaven.test.skip=true verify  # opt-in SpotBugs High gate; not in default CI
 python3 scripts/check-doc-refs.py     # documentation must not depend on hashes or line numbers
 python3 scripts/check-adr.py          # ADR metadata fields and required sections
+python3 scripts/check-design-routes.py  # design route tables, proposal identity, beta markers
+python3 scripts/check-proposal.py     # proposal abstracts, id uniqueness across proposal/ and archive/, content bans
+python3 scripts/check-local-links.py  # relative Markdown links resolve; no live links into design/archive/
+python3 scripts/check-english-docs.py  # English locations contain no Han characters
 python3 scripts/check-java-conventions.py  # new library-source convention violations; see verification/java-conventions.md
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
@@ -100,6 +104,12 @@ largest scope it could grow into.
 | Dependency or build change | Patch/minor upgrade: run the `dependency-audit` skill, `mvn test`, and the `runtime-consumer` matrix locally; ask before adding a dependency or taking a major upgrade | Skip the audit or the runtime compatibility check |
 | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action per Current Development Line, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |
 
+Workflow and governance contracts (for example `design/proposal-lifecycle.md` and
+the `verification/` contracts) take the documented-contract route with the proposal
+entry replaced by the maintainer's explicit direction, such as an approved plan;
+their commits carry the `MUST:`/`MUST NOT:` body lines from Verification And
+Completion.
+
 If the request crosses into a gated route mid-task, stop and reclassify instead
 of finishing under the old route. A request for analysis authorizes the analysis,
 not implementation.
@@ -118,7 +128,11 @@ those procedures.
 Every non-empty change requires an independent review by someone other than the
 implementer before delivery. This includes documentation, tests, scripts, build
 configuration, instruction files, and generated or checked-in metadata. The review
-must read the changed files from the commit diff and remain read-only.
+must read the changed files from the commit diff and remain read-only. The reviewer
+runs on a different model or harness than the implementer, for lightweight and full
+reviews alike, and launching the review agent is part of the prescribed delivery
+route. When no different model is available for the reviewer seat, say so and mark
+the review accordingly instead of silently running a same-model review.
 
 - A mechanical or documentation-only change uses a lightweight review of the diff,
   referenced paths, cited commands, and route classification. It does not require
