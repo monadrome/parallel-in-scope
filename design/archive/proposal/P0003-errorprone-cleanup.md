@@ -1,5 +1,12 @@
 # Error Prone 告警清理（2026-10-12）
 
+> Archived 2026-11-17. Reason: dormant — untouched since 2026-11-06, with no
+> in-flight work or decision expected in the current development line. Direction
+> remains open; re-entry is a maintainer decision: move back to
+> design/proposal/ and restore the route row in one commit. Content and
+> links are as of the archive date and are not maintained.
+
+
 ## 蒸馏摘要
 
 - 核心出发点：逐项理解 Error Prone 告警，修正实际问题并为误报保留窄抑制，降低告警噪声。

@@ -201,7 +201,7 @@ group 成员同理：在 `par(...)` 的 `Callable` 内自行包装；terminal co
 该执行的 span，取消或同步返回也不是未退出执行的 span 结束信号。
 Agent 的 executor advice、手工 Context.taskWrapping 与 TTL 是不同机制；I3 只约束库的
 TTL 捕获集合，不自动覆盖所有外部存储。真实 SDK/agent 接入验证仍见
-[OTel 提案](proposal/P0013-opentelemetry-verification.md)，不据示例宣称普遍 agent 兼容。
+OTel 提案 `P0013`（已归档），不据示例宣称普遍 agent 兼容。
 
 ### 5.4 指标：优先用观测快照，不要包执行
 

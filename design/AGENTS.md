@@ -190,14 +190,7 @@ first, then check `git status --short design/` for uncommitted analysis inputs.
 | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | 用 `FuturePath` 的分阶段 API 统一 Future/Result 的结果处理，隐藏状态查询并以编译期链式阶段保证四类公共终态穷尽处理 |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | 灰度评测中的复杂度注意力路由证据；不设质量分或 CI 门禁 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
-| [proposal/P0003-errorprone-cleanup.md](proposal/P0003-errorprone-cleanup.md) | Error Prone 告警逐批清理与窄抑制；并发协议改动另行确认 |
-| [proposal/P0004-shared-root-budget.md](proposal/P0004-shared-root-budget.md) | 跨同步 root 的显式预算上界，保留现有外层协调替代方案 |
-| [proposal/P0005-subtree-completion.md](proposal/P0005-subtree-completion.md) | 后代执行退出的注册与封口原型，保持直接执行确认语义 |
-| [proposal/P0006-execution-protocol-consolidation.md](proposal/P0006-execution-protocol-consolidation.md) | 集中 Batch/Group 重复终端及清理协议、核实包内旧 live 表面与 listening 适配 |
-| [proposal/P0008-runtime-drain-diagnostics.md](proposal/P0008-runtime-drain-diagnostics.md) | 有界、按需的未退出运行身份诊断，不钉住业务结果 |
 | [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 类型化 key 输入已落地；仅保留动态 schema 的字符串具名终端入口候选，明确运行期校验的代价 |
-| [proposal/P0013-opentelemetry-verification.md](proposal/P0013-opentelemetry-verification.md) | OTel SDK/agent 的真实实证、完整 Context 与嵌套父级、任务 span 生命周期和低基数指标；不增加默认运行时集成 |
-| [proposal/P0017-oss-adoption-path.md](proposal/P0017-oss-adoption-path.md) | stable/next 首用、原生 JDK 选型、人类贡献职责与公开入口维护；历史网络结论重新核验 |
 | [proposal/P0020-deadline-attribution-policy.md](proposal/P0020-deadline-attribution-policy.md) | P0015 剩余的 RUNNING-clock 后备政策选择；不覆盖真实事件、first-wins 与当前落定归因 |
 | [proposal/P0021-executor-boundary-diagnostics.md](proposal/P0021-executor-boundary-diagnostics.md) | P0010 剩余的 shutdown CallerRuns、wrapper 身份与准备/timeout action 资源测量 |
 | [proposal/P0022-documentation-maintenance.md](proposal/P0022-documentation-maintenance.md) | P0011 剩余的历史/契约、站点示例、BACKLOG、ADR 与索引维护；具体配方已修 |

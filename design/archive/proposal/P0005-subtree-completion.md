@@ -1,5 +1,12 @@
 # 子树执行退出确认
 
+> Archived 2026-11-17. Reason: dormant — untouched since 2026-11-07, with no
+> in-flight work or decision expected in the current development line. Direction
+> remains open; re-entry is a maintainer decision: move back to
+> design/proposal/ and restore the route row in one commit. Content and
+> links are as of the archive date and are not maintained.
+
+
 ## 蒸馏摘要
 
 - 核心出发点：父执行退出不能证明所有后代已停止使用共享资源，减少递归收集子结果的遗漏。

@@ -1,5 +1,12 @@
 # OpenTelemetry 接入边界与实证
 
+> Archived 2026-11-17. Reason: dormant — untouched since 2026-11-06, with no
+> in-flight work or decision expected in the current development line. Direction
+> remains open; re-entry is a maintainer decision: move back to
+> design/proposal/ and restore the route row in one commit. Content and
+> links are as of the archive date and are not maintained.
+
+
 ## 蒸馏摘要
 
 - 核心出发点：把任务代码自助包装的 OTel 用法变成可验证的接入路径，区分上下文传播、任务 span

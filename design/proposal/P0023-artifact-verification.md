@@ -51,7 +51,7 @@ HTTP artifact 与源码 revision；不让同名 install 隐藏公开 API 不匹�
 2. 定义 release/snapshot 复用的验证与发布后 smoke：真实 Java 8、格式、文档门禁各自
    有独立结果。Central 延迟/网络阻塞按阻塞报告，不把启动验证当通过，也不借此触发发布。
 3. stable/next 消费源码与对应坐标分别可编译；公开示例与 consumer 共源的收益先做窄样例
-   验证，避免新增一份全库 API 文档缓存。支持策略与用户入口归 [P0017](P0017-oss-adoption-path.md)。
+   验证，避免新增一份全库 API 文档缓存。支持策略与用户入口归 `P0017`（已归档）。
 4. 发布后下载核验应记录实际状态、版本、源码 revision；成功 deploy 的摘要不等于已下载
    同一源码构件的证据。日期门禁不是“已经服务同一源码树”的证明。
 5. 对来源及供应链，优先固定 Actions revision、真实 SCM tag/源码 commit/hash 和明确升级

@@ -1,5 +1,12 @@
 # 共享 root 预算
 
+> Archived 2026-11-17. Reason: dormant — untouched since 2026-11-07, with no
+> in-flight work or decision expected in the current development line. Direction
+> remains open; re-entry is a maintainer decision: move back to
+> design/proposal/ and restore the route row in one commit. Content and
+> links are as of the archive date and are not maintained.
+
+
 ## 蒸馏摘要
 
 - 核心出发点：不同同步动态范围中的 root 调用共用端到端预算，减少人工折算剩余时间。

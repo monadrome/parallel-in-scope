@@ -65,10 +65,10 @@ reviewer 只读，Maven 在单 checkout 串行。外部 consumer 与 NullAway �
 ## 其他会话的分工
 
 2026-10-09 的 OSS 互盲审计中，公开入口/原生 JDK 选型/贡献职责由
-[P0017](P0017-oss-adoption-path.md) 承接，构件身份与发布消费由
+`P0017`（已归档） 承接，构件身份与发布消费由
 [P0023](P0023-artifact-verification.md) 承接；本提案保留文档内部语义、历史记录与索引维护。
 OTel 的完整 Context 示例已按当前包装机制校正，剩余真实 SDK/agent 验证与接入边界归
-[P0013](P0013-opentelemetry-verification.md)。不重新复制各自清单，不把已有 API diff、dev
+`P0013`（已归档）。不重新复制各自清单，不把已有 API diff、dev
 贡献基线、自动 snapshot 或已补 TaskGroupResult Javadoc 列为待新建内容。
 结果匹配链与单任务获取的历史剩余方向由 `proposal:P0019`
 承接，不并入文档修复，也不把修复 failure 中断敏感当作新增 API 的理由。
