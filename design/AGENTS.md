@@ -190,7 +190,6 @@ first, then check `git status --short design/` for uncommitted analysis inputs.
 | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | 用 `FuturePath` 的分阶段 API 统一 Future/Result 的结果处理，隐藏状态查询并以编译期链式阶段保证四类公共终态穷尽处理 |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | 灰度评测中的复杂度注意力路由证据；不设质量分或 CI 门禁 |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | 公开 API 缩减候选与后续反证；按下游能力和迁移成本重验历史清单 |
-| [proposal/P0009-named-terminal-input.md](proposal/P0009-named-terminal-input.md) | 类型化 key 输入已落地；仅保留动态 schema 的字符串具名终端入口候选，明确运行期校验的代价 |
 | [proposal/P0020-deadline-attribution-policy.md](proposal/P0020-deadline-attribution-policy.md) | P0015 剩余的 RUNNING-clock 后备政策选择；不覆盖真实事件、first-wins 与当前落定归因 |
 | [proposal/P0021-executor-boundary-diagnostics.md](proposal/P0021-executor-boundary-diagnostics.md) | P0010 剩余的 shutdown CallerRuns、wrapper 身份与准备/timeout action 资源测量 |
 | [proposal/P0022-documentation-maintenance.md](proposal/P0022-documentation-maintenance.md) | P0011 剩余的历史/契约、站点示例、BACKLOG、ADR 与索引维护；具体配方已修 |

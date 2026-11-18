@@ -1,5 +1,12 @@
 # 字符串具名终端输入
 
+> Archived 2026-11-17. Reason: dormant — untouched since 2026-11-07, with no
+> in-flight work or decision expected in the current development line. Direction
+> remains open; re-entry is a maintainer decision: move back to
+> design/proposal/ and restore the route row in one commit. Content and
+> links are as of the archive date and are not maintained.
+
+
 类型化 key 终端输入已由 `combineValues(TaskKey, Par, taskCode)` 实现，现行规则见
 [组声明契约](../group-one-shot-api-refactor-codex.md#41-类型化声明键)。本提案仅保留未知 schema
 或字符串名称消费方的入口候选；下方字符串重载仍未实现，须以真实动态消费需求重新论证。
