@@ -1,0 +1,45 @@
+design/synchronous-scope-exit.md
+  s_f8d05b73a8e6c5::t_92a24f884fb2b8 18
+CHANGELOG.md
+  s_f8d05b73a8e6c5::t_59c8ee589aadb6 16-21
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_f8d05b73a8e6c5::t_4b022b6bffcae4 231,233,236,238
+core/src/main/java/io/github/monadrome/parallelinscope/TaskState.java
+  s_f8d05b73a8e6c5::t_63b038133dd693 4-11
+design/task-termination-and-scope.md
+  s_f8d05b73a8e6c5::t_4a459b7b24219d 46,50-53
+core/src/main/java/io/github/monadrome/parallelinscope/TaskFuture.java
+  s_f8d05b73a8e6c5::t_db44137b1a7672 79-80
+docs/zh/user-guide.md
+  s_f8d05b73a8e6c5::t_95a5edf31e1ef7 344
+design/task-group-api-and-options.md
+  s_f8d05b73a8e6c5::t_a34ead638ddb0f 239
+  s_f8d05b73a8e6c5::t_f07adee5a87273 237
+design/task-group-observability-and-verification.md
+  s_f8d05b73a8e6c5::t_04e4d4460ad220 16
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_f8d05b73a8e6c5::t_5e7d87352139cb 102-103,107-108,111,114,117-118
+AGENTS.md
+  s_f8d05b73a8e6c5::t_fa6e7bdee9b8d8 180
+  s_f8d05b73a8e6c5::t_e06ca7d34ed3ba 284-290
+docs/en/user-guide.md
+  s_f8d05b73a8e6c5::t_b45f79a3c9ccf4 392-393
+core/src/main/java/io/github/monadrome/parallelinscope/TaskExecutionState.java
+  s_f8d05b73a8e6c5::t_ce8416d9414c08 61-62,65,67,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "0c3ec92107cc2138516bc71013ee94876f57f39a",
+  "prompts": {},
+  "sessions": {
+    "s_f8d05b73a8e6c5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d18b9ff5-f0ac-4363-b897-d9b0d3bf39fd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
