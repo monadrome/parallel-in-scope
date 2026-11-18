@@ -1,0 +1,19 @@
+verification/comment-burn-down-2026-11.md
+  s_0181f20e54f87b::t_77ea1321581df7 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "eb0a932f0879a897990e0407dba286b4bbcb2265",
+  "prompts": {},
+  "sessions": {
+    "s_0181f20e54f87b": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_fe2a0a6b-f090-4af8-900e-c39ad48d1f4d",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
