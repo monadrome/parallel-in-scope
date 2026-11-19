@@ -195,6 +195,30 @@ class BatchSettleAttributionTest {
         }
     }
 
+    /**
+     * A cancellation-shaped user failure is pinned before the token commits the fail-fast it
+     * triggers, so the live report's counts and firstException must agree about the element: the
+     * count says FAILED and firstException names the thrown object. A failure() that re-reads the
+     * committed token at report time would hide it behind a null firstException.
+     */
+    @Test
+    void aCancellationShapedUserFailureStaysTheFirstExceptionOfTheLiveReport() {
+        Par par = pooledPar(1);
+        TaskBatch<String> batch = par.submitBatch(
+                Collections.singletonList("only"),
+                item -> {
+                    throw new CancellationException("spontaneous");
+                },
+                BatchOptions.timeout("cancellation-shaped-report", TIMEOUT).parallelism(1));
+
+        TaskBatchResult<String> frozen = batch.finish();
+        TerminationAssertions.assertUserFailure(frozen.results().get(0).termination());
+        TaskBatch.BatchReport report = batch.report();
+        assertThat(report.terminationCounts()).containsEntry(TaskTermination.Kind.FAILED, 1);
+        assertThat(report.firstException()).isInstanceOf(CancellationException.class);
+        assertThat(report.firstException()).hasMessage("spontaneous");
+    }
+
     @Test
     void aPooledBatchOfOwnCancellationsAlwaysKeepsItsTriggerAUserFailure() {
         Par par = pooledPar(4);

@@ -223,7 +223,9 @@ class ImmediateResultTest {
             CancellationToken token = new CancellationToken();
             TaskFuture<Integer> task = Task.of("cancel-race", token, Futures.immediateFailedFuture(cause));
             token.failFastCancel();
-            assertThat(task.failure()).isNull();
+            // The task settled before the token committed, so its settle-time pin reads a user
+            // failure and failure() agrees with the pin rather than the later token state.
+            assertThat(task.failure()).isSameAs(cause);
             ImmediateResult<Integer> cancelled = ImmediateResult.fromTask(
                     task,
                     TaskTermination.cancelled(
