@@ -1,24 +1,45 @@
-# FuturePath 分阶段结果处理 API
+# FuturePath Staged Outcome-Handling API
 
-## 摘要
+## Abstract
 
-- 核心出发点：用分阶段 API 取代调用方直接读取 `Future.State`、`resultNow()`、`exceptionNow()` 等状态查询方法，把一次结果处理表达为编译期可检查的完整路径。
-- 形状：`FuturePath` 可以从 `ListenableFuture<T>` 或 `ImmediateResult<T>` 创建；两种入口共享结果分派阶段，但分别以异步 Future 或同步 Result 作为终点，不能互相伪装。
-- 拟议 MUST：
-  - 路径 MUST 依次处理 `SUCCESS`、`USER_FAILURE`、`SUBMISSION_FAILURE` 和取消类终态；每个阶段只能进入下一个阶段，不能跳过、重复或重排。
-  - `SUCCESS` 阶段接收 nullable 值；两个失败阶段接收原始 `Throwable`；取消阶段接收 `TaskTermination` 与可选的详细 Throwable。
-  - 取消阶段 MUST 覆盖 `MEMBER_CANCELLED`、`GROUP_CANCELLED`、`FAIL_FAST`、`TIMEOUT`，但不得要求用户为每个内部取消原因分别注册处理器。
-  - 从 Future 创建的路径 MUST 保持异步语义并产生 `ListenableFuture<R>`；从 Result 创建的路径 MUST 保持同步语义并产生 `ImmediateResult<R>`。
-  - 阶段链在最后一个处理器注册前 MUST 不可结束，从而让遗漏分支成为编译期错误，而不是运行时默认分支。
-- 被否决方向：继续暴露状态查询组合（仍要求用户记住状态读取顺序）；为每个取消枚举值建立独立阶段（把内部枚举变成不稳定的公开 API）；让同步 Result 自动包装成 Future（丢失同步语义）；单一 `OutcomePath` 终点同时返回 Future 和 Result（Java 类型表达不自然，调用方难以判断执行模型）。
+- Core motivation: replace callers directly reading `Future.State`, `resultNow()`,
+  `exceptionNow()`, and similar state-query methods with a staged API, expressing one round of
+  result handling as a compile-time-checkable complete path.
+- Shape: `FuturePath` can be created from a `ListenableFuture<T>` or an `ImmediateResult<T>`;
+  both entries share the result-dispatch stages, but end in an asynchronous Future or a
+  synchronous Result respectively, and neither can masquerade as the other.
+- Proposed MUSTs:
+  - A path MUST handle `SUCCESS`, `USER_FAILURE`, `SUBMISSION_FAILURE`, and the cancellation
+    terminal states in order; each stage can only advance to the next — no skipping,
+    repeating, or reordering.
+  - The `SUCCESS` stage receives a nullable value; the two failure stages receive the original
+    `Throwable`; the cancellation stage receives a `TaskTermination` and an optional detailed
+    Throwable.
+  - The cancellation stage MUST cover `MEMBER_CANCELLED`, `GROUP_CANCELLED`, `FAIL_FAST`, and
+    `TIMEOUT`, but must not require the user to register a handler per internal cancellation
+    reason.
+  - A path created from a Future MUST keep asynchronous semantics and produce a
+    `ListenableFuture<R>`; a path created from a Result MUST keep synchronous semantics and
+    produce an `ImmediateResult<R>`.
+  - The stage chain MUST be impossible to end before the last handler is registered, making a
+    missed branch a compile-time error rather than a runtime default branch.
+- Rejected directions: continuing to expose the state-query combination (still requiring the
+  user to memorize the state-read order); a separate stage per cancellation enum value
+  (turning the internal enum into an unstable public API); auto-wrapping a synchronous Result
+  into a Future (losing synchronous semantics); a single `OutcomePath` terminal returning both
+  Future and Result (unnatural to express in Java's types, leaving callers unable to tell the
+  execution model).
 
-本提案消费的任务终止语义由[任务终止与 scope 原因契约](../task-termination-and-scope.md)定义。
-`FuturePath` 的取消阶段处理 `CancellationReason` 和 `ExecutionDisposition`，不得重新公开
-`GROUP_CANCELLED`、`MEMBER_CANCELLED` 或 `FAIL_FAST` 作为新的稳定原因。
+The task-termination semantics this proposal consumes are defined by the
+[task termination and scope reason contract](../task-termination-and-scope.md).
+`FuturePath`'s cancellation stage handles `CancellationReason` and `ExecutionDisposition`; it
+must not re-expose `GROUP_CANCELLED`, `MEMBER_CANCELLED`, or `FAIL_FAST` as new stable reasons.
 
-## 1. 失败模式与改前最佳代码
+## 1. The failure mode and the best code before
 
-当前调用方需要先读取状态，再调用与状态匹配的查询方法。异步场景还必须记住哪些方法允许调用、哪些方法会抛异常，以及取消原因是否携带可用的详细信息：
+Current callers must read the state first, then call the query method matching the state. In
+asynchronous scenarios they must also remember which methods are allowed, which throw, and
+whether a cancellation reason carries usable detail:
 
 ```java
 if (future.state() == Future.State.SUCCESS) {
@@ -32,11 +53,13 @@ if (future.state() == Future.State.FAILED) {
 return Price.UNKNOWN;
 ```
 
-这段代码存在三个问题：状态读取与结果读取是两套 API；遗漏状态只能靠运行时兜底；用户还必须自行决定 `USER_FAILURE`、`SUBMISSION_FAILURE` 和取消类终态如何归类。
+This code has three problems: state reads and result reads are two API sets; a missed state
+falls back only at runtime; and the user must decide for themselves how `USER_FAILURE`,
+`SUBMISSION_FAILURE`, and the cancellation terminal states are classified.
 
-## 2. 改后用户代码
+## 2. User code after
 
-Future 入口：
+Future entry:
 
 ```java
 ListenableFuture<Price> price = FuturePath.fromFuture(future)
@@ -47,7 +70,7 @@ ListenableFuture<Price> price = FuturePath.fromFuture(future)
         .toFuture();
 ```
 
-Result 入口：
+Result entry:
 
 ```java
 ImmediateResult<Price> price = FuturePath.fromResult(result)
@@ -58,11 +81,14 @@ ImmediateResult<Price> price = FuturePath.fromResult(result)
         .toResult();
 ```
 
-处理器注册顺序由返回接口限制。调用方不能在注册完 `onSuccess` 后直接结束，也不能跳过 submission failure 阶段；最后一个 `onCancelled` 注册完成后，路径才具备终点。
+Handler registration order is constrained by the return interfaces. A caller cannot end right
+after registering `onSuccess`, nor skip the submission-failure stage; only after the last
+`onCancelled` is registered does the path have a terminal.
 
-## 3. API 形状
+## 3. API shape
 
-公开入口保留同一概念名，内部阶段使用不同的返回接口：
+The public entries keep one concept name, with internal stages using different return
+interfaces:
 
 ```java
 public final class FuturePath {
@@ -74,7 +100,8 @@ public final class FuturePath {
 }
 ```
 
-阶段接口的约束形状如下，具体泛型边界和 JSpecify 标注以实现时的 Java 8 可表达性为准：
+The stage interfaces' constraining shape follows; concrete generic bounds and JSpecify
+annotations are subject to Java 8 expressibility at implementation time:
 
 ```java
 interface FutureSuccessStage<T> {
@@ -102,34 +129,48 @@ interface FutureTerminalStage<R> {
 }
 ```
 
-Result 入口使用相同的四个处理阶段，最后阶段返回只提供 `toResult()` 的终点接口，最终得到 `ImmediateResult<R>`。内部可以复用现有 `ImmediateResult` 的 outcome 分派，但不得复用 Future 的等待、取消或异常提取路径。
+The Result entry uses the same four handling stages, with the last stage returning a terminal
+interface offering only `toResult()`, ultimately yielding an `ImmediateResult<R>`. Internally
+it may reuse the existing `ImmediateResult`'s outcome dispatch, but it must not reuse the
+Future's waiting, cancellation, or exception-extraction paths.
 
-## 4. 终态分类与穷尽性边界
+## 4. Terminal classification and the exhaustiveness boundary
 
-本提案的穷尽性针对用户可处理的稳定语义，而不是针对当前枚举的每一个常量：
+This proposal's exhaustiveness targets the stable semantics users can handle, not every
+constant of the current enum:
 
-| 公共阶段 | 覆盖的 `TaskTermination` |
+| Public stage | Covered `TaskTermination` |
 | --- | --- |
 | `onSuccess` | `SUCCESS` |
 | `onUserFailure` | `USER_FAILURE` |
 | `onSubmissionFailure` | `SUBMISSION_FAILURE` |
-| `onCancelled` | `CancellationReason`（含 source identity）与 `ExecutionDisposition` |
+| `onCancelled` | `CancellationReason` (with source identity) and `ExecutionDisposition` |
 
-`RUNNING` 不是可交付给路径的终态。若内部出现未完成状态，路径实现 MUST 报告库内部错误，而不是调用用户处理器。
+`RUNNING` is not a terminal state deliverable to a path. If an unfinished state appears
+internally, the path implementation MUST report a library-internal error rather than invoke a
+user handler.
 
-取消处理器收到稳定的 `CancellationReason` 和 claim disposition；业务失败保留在 `FailureCause` 和 scope
-成员结果中，不通过取消阶段伪装成第二个 scope 原因。
+The cancellation handler receives the stable `CancellationReason` and claim disposition;
+business failures stay in `FailureCause` and scope member results and are not disguised as a
+second scope reason through the cancellation stage.
 
-## 5. 同步与异步语义
+## 5. Synchronous and asynchronous semantics
 
-- `fromFuture` MUST 不阻塞调用线程；它注册一次完成驱动的分派，并返回派生的 `ListenableFuture<R>`。
-- `fromResult` MUST 只读取不可变快照，不重新等待、不启动执行、不改变原 Result 的生命周期。
-- 两种入口的 handler 调用顺序和 outcome 分类 MUST 一致；差异仅限于执行时机和终点类型。
-- handler 抛出的异常遵循各自终点的既有语义：Future 入口将其转换为派生 Future 的失败，Result 入口不能在已构造的 Result 上伪造异步失败，应明确规定是直接抛出还是返回失败 Result。
+- `fromFuture` MUST NOT block the calling thread; it registers one completion-driven dispatch
+  and returns a derived `ListenableFuture<R>`.
+- `fromResult` MUST only read the immutable snapshot — no re-waiting, no starting executions,
+  no changing the original Result's lifecycle.
+- The two entries' handler invocation order and outcome classification MUST agree; differences
+  are limited to execution timing and terminal type.
+- Exceptions thrown by handlers follow each terminal's existing semantics: the Future entry
+  converts them into the derived Future's failure; the Result entry cannot fabricate an
+  asynchronous failure on an already-constructed Result — whether it throws directly or returns
+  a failed Result must be specified explicitly.
 
-## 6. 迁移路径
+## 6. Migration path
 
-现有 `ImmediateResult.fold(onValue, onFailure, onCancelled)` 可以迁移为 staged API：
+The existing `ImmediateResult.fold(onValue, onFailure, onCancelled)` can migrate to the staged
+API:
 
 ```java
 FuturePath.fromResult(result)
@@ -140,31 +181,51 @@ FuturePath.fromResult(result)
         .toResult();
 ```
 
-迁移期间可以保留旧 `fold` 作为 deprecated 适配层，但新文档和示例只展示 `FuturePath`。适配层不得重新读取 Future 状态；它只把旧的三个 handler 转换为四阶段路径，其中两个 failure 阶段共用原 `onFailure`。
+During migration, the old `fold` may remain as a deprecated adaptation layer, but new
+documentation and examples show only `FuturePath`. The adaptation layer must not re-read Future
+state; it only converts the old three handlers into the four-stage path, with the two failure
+stages sharing the original `onFailure`.
 
-## 7. 被排除的替代方案
+## 7. Rejected alternatives
 
-- **继续使用 `Future.State` 加状态查询**：不能消除调用方记忆状态与查询方法配对的错误，也不能形成编译期穷尽性检查。
-- **每个取消原因一个阶段**：把内部归因枚举直接暴露给用户，新增取消原因会造成不必要的源代码破坏。
-- **一个 `onFailure` 覆盖两种失败**：保留了当前 API 对 submission failure 与 user failure 的语义丢失，调用方仍需重新读取 outcome。
-- **统一返回 `ListenableFuture<R>`**：Result 入口被迫异步化，破坏不可变同步快照的语义和调用方的性能预期。
-- **允许任意顺序的链式注册**：只有语法变化，没有编译期完整性保证，并且会增加重复处理和覆盖处理的运行时规则。
+- **Keep using `Future.State` plus state queries**: cannot eliminate the caller's error of
+  memorizing state-to-query-method pairing, and cannot form a compile-time exhaustiveness
+  check.
+- **One stage per cancellation reason**: exposes the internal attribution enum directly to
+  users; adding a cancellation reason would cause unnecessary source breakage.
+- **One `onFailure` covering both failures**: keeps the current API's semantic loss between
+  submission failure and user failure; callers still re-read the outcome.
+- **Uniformly returning `ListenableFuture<R>`**: forces the Result entry to go asynchronous,
+  breaking the immutable synchronous snapshot's semantics and callers' performance
+  expectations.
+- **Arbitrary-order chained registration**: only a syntactic change with no compile-time
+  completeness guarantee, plus new runtime rules for duplicate and overriding handlers.
 
-## 8. 第一性原理评估
+## 8. First-principles evaluation
 
-1. 消除的忘记：忘记处理失败类别、误用状态读取方法、在不合法状态上调用结果查询。
-2. 机制复用：复用 `TaskTermination`、`ImmediateResult` 和现有 Future 完成传播，不新增执行内核。
-3. 结构化安全：Future 入口沿用既有取消与完成传播；Result 入口只处理终态快照，不引入第二套生命周期。
-4. 无隐式状态：路径显式持有 source 和 handler，不使用 ambient 状态。
-5. 归因一致：公共阶段建立在 `TaskTermination` 的三分支之上，取消原因和 claim disposition 分别表达
-   触发来源与执行事实。
-6. 抽象边界：该能力只负责结果投影与分派，不改变 Batch、Group、取消或 deadline 契约。
+1. Forgetting eliminated: forgetting to handle failure categories, misusing state-read methods,
+   calling result queries in illegal states.
+2. Mechanism reuse: reuses `TaskTermination`, `ImmediateResult`, and the existing Future
+   completion propagation; no new execution kernel.
+3. Structured safety: the Future entry follows existing cancellation and completion
+   propagation; the Result entry only handles terminal snapshots, introducing no second
+   lifecycle.
+4. No implicit state: a path holds its source and handlers explicitly, using no ambient state.
+5. Consistent attribution: the public stages build on `TaskTermination`'s three branches, with
+   cancellation reason and claim disposition expressing the trigger source and the execution
+   fact separately.
+6. Abstraction boundary: this capability only projects and dispatches results; it changes no
+   Batch, Group, cancellation, or deadline contract.
 
-## 9. 落地前需要定稿的问题
+## 9. Questions to finalize before landing
 
-- Future 入口的派生 Future 是否沿用现有监听器执行器，还是提供显式 executor 重载。
-- Result 入口 handler 抛出异常时，是返回 `ImmediateResult` 失败快照，还是保持同步 API 的直接抛出语义。
-- 旧 `fold` 的 deprecation 周期，以及是否在 `0.4.0` 直接移除。
-- staged 接口是否作为公开顶层类型，还是作为 `FuturePath` 的嵌套接口以减少公共包表面积。
+- Whether the Future entry's derived Future follows the existing listener executor or provides
+  an explicit executor overload.
+- When a Result entry's handler throws, whether to return an `ImmediateResult` failure snapshot
+  or keep the synchronous API's direct-throw semantics.
+- The deprecation period of the old `fold`, and whether to remove it directly in `0.4.0`.
+- Whether the staged interfaces are public top-level types or nested interfaces of
+  `FuturePath` to reduce public package surface.
 
-这些问题不影响本提案的核心约束：结果处理必须通过完整的 staged path 完成，Future 与 Result 的终点语义必须保持分离。
+These questions do not affect this proposal's core constraint: result handling must complete
+through a full staged path, and the Future and Result terminal semantics must stay separate.

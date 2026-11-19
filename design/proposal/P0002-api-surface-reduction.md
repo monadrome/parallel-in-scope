@@ -1,105 +1,137 @@
-# 公开 API 面缩减候选
+# Public API Surface Reduction Candidates
 
-## 摘要
+## Abstract
 
-- 核心出发点：消除承诺模糊、重复入口与静默换型带来的误用，而非追求公开类型或成员数量。
-- 不变量与拟议 MUST：每项缩减 MUST 先证明下游能力仍有等价替代，并给出失败模式与迁移路径；
-  MUST NOT 以仓库调用数推断外部无人使用，MUST NOT 将包内 live 表面分析套到公开产品。
-- 被否决方向及理由：取消独立 token 用途、fixture 工厂或 `valuesResult` 数据分支不能由
-  "内部零调用"推出；工厂便于脱离线程池测试指标消费，数据分支保留 cause 并适配 Guava。
-  queue 产物边界和 MIXED 保留决策均不重开。
+- Core motivation: eliminate misuse caused by vague promises, duplicate entries, and silent
+  type changes — not to chase public type or member counts.
+- Invariants and proposed MUSTs: each reduction MUST first prove that downstream capability
+  still has an equivalent replacement, and give the failure mode and migration path; MUST NOT
+  infer "nobody uses this externally" from in-repo call counts, and MUST NOT apply in-package
+  live-surface analysis to the public product.
+- Rejected directions with reasons: an independent token use case, a fixture factory, or a
+  `valuesResult` data branch cannot be inferred away from "zero internal calls"; the factory
+  enables testing metrics consumers without thread pools, and the data branch keeps the cause
+  and adapts to Guava. The queue artifact boundary and the MIXED retention decision are not
+  reopened.
 
-## 评估与复核须知
+## Evaluation and re-review notes
 
-判据：按 [first-principles.md](../first-principles.md) 第四节六问逐项过筛；对**已有** API 的
-缩减反过来问——删掉它之后，用户达到同一目的的最好代码是什么？答案与现状等价或更好，且该
-API 承诺了兑现不了的语义，它就是缩减候选。0.x 允许破坏性变更，但须有具体理由与迁移路径。
+Criteria: sift item by item through the six questions of [first-principles.md](../first-principles.md)
+section 4; for reducing an **existing** API, ask the reverse — after deleting it, what is the
+best code the user can write for the same purpose? If the answer is equivalent or better than
+the status quo, and the API promises semantics it cannot deliver, it is a reduction candidate.
+0.x permits breaking changes, but requires concrete reasons and a migration path.
 
-2026-10-02 版的候选论证经后续核心审计部分反证：公开 `CancellationToken` 仍能支持应用自建
-父子协作循环与预算；`TaskCompletion` 工厂支持纯数据消费者测试；`valuesResult` 与抛异常入口
-能力不同；图静态查询与 close 报告的时点不同；容量工厂须权衡显式选择与便利性。这些反证没有
-自动否决全部候选，但撤除了"零调用即可删除"的依据：每项仍需独立拍板，本提案入库不等于缩减
-已批准。公开面成员清单以 `PublicApiSurfaceTest` 与当前代码为准，本文不再维护盘点表。
+The 2026-10-02 candidate arguments were partially countered by a later core audit: a public
+`CancellationToken` can still support application-built parent-child cooperation loops and
+budgets; the `TaskCompletion` factory supports testing pure-data consumers; `valuesResult` and
+the throwing entries differ in capability; graph static queries and the close report differ in
+timing; the capacity factory trades explicit choice against convenience. These counterpoints do
+not automatically veto every candidate, but they removed the "zero calls means deletable"
+basis: each item still needs an individual decision, and this proposal's archival does not mean
+the reductions are approved. The public surface member inventory is governed by
+`PublicApiSurfaceTest` and the current code; this document no longer maintains the inventory
+table.
 
-已了结的候选：`TaskGraphObservationScope` 静态查询随运行时级执行器等待图整体取代，无剩余
-（见 [task-graph.md](../task-graph.md)）；`deadlockPolicy` 浅包装的对象随策略开关删除；
-`SmartBlockingQueue.create(int)` 与 `TaskCompletion.succeeded/failed` 已在 0.4 删除（理由见
-[decision-log](../decision-log.md) 的「Removed `TaskCompletion` and `SmartBlockingQueue`
-factories」条目）。评估后明确保留的各项连同理由登记在同一条目的「API surface reduction:
-retained after evaluation」条目，评审不要再当新发现提出。
+Settled candidates: `TaskGraphObservationScope` static queries were wholly replaced by the
+runtime-level executor wait graph, with no residue (see [task-graph.md](../task-graph.md));
+`deadlockPolicy`'s shallow-wrapped object was deleted with the policy switch;
+`SmartBlockingQueue.create(int)` and `TaskCompletion.succeeded/failed` were deleted in 0.4
+(reasons in the "Removed `TaskCompletion` and `SmartBlockingQueue` factories" entry of
+[decision-log](../decision-log.md)). Items explicitly retained after evaluation, with reasons,
+are registered in the same entry's "API surface reduction: retained after evaluation" entry —
+reviewers must not raise them as new findings.
 
-## P1：`CancellationToken`（含嵌套 `State`）降为包私有——孤儿类型收口
+## P1: `CancellationToken` (with nested `State`) to package-private — orphan-type consolidation
 
-本轮唯一的结构性缩减。事实链在 2026-10-02 逐条复核仍然成立：
+The only structural reduction in this round. The fact chain was re-verified item by item on
+2026-10-02 and still holds:
 
-1. **没有任何公开 API 返回或接受 `CancellationToken`。** `src/main` 中除自身外的引用全部
-   是包私有：`Task`、`TaskBatch`、`TaskGroup`、`TaskObservation`、包私有的
-   `MultiTaskContext` 与 `TokenOutcomes`，以及 `Checkpoints` 的局部变量。用户**拿不到**库
-   实际使用的任何一个 token 实例。
-2. **v0.3 已经关闭了外部使用的前提**：token `final`、`bind(...)` 包私有、所有挂接点
-   （`timeoutCancel`/`failFastCancel`/`addStateListener`）包私有。
-3. **`State` 的正确消费方式也是包私有的**（`shouldInterruptCurrentThread()`）；外部拿到
-   六值枚举只能自己猜哪些值算"已取消"。
-4. **用户侧的取消与归因入口在别处**：取消诉求由 deadline（`BatchOptions.timeout` /
-   `group(name, timeout)`）与 `ParRuntime.close()` 承担；归因走 `TaskTermination` 八值
-   （`TaskGroupResult.termination()` / `ImmediateResult.termination()`）。`Checkpoints` 读的是内核
-   安装的 token，与用户构造的 token 无任何关系。
-5. **demo 的引用全部在注释里**（`CancellationDemo.java` 等），无代码依赖；测试引用全在
-   同包（包私有化后照常编译）。
+1. **No public API returns or accepts `CancellationToken`.** All references in `src/main`
+   outside itself are package-private: `Task`, `TaskBatch`, `TaskGroup`, `TaskObservation`,
+   the package-private `MultiTaskContext` and `TokenOutcomes`, and `Checkpoints`' local
+   variables. Users **cannot obtain** any token instance the library actually uses.
+2. **v0.3 already closed the preconditions for external use**: the token is `final`,
+   `bind(...)` is package-private, and all attachment points
+   (`timeoutCancel`/`failFastCancel`/`addStateListener`) are package-private.
+3. **`State`'s correct consumption is also package-private**
+   (`shouldInterruptCurrentThread()`); externally, holding the six-value enum means guessing
+   which values count as "cancelled".
+4. **The user-side cancellation and attribution entries are elsewhere**: cancellation needs are
+   carried by deadlines (`BatchOptions.timeout` / `group(name, timeout)`) and
+   `ParRuntime.close()`; attribution goes through the eight-value `TaskTermination`
+   (`TaskGroupResult.termination()` / `ImmediateResult.termination()`). What `Checkpoints`
+   reads is the kernel-installed token, unrelated to any user-constructed token.
+5. **Demo references are all in comments** (`CancellationDemo.java`, etc.) — no code
+   dependency; test references are all in the same package (still compiles after going
+   package-private).
 
-注意上面「评估与复核须知」中的反证：公开 `CancellationToken` 作为纯工具类型仍能支持应用
-自建、与库断连的父子 token 树。拍板 P1 需要先权衡这一用途是否值得保留公开类型。
+Note the counterpoint in the "Evaluation and re-review notes" above: a public
+`CancellationToken` as a pure utility type can still support application-built parent-child
+token trees disconnected from the library. Deciding P1 requires first weighing whether that use
+justifies keeping the type public.
 
-**改前用户能写出的"最好"代码：**
+**The "best" code the user could write before:**
 
 ```java
 CancellationToken token = new CancellationToken();
-// ……若干业务代码……
+// …some business code…
 token.cancel();
 if (token.state() == CancellationToken.State.CANCELED) { /* … */ }
 ```
 
-一棵与库完全断连的私有 token 树：编译通过、运行无害、什么也不影响。
+A private token tree completely disconnected from the library: compiles, harmless at runtime,
+affects nothing.
 
-**改后的同一段代码：** 不存在——这正是要点。同步出口契约下用户在拿到结果前执行已完成，
-取消诉求的正确表达是 timeout 选项与 `ParRuntime.close()`；类型不可见后，误用在编译期消失，
-而不是继续静默无效。
+**The same code after:** does not exist — and that is exactly the point. Under the synchronous
+exit contract, execution is complete before the user holds a result, and the correct expression
+of a cancellation need is the timeout options and `ParRuntime.close()`; once the type is
+invisible, the misuse disappears at compile time instead of staying silently inert.
 
-**被消除的失败模式：**
+**Failure modes removed:**
 
-1. **幻觉 API**：`new CancellationToken()` + `cancel()` 对任何批次/任务组毫无效果且无告警。
-2. **双归因词汇**：`State` 六值与公开的 `TaskTermination` 八值在 IDE 补全里并行出现。
-3. **兑现不了的承诺**：公开构造器 `CancellationToken(parent, deadlineNanos)` 承诺"自建父子
-   token 树"，而树的所有挂接点均已包私有。
+1. **Illusory API**: `new CancellationToken()` + `cancel()` has no effect on any batch/task
+   group, with no warning.
+2. **Two attribution vocabularies**: the six-value `State` and the public eight-value
+   `TaskTermination` appearing side by side in IDE completion.
+3. **An undeliverable promise**: the public constructor `CancellationToken(parent,
+   deadlineNanos)` promises "build your own parent-child token tree", while every attachment
+   point of the tree is already package-private.
 
-**迁移路径：** v0.3 之后没有合法的外部用法；可能受影响的只有 0.1.x 时代残留的外部构造代码，
-其取消诉求迁移到 timeout 选项与 `ParRuntime.close()`。migration-v0.3 增补一行说明类型整体收口。
+**Migration path:** there is no legitimate external use after v0.3; the only possible impact is
+external construction code left over from the 0.1.x era, whose cancellation needs migrate to
+timeout options and `ParRuntime.close()`. migration-v0.3 gains one line noting the type's
+wholesale consolidation.
 
-**配套改动（拍板后的清单）：**
+**Companion changes (the checklist after the decision):**
 
-- `CancellationToken`、`CancellationToken.State` 去掉 `public`；构造器、`create()` 与方法随之
-  包私有化（同包测试不受影响）。
-- `PublicApiSurfaceTest` 期望清单减 2 条。
-- `Checkpoints.java` 类级 javadoc 的 `{@link CancellationToken}` 改为 `{@code}` 或文字
-  （公开 API 的 javadoc 不得链接包私有类型）。
-- 文档措辞同步：
-  - `docs/*/reference/nullability-annotations.md` 用 `CancellationToken` 当 `@Nullable`
-    公开示例——收口后不再是公开 API，需换示例（现以 `TaskGroupResult.failedTaskName()` 为例）；
-  - `docs/zh/reference/cooperative-cancellation.md` 的概念性提及改述为"框架内部的取消令牌"
-    （机制描述保留，类型名移除）；
-  - `docs/*/migration-v0.3.md` 增加收口行；
-  - `docs/zh/design/philosophy.md`、`idea-graveyard.md`、`case-studies/` 属设计散文与历史
-    记录，保留不动；`migration-v0.2.md` 是历史对照表，不动。
+- `CancellationToken` and `CancellationToken.State` drop `public`; constructors, `create()`,
+  and methods go package-private with them (same-package tests unaffected).
+- `PublicApiSurfaceTest`'s expected inventory loses 2 entries.
+- `Checkpoints.java`'s class-level Javadoc `{@link CancellationToken}` becomes `{@code}` or
+  prose (a public API's Javadoc must not link a package-private type).
+- Documentation wording follows:
+  - `docs/*/reference/nullability-annotations.md` uses `CancellationToken` as the `@Nullable`
+    public example — after consolidation it is no longer public API, so the example changes
+    (now `TaskGroupResult.failedTaskName()`);
+  - `docs/zh/reference/cooperative-cancellation.md`'s conceptual mention is rephrased as "the
+    framework's internal cancellation token" (the mechanism description stays; the type name is
+    removed);
+  - `docs/*/migration-v0.3.md` gains the consolidation line;
+  - `docs/zh/design/philosophy.md`, `idea-graveyard.md`, and `case-studies/` are design essays
+    and historical records — kept as-is; `migration-v0.2.md` is a historical comparison table —
+    untouched.
 
-## N3（弱候选，可选）：`TaskGroupResult.valuesResult()`
+## N3 (weak candidate, optional): `TaskGroupResult.valuesResult()`
 
-仅迁移文档提及、3 处测试（`SynchronousExecutionTest`）。非抛出的失败检视路径已有
-`outcome()` + `results()` + `resultOf(String)` 覆盖；`valuesOrThrow()` 是文档记载的主路径。
+Mentioned only in migration documentation and 3 tests (`SynchronousExecutionTest`). The
+non-throwing failure-inspection path is already covered by `outcome()` + `results()` +
+`resultOf(String)`; `valuesOrThrow()` is the documented main path.
 
-- **改前：** `ImmediateResult<GroupValues<V>> vr = result.valuesResult();`
-- **改后：** `if (result.termination() == TaskTermination.SUCCESS) { GroupValues<V> v = result.valuesOrThrow(); }`
-  或按成员走 `results()`。
-- **被消除的失败模式：** 与 `valuesOrThrow()` 双路径并存，读者需比较两者语义差异
-  （`ImmediateResult` 包装 vs 直抛）。
-- **注意：** 若拍板删除，`TaskGroupResult` 其余访问器**不动**（保留理由见 decision-log 登记条目）；
-  本项独立可裁。
+- **Before:** `ImmediateResult<GroupValues<V>> vr = result.valuesResult();`
+- **After:** `if (result.termination() == TaskTermination.SUCCESS) { GroupValues<V> v = result.valuesOrThrow(); }`
+  or go per member through `results()`.
+- **Failure mode removed:** two paths coexisting with `valuesOrThrow()`, requiring readers to
+  compare their semantic difference (`ImmediateResult` wrapping vs. direct throw).
+- **Note:** if deletion is decided, `TaskGroupResult`'s other accessors are **untouched**
+  (retention reasons in the decision-log entry); this item is independently severable.
