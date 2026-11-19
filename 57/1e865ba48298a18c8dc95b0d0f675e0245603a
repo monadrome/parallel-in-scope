@@ -1,0 +1,30 @@
+scripts/tests/test_check_english_docs.py
+  s_1edc838959b652::t_89789bd78b7d0d 66-80
+  s_137e4e93a1c0b7::t_b4d2687bed6c7c 36
+design/proposal-lifecycle.md
+  s_137e4e93a1c0b7::t_a9999806eb2c8b 40,42-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "571e865ba48298a18c8dc95b0d0f675e0245603a",
+  "prompts": {},
+  "sessions": {
+    "s_137e4e93a1c0b7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_cdf03130-babe-45a2-8af6-4cbcb386bf4f",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_1edc838959b652": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2933b1e5-e404-4e65-ab1d-6861d2053e87",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
