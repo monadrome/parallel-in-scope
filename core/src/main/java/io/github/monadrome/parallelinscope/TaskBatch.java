@@ -467,8 +467,9 @@ final class TaskBatch<T> implements AutoCloseable {
      * cancellation). A failure that merely signals observed cancellation (a cooperative checkpoint
      * or an interrupt racing the cascade cancel) is attributed the same way instead of reading
      * {@code USER_CODE_FAILURE}. The batch shares one token across all elements, so an element
-     * whose direct cancellation <em>triggered</em> the fail-fast cascade also reads {@code
-     * ABORTED_BY_FAIL_FAST}; distinguishing the initiator per element requires a {@code TaskGroup}.
+     * whose direct cancellation <em>triggered</em> the fail-fast cascade keeps its own settle-time
+     * attribution ({@code CANCELLED_BY_CALLER}), pinned before the cascade committed, so the
+     * initiator stays distinguishable per element inside the batch.
      *
      * @return a BatchReport containing termination counts and the first exception (if any)
      */
