@@ -105,23 +105,41 @@ Batch and Group share a three-state scope shape:
 
 ```text
 ScopeTermination
-  SUCCEEDED
-  FAILED(primary FailureCause, failedTask)
-  CANCELLED(primary CancellationReason)
+  SUCCESS
+  FAILED(FailureCause failureCause, @Nullable String failedTask)
+  CANCELLED(CancellationReason cancellationReason)
 ```
+
+The value exposes each branch's payload directly. `failureCause()` and `failure()` are non-null
+exactly on `FAILED`; `failedTask()` is present only on `FAILED` and may be null when the recording
+path supplies no task identity; `cancellationReason()` is non-null exactly on `CANCELLED`;
+`successful()` tests `SUCCESS`. `failure()` returns `failureCause().cause()` by identity, so the
+original throwable is never copied. The restricted factories `succeeded()`,
+`failed(FailureCause, failedTask)`, and `cancelled(CancellationReason)` are the only construction
+paths: a branch cannot carry another branch's payload, so no runtime cross-kind validation is
+needed, and the factories keep the non-null checks for their required payloads.
+
+The former public `ScopeTerminationCause` wrapper and its duplicate `Kind` are deleted, and
+`ScopeTermination.cause()` is removed. The wrapper stored one branch fact twice and introduced a
+second `Kind` enum for the same decision, so every read crossed a type boundary for data the scope
+value can hold itself; the duplicated vocabulary also let the two enums drift apart. `SUCCESS`
+replaces the former `SUCCEEDED` spelling so the scope branch matches `TaskTermination.Kind.SUCCESS`
+and `ImmediateResult.successful()`; keeping a separate spelling for the same concept forced readers
+to translate without preserving any distinction. `TaskTermination`, `CancellationReason`, and the
+internal token vocabulary keep their names and values.
 
 Batch keeps elements by input index; Group keeps results by key, member, and terminal combine.
 Sharing the three states does not mean sharing all aggregation rules: Batch keeps element
 counts, and Group keeps the failed key, member snapshots, and combine attribution.
 
-A scope keeps only one primary cause. `ScopeTerminationAccumulator` uses one
-`compareAndSet(null, cause)` as its linearization point:
+A scope keeps only one primary termination. `ScopeTerminationAccumulator` uses one
+`compareAndSet(null, termination)` as its linearization point:
 
-- a member or terminal combine failure must commit `Failure` before triggering fail-fast
+- a member or terminal combine failure must commit `FAILED` before triggering fail-fast
   cancellation;
-- `AbortedByFailFast` can only be a consequence on sibling members — it cannot preempt the
-  scope cause;
-- deadline, parent, caller, and member cancellation race for the same cause slot;
+- an `ABORTED_BY_FAIL_FAST` cancellation can only be a consequence on sibling members — it cannot
+  preempt the scope primary termination;
+- deadline, parent, caller, and member cancellation race for the same primary slot;
 - later failures do not overwrite a committed cancellation, and stay in member termination
   results, the failed task, counts, and diagnostics;
 - the CAS order only guarantees linearization within a single run — it does not promise
@@ -129,7 +147,8 @@ A scope keeps only one primary cause. `ScopeTerminationAccumulator` uses one
   billing.
 
 `TaskBatchResult.termination()`, `TaskGroupResult.termination()`, and `scopeTermination()`
-return this frozen projection. An empty scope has only `SUCCEEDED`, with no cause.
+return this frozen projection. An empty scope has only `SUCCESS`, with no failure or cancellation
+payload.
 
 ## 5. Cancellation and source identity
 
@@ -199,7 +218,7 @@ restricted factories.
   side effects;
 - `TaskExitObservation` is published only after exit, and is consistent with the corresponding
   frozen `ImmediateResult`'s logical termination;
-- the scope primary cause is published through exactly one CAS, while member results keep the
+- the scope primary termination is published through exactly one CAS, while member results keep the
   secondary events;
 - Batch and Group share `ScopeTermination` but keep their own indexing, key, combine, and
   failure-selection rules;

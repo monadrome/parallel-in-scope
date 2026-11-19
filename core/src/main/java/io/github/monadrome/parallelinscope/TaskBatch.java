@@ -243,14 +243,13 @@ final class TaskBatch<T> implements AutoCloseable {
         }
         Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
         String batchName = results.isEmpty() ? "" : results.get(0).taskName();
-        ScopeTerminationCause primary = scopeTermination.cause();
+        ScopeTermination primary = scopeTermination.primary();
         if (token != null
                 && token.cancelledByCaller()
-                && (primary == null || primary.kind() == ScopeTerminationCause.Kind.CANCELLATION)) {
-            primary = ScopeTerminationCause.cancelled(CancellationReason.cancelledByCaller(batchName));
+                && (primary == null || primary.kind() == ScopeTermination.Kind.CANCELLED)) {
+            primary = ScopeTermination.cancelled(CancellationReason.cancelledByCaller(batchName));
         }
-        ScopeTermination aggregate =
-                ScopeTermination.fromPrimary(primary, ScopeTermination.fromResults(batchName, frozen));
+        ScopeTermination aggregate = primary == null ? ScopeTermination.fromResults(batchName, frozen) : primary;
         return new TaskBatchResult<>(batchName, frozen, observations, unfinished, aggregate);
     }
 

@@ -54,10 +54,7 @@ class TaskTerminationTest {
                     .isTrue();
             assertThat(task.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
             assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
-            assertThat(Verify.verifyNotNull(
-                                    Verify.verifyNotNull(result.termination().cause())
-                                            .failureCause())
-                            .submissionRejected())
+            assertThat(Verify.verifyNotNull(result.termination().failureCause()).submissionRejected())
                     .isTrue();
         } finally {
             runtime.close();

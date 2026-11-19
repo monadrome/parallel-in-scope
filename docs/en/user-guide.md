@@ -385,6 +385,32 @@ stored throwable — readable through `failure()` — is not always a `Cancellat
 handlers are required, and `fold` returns the selected handler's result. `successful()` tests for
 `SUCCESS` alone.
 
+### Scope termination {#scope-termination}
+
+A Batch or Group result also exposes one scope-level `ScopeTermination` through `termination()`
+(the `scopeTermination()` alias names the same value). It records the scope's single primary
+outcome, not the member details: `SUCCESS` carries no payload; `FAILED` carries the primary
+`FailureCause`, the original throwable through `failure()`, and, when the recording path supplies
+one, the failed task name through `failedTask()`; `CANCELLED` carries the primary
+`CancellationReason`. Each accessor returns null outside its branch, `failedTask()` is also null
+when a failure records no task identity, and `successful()` tests `SUCCESS` alone.
+
+Member outcomes stay on the member results. The scope keeps the first committed primary
+termination, except that a provisional fail-fast cancellation yields to its triggering failure.
+The resulting termination is the authority for scope attribution; aggregate reads such as
+`failedTaskResult()` and `orThrow()` keep their own first-failure selection, so under a race the
+scope can name a different member than the one those APIs report. Read the scope for attribution
+and diagnostics, and the member results for each task's own outcome.
+
+```java
+ScopeTermination termination = batch.termination();
+if (termination.kind() == ScopeTermination.Kind.FAILED) {
+    LOGGER.log(Level.WARNING, "batch failed in " + termination.failedTask(), termination.failure());
+} else if (termination.kind() == ScopeTermination.Kind.CANCELLED) {
+    LOGGER.info("batch ended with " + termination.cancellationReason().kind());
+}
+```
+
 `asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
 returns false, and `isCancelled()` is false. A cancellation that recorded no member/combine
 failure is a failed value whose get throws ExecutionException with a cancellation-exception cause;

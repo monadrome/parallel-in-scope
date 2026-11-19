@@ -217,7 +217,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 assertThat(group.futureOf("second").isCancelled()).isTrue();
             });
             TaskGroupReport report = group.convergenceFuture().get(5, TimeUnit.SECONDS);
-            assertThat(report.termination().kind()).isNotEqualTo(ScopeTermination.Kind.SUCCEEDED);
+            assertThat(report.termination().kind()).isNotEqualTo(ScopeTermination.Kind.SUCCESS);
         } finally {
             release.countDown();
             global.close();

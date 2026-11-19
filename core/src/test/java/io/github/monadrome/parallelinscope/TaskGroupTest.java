@@ -1316,11 +1316,9 @@ class TaskGroupTest {
                                 while (true) {
                                     try {
                                         String reason = com.google.common.base.Verify.verifyNotNull(
-                                                        com.google.common.base.Verify.verifyNotNull(
-                                                                        group.convergenceFuture()
-                                                                                .get()
-                                                                                .termination()
-                                                                                .cause())
+                                                        group.convergenceFuture()
+                                                                .get()
+                                                                .termination()
                                                                 .cancellationReason())
                                                 .kind()
                                                 .name();
@@ -1426,7 +1424,7 @@ class TaskGroupTest {
                     .convergenceFuture()
                     .get(2, TimeUnit.SECONDS);
             assertThat(success.orThrow()).isSameAs(success);
-            assertThat(success.reportString()).contains("SUCCESS:1", "termination=SUCCEEDED");
+            assertThat(success.reportString()).contains("SUCCESS:1", "termination=SUCCESS");
 
             TaskGroupReport cancelled = global.groupDraft("cancelled-page", TIMEOUT)
                     .par(KEY_TEXT_STRING, global.par(ParId.of("worker")), () -> {

@@ -38,8 +38,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".ParRuntimeSnapshot",
             BASE_PACKAGE + ".ScopeTermination",
             BASE_PACKAGE + ".ScopeTermination$Kind",
-            BASE_PACKAGE + ".ScopeTerminationCause",
-            BASE_PACKAGE + ".ScopeTerminationCause$Kind",
             BASE_PACKAGE + ".LeanCancellationException",
             BASE_PACKAGE + ".Par",
             BASE_PACKAGE + ".ParId",

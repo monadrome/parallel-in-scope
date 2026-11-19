@@ -43,15 +43,11 @@ class TaskGroupCombineGuardCancellationTest {
      */
     private static boolean legitimate(ScopeTermination scope) {
         if (scope.kind() == ScopeTermination.Kind.FAILED) {
-            return com.google.common.base.Verify.verifyNotNull(
-                            com.google.common.base.Verify.verifyNotNull(scope.cause())
-                                    .failureCause())
+            return com.google.common.base.Verify.verifyNotNull(scope.failureCause())
                     .submissionRejected();
         }
         if (scope.kind() == ScopeTermination.Kind.CANCELLED) {
-            CancellationReason.Kind kind = com.google.common.base.Verify.verifyNotNull(
-                            com.google.common.base.Verify.verifyNotNull(scope.cause())
-                                    .cancellationReason())
+            CancellationReason.Kind kind = com.google.common.base.Verify.verifyNotNull(scope.cancellationReason())
                     .kind();
             return kind == CancellationReason.Kind.DEADLINE_EXCEEDED
                     || kind == CancellationReason.Kind.ABORTED_BY_FAIL_FAST
@@ -119,9 +115,8 @@ class TaskGroupCombineGuardCancellationTest {
 
                 assertThat(legitimate(result.termination())).isTrue();
                 TerminationAssertions.assertScopeFailed(result.termination());
-                assertThat(com.google.common.base.Verify.verifyNotNull(com.google.common.base.Verify.verifyNotNull(
-                                                result.termination().cause())
-                                        .failureCause())
+                assertThat(com.google.common.base.Verify.verifyNotNull(
+                                        result.termination().failureCause())
                                 .kind())
                         .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
                 assertThat(executionRan).isFalse();

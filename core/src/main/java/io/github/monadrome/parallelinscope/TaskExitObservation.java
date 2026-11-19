@@ -157,21 +157,16 @@ public final class TaskExitObservation<T> {
     private static TaskTermination<TaskGroupReport> summaryTermination(TaskGroupReport report) {
         ScopeTermination scope = report.termination();
         switch (scope.kind()) {
-            case SUCCEEDED:
+            case SUCCESS:
                 return TaskTermination.success(report, ExecutionDisposition.CLAIMED);
             case FAILED:
                 return TaskTermination.failed(
-                        Verify.verifyNotNull(
-                                Verify.verifyNotNull(scope.cause(), "failed scope carries no cause")
-                                        .failureCause(),
-                                "failed scope carries no failure cause"),
+                        Verify.verifyNotNull(scope.failureCause(), "failed scope carries no failure cause"),
                         ExecutionDisposition.CLAIMED);
             case CANCELLED:
                 return TaskTermination.cancelled(
                         Verify.verifyNotNull(
-                                Verify.verifyNotNull(scope.cause(), "cancelled scope carries no cause")
-                                        .cancellationReason(),
-                                "cancelled scope carries no cancellation reason"),
+                                scope.cancellationReason(), "cancelled scope carries no cancellation reason"),
                         ExecutionDisposition.CLAIMED);
             default:
                 throw new AssertionError("unknown scope termination kind: " + scope.kind());

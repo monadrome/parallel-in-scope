@@ -41,19 +41,28 @@ final class TerminationAssertions {
     }
 
     static void assertScopeSucceeded(ScopeTermination termination) {
-        assertThat(termination.kind()).isEqualTo(ScopeTermination.Kind.SUCCEEDED);
+        assertThat(termination.kind()).isEqualTo(ScopeTermination.Kind.SUCCESS);
+        assertThat(termination.successful()).isTrue();
+        assertThat(termination.failureCause()).isNull();
+        assertThat(termination.cancellationReason()).isNull();
+        assertThat(termination.failure()).isNull();
     }
 
     static void assertScopeFailed(ScopeTermination termination) {
         assertThat(termination.kind()).isEqualTo(ScopeTermination.Kind.FAILED);
-        assertThat(Verify.verifyNotNull(termination.cause()).kind()).isEqualTo(ScopeTerminationCause.Kind.FAILURE);
+        assertThat(termination.successful()).isFalse();
+        assertThat(termination.failureCause()).isNotNull();
+        assertThat(termination.failure()).isNotNull();
+        assertThat(termination.cancellationReason()).isNull();
     }
 
     static void assertScopeCancelled(ScopeTermination termination, CancellationReason.Kind kind) {
         assertThat(termination.kind()).isEqualTo(ScopeTermination.Kind.CANCELLED);
-        ScopeTerminationCause cause = Verify.verifyNotNull(termination.cause());
-        assertThat(cause.kind()).isEqualTo(ScopeTerminationCause.Kind.CANCELLATION);
-        assertThat(Verify.verifyNotNull(cause.cancellationReason()).kind()).isEqualTo(kind);
+        assertThat(termination.successful()).isFalse();
+        assertThat(termination.failureCause()).isNull();
+        assertThat(termination.failure()).isNull();
+        assertThat(Verify.verifyNotNull(termination.cancellationReason()).kind())
+                .isEqualTo(kind);
     }
 
     private static TaskTermination.Kind kindOf(@Nullable TaskTermination<?> termination) {

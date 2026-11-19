@@ -13,6 +13,21 @@
 
 ### Breaking changes
 
+- Simplify the beta scope-termination API: delete the public `ScopeTerminationCause` wrapper and its
+  `Kind`, remove `ScopeTermination.cause()`, and read the branch payloads directly from
+  `ScopeTermination`. Creation becomes `ScopeTermination.succeeded()`,
+  `ScopeTermination.failed(FailureCause, failedTask)`, and
+  `ScopeTermination.cancelled(CancellationReason)`; `ScopeTermination.Kind.SUCCEEDED` becomes
+  `ScopeTermination.Kind.SUCCESS`. Replace
+  `ScopeTermination.failed(ScopeTerminationCause.failed(cause, failedTask))` with
+  `ScopeTermination.failed(cause, failedTask)`, and
+  `ScopeTermination.cancelled(ScopeTerminationCause.cancelled(reason))` with
+  `ScopeTermination.cancelled(reason)`. Replace `termination.cause().failureCause()`,
+  `termination.cause().cancellationReason()`, `termination.cause().failure()`, and
+  `termination.cause().failedTask()` with `termination.failureCause()`,
+  `termination.cancellationReason()`, `termination.failure()`, and `termination.failedTask()`.
+  The removed and reshaped members existed only on the `0.5.0-SNAPSHOT` development line, not in
+  stable `0.4.1`. `TaskTermination` and `CancellationReason` are unchanged.
 - Complete the termination-model migration inside the kernel: the package-private legacy outcome
   enum (`TaskClassification`) and every `outcome()` read are removed, so attribution is recorded
   natively as `TaskTermination`/`ScopeTermination` instead of being projected from the old enum.
