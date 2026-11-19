@@ -174,4 +174,11 @@ final class TaskGroupReport {
         TaskExitObservation<?> failed = failedTaskSnapshot();
         return failed == null ? null : failed.failure();
     }
+
+    /** Returns the recorded failed task's pinned termination, or null when no failure is recorded. */
+    @Nullable
+    TaskTermination<?> failedTaskTermination() {
+        TaskExitObservation<?> failed = failedTaskSnapshot();
+        return failed == null ? null : failed.termination();
+    }
 }
