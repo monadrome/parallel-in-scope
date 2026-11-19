@@ -88,15 +88,12 @@ class G2_BatchResultReportTest {
 
         assertThat(totalStateCount(result)).isEqualTo(taskCount);
         assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(rootFailure);
-        assertThat(reportString)
-                .contains("FAILED:1")
-                .contains("CANCELLED:5")
-                .contains("firstException=root failure");
+        assertThat(reportString).contains("FAILED:1").contains("CANCELLED:5").contains("firstException=root failure");
         // reportString 按终止归类，兄弟任务的 fail-fast 归因在各自 termination 的取消原因里
         long failFastSiblings = result.results().stream()
                 .filter(r -> r.termination().kind() == TaskTermination.Kind.CANCELLED)
-                .filter(r -> r.termination().cancellationReason().kind()
-                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
+                .filter(r ->
+                        r.termination().cancellationReason().kind() == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
                 .count();
         assertThat(failFastSiblings).isEqualTo(5);
     }
