@@ -1,0 +1,38 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_3c1eb1c2dace59::t_8c4da26a050074 175
+CHANGELOG.md
+  s_3c1eb1c2dace59::t_c34221d7bb0c55 26-28
+design/batch-settle-attribution.md
+  s_3c1eb1c2dace59::t_5ff3ebe6e99466 44-47
+  s_3c1eb1c2dace59::t_e9f7f59cc3a7e1 75
+  s_3c1eb1c2dace59::t_bc9a1578642113 87,89-92
+  s_3c1eb1c2dace59::t_0af179d0be7c65 104,106,111-112
+  s_3c1eb1c2dace59::t_0e98bdaaada381 27-28
+  s_3c1eb1c2dace59::t_9c11691d166642 63
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java
+  s_3c1eb1c2dace59::t_66d0f139aebb8f 680
+core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java
+  s_3c1eb1c2dace59::t_30761da394eda0 135
+core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+  s_3c1eb1c2dace59::t_c7cd07fefa9074 142-143
+  s_3c1eb1c2dace59::t_25884fcb3f7f3f 151
+  s_3c1eb1c2dace59::t_41b5e97f5f881c 162
+core/src/main/java/io/github/monadrome/parallelinscope/BatchCombinedResult.java
+  s_3c1eb1c2dace59::t_911bc22925dc13 120-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "9c44666e1539810209cdba7e4824e829d37136a8",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
