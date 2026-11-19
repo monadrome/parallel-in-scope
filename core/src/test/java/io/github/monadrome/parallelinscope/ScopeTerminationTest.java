@@ -144,7 +144,7 @@ class ScopeTerminationTest {
                         .toString())
                 .isEqualTo(
                         "ScopeTermination[kind=FAILED, failedTask=member, failure=FailureCause[kind=USER_CODE_FAILURE,"
-                                + " cause=java.lang.IllegalStateException: boom]]");
+                                + " cause=java.lang.IllegalStateException]]");
         assertThat(ScopeTermination.cancelled(CancellationReason.deadlineExceeded("batch"))
                         .toString())
                 .isEqualTo("ScopeTermination[kind=CANCELLED,"
