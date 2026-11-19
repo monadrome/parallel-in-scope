@@ -1,0 +1,19 @@
+ledger/2026-11-18-gate-coupled-headings-principle.json
+  s_137e4e93a1c0b7::t_ccedc5fe159116 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a5c741f26fcf500a12c9d37f65fb5632a6d6366b",
+  "prompts": {},
+  "sessions": {
+    "s_137e4e93a1c0b7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_cdf03130-babe-45a2-8af6-4cbcb386bf4f",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
