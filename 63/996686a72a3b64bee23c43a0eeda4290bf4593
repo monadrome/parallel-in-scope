@@ -1,0 +1,59 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultToStringTest.java
+  s_18f463a7529e41::t_e82a3aa7799a9f 5,8-12,23-32,43-46,50-60,64-79,81-86,90-108
+core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java
+  s_18f463a7529e41::t_c5c04e64a5c9de 11-12,19-22,29,31-50
+core/src/main/java/io/github/monadrome/parallelinscope/FailureCause.java
+  s_18f463a7529e41::t_e2c5f57805c8ba 59-63,66
+core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_18f463a7529e41::t_623adf44fc1352 115-116,133-137,140-141,146-155
+  s_18f463a7529e41::t_3afb1e9123c07b 160-166,172-173
+core/src/test/java/io/github/monadrome/parallelinscope/TaskTerminationTest.java
+  s_18f463a7529e41::t_3a34d9092a7612 48
+core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java
+  s_18f463a7529e41::t_a7df2a06657c4a 480-482
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_18f463a7529e41::t_4bb7a68c73dd91 313-319,323-330,335-348,351
+  s_18f463a7529e41::t_8721e41568b923 331-334,349-350
+  s_18f463a7529e41::t_5fe74bfb7c7fbe 13
+core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java
+  s_18f463a7529e41::t_5946210d04d406 166-171,183
+  s_18f463a7529e41::t_ff2914e702615d 55-59,62
+core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java
+  s_18f463a7529e41::t_7e431d0e0a75fd 184-189,195-196
+CHANGELOG.md
+  s_18f463a7529e41::t_6f45f662525046 55
+core/src/main/java/io/github/monadrome/parallelinscope/GroupValues.java
+  s_18f463a7529e41::t_070156fc31940c 108-112,115
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  s_18f463a7529e41::t_9b6b185ffd69ca 92,97-98,101
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitReport.java
+  s_18f463a7529e41::t_0459b63b063753 61-65,71
+core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java
+  s_18f463a7529e41::t_b788b8dfdf70b1 773,778-788,793,797-799
+  s_18f463a7529e41::t_d232a9707b10df 740-770,772,774-777,789-792,794-796
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupValuesFutureTest.java
+  s_18f463a7529e41::t_7df2c29ead19d7 46-48
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java
+  s_18f463a7529e41::t_e82e34770afc5e 189-191
+  s_18f463a7529e41::t_ddf79e3c499751 180
+core/src/test/java/io/github/monadrome/parallelinscope/ResultObjectsTest.java
+  s_18f463a7529e41::t_23361d396c0d4d 15,26-34,43-65,72-80
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_18f463a7529e41::t_d7c837d4369f4b 566-571,575
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "63996686a72a3b64bee23c43a0eeda4290bf4593",
+  "prompts": {},
+  "sessions": {
+    "s_18f463a7529e41": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_9a1804c0-1fc8-46d5-846e-26f23c325311",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
