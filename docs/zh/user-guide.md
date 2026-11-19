@@ -344,6 +344,28 @@ Price price = batch.results().get(i).fold(
 Future 静态签名仍声明受检异常。listener 经消费者指定的 executor 执行，在已完成的业务
 scope 及其资源生命周期之外。
 
+### 作用域终止 {#scope-termination}
+
+批次或组的结果还通过 `termination()` 暴露一个作用域级 `ScopeTermination`（`scopeTermination()`
+是同一值的别名）。它记录作用域唯一的主结果，而不是成员细节：`SUCCESS` 没有负载；`FAILED`
+携带主 `FailureCause`，`failure()` 按原对象返回原始异常；记录路径提供时，`failedTask()` 给出
+失败任务名；`CANCELLED` 携带主 `CancellationReason`。每个访问器只在自己的分支上非 null，
+`failedTask()` 在失败未记录任务身份时同样为 null，`successful()` 只判断 `SUCCESS`。
+
+成员结果仍保留在各个成员上。作用域保留首个提交的主终止，但临时的 fail-fast 取消会让位给
+触发它的失败；最终主终止是作用域归因的权威来源。`failedTaskResult()`、`orThrow()` 等聚合读取
+保持各自的首次失败选择，因此在竞争下作用域可能
+指向与这些 API 不同的成员。归因和诊断读作用域，单个任务的结果读成员结果。
+
+```java
+ScopeTermination termination = batch.termination();
+if (termination.kind() == ScopeTermination.Kind.FAILED) {
+    LOGGER.log(Level.WARNING, "批次失败于 " + termination.failedTask(), termination.failure());
+} else if (termination.kind() == ScopeTermination.Kind.CANCELLED) {
+    LOGGER.info("批次以 " + termination.cancellationReason().kind() + " 结束");
+}
+```
+
 ## 中断与清理
 
 map/runAll 的结果等待与有界清理不响应中断退出，结束恢复标志。调用线程中断不取消执行。

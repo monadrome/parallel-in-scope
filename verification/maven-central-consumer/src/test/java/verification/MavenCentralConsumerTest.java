@@ -205,7 +205,7 @@ class MavenCentralConsumerTest {
                 assertEquals(
                         "alice:2:2:true",
                         group.terminalValueOrThrow());
-                assertEquals(ScopeTermination.Kind.SUCCEEDED, group.termination().kind());
+                assertEquals(ScopeTermination.Kind.SUCCESS, group.termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -231,7 +231,7 @@ class MavenCentralConsumerTest {
             assertEquals("alice", result.valuesOrThrow().valueOf(user));
             assertEquals(Integer.valueOf(2), result.valuesOrThrow().valueOf(count));
             assertEquals("alice:2", result.terminalValueOrThrow());
-            assertEquals(ScopeTermination.Kind.SUCCEEDED, result.termination().kind());
+            assertEquals(ScopeTermination.Kind.SUCCESS, result.termination().kind());
         } finally {
             runtime.close();
             executor.shutdownNow();

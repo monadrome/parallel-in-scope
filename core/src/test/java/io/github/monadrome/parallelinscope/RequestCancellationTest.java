@@ -423,9 +423,7 @@ class RequestCancellationTest {
 
         TerminationAssertions.assertCancelled(
                 result.batchResult().results().get(0).termination(), CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE);
-        assertThat(Verify.verifyNotNull(
-                                Verify.verifyNotNull(result.scopeTermination().cause())
-                                        .cancellationReason())
+        assertThat(Verify.verifyNotNull(result.scopeTermination().cancellationReason())
                         .kind())
                 .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
         TerminationAssertions.assertCancelled(

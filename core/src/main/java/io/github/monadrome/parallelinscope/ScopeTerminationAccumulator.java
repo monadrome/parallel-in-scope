@@ -5,47 +5,50 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Scope-cause collector used by Batch and Group convergence.
+ * First-writer-wins scope-termination collector used by Batch and Group convergence.
  *
- * <p>The compare-and-set is the scope cause's linearization point. A fail-fast cancellation is a
- * provisional consequence while the triggering failure is still being published; it may be replaced
- * by that failure, but caller, parent, deadline, and member cancellations remain first-writer-wins.
+ * <p>The compare-and-set is the scope termination's linearization point. A fail-fast cancellation
+ * is a provisional consequence while the triggering failure is still being published; it may be
+ * replaced by that failure, but caller, parent, deadline, and member cancellations remain
+ * first-writer-wins.
  */
 final class ScopeTerminationAccumulator {
-    private final AtomicReference<@Nullable ScopeTerminationCause> primary = new AtomicReference<>();
+    private final AtomicReference<@Nullable ScopeTermination> primary = new AtomicReference<>();
 
     void observe(TaskTermination<?> termination, @Nullable String failedTask) {
-        ScopeTerminationCause cause;
+        ScopeTermination terminationValue;
         if (termination.kind() == TaskTermination.Kind.FAILED) {
-            cause = ScopeTerminationCause.failed(Verify.verifyNotNull(termination.failureCause()), failedTask);
+            terminationValue = ScopeTermination.failed(Verify.verifyNotNull(termination.failureCause()), failedTask);
         } else if (termination.kind() == TaskTermination.Kind.CANCELLED) {
-            cause = ScopeTerminationCause.cancelled(Verify.verifyNotNull(termination.cancellationReason()));
+            terminationValue = ScopeTermination.cancelled(Verify.verifyNotNull(termination.cancellationReason()));
         } else {
             return;
         }
-        observe(cause);
+        observe(terminationValue);
     }
 
-    void observe(ScopeTerminationCause cause) {
+    void observe(ScopeTermination termination) {
+        Verify.verify(
+                termination.kind() != ScopeTermination.Kind.SUCCESS, "a primary scope termination is never success");
         while (true) {
-            ScopeTerminationCause current = primary.get();
+            ScopeTermination current = primary.get();
             if (current != null && !isFailFastCancellation(current)) {
                 return;
             }
-            if (primary.compareAndSet(current, cause)) {
+            if (primary.compareAndSet(current, termination)) {
                 return;
             }
         }
     }
 
-    private static boolean isFailFastCancellation(ScopeTerminationCause cause) {
-        return cause.kind() == ScopeTerminationCause.Kind.CANCELLATION
-                && Verify.verifyNotNull(cause.cancellationReason()).kind()
+    private static boolean isFailFastCancellation(ScopeTermination termination) {
+        return termination.kind() == ScopeTermination.Kind.CANCELLED
+                && Verify.verifyNotNull(termination.cancellationReason()).kind()
                         == CancellationReason.Kind.ABORTED_BY_FAIL_FAST;
     }
 
     @Nullable
-    ScopeTerminationCause cause() {
+    ScopeTermination primary() {
         return primary.get();
     }
 }

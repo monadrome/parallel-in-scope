@@ -281,7 +281,7 @@ public final class TaskGroupResult<R> {
      */
     @CanIgnoreReturnValue
     public TaskGroupResult<R> orThrow() {
-        if (termination().kind() == ScopeTermination.Kind.SUCCEEDED) {
+        if (termination().successful()) {
             return this;
         }
         Throwable failure = report.recordedFailure();

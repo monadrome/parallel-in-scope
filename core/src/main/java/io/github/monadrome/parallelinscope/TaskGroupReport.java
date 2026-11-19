@@ -65,7 +65,7 @@ final class TaskGroupReport {
         return deadlineNanos;
     }
 
-    /** Returns the shared three-state scope termination and its single primary cause. */
+    /** Returns the shared three-state scope termination and its single primary outcome. */
     ScopeTermination termination() {
         return termination;
     }
@@ -108,7 +108,7 @@ final class TaskGroupReport {
      */
     @CanIgnoreReturnValue
     TaskGroupReport orThrow() {
-        if (termination.kind() == ScopeTermination.Kind.SUCCEEDED) {
+        if (termination.successful()) {
             return this;
         }
         TaskExitObservation<?> failed = failedTaskSnapshot();

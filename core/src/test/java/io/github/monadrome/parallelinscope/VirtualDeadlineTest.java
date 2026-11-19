@@ -351,7 +351,7 @@ class VirtualDeadlineTest {
             TerminationAssertions.assertScopeFailed(
                     Objects.requireNonNull(outerOutcome.get()).termination());
             assertThat(Objects.requireNonNull(nestedOutcome.get()).termination().kind())
-                    .isNotEqualTo(ScopeTermination.Kind.SUCCEEDED);
+                    .isNotEqualTo(ScopeTermination.Kind.SUCCESS);
         } finally {
             pausing.release.countDown();
             pausing.shutdownNow();

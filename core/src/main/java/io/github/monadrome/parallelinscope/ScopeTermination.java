@@ -1,20 +1,26 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Verify;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Shared three-state logical termination shape for Batch and Group scopes.
+ * Immutable three-state logical termination of a Batch or Group scope.
+ *
+ * <p>A scope termination is exactly one of success, failure, or cancellation. The failure and
+ * cancellation payloads are read directly from the matching branch accessor; the other branch's
+ * accessors return {@code null}. Instances are created only through the restricted factories, so
+ * a branch never carries another branch's payload. The value is safe for concurrent reads and holds
+ * one primary outcome per scope run; member outcomes remain available on the scope result.
  */
 public final class ScopeTermination {
 
     /** The mutually exclusive scope states. */
     public enum Kind {
         /** Every logical member succeeded. */
-        SUCCEEDED,
+        SUCCESS,
         /** A primary member or combine failure ended the scope. */
         FAILED,
         /** A cancellation reason ended the scope. */
@@ -22,30 +28,42 @@ public final class ScopeTermination {
     }
 
     private final Kind kind;
-    private final @Nullable ScopeTerminationCause cause;
+    private final @Nullable FailureCause failureCause;
+    private final @Nullable CancellationReason cancellationReason;
+    private final @Nullable String failedTask;
 
-    private ScopeTermination(Kind kind, @Nullable ScopeTerminationCause cause) {
+    private ScopeTermination(
+            Kind kind,
+            @Nullable FailureCause failureCause,
+            @Nullable CancellationReason cancellationReason,
+            @Nullable String failedTask) {
         this.kind = checkNotNull(kind, "kind cannot be null");
-        this.cause = cause;
+        this.failureCause = failureCause;
+        this.cancellationReason = cancellationReason;
+        this.failedTask = failedTask;
     }
 
-    /** Creates a successful scope termination without a cause. */
+    /** Creates a successful scope termination without a failure or cancellation payload. */
     public static ScopeTermination succeeded() {
-        return new ScopeTermination(Kind.SUCCEEDED, null);
+        return new ScopeTermination(Kind.SUCCESS, null, null, null);
     }
 
-    /** Creates a failed scope termination with one primary failure cause. */
-    public static ScopeTermination failed(ScopeTerminationCause cause) {
-        checkArgument(cause.kind() == ScopeTerminationCause.Kind.FAILURE, "failed scope requires a failure cause");
-        return new ScopeTermination(Kind.FAILED, cause);
+    /**
+     * Creates a failed scope termination with one primary failure cause.
+     *
+     * @param failureCause the closed failure classification, retaining the original throwable
+     * @param failedTask the failed task identity recorded by the caller, or {@code null} when the
+     *     recording path has none
+     */
+    public static ScopeTermination failed(FailureCause failureCause, @Nullable String failedTask) {
+        return new ScopeTermination(
+                Kind.FAILED, checkNotNull(failureCause, "failureCause cannot be null"), null, failedTask);
     }
 
-    /** Creates a cancelled scope termination with one primary cancellation cause. */
-    public static ScopeTermination cancelled(ScopeTerminationCause cause) {
-        checkArgument(
-                cause.kind() == ScopeTerminationCause.Kind.CANCELLATION,
-                "cancelled scope requires a cancellation cause");
-        return new ScopeTermination(Kind.CANCELLED, cause);
+    /** Creates a cancelled scope termination with one primary cancellation reason. */
+    public static ScopeTermination cancelled(CancellationReason cancellationReason) {
+        return new ScopeTermination(
+                Kind.CANCELLED, null, checkNotNull(cancellationReason, "cancellationReason cannot be null"), null);
     }
 
     /** Returns the scope state. */
@@ -53,14 +71,36 @@ public final class ScopeTermination {
         return kind;
     }
 
-    /** Returns the one primary cause, or null for success. */
-    public @Nullable ScopeTerminationCause cause() {
-        return cause;
+    /** Returns the primary failure cause, or null unless {@link #kind()} is {@code FAILED}. */
+    public @Nullable FailureCause failureCause() {
+        return failureCause;
+    }
+
+    /** Returns the primary cancellation reason, or null unless {@link #kind()} is {@code CANCELLED}. */
+    public @Nullable CancellationReason cancellationReason() {
+        return cancellationReason;
+    }
+
+    /**
+     * Returns the original throwable of the primary failure, by identity, or null for success and
+     * cancellation.
+     */
+    public @Nullable Throwable failure() {
+        return failureCause == null ? null : failureCause.cause();
+    }
+
+    /**
+     * Returns the task identity recorded with the primary failure, or null on success, on
+     * cancellation, and when the recording path supplied none. A group failure records the failed
+     * member or terminal combine name; the value is diagnostic metadata, not a lookup key.
+     */
+    public @Nullable String failedTask() {
+        return failedTask;
     }
 
     /** Returns whether every logical member succeeded. */
     public boolean successful() {
-        return kind == Kind.SUCCEEDED;
+        return kind == Kind.SUCCESS;
     }
 
     /** Derives the scope termination of an already frozen batch result list. */
@@ -76,12 +116,10 @@ public final class ScopeTermination {
             }
         }
         if (firstFailure != null) {
-            return failed(ScopeTerminationCause.failed(
-                    checkNotNull(firstFailure.failureCause(), "failed result has no failure cause"), source));
+            return failed(checkNotNull(firstFailure.failureCause(), "failed result has no failure cause"), source);
         }
         if (firstCancellation != null) {
-            return cancelled(ScopeTerminationCause.cancelled(
-                    checkNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason")));
+            return cancelled(checkNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason"));
         }
         return succeeded();
     }
@@ -92,23 +130,21 @@ public final class ScopeTermination {
      */
     String diagnosticName() {
         if (kind == Kind.CANCELLED) {
-            ScopeTerminationCause c = cause;
-            if (c != null && c.cancellationReason() != null) {
-                return c.cancellationReason().kind().name();
-            }
+            return Verify.verifyNotNull(cancellationReason, "cancelled scope carries no cancellation reason")
+                    .kind()
+                    .name();
         }
         return kind.name();
     }
 
-    static ScopeTermination fromPrimary(@Nullable ScopeTerminationCause primary, ScopeTermination fallback) {
-        if (primary == null) {
-            return fallback;
-        }
-        return primary.kind() == ScopeTerminationCause.Kind.FAILURE ? failed(primary) : cancelled(primary);
-    }
-
     @Override
     public String toString() {
-        return "ScopeTermination[kind=" + kind + ", cause=" + cause + ']';
+        if (kind == Kind.SUCCESS) {
+            return "ScopeTermination[kind=" + kind + ']';
+        }
+        if (kind == Kind.FAILED) {
+            return "ScopeTermination[kind=" + kind + ", failedTask=" + failedTask + ", failure=" + failureCause + ']';
+        }
+        return "ScopeTermination[kind=" + kind + ", cancellation=" + cancellationReason + ']';
     }
 }

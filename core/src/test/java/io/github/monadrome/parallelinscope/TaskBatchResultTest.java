@@ -3,7 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.base.Verify;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -191,8 +190,7 @@ public class TaskBatchResultTest {
                     .hasRootCauseMessage("recorded failure");
             TaskBatchResult<Integer> frozen = batch.finish();
             assertThat(frozen.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
-            assertThat(Verify.verifyNotNull(frozen.termination().cause()).failure())
-                    .hasMessage("recorded failure");
+            assertThat(frozen.termination().failure()).hasMessage("recorded failure");
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -258,17 +256,15 @@ public class TaskBatchResultTest {
         CancellationToken token = new CancellationToken();
         token.failFastCancel();
         Task<String> cancelled = Task.of("batch", token, Futures.<String>immediateCancelledFuture());
-        Task<String> failed = Task.of("batch", token, Futures.immediateFailedFuture(new IllegalStateException("boom")));
+        IllegalStateException boom = new IllegalStateException("boom");
+        Task<String> failed = Task.of("batch", token, Futures.immediateFailedFuture(boom));
 
         TaskBatchResult<String> result =
                 TaskBatch.of(Arrays.asList(cancelled, failed)).finish();
 
         assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
-        assertThat(Verify.verifyNotNull(
-                                Verify.verifyNotNull(result.termination().cause())
-                                        .failure())
-                        .getMessage())
-                .isEqualTo("boom");
+        assertThat(result.termination().failure()).isSameAs(boom);
+        assertThat(result.termination().failedTask()).isNull();
     }
 
     @Test
