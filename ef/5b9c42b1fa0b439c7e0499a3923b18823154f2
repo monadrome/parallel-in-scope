@@ -1,0 +1,27 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskTerminationTest.java
+  s_9148f7f2994852::t_049003280ce92c 36-48
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  s_9148f7f2994852::t_5d0e726cf17592 274-275
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupValuesFutureTest.java
+  s_9148f7f2994852::t_65b2f88f24cc92 46-48
+core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java
+  s_9148f7f2994852::t_f3ae32c08f0c0f 104-108
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java
+  s_9148f7f2994852::t_abe3a22290fdd6 187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ef5b9c42b1fa0b439c7e0499a3923b18823154f2",
+  "prompts": {},
+  "sessions": {
+    "s_9148f7f2994852": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a0ed30b1-f77c-4cf7-b2bf-9b2321326465",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
