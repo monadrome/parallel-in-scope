@@ -135,6 +135,12 @@ When writing, changing, or deleting documents in this directory:
       conclusion and the ADR pointer, with the full reasons only in the ADR.
     - Existing entries are not force-migrated: a log row already saying "do not reopen / do not
       re-raise" is promoted to an ADR the next time a related change touches it.
+11. **Structural text may be gate-coupled**: check scripts can hardcode document structure —
+    route-table section names, heading text, or table shapes (example:
+    `scripts/check-design-routes.py` reads this file's `Live contracts` / `In-flight proposals`
+    section headings). Before renaming a heading, restructuring a route table, or reshaping a
+    gated table, grep `scripts/` and `scripts/tests/` for the literal and update every coupling
+    in the same commit.
 
 ## Live contracts
 
