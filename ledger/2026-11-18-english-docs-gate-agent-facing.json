@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-english-docs-gate-agent-facing",
+  "date": "2026-11-18",
+  "topic": "english-docs-gate-agent-facing",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "test: extend check-english-docs to agent-facing documentation",
+      "test: give check-english-docs exemptions precedence over legacy selectors"
+    ],
+    "files": 3,
+    "insertions": 46,
+    "deletions": 3
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "check-english-docs-tests": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "extend check-english-docs to agent-facing areas with archive/analysis/pit-audit exemptions; lightweight independent review on gpt-5.6-terra: round 1 FAIL 2 findings (exemption precedence) fixed in bbd72709 with reverse verification, round 2 PASS; reports in .agents/tasks/review-english-docs-gate*/"
+}
