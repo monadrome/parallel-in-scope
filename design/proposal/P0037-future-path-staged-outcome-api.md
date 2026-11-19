@@ -9,14 +9,15 @@
   both entries share the result-dispatch stages, but end in an asynchronous Future or a
   synchronous Result respectively, and neither can masquerade as the other.
 - Proposed MUSTs:
-  - A path MUST handle `SUCCESS`, `USER_FAILURE`, `SUBMISSION_FAILURE`, and the cancellation
-    terminal states in order; each stage can only advance to the next — no skipping,
-    repeating, or reordering.
-  - The `SUCCESS` stage receives a nullable value; the two failure stages receive the original
-    `Throwable`; the cancellation stage receives a `TaskTermination` and an optional detailed
-    Throwable.
-  - The cancellation stage MUST cover `MEMBER_CANCELLED`, `GROUP_CANCELLED`, `FAIL_FAST`, and
-    `TIMEOUT`, but must not require the user to register a handler per internal cancellation
+  - A path MUST handle the three `TaskTermination.Kind` branches — `SUCCESS`, `FAILED`, and
+    `CANCELLED` — with the `FAILED` branch split into its two `FailureCause.Kind` categories
+    (`USER_CODE_FAILURE` and `SUBMISSION_REJECTED`) as separate stages, in order; each stage
+    can only advance to the next — no skipping, repeating, or reordering.
+  - The success stage receives a nullable value; the two failure stages receive the original
+    `Throwable`; the cancellation stage receives the `CancellationReason` with its source
+    identity and the `ExecutionDisposition`.
+  - The cancellation stage MUST cover every `CancellationReason.Kind` (caller, parent scope,
+    deadline, fail-fast, and member), but must not require the user to register a handler per
     reason.
   - A path created from a Future MUST keep asynchronous semantics and produce a
     `ListenableFuture<R>`; a path created from a Result MUST keep synchronous semantics and
@@ -24,8 +25,8 @@
   - The stage chain MUST be impossible to end before the last handler is registered, making a
     missed branch a compile-time error rather than a runtime default branch.
 - Rejected directions: continuing to expose the state-query combination (still requiring the
-  user to memorize the state-read order); a separate stage per cancellation enum value
-  (turning the internal enum into an unstable public API); auto-wrapping a synchronous Result
+  user to memorize the state-read order); a separate stage per cancellation reason (turning
+  the reason taxonomy into unstable stage surface); auto-wrapping a synchronous Result
   into a Future (losing synchronous semantics); a single `OutcomePath` terminal returning both
   Future and Result (unnatural to express in Java's types, leaving callers unable to tell the
   execution model).
@@ -54,8 +55,8 @@ return Price.UNKNOWN;
 ```
 
 This code has three problems: state reads and result reads are two API sets; a missed state
-falls back only at runtime; and the user must decide for themselves how `USER_FAILURE`,
-`SUBMISSION_FAILURE`, and the cancellation terminal states are classified.
+falls back only at runtime; and the user must classify a user-code failure, a submission
+rejection, and a cancellation's trigger by themselves.
 
 ## 2. User code after
 
@@ -66,7 +67,7 @@ ListenableFuture<Price> price = FuturePath.fromFuture(future)
         .onSuccess(value -> value)
         .onUserFailure(error -> fallback(error))
         .onSubmissionFailure(error -> Price.UNKNOWN)
-        .onCancelled((outcome, detail) -> Price.UNKNOWN)
+        .onCancelled((reason, disposition) -> Price.UNKNOWN)
         .toFuture();
 ```
 
@@ -77,7 +78,7 @@ ImmediateResult<Price> price = FuturePath.fromResult(result)
         .onSuccess(value -> value)
         .onUserFailure(error -> fallback(error))
         .onSubmissionFailure(error -> Price.UNKNOWN)
-        .onCancelled((outcome, detail) -> Price.UNKNOWN)
+        .onCancelled((reason, disposition) -> Price.UNKNOWN)
         .toResult();
 ```
 
@@ -131,23 +132,23 @@ interface FutureTerminalStage<R> {
 
 The Result entry uses the same four handling stages, with the last stage returning a terminal
 interface offering only `toResult()`, ultimately yielding an `ImmediateResult<R>`. Internally
-it may reuse the existing `ImmediateResult`'s outcome dispatch, but it must not reuse the
+it may reuse the existing `ImmediateResult`'s termination dispatch, but it must not reuse the
 Future's waiting, cancellation, or exception-extraction paths.
 
 ## 4. Terminal classification and the exhaustiveness boundary
 
 This proposal's exhaustiveness targets the stable semantics users can handle, not every
-constant of the current enum:
+internal attribution category:
 
 | Public stage | Covered `TaskTermination` |
 | --- | --- |
 | `onSuccess` | `SUCCESS` |
-| `onUserFailure` | `USER_FAILURE` |
-| `onSubmissionFailure` | `SUBMISSION_FAILURE` |
-| `onCancelled` | `CancellationReason` (with source identity) and `ExecutionDisposition` |
+| `onUserFailure` | `FAILED` with `FailureCause.Kind.USER_CODE_FAILURE` |
+| `onSubmissionFailure` | `FAILED` with `FailureCause.Kind.SUBMISSION_REJECTED` |
+| `onCancelled` | `CANCELLED`, with `CancellationReason` (and source identity) and `ExecutionDisposition` |
 
-`RUNNING` is not a terminal state deliverable to a path. If an unfinished state appears
-internally, the path implementation MUST report a library-internal error rather than invoke a
+No unfinished state is deliverable to a path. If the source proves not yet terminal inside the
+dispatch, the path implementation MUST report a library-internal error rather than invoke a
 user handler.
 
 The cancellation handler receives the stable `CancellationReason` and claim disposition;
@@ -169,14 +170,14 @@ second scope reason through the cancellation stage.
 
 ## 6. Migration path
 
-The existing `ImmediateResult.fold(onValue, onFailure, onCancelled)` can migrate to the staged
-API:
+The existing `ImmediateResult.fold(onSuccess, onFailure, onCancelled)` can migrate to the
+staged API:
 
 ```java
 FuturePath.fromResult(result)
-        .onSuccess(onValue)
-        .onUserFailure(onFailure)
-        .onSubmissionFailure(onFailure)
+        .onSuccess(onSuccess)
+        .onUserFailure(cause -> onFailure.apply(FailureCause.userCodeFailure(cause)))
+        .onSubmissionFailure(cause -> onFailure.apply(FailureCause.submissionRejected(cause)))
         .onCancelled(onCancelled)
         .toResult();
 ```
@@ -191,8 +192,8 @@ stages sharing the original `onFailure`.
 - **Keep using `Future.State` plus state queries**: cannot eliminate the caller's error of
   memorizing state-to-query-method pairing, and cannot form a compile-time exhaustiveness
   check.
-- **One stage per cancellation reason**: exposes the internal attribution enum directly to
-  users; adding a cancellation reason would cause unnecessary source breakage.
+- **One stage per cancellation reason**: turns the reason taxonomy into stage surface; adding
+  a cancellation reason would cause unnecessary source breakage.
 - **One `onFailure` covering both failures**: keeps the current API's semantic loss between
   submission failure and user failure; callers still re-read the outcome.
 - **Uniformly returning `ListenableFuture<R>`**: forces the Result entry to go asynchronous,
@@ -223,7 +224,7 @@ stages sharing the original `onFailure`.
   an explicit executor overload.
 - When a Result entry's handler throws, whether to return an `ImmediateResult` failure snapshot
   or keep the synchronous API's direct-throw semantics.
-- The deprecation period of the old `fold`, and whether to remove it directly in `0.4.0`.
+- The deprecation period of the old `fold`, and whether to remove it in `0.5.0`.
 - Whether the staged interfaces are public top-level types or nested interfaces of
   `FuturePath` to reduce public package surface.
 

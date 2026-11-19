@@ -259,7 +259,7 @@ Related decisions and engineering entries:
 ## In-flight proposals
 | Proposal | Summary |
 |---|---|
-| [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | Unify Future/Result result handling with `FuturePath`'s staged API, hiding state queries and guaranteeing exhaustive handling of the four public terminal states through compile-time chained stages |
+| [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | Unify Future/Result result handling with `FuturePath`'s staged API, hiding state queries and guaranteeing exhaustive handling of the four terminal stages (success, user failure, submission rejection, cancellation) through compile-time chained stages |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | Complexity attention-routing evidence in gray evaluation; no quality score and no CI gate |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | Public API reduction candidates and later counter-evidence; re-verify the historical inventory by downstream capability and migration cost |
 | [proposal/P0020-deadline-attribution-policy.md](proposal/P0020-deadline-attribution-policy.md) | The RUNNING-clock fallback policy choice remaining from P0015; does not override real events, first-wins, or the current settle attribution |
