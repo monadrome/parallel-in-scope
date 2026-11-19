@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-scope-termination-flattening",
+  "date": "2026-11-19",
+  "topic": "scope-termination-flattening",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "feat: flatten scope termination causes"
+    ],
+    "files": 26,
+    "insertions": 418,
+    "deletions": 236
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "scope-termination-flattening-023e9dff-20261119-131229-008cfb",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 3752,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 430699,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "scope-termination-flattening-023e9dff-20261119-131510-e39655",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 524856,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 172334,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 172334,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "scope-termination",
+        "head": "023e9dff2aa95ce3817d3991fd58c7fc451f29fe",
+        "incompleteAgents": 6,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "check-api-surface": 1,
+      "review-cli-build": 1,
+      "refactoring-review": 3,
+      "pit": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "pit-scope-termination-final/mutations.xml",
+      "statuses": {
+        "KILLED": 433,
+        "NO_COVERAGE": 11,
+        "SURVIVED": 21,
+        "TIMED_OUT": 5
+      },
+      "total": 470,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0106
+    },
+    {
+      "source": "pit-scope-termination-focused-final/mutations.xml",
+      "statuses": {
+        "KILLED": 40
+      },
+      "total": 40,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 2
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Focused PIT passed 40/40; broad collaborator PIT stayed inconclusive with raw timeouts and retained gaps; all refactoring detectors blocked after one retry; Kiro and Codex completed independent reviews with zero findings; local JDK 11 unavailable"
+}
