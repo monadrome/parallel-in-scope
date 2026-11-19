@@ -1,0 +1,19 @@
+ledger/2026-11-18-english-docs-gate-agent-facing.json
+  s_1edc838959b652::t_138f6199a5ad78 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "7c33f385001f12f3275df70fda8cb4017c151f11",
+  "prompts": {},
+  "sessions": {
+    "s_1edc838959b652": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2933b1e5-e404-4e65-ab1d-6861d2053e87",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
