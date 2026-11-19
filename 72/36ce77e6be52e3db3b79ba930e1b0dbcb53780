@@ -1,0 +1,21 @@
+core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_53b1b28214a55e::t_ed56c94c63b253 3
+  s_53b1b28214a55e::t_90ce011dc45ef3 420
+  s_53b1b28214a55e::t_b93a383a723224 408-419,421-422
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "7236ce77e6be52e3db3b79ba930e1b0dbcb53780",
+  "prompts": {},
+  "sessions": {
+    "s_53b1b28214a55e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7f605f38-e83e-48c5-8ad7-5b5fc3f2ce34",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
