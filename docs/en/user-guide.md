@@ -86,8 +86,8 @@ checked, before any cancellation is reported; pure cancellation throws `Cancella
 Successful values may be null. `terminationKindCounts()` counts the outcomes and `failedTaskResult()` returns
 the first failed element, the same names `TaskGroupResult` uses.
 
-An executor handoff failure is recorded as `SUBMISSION_FAILURE` with a `SubmissionException`
-retaining the original cause, including an Error. Validation and closed-runtime admission errors
+An executor handoff failure is recorded as a submission rejection (`SUBMISSION_REJECTED`) with a
+`SubmissionException` retaining the original cause, including an Error. Validation and closed-runtime admission errors
 still throw from the entry.
 
 `rejectEnqueue` is the only option that changes queue admission, and only `SubmissionAwareBlockingQueue`
@@ -126,13 +126,13 @@ TaskBatchResult<Price> elements = run.batchResult();
 ```
 
 `terminalValueOrThrow()` checks the elements first, so a failed price is thrown as itself rather
-than as the combine's `FAIL_FAST` cancellation; the combine's own failure follows the same rule.
+than as the combine's fail-fast cancellation; the combine's own failure follows the same rule.
 
 The combine is prepared with the batch (Alibaba TransmittableThreadLocal (TTL) capture and deadline binding happen on the calling
 thread) but submitted to its own Par exactly once, only after all elements succeed. When any element
 fails or the deadline expires first, the combine never runs and its `terminalResult()` records the
-batch's attribution (`FAIL_FAST` / `TIMEOUT`); a rejected combine handoff records
-`SUBMISSION_FAILURE`. The combiner takes the element values in input order as a
+batch's attribution (`ABORTED_BY_FAIL_FAST` / `DEADLINE_EXCEEDED`); a rejected combine handoff
+records a submission rejection (`SUBMISSION_REJECTED`). The combiner takes the element values in input order as a
 `Combiner<List<@Nullable E>, C>` — so it may throw checked exceptions — and successful null
 elements appear as null entries, which the signature spells out for nullness-aware consumers. The input must be non-empty: a combine over zero elements has no fan-out to
 summarize, and the call rejects it like an empty group with a combine. Element results,
@@ -299,7 +299,8 @@ TaskGroupResult<Page> result = global
   stale-stage or wrong-thread rejection leaves them untouched).
   Do not cancel it yourself: that is a direct member cancellation, which cancels the group. Adopt each
   future once per group.
-- A successful future reads `SUCCESS`; a failed one reads `USER_FAILURE` with its own cause.
+- A successful future's termination is `SUCCESS`; a failed one's is `FAILED` with a `FailureCause`
+  retaining its own throwable.
 - The group never closes a source's value, including a successful sibling's value in a failed group or a value
   produced after cancellation. Resource lifetime belongs to the source's own pipeline or the recipient that reads
   the value. `executionExitConfirmed()` confirms that every adopted future settled, not that an external mechanism's
@@ -324,7 +325,7 @@ TaskGroupResult<Page> result = global
   only when that executor really completes the future. Without a producer no wait is recorded. The
   [direct-work observation](reference/diagnostics.md#observe-direct-executor-work) samples the producer pool as usual, so a
   future queued behind its own waiter shows up as both a wait cycle and `POTENTIAL_STARVATION` while
-  the group ends at its deadline with `TIMEOUT`.
+  the group ends at its deadline with a deadline-exceeded cancellation.
 
 No execution runs for an adopted member: nothing is submitted, no TTL context is replayed, and task-type
 diagnostics and workload-fit timing do not apply.
@@ -353,38 +354,36 @@ Each frozen result also exposes `termination()`, a three-branch `TaskTermination
 `SUCCESS`, `FAILED`, or `CANCELLED`. A failed termination carries a `FailureCause` that distinguishes
 user-code failure from submission rejection. A cancelled termination carries a `CancellationReason`
 and an `ExecutionDisposition`. `CLAIMED` means the execution claim was acquired; `NOT_CLAIMED` means
-the claim was not acquired and does not mean that framework preparation had no side effects. The
-legacy `outcome()` method remains an adapter for older callers.
+the claim was not acquired and does not mean that framework preparation had no side effects.
 
 Logical termination and execution exit are separate. A cancellation can settle the result while user
 code is still unwinding after interruption. Check `executionExitConfirmed()` and
 `unexitedExecutions()` before releasing resources shared with direct task executions. `TaskState` is
 the live state view for internal task diagnostics; it does not rewrite a published termination.
-`outcome()` never returns RUNNING; SUCCESS may hold null, and every non-success holds a throwable.
-`failure()` reads it and `valueOrThrow()` wraps it in ExecutionException with the original cause,
-including cancellation. Container reads never block or consume an interrupt.
-The `failed(outcome, failure)` factory preserves the supplied throwable for every permitted outcome;
-the outcome is metadata and does not convert the throwable's type.
+A termination is terminal by construction; SUCCESS may hold null, and every non-success holds a
+throwable. `failure()` reads it and `valueOrThrow()` wraps it in ExecutionException with the
+original cause, including cancellation. Container reads never block or consume an interrupt. The
+`failed(FailureCause)` and `cancelled(CancellationReason, failure)` factories preserve the supplied
+throwable; the classification is metadata and does not convert the throwable's type.
 
-`fold` consumes the four public terminal shapes, keeping user-code failures separate from
-submission failures. Fail-fast siblings are not counted as failures:
+`fold` consumes the three termination branches. Fail-fast siblings read `CANCELLED`, not `FAILED`:
 
 ```java
 Price price = batch.results().get(i).fold(
         value -> value,
-        userFailure -> {
-            LOGGER.log(Level.WARNING, "price failed for " + sku, userFailure);
+        failure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, failure.cause());
             return Price.UNKNOWN;
         },
-        submissionFailure -> Price.UNKNOWN,
-        (outcome, detail) -> Price.UNKNOWN);
+        (reason, disposition) -> Price.UNKNOWN);
 ```
 
-`onValue` receives the possibly-null success value; the second handler receives the `USER_FAILURE`
-throwable; the third receives the `SUBMISSION_FAILURE` throwable; and `onCancelled` receives every
-cancellation outcome with its stored throwable, which is not always a `CancellationException`.
-All four handlers are required, and `fold` returns the selected handler's result. `successful()`
-tests for `SUCCESS` alone.
+The first handler receives the possibly-null success value; the second receives the `FailureCause`,
+whose kind distinguishes user-code failure from submission rejection and which retains the original
+throwable; and the third receives the `CancellationReason` and `ExecutionDisposition`, while the
+stored throwable — readable through `failure()` — is not always a `CancellationException`. All three
+handlers are required, and `fold` returns the selected handler's result. `successful()` tests for
+`SUCCESS` alone.
 
 `asFuture()` is the explicit Guava compatibility adapter. It is already done, `cancel(...)`
 returns false, and `isCancelled()` is false. A cancellation that recorded no member/combine
@@ -552,8 +551,8 @@ TaskGroupResult<Void> prices = runtime.group("prices", Duration.ofSeconds(3))
         .runAll();
 ```
 
-A source that wins the race produces `GROUP_CANCELLED`; ancestor cancellation, deadlines, and
-fail-fast retain first-wins attribution. Registration happens only after preparation
+A source that wins the race records `CANCELLED_BY_CALLER` on the scope; ancestor cancellation,
+deadlines, and fail-fast retain first-wins attribution. Registration happens only after preparation
 succeeds, immediately before binding and submission, so an already-completed source prevents inline
 executions from running. Empty batches and groups return immediate `SUCCESS` without registering;
 `mapAndCombine` still rejects empty input.
@@ -582,15 +581,15 @@ The inner failure reaches the outer element unchanged, and an inner `Cancellatio
 through as itself. That keeps attribution right. When the outer scope cancels the element first —
 its deadline, fail-fast, or an ancestor — the element ends with that attribution whatever the execution
 throws afterwards. When the outer scope has committed its cancellation but the element's own execution
-ends first, a cancellation exception is attributed through the outer scope (`TIMEOUT`,
-`FAIL_FAST`). A cancellation the inner batch reached on its own, with the outer scope still running,
-ends the outer element as `USER_FAILURE` carrying that exception. Wrap the inner failure in a
-business exception only when the caller needs the extra context; do not wrap a
-`CancellationException`, or it reads as `USER_FAILURE`.
+ends first, a cancellation exception is attributed through the outer scope (`DEADLINE_EXCEEDED`,
+`ABORTED_BY_FAIL_FAST`). A cancellation the inner batch reached on its own, with the outer scope
+still running, ends the outer element as a user-code failure carrying that exception. Wrap the
+inner failure in a business exception only when the caller needs the extra context; do not wrap a
+`CancellationException`, or it reads as a user-code failure.
 
 To keep partial results instead of failing the element, read `results()` element by element:
-`outcome()` classifies each one and `failure()` carries its throwable, or `fold` handles the four
-shapes in one expression. A `runAll` inside an execution follows the same rule, and a group member execution is
+`termination()` classifies each one and `failure()` carries its throwable, or `fold` handles the
+three branches in one expression. A `runAll` inside an execution follows the same rule, and a group member execution is
 a `Callable`, which can also throw checked exceptions.
 
 ## Diagnose problems
@@ -654,9 +653,9 @@ Consumers can still take elements that were queued before `close()`; no recovery
 
 `Par.map` rejects a null mapping function before admission, even for empty or null input.
 A caller already carrying an interrupt flag still receives frozen task failures with their original
-causes and keeps that flag. A checkpoint that commits an inherited deadline reports TIMEOUT for
-both the group and the member or combine that observed it; time passing alone does not reclassify
-a spontaneous business cancellation exception.
+causes and keeps that flag. A checkpoint that commits an inherited deadline reports
+`DEADLINE_EXCEEDED` for both the group and the member or combine that observed it; time passing
+alone does not reclassify a spontaneous business cancellation exception.
 
 ### MDC (SLF4J)
 

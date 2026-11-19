@@ -136,8 +136,8 @@ changes the result: read cancellation counts from `terminationKindCounts()` or `
 the number of warnings.
 
 A `Checkpoints` blocking adapter interrupted while the scope is not cancelled throws the same
-`LeanCancellationException` type with the `InterruptedException` as cause, and the task's outcome is
-`USER_FAILURE`: an interrupt alone does not say who sent it.
+`LeanCancellationException` type with the `InterruptedException` as cause, and the task's
+termination is a user-code failure: an interrupt alone does not say who sent it.
 
 ## Cancellation sources
 
@@ -146,7 +146,7 @@ A `Checkpoints` blocking adapter interrupted while the scope is not cancelled th
 | Sibling failure | `FAIL_FAST` | One task failed and the rest of the batch was cancelled |
 | Timeout | `TIMEOUT` | The configured timeout elapsed |
 | Parent cancellation | `PROPAGATED_CANCELLED` | An outer scope cancelled a nested scope |
-| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `GROUP_CANCELLED`; running executions are interrupted, as for every other cancellation source |
+| External source `cancelOn` | `CANCELLED` | A caller-held `ListenableFuture` completing in any way — success, failure, or cancellation — cancels the whole batch or group; attribution is first-wins and a winning source records `CANCELLED_BY_CALLER` on the scope; running executions are interrupted, as for every other cancellation source |
 
 All sources use the same internal token state check. The external input is declared on the batch's
 `BatchOptions` or on `GroupStart` (before the first member); task executions never poll an application

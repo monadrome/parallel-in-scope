@@ -13,6 +13,17 @@
 
 ### Breaking changes
 
+- Complete the termination-model migration inside the kernel: the package-private legacy outcome
+  enum (`TaskClassification`) and every `outcome()` read are removed, so attribution is recorded
+  natively as `TaskTermination`/`ScopeTermination` instead of being projected from the old enum.
+  The enum-keyed `ImmediateResult.failed(outcome, failure)` factory and the four-handler
+  `ImmediateResult.fold` are removed in favor of the typed `failed(FailureCause)` /
+  `cancelled(CancellationReason, failure)` factories and the three-handler fold (`onSuccess`,
+  `onFailure(FailureCause)`, `onCancelled(CancellationReason, ExecutionDisposition)`);
+  `TaskBatch.report()` now counts termination branches (`terminationCounts()` plus `pending()`).
+  All removed members were package-private. Diagnostic strings (`reportString()`, `toString()`)
+  spell the same facts in the new vocabulary (`SUCCESS`/`FAILED`/`CANCELLED`, `termination=...`),
+  and a member's exit observation now carries the same termination as its frozen result.
 - Rename the live execution view to match the state/status naming principle (`State` names a
   stage in a process, `Status` names the outcome of an operation): public `TaskStatus` becomes
   `TaskState`, and `TaskFuture.status()` / `Task.status()` become `state()`. The four values
