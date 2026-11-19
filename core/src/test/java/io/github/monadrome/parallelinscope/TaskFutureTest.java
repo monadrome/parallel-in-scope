@@ -737,9 +737,66 @@ class TaskFutureTest {
                 "orders",
                 new CancellationToken(null, System.nanoTime() + TimeUnit.SECONDS.toNanos(30)),
                 SettableFuture.<String>create());
+        Task<String> failed = Task.of(
+                "orders", new CancellationToken(), Futures.immediateFailedFuture(new IllegalStateException("boom")));
+        Task<String> cancelled = Task.of("orders", new CancellationToken(), SettableFuture.<String>create());
+        cancelled.cancel(false);
 
-        assertThat(succeeded.toString()).isEqualTo("Task[name=orders, state=SUCCESS, remaining=unbounded]");
-        assertThat(timed.toString()).contains("name=orders", "state=PENDING", "remaining=PT");
+        assertThat(succeeded.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(succeeded))
+                        + "[status=SUCCESS, result=[String@"
+                        + Integer.toHexString(System.identityHashCode("done")) + "], task='orders']");
+        // The pending branch carries the state hint but no clock-dependent remaining budget.
+        assertThat(timed.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(timed))
+                        + "[status=PENDING, taskState=PENDING, task='orders']")
+                .doesNotContain("remaining");
+        assertThat(failed.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(failed))
+                        + "[status=FAILURE, cause=[java.lang.IllegalStateException], task='orders']");
+        assertThat(cancelled.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(cancelled))
+                        + "[status=CANCELLED, task='orders']");
+    }
+
+    @Test
+    void toStringRendersASelfReferentialResultWithoutRecursing() {
+        SettableFuture<Object> delegate = SettableFuture.create();
+        Task<Object> task = Task.of("self", new CancellationToken(), delegate);
+
+        delegate.set(task);
+
+        assertThat(task.toString()).contains("status=SUCCESS, result=[this future], task='self'");
+    }
+
+    @Test
+    void toStringRedactsTheFailureMessage() {
+        Task<String> secretBearing = Task.of(
+                "orders",
+                new CancellationToken(),
+                Futures.immediateFailedFuture(new IllegalStateException("credentials=hunter2")));
+
+        assertThat(secretBearing.toString())
+                .contains("status=FAILURE, cause=[java.lang.IllegalStateException]")
+                .doesNotContain("hunter2");
+    }
+
+    @Test
+    void toStringDegradesToUnknownWhenReadingTheOutcomeThrows() {
+        // Wrapping the failure in an ExecutionException renders its cause (JDK behavior), so a
+        // cause whose toString throws cannot reach the FAILURE branch; Guava's UNKNOWN branch keeps
+        // the diagnostic itself from throwing.
+        Task<String> unrenderable =
+                Task.of("orders", new CancellationToken(), Futures.immediateFailedFuture(new RuntimeException("boom") {
+                    @Override
+                    public String toString() {
+                        throw new AssertionError("the cause's toString may throw");
+                    }
+                }));
+
+        assertThat(unrenderable.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(unrenderable))
+                        + "[status=UNKNOWN, cause=[class java.lang.AssertionError thrown from get()], task='orders']");
     }
 
     @Test

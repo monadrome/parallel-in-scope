@@ -112,8 +112,8 @@ public final class ImmediateResult<T> {
      * Both {@code get} methods read immediately and preserve the calling thread's interrupt flag.
      * The adapter represents result transport only; it does not wait for execution exit or runtime
      * quiescence. Listeners run through the consumer's executor, outside the completed business scope.
-     * Its {@code toString()} renders the same diagnostic string as this result, value identity
-     * rendering included.
+     * Its {@code toString()} renders the adapter's own identity in Guava's future envelope, with
+     * the same value and failure redaction as this result's diagnostic.
      */
     public ListenableFuture<@Nullable T> asFuture() {
         ListenableFuture<@Nullable T> delegate =
@@ -130,27 +130,47 @@ public final class ImmediateResult<T> {
                 return get();
             }
 
-            /** Renders the diagnostic of the transported result, not the delegate's full value. */
+            /**
+             * Renders this adapter in Guava's future envelope: its own identity hash and the
+             * always-terminal {@code status=} branch of the transported result — never the
+             * delegate's full value rendering.
+             */
             @Override
             public String toString() {
-                return ImmediateResult.this.toString();
+                return "ImmediateResult.AsFuture@" + Integer.toHexString(System.identityHashCode(this)) + "[status="
+                        + statusBranch() + ']';
             }
         };
     }
 
     /**
+     * The terminal status branch shared by this result's transport view, mirroring Guava's done
+     * branches: {@code SUCCESS} with the value's identity rendering, or {@code FAILURE} with the
+     * cause's type only. Cancellation never occurs: the transport is settled at creation and its
+     * {@code cancel} always returns false.
+     */
+    private String statusBranch() {
+        return failure == null
+                ? "SUCCESS, result=[" + ResultObjects.render(value, this) + ']'
+                : "FAILURE, cause=[" + ResultObjects.renderFailure(failure, this) + ']';
+    }
+
+    /**
      * Returns a diagnostic string naming the termination branch and either the value's identity or
-     * the failure, for example {@code ImmediateResult[kind=FAILED, failure=java.lang.IllegalStateException:
-     * boom]}. A success value renders as {@code SimpleClassName@identityHash} ("null" when null);
-     * its own {@code toString} is never called, so logging a result neither leaks value contents
-     * nor runs user rendering code. The format is for logs and debuggers, not for parsing.
-     * Identity stays reference identity: results with equal contents are distinct objects.
+     * the failure's type, for example {@code ImmediateResult[kind=FAILED,
+     * failure=java.lang.IllegalStateException]}. A success value renders as
+     * {@code SimpleClassName@identityHash} ("null" when null); its own {@code toString} is never
+     * called, and a failure renders as its type only — neither its rendering nor its message ever
+     * runs — so logging a result neither leaks contents nor runs user rendering code. The format
+     * is for logs and debuggers, not for parsing. Identity stays reference identity: results with
+     * equal contents are distinct objects.
      */
     @Override
     public String toString() {
         return failure == null
                 ? "ImmediateResult[kind=" + termination.kind() + ", value=" + ResultObjects.render(value, this) + ']'
-                : "ImmediateResult[kind=" + termination.kind() + ", failure=" + failure + ']';
+                : "ImmediateResult[kind=" + termination.kind() + ", failure="
+                        + ResultObjects.renderFailure(failure, this) + ']';
     }
 
     /** Freezes a done task using its own pinned or recomputed termination. */

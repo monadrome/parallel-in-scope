@@ -10,6 +10,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -309,14 +310,44 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     /**
-     * Returns a diagnostic string; task identity stays reference identity, so this is the only
-     * non-forwarded {@link Object} method.
+     * Returns a diagnostic string in Guava's future envelope: {@code Task@identityHash[status=...,
+     * task='name']}. The pending branch adds the task state hint, which may lag completion. A
+     * successful result renders as {@code SimpleClassName@identityHash} and a failure as its type
+     * only, never through user rendering code or messages; a clock-dependent value such as the
+     * remaining budget is never rendered. The format is for logs and debuggers, not for parsing.
+     * Task identity stays reference identity, so this is the only non-forwarded {@link Object}
+     * method.
      */
     @Override
     public String toString() {
-        TaskTermination<T> termination = termination();
-        Object state = termination == null ? state() : termination.kind();
-        return "Task[name=" + taskName + ", state=" + state + ", remaining="
-                + (deadlineNanos() == Long.MAX_VALUE ? "unbounded" : remaining()) + "]";
+        return "Task@" + Integer.toHexString(System.identityHashCode(this)) + "[status=" + statusBranch() + ", task='"
+                + taskName + "']";
+    }
+
+    /**
+     * The status branch of the envelope, mirroring Guava's {@code AbstractFuture}: {@code
+     * CANCELLED}, {@code PENDING} with the task state hint, {@code SUCCESS} with the value's
+     * identity, or {@code FAILURE} with the cause's type. A cancellation landing between the done
+     * check and the read renders as {@code CANCELLED}. Reading the outcome wraps a failure in an
+     * {@link ExecutionException}, whose construction renders the cause, so a cause whose own
+     * {@code toString} throws degrades the branch to Guava's {@code UNKNOWN} instead of throwing
+     * out of a diagnostic.
+     */
+    private String statusBranch() {
+        if (isCancelled()) {
+            return "CANCELLED";
+        }
+        if (!isDone()) {
+            return "PENDING, taskState=" + state();
+        }
+        try {
+            return "SUCCESS, result=[" + ResultObjects.render(Futures.getDone(delegate), this) + ']';
+        } catch (ExecutionException failure) {
+            return "FAILURE, cause=[" + ResultObjects.renderFailure(failure.getCause(), this) + ']';
+        } catch (CancellationException cancelled) {
+            return "CANCELLED";
+        } catch (Throwable thrownFromGet) {
+            return "UNKNOWN, cause=[" + thrownFromGet.getClass() + " thrown from get()]";
+        }
     }
 }

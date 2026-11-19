@@ -563,10 +563,16 @@ final class TaskBatch<T> implements AutoCloseable {
             return firstException;
         }
 
+        /**
+         * Returns a diagnostic string with the counts and the first failure's type only; the
+         * throwable's {@code toString} and message never run, so logging a report can neither
+         * throw nor copy a message that may carry credentials. The format is for logs and
+         * debuggers, not for parsing.
+         */
         @Override
         public String toString() {
             return "BatchReport{terminationCounts=" + terminationCounts + ", pending=" + pending + ", firstException="
-                    + firstException + '}';
+                    + ResultObjects.renderFailure(firstException, this) + '}';
         }
     }
 }

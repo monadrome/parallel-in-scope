@@ -105,8 +105,13 @@ public final class GroupValues {
         return (T) value;
     }
 
+    /**
+     * Returns a diagnostic string with the member count only; member names and values stay
+     * readable through the accessors, and printing them could expose configured labels or be
+     * arbitrarily large. The format is for logs and debuggers, not for parsing.
+     */
     @Override
     public String toString() {
-        return "GroupValues" + names;
+        return "GroupValues[size=" + names.size() + ']';
     }
 }

@@ -88,14 +88,16 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void batchReport_toStringIncludesCountsAndFirstException() {
+    public void batchReport_toStringIncludesCountsAndTheFirstExceptionsTypeOnly() {
         RuntimeException failure = new RuntimeException("boom");
         TaskBatch.BatchReport report =
                 new TaskBatch.BatchReport(Collections.singletonMap(TaskTermination.Kind.FAILED, 1), 0, failure);
 
+        // The message stays out of the diagnostic: it can carry credentials, and the throwable's
+        // own rendering may throw.
         assertThat(report.toString())
                 .isEqualTo(
-                        "BatchReport{terminationCounts={FAILED=1}, pending=0, firstException=java.lang.RuntimeException: boom}");
+                        "BatchReport{terminationCounts={FAILED=1}, pending=0, firstException=java.lang.RuntimeException}");
     }
 
     @Test

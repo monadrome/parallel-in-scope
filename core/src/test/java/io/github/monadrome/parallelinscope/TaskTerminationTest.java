@@ -44,9 +44,8 @@ class TaskTerminationTest {
                 .isEqualTo("TaskTermination[kind=SUCCESS, disposition=CLAIMED, value=null]");
         assertThat(TaskTermination.failed(FailureCause.userCodeFailure(new IllegalStateException("boom")))
                         .toString())
-                .isEqualTo(
-                        "TaskTermination[kind=FAILED, disposition=CLAIMED,"
-                                + " failure=FailureCause[kind=USER_CODE_FAILURE, cause=java.lang.IllegalStateException: boom]]");
+                .isEqualTo("TaskTermination[kind=FAILED, disposition=CLAIMED,"
+                        + " failure=FailureCause[kind=USER_CODE_FAILURE, cause=java.lang.IllegalStateException]]");
         assertThat(TaskTermination.cancelled(CancellationReason.cancelledByCaller())
                         .toString())
                 .isEqualTo("TaskTermination[kind=CANCELLED, disposition=CLAIMED,"
