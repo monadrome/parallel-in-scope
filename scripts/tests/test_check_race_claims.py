@@ -83,8 +83,44 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(race.classify_mutation(result)[0], "UNPROVEN")
 
     def test_failing_tests_are_proven(self):
-        result = subprocess.CompletedProcess(args=[], returncode=1, stdout="FAILURE", stderr="")
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="Tests run: 3, Failures: 1, Errors: 0, Skipped: 0",
+            stderr="",
+        )
         self.assertEqual(race.classify_mutation(result)[0], "PROVEN")
+
+    def test_test_error_count_is_proven(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="Tests run: 2, Failures: 0, Errors: 1, Skipped: 0",
+            stderr="",
+        )
+        self.assertEqual(race.classify_mutation(result)[0], "PROVEN")
+
+    def test_launcher_failure_is_build_failure(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="Error: JAVA_HOME is not defined correctly.",
+            stderr="",
+        )
+        self.assertEqual(race.classify_mutation(result)[0], "BUILD_FAILURE")
+
+    def test_later_goal_failure_is_not_masked_by_earlier_test_summary(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout=(
+                "Tests run: 3, Failures: 0, Errors: 0, Skipped: 0\n"
+                "Failed to execute goal "
+                "org.apache.maven.plugins:maven-javadoc-plugin:3.12.0:jar"
+            ),
+            stderr="",
+        )
+        self.assertEqual(race.classify_mutation(result)[0], "BUILD_FAILURE")
 
     def test_compilation_error_is_invalid(self):
         result = subprocess.CompletedProcess(
@@ -95,6 +131,78 @@ class ClassifyTest(unittest.TestCase):
     def test_timeout_is_proven_timeout(self):
         result = subprocess.TimeoutExpired(cmd="mvn", timeout=1)
         self.assertEqual(race.classify_mutation(result)[0], "PROVEN_TIMEOUT")
+
+    def test_build_goal_failure_without_test_counts_is_build_failure(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout=(
+                "Failed to execute goal "
+                "org.apache.maven.plugins:maven-enforcer-plugin:3.7.0:enforce"
+            ),
+            stderr="",
+        )
+        self.assertEqual(race.classify_mutation(result)[0], "BUILD_FAILURE")
+
+    def test_surefire_failure_with_test_counts_stays_proven(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout=(
+                "Tests run: 3, Failures: 1, Errors: 0, Skipped: 0\n"
+                "Failed to execute goal "
+                "org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test"
+            ),
+            stderr="",
+        )
+        self.assertEqual(race.classify_mutation(result)[0], "PROVEN")
+
+
+class ClassifyExistingTest(unittest.TestCase):
+    def test_passing_existing_test_is_proven_by_test(self):
+        result = subprocess.CompletedProcess(args=[], returncode=0, stdout="Tests run: 1", stderr="")
+        self.assertEqual(race.classify_existing(result)[0], "PROVEN_BY_TEST")
+
+    def test_failing_existing_test_is_broken(self):
+        result = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="Tests run: 1, Failures: 1, Errors: 0, Skipped: 0", stderr=""
+        )
+        self.assertEqual(race.classify_existing(result)[0], "BROKEN")
+
+    def test_existing_launcher_failure_is_build_failure(self):
+        result = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="Error: JAVA_HOME is not defined correctly.", stderr=""
+        )
+        self.assertEqual(race.classify_existing(result)[0], "BUILD_FAILURE")
+
+    def test_existing_masked_goal_failure_is_build_failure(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout=(
+                "Tests run: 3, Failures: 0, Errors: 0, Skipped: 0\n"
+                "Failed to execute goal "
+                "org.apache.maven.plugins:maven-javadoc-plugin:3.12.0:jar"
+            ),
+            stderr="",
+        )
+        self.assertEqual(race.classify_existing(result)[0], "BUILD_FAILURE")
+
+    def test_build_goal_failure_is_not_broken(self):
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout=(
+                "Failed to execute goal "
+                "org.apache.maven.plugins:maven-enforcer-plugin:3.7.0:enforce"
+            ),
+            stderr="",
+        )
+        self.assertEqual(race.classify_existing(result)[0], "BUILD_FAILURE")
+
+    def test_timeout_is_timeout(self):
+        result = subprocess.TimeoutExpired(cmd="mvn", timeout=1)
+        self.assertEqual(race.classify_existing(result)[0], "TIMEOUT")
 
 
 class RecordTest(unittest.TestCase):
@@ -124,7 +232,7 @@ class ExitCodeTest(unittest.TestCase):
         self.assertEqual(race.exit_code(entries), 0)
 
     def test_broken_harness_fails_the_run(self):
-        for result in ("INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT"):
+        for result in ("INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT", "BUILD_FAILURE"):
             with self.subTest(result=result):
                 entries = [{"id": "ok", "result": "PROVEN"}, {"id": "bad", "result": result}]
                 with contextlib.redirect_stderr(io.StringIO()) as stderr:

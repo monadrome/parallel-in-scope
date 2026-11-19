@@ -47,6 +47,9 @@ start over.
 | `UNPROVEN` | The mutation survived; no cited test detected the ordering. |
 | `NEEDS_JCSTRESS` | No JMM-aware harness exists yet. |
 | `INVALID_MUTATION` | The replacement did not compile or did not match exactly once. |
+| `BROKEN` | An existing test failed without a mutation. |
+| `BUILD_FAILURE` | The Maven invocation failed without a failing cited test (build goal, launcher, or toolchain); the run measured nothing about the claim. Only a Surefire summary with a nonzero failure or error count counts as test-failure evidence. |
+| `TIMEOUT` | An existing test timed out. |
 | `ERROR` | The worktree or test command failed before a result was recorded. |
 
 ## Provenance
@@ -88,7 +91,7 @@ update its claim and run the harness. A claim whose code site changed but whose
 mutation no longer matches is `INVALID_MUTATION`, not silently accepted.
 
 CI runs the whole registry and uploads `target/race-claims/` as evidence. The
-step fails only on `INVALID_MUTATION`, `ERROR`, `BROKEN`, and `TIMEOUT`, which
-mean the harness did not measure anything; `UNPROVEN` and `NEEDS_JCSTRESS` are
-printed and uploaded as recorded gaps so a known gap does not block unrelated
-changes.
+step fails only on `INVALID_MUTATION`, `ERROR`, `BROKEN`, `BUILD_FAILURE`, and
+`TIMEOUT`, which mean the harness did not measure anything; `UNPROVEN` and
+`NEEDS_JCSTRESS` are printed and uploaded as recorded gaps so a known gap does
+not block unrelated changes.

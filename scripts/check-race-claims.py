@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import json
 import os
 import signal
@@ -43,8 +44,8 @@ MAX_LOG_BYTES = 200_000
 
 # Results that mean the harness itself failed, as opposed to a recorded test
 # gap. `UNPROVEN` and `NEEDS_JCSTRESS` describe missing evidence and are
-# reported without failing; these four mean the run did not measure anything.
-BROKEN_RESULTS = frozenset({"INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT"})
+# reported without failing; the rest mean the run did not measure anything.
+BROKEN_RESULTS = frozenset({"INVALID_MUTATION", "ERROR", "BROKEN", "TIMEOUT", "BUILD_FAILURE"})
 
 
 def _group_exists(pid: int) -> bool:
@@ -148,6 +149,23 @@ def apply_mutations(worktree: Path, claim: dict) -> None:
         path.write_text(text.replace(find, replace, 1), encoding="utf-8")
 
 
+_TEST_FAILURE_SUMMARY = re.compile(r"Tests run: \d+, Failures: (\d+), Errors: (\d+)")
+
+
+def tests_failed(output: str) -> bool:
+    """True when a Surefire summary reports a nonzero failure or error count.
+
+    Only an affirmative failing summary is evidence that a cited test ran and
+    failed: a build-goal failure (enforcer, toolchain, dependency resolution)
+    never prints one, a launcher failure prints nothing at all, and an earlier
+    green summary cannot mask a later failed goal.
+    """
+    return any(
+        int(match.group(1)) or int(match.group(2))
+        for match in _TEST_FAILURE_SUMMARY.finditer(output)
+    )
+
+
 def classify_mutation(result) -> tuple[str, str]:
     if isinstance(result, subprocess.TimeoutExpired):
         return "PROVEN_TIMEOUT", "tests exceeded the timeout after the mutation; inspect the log"
@@ -158,8 +176,27 @@ def classify_mutation(result) -> tuple[str, str]:
     ):
         return "INVALID_MUTATION", "the mutation did not compile"
     if result.returncode != 0:
-        return "PROVEN", "the mutation caused a cited test to fail; inspect the log"
+        if tests_failed(output):
+            return "PROVEN", "the mutation caused a cited test to fail; inspect the log"
+        return (
+            "BUILD_FAILURE",
+            "the Maven run failed without a cited test failure; environment or toolchain, not the mutation",
+        )
     return "UNPROVEN", "tests passed with the mutation; no cited test detected the reordering"
+
+
+def classify_existing(result) -> tuple[str, str]:
+    if isinstance(result, subprocess.TimeoutExpired):
+        return "TIMEOUT", "existing test timed out"
+    if result.returncode == 0:
+        return "PROVEN_BY_TEST", ""
+    output = (result.stdout or "") + (result.stderr or "")
+    if tests_failed(output):
+        return "BROKEN", "existing test failed without a mutation"
+    return (
+        "BUILD_FAILURE",
+        "the Maven run failed without a cited test failure; environment or toolchain, not the test",
+    )
 
 
 def save_log(claim_id: str, result) -> str:
@@ -218,26 +255,13 @@ def run_claim(claim: dict, timeout: int) -> dict:
             def exercise(worktree: Path) -> dict:
                 command, result = run_tests(worktree, claim["tests"], timeout)
                 log = save_log(claim["id"], result)
-                if isinstance(result, subprocess.TimeoutExpired):
-                    return {
-                        "id": claim["id"],
-                        "result": "TIMEOUT",
-                        "note": "existing test timed out",
-                        "test_command": " ".join(command),
-                        "log": log,
-                    }
-                if result.returncode == 0:
-                    return {
-                        "id": claim["id"],
-                        "result": "PROVEN_BY_TEST",
-                        "note": claim.get("note", ""),
-                        "test_command": " ".join(command),
-                        "log": log,
-                    }
+                status, note = classify_existing(result)
+                if status == "PROVEN_BY_TEST":
+                    note = claim.get("note", "")
                 return {
                     "id": claim["id"],
-                    "result": "BROKEN",
-                    "note": "existing test failed without a mutation",
+                    "result": status,
+                    "note": note,
                     "test_command": " ".join(command),
                     "log": log,
                 }
