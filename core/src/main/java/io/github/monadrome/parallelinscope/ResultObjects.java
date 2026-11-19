@@ -1,5 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,5 +52,26 @@ final class ResultObjects {
             return "this future";
         }
         return failure.getClass().getName();
+    }
+
+    /**
+     * The terminal status branch of a future envelope, mirroring Guava's {@code AbstractFuture}:
+     * {@code SUCCESS} with the value's identity, {@code FAILURE} with the cause's type, {@code
+     * CANCELLED}, or the guarded {@code UNKNOWN}. The whole branch is computed before it is
+     * returned, so a throwing outcome read cannot leave a half-written success prefix in front of
+     * the failure branch. Reading the outcome wraps a failure in an {@link ExecutionException},
+     * whose construction renders the cause, so a cause whose own {@code toString} throws degrades
+     * the branch to {@code UNKNOWN} instead of throwing out of a diagnostic.
+     */
+    static String doneBranch(ListenableFuture<?> delegate, Object owner) {
+        try {
+            return "SUCCESS, result=[" + render(Futures.getDone(delegate), owner) + ']';
+        } catch (ExecutionException failure) {
+            return "FAILURE, cause=[" + renderFailure(failure.getCause(), owner) + ']';
+        } catch (CancellationException cancelled) {
+            return "CANCELLED";
+        } catch (Throwable thrownFromGet) {
+            return "UNKNOWN, cause=[" + thrownFromGet.getClass() + " thrown from get()]";
+        }
     }
 }

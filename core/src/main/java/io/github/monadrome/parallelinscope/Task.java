@@ -10,7 +10,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -330,14 +329,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     /**
      * The status branch of the envelope, mirroring Guava's {@code AbstractFuture}: {@code
      * CANCELLED}, {@code PENDING} with the task state hint, {@code SUCCESS} with the value's
-     * identity, or {@code FAILURE} with the cause's type. The hint is read after the done check,
-     * so a completion landing in between could render a finished task as {@code PENDING} with an
-     * exited hint; like Guava, the branch rechecks completion after taking the hint, truncates
-     * the pending text, and redoes the terminal branch. A cancellation landing between the done
-     * check and the read renders as {@code CANCELLED}. Reading the outcome wraps a failure in an
-     * {@link ExecutionException}, whose construction renders the cause, so a cause whose own
-     * {@code toString} throws degrades the branch to Guava's {@code UNKNOWN} instead of throwing
-     * out of a diagnostic.
+     * identity, or {@code FAILURE} with the cause's type.
      */
     private void appendStatusBranch(StringBuilder builder) {
         if (isCancelled()) {
@@ -348,6 +340,10 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
             appendDoneBranch(builder);
             return;
         }
+        /* The hint is read after the done check, so a completion landing in between could render a
+         * finished task as PENDING with an exited hint; like Guava, the branch rechecks completion
+         * after taking the hint, truncates the pending text, and redoes the terminal branch. A
+         * cancellation landing between the done check and the redo renders as CANCELLED. */
         int pendingStart = builder.length();
         builder.append("PENDING, taskState=").append(state());
         if (isDone()) {
@@ -358,21 +354,11 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /**
      * The terminal branch of the envelope: {@code SUCCESS} with the value's identity, {@code
-     * FAILURE} with the cause's type, {@code CANCELLED}, or the guarded {@code UNKNOWN}. The
-     * outcome read completes before anything is appended, so a throwing read cannot leave a
-     * half-written success prefix in front of the failure branch.
+     * FAILURE} with the cause's type, {@code CANCELLED}, or the guarded {@code UNKNOWN}.
      */
     private void appendDoneBranch(StringBuilder builder) {
-        try {
-            String result = ResultObjects.render(Futures.getDone(delegate), this);
-            builder.append("SUCCESS, result=[").append(result).append(']');
-        } catch (ExecutionException failure) {
-            String cause = ResultObjects.renderFailure(failure.getCause(), this);
-            builder.append("FAILURE, cause=[").append(cause).append(']');
-        } catch (CancellationException cancelled) {
-            builder.append("CANCELLED");
-        } catch (Throwable thrownFromGet) {
-            builder.append("UNKNOWN, cause=[").append(thrownFromGet.getClass()).append(" thrown from get()]");
-        }
+        // doneBranch computes the whole branch before anything is appended, so a throwing outcome
+        // read cannot leave a half-written success prefix in front of the failure branch.
+        builder.append(ResultObjects.doneBranch(delegate, this));
     }
 }
