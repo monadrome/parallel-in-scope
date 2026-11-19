@@ -145,6 +145,61 @@ class TaskGroupConvergenceTest {
     }
 
     /**
+     * The group token commits FAIL_FAST before its cascade cancel fires, so a sibling cancelled by
+     * the cascade reads the committed fail-fast instead of an uncommitted token. Reversing that
+     * order (the cancel-commit-before-cancel race claim) misattributes the siblings to a direct
+     * caller cancellation; this probe fails on that reordering. The siblings never return on their
+     * own: their futures only complete through the cascade cancel, which makes the attribution
+     * window deterministic.
+     */
+    @Test
+    void cascadeCancelledSiblingsReadTheCommittedFailFast() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        ParRuntime global =
+                ParRuntime.builder().register(ParId.of("worker"), executor).build();
+        CountDownLatch ready = new CountDownLatch(3);
+        CountDownLatch fire = new CountDownLatch(1);
+        CountDownLatch hold = new CountDownLatch(1);
+        try {
+            TaskGroup<Void> group = global.groupDraft("fail-fast-attribution", TIMEOUT)
+                    .par(TaskKey.<Integer>named("trigger"), global.par(ParId.of("worker")), () -> {
+                        ready.countDown();
+                        fire.await(30, TimeUnit.SECONDS);
+                        throw new IllegalStateException("boom-trigger");
+                    })
+                    .par(TaskKey.<Integer>named("sibling-a"), global.par(ParId.of("worker")), () -> {
+                        ready.countDown();
+                        hold.await(30, TimeUnit.SECONDS);
+                        return 2;
+                    })
+                    .par(TaskKey.<Integer>named("sibling-b"), global.par(ParId.of("worker")), () -> {
+                        ready.countDown();
+                        hold.await(30, TimeUnit.SECONDS);
+                        return 3;
+                    })
+                    .submitAll();
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            fire.countDown();
+
+            TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
+            assertThat(result.failedTaskName()).isEqualTo("trigger");
+            TerminationAssertions.assertScopeFailed(result.termination());
+            TerminationAssertions.assertUserFailure(
+                    Objects.requireNonNull(result.members().get("trigger")).termination());
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(result.members().get("sibling-a")).termination(),
+                    CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(result.members().get("sibling-b")).termination(),
+                    CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
+        } finally {
+            hold.countDown();
+            global.close();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
      * A user callback runs inside the completing task's own callback chain, and Guava deliberately
      * lets an {@code Error} escape one (its listener executor catches {@code Exception} only). This
      * probe makes that Error detonate between the cascade a member's completion triggers and the
