@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-docs-english-translation",
+  "date": "2026-11-18",
+  "topic": "docs-english-translation",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: translate design contracts to english",
+      "docs: translate in-flight proposals to english",
+      "docs: fix translation deviations in proposal translations",
+      "docs: translate project skill documentation to english"
+    ],
+    "files": 45,
+    "insertions": 6295,
+    "deletions": 4468
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "check-design-routes": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "three-stage Chinese-to-English translation of design contracts, proposals, and skill docs; fidelity reviews on gpt-5.6-terra in .agents/tasks/translation-review-* (design PASS, proposals FAIL 3 findings fixed in fdb3378e, skills PASS); refactoring-review/PIT not applicable (docs-only); evals.json fixtures intentionally untranslated"
+}
