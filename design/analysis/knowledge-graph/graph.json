@@ -1,0 +1,5462 @@
+{
+ "nodes": [
+  {
+   "id": "AdoptedSource",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java",
+   "summary": "Kernel state of one adopted group member: a caller-supplied future the group owns from {@code",
+   "component": 0,
+   "scc": 0,
+   "level": 0
+  },
+  {
+   "id": "AdoptedSource.Mirror",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java",
+   "summary": "The member future the group sees: settled only from the source, and propagating its own",
+   "component": 1,
+   "scc": 1,
+   "level": 0
+  },
+  {
+   "id": "Announcements",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+   "summary": "Delivery of the runtime's diagnostic log messages on a runtime-owned executor.",
+   "component": 2,
+   "scc": 2,
+   "level": 0
+  },
+  {
+   "id": "BatchCombinedResult",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/BatchCombinedResult.java",
+   "summary": "Frozen terminal data of one {@link Par#mapAndCombine} run: the element batch result plus the",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "BatchOptions",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+   "summary": "Immutable options of one {@link Par#map} batch: its name, its requested parallelism, and the",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "CancellationReason",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationReason.java",
+   "summary": "Stable task-level cancellation reason with an optional diagnostic source identity.",
+   "component": 2,
+   "scc": 10,
+   "level": 0
+  },
+  {
+   "id": "CancellationReason.Kind",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationReason.java",
+   "summary": "The stable task-level cancellation categories.",
+   "component": 2,
+   "scc": 6,
+   "level": 0
+  },
+  {
+   "id": "CancellationToken",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+   "summary": "Internal cooperative cancellation token carrying a deadline for one task unit.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "CancellationToken.RequestCancellationLink",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+   "summary": "",
+   "component": 3,
+   "scc": 20,
+   "level": 0
+  },
+  {
+   "id": "CancellationToken.ParentLink",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+   "summary": "The parent side of a parent→child cancellation link.",
+   "component": 2,
+   "scc": 21,
+   "level": 3
+  },
+  {
+   "id": "CancellationToken.State",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+   "summary": "Lifecycle state of a {@link CancellationToken}.",
+   "component": 2,
+   "scc": 22,
+   "level": 3
+  },
+  {
+   "id": "CheckpointCancellation",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CheckpointCancellation.java",
+   "summary": "Library-marked acknowledgement that a {@link Checkpoints} call read a committed cancellation",
+   "component": 2,
+   "scc": 13,
+   "level": 1
+  },
+  {
+   "id": "Checkpoints",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Checkpoints.java",
+   "summary": "Cooperative cancellation checkpoints and interruption-aware blocking operations.",
+   "component": 2,
+   "scc": 13,
+   "level": 1
+  },
+  {
+   "id": "CombinedGroupStep",
+   "kind": "interface",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/CombinedGroupStep.java",
+   "summary": "Final stage of a one-shot task-group declaration with a terminal combine.",
+   "component": 4,
+   "scc": 23,
+   "level": 0
+  },
+  {
+   "id": "Combiner",
+   "kind": "interface",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Combiner.java",
+   "summary": "Terminal computation of one group run, executed at most once after every plain member has",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ContextExecutors",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java",
+   "summary": "Executors that preserve a selected Alibaba TransmittableThreadLocal (TTL) context while retaining",
+   "component": 5,
+   "scc": 24,
+   "level": 0
+  },
+  {
+   "id": "ContextExecutors.ContextPropagatingDirectExecutor",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java",
+   "summary": "Stateless direct executor whose context snapshot belongs to each command, making one shared",
+   "component": 6,
+   "scc": 25,
+   "level": 0
+  },
+  {
+   "id": "ContextExecutors.CapturedDirectExecutor",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ContextExecutors.java",
+   "summary": "",
+   "component": 7,
+   "scc": 26,
+   "level": 0
+  },
+  {
+   "id": "Deadlines",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Deadlines.java",
+   "summary": "Saturated conversion and arithmetic for durations, deadlines, and remaining waits.",
+   "component": 2,
+   "scc": 30,
+   "level": 6
+  },
+  {
+   "id": "ExecutionDisposition",
+   "kind": "enum",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutionDisposition.java",
+   "summary": "Whether a task won the atomic execution claim before its logical termination was published.",
+   "component": 2,
+   "scc": 4,
+   "level": 0
+  },
+  {
+   "id": "ExecutionExitTracker",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutionExitTracker.java",
+   "summary": "Shared execution exit signal for one submission — a task group or a batch.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ExecutionPhase",
+   "kind": "enum",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhase.java",
+   "summary": "A best-effort execution phase queried from a prepared future.",
+   "component": 8,
+   "scc": 31,
+   "level": 0
+  },
+  {
+   "id": "ExecutionPhaseHintFuture",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java",
+   "summary": "Shared runnable future with execution-phase hints for single tasks, batches, and groups.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ExecutorIdentity",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorIdentity.java",
+   "summary": "Identity key for one exact supplied executor object.",
+   "component": 2,
+   "scc": 32,
+   "level": 0
+  },
+  {
+   "id": "ExecutorRuntime",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorRuntime.java",
+   "summary": "Runtime capability record for one supplied executor. Internal to the {@code ParRuntime} package.",
+   "component": 2,
+   "scc": 33,
+   "level": 3
+  },
+  {
+   "id": "ExecutorWaitGraph",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+   "summary": "The executor waits-for graph one {@link ParRuntime} accumulates over its lifetime.",
+   "component": 2,
+   "scc": 34,
+   "level": 3
+  },
+  {
+   "id": "ExecutorWaitGraph.Wait",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+   "summary": "One wait between two executors with the first pair of task units observed behind it.",
+   "component": 9,
+   "scc": 35,
+   "level": 0
+  },
+  {
+   "id": "ExecutorWaitGraph.State",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+   "summary": "One immutable version of the graph and the report derived from it.",
+   "component": 2,
+   "scc": 37,
+   "level": 4
+  },
+  {
+   "id": "ExecutorWaitReport",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitReport.java",
+   "summary": "Immutable snapshot of the executor waits-for structure a {@link ParRuntime} has observed.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ExecutorWaitReport.Component",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitReport.java",
+   "summary": "One cyclic strongly connected component of the executor waits-for graph, with one concrete",
+   "component": 2,
+   "scc": 36,
+   "level": 3
+  },
+  {
+   "id": "FailureCause",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/FailureCause.java",
+   "summary": "Closed classification of a failed task while retaining the original throwable.",
+   "component": 2,
+   "scc": 11,
+   "level": 0
+  },
+  {
+   "id": "FailureCause.Kind",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/FailureCause.java",
+   "summary": "The stable failure categories exposed by the task termination model.",
+   "component": 2,
+   "scc": 5,
+   "level": 0
+  },
+  {
+   "id": "FutureInspector",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/FutureInspector.java",
+   "summary": "Java 8-compatible utility for inspecting {@link Future} state.",
+   "component": 10,
+   "scc": 38,
+   "level": 0
+  },
+  {
+   "id": "GroupDraft",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+   "summary": "The mutable declaration state behind one fluent group chain, shared by every stage object the",
+   "component": 2,
+   "scc": 18,
+   "level": 0
+  },
+  {
+   "id": "GroupDraft.MemberDecl",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+   "summary": "One declared plain member: an execution the library runs on {@code par}, or an adopted source whose",
+   "component": 11,
+   "scc": 39,
+   "level": 0
+  },
+  {
+   "id": "GroupDraft.CombineDecl",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+   "summary": "The declared terminal combine; its execution is cleared on the same terms as a member's.",
+   "component": 12,
+   "scc": 40,
+   "level": 0
+  },
+  {
+   "id": "GroupDraft.Start",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+   "summary": "Stage one: identity, close grace, the first member, or an empty submission.",
+   "component": 2,
+   "scc": 15,
+   "level": 0
+  },
+  {
+   "id": "GroupDraft.Step",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+   "summary": "Every later stage: more members, one optional terminal combine, or submission.",
+   "component": 13,
+   "scc": 41,
+   "level": 0
+  },
+  {
+   "id": "GroupDraft.Combined",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+   "summary": "Final stage: the combine is declared, so only submission remains.",
+   "component": 14,
+   "scc": 42,
+   "level": 0
+  },
+  {
+   "id": "GroupStart",
+   "kind": "interface",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+   "summary": "First stage of a one-shot task-group declaration, returned by {@link ParRuntime#group(String,",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "GroupStep",
+   "kind": "interface",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStep.java",
+   "summary": "Middle stage of a one-shot task-group declaration.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "GroupValues",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/GroupValues.java",
+   "summary": "Read-only snapshot of one group run's successful member values, published by {@link",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ImmediateResult",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java",
+   "summary": "A terminal value or failure, independent of execution and resource lifetime.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "LeanCancellationException",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/LeanCancellationException.java",
+   "summary": "Cancellation exception that omits its stack trace to reduce cancellation overhead.",
+   "component": 2,
+   "scc": 7,
+   "level": 0
+  },
+  {
+   "id": "MultiTaskContext",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+   "summary": "Immutable resolved state for one multi-task unit — a {@code Par.map} batch or one task-group",
+   "component": 2,
+   "scc": 29,
+   "level": 5
+  },
+  {
+   "id": "MultiTaskContext.Resolution",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+   "summary": "Resolution parameters for one unit: everything {@link #resolve(Resolution)} needs beyond the",
+   "component": 2,
+   "scc": 28,
+   "level": 4
+  },
+  {
+   "id": "Par",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+   "summary": "An execution entry bound to one executor in a {@link ParRuntime}.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ParId",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ParId.java",
+   "summary": "Identity of one {@link Par} entry registered on a {@link ParRuntime}.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ParRuntime",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+   "summary": "Immutable application execution topology containing logical {@link Par} entries.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ParRuntime.DispatchingScheduledExecutorService",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+   "summary": "",
+   "component": 15,
+   "scc": 43,
+   "level": 0
+  },
+  {
+   "id": "ParRuntime.Builder",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+   "summary": "Mutable composition-root builder for an immutable {@link ParRuntime}. Register every logical",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "ParRuntimeSnapshot",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java",
+   "summary": "A diagnostic sample of a {@link ParRuntime}'s shutdown/drain state, produced by {@link",
+   "component": 2,
+   "scc": 44,
+   "level": 3
+  },
+  {
+   "id": "ScopeTermination",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+   "summary": "Shared three-state logical termination shape for Batch and Group scopes.",
+   "component": 16,
+   "scc": 45,
+   "level": 0
+  },
+  {
+   "id": "ScopeTermination.Kind",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+   "summary": "The mutually exclusive scope states.",
+   "component": 17,
+   "scc": 46,
+   "level": 0
+  },
+  {
+   "id": "ScopeTerminationAccumulator",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+   "summary": "Scope-cause collector used by Batch and Group convergence.",
+   "component": 18,
+   "scc": 47,
+   "level": 0
+  },
+  {
+   "id": "ScopeTerminationCause",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationCause.java",
+   "summary": "The single primary cause selected for a failed or cancelled scope.",
+   "component": 19,
+   "scc": 48,
+   "level": 0
+  },
+  {
+   "id": "ScopeTerminationCause.Kind",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationCause.java",
+   "summary": "Whether the scope's primary cause is a failure or cancellation.",
+   "component": 20,
+   "scc": 49,
+   "level": 0
+  },
+  {
+   "id": "ScopedCallable",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+   "summary": "Executes a task with its scoped context, cancellation checkpoint, timing, and final observation.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "SlidingWindowSubmitter",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java",
+   "summary": "Sliding-window concurrency limiter for task execution.",
+   "component": 2,
+   "scc": 50,
+   "level": 3
+  },
+  {
+   "id": "SlidingWindowSubmitter.RefillDriver",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java",
+   "summary": "Event-driven sliding-window refill for one batch.",
+   "component": 21,
+   "scc": 51,
+   "level": 0
+  },
+  {
+   "id": "SubmissionAwareBlockingQueue",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueue.java",
+   "summary": "Bounded blocking queue that lets a submitting unit refuse enqueueing.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "SubmissionException",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SubmissionException.java",
+   "summary": "Identifies a failure that occurred while handing a prepared task to its executor, before user",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "SubmissionScope",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SubmissionScope.java",
+   "summary": "Thread-local submission state used only while submitting work to an executor.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "SystemWorkloadClock",
+   "kind": "enum",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+   "summary": "System wall and thread-CPU clocks for workload-fit screening. An unavailable management API is",
+   "component": 22,
+   "scc": 52,
+   "level": 0
+  },
+  {
+   "id": "SystemWorkloadClock.Threads",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+   "summary": "",
+   "component": 23,
+   "scc": 53,
+   "level": 0
+  },
+  {
+   "id": "Task",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Task.java",
+   "summary": "The kernel's {@link TaskFuture} view over one prepared task execution.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskBatch",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+   "summary": "Immutable result wrapper for a batch of parallel tasks.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskBatch.BatchReport",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+   "summary": "Immutable report of batch task execution state.",
+   "component": 2,
+   "scc": 8,
+   "level": 0
+  },
+  {
+   "id": "TaskBatchResult",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java",
+   "summary": "Frozen results of a synchronous parallel batch. No accessor waits or cancels work.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskExecutionContext",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskExecutionContext.java",
+   "summary": "Per-task state for one task of a multi-task unit — a batch element or a task-group member.",
+   "component": 2,
+   "scc": 12,
+   "level": 0
+  },
+  {
+   "id": "TaskExecutionState",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskExecutionState.java",
+   "summary": "Per-task execution lifecycle slot registered with a {@link ExecutionExitTracker} before submission.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskExecutionState.State",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskExecutionState.java",
+   "summary": "Execution lifecycle states; terminal states are EXITED and SKIPPED.",
+   "component": 24,
+   "scc": 54,
+   "level": 0
+  },
+  {
+   "id": "TaskExitObservation",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskExitObservation.java",
+   "summary": "Immutable telemetry snapshot published after a task's logical result is terminal and its execution",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskFuture",
+   "kind": "interface",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskFuture.java",
+   "summary": "The kernel's view of one task execution: a {@link ListenableFuture} that also reports the task's",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskGroup",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+   "summary": "Running scope of one submitted task group: a fixed, heterogeneous set of named tasks admitted at",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskGroup.PreparationContext",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+   "summary": "Common inputs shared while preparing the members and terminal of one group run.",
+   "component": 25,
+   "scc": 55,
+   "level": 0
+  },
+  {
+   "id": "TaskGroup.MemberState",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+   "summary": "Internal per-run state of one frozen member or of the terminal combine.",
+   "component": 26,
+   "scc": 56,
+   "level": 0
+  },
+  {
+   "id": "TaskGroup.RunBindings",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+   "summary": "The one-shot payload carrier handed from the declaration draft to the preparation kernel:",
+   "component": 27,
+   "scc": 57,
+   "level": 0
+  },
+  {
+   "id": "TaskGroupDefinition",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+   "summary": "Frozen, package-private structure of one group run, produced by {@code GroupDraft#freeze()} at",
+   "component": 2,
+   "scc": 58,
+   "level": 3
+  },
+  {
+   "id": "TaskGroupDefinition.Slot",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+   "summary": "One declared slot: key, the {@link Par} it runs on, and options. A slot carries no",
+   "component": 2,
+   "scc": 59,
+   "level": 3
+  },
+  {
+   "id": "TaskGroupReport",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java",
+   "summary": "Immutable terminal snapshot for a parallel task group.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskGroupResult",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java",
+   "summary": "Frozen outcome, typed results, and available final observations of a synchronous group.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskId",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskId.java",
+   "summary": "Immutable identity of one admitted work unit or one task-group run.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskId.Unit",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskId.java",
+   "summary": "The identity of a task unit: a single task, a {@code Par.map} batch, a group member, or a",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskId.GroupRun",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskId.java",
+   "summary": "The identity of one task-group run: a coordination scope with no execution of its own, so",
+   "component": 2,
+   "scc": 16,
+   "level": 0
+  },
+  {
+   "id": "TaskKey",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskKey.java",
+   "summary": "Immutable, typed address of a declared task result, reusable across group runs.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskNode",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java",
+   "summary": "The resolved identity and facts of one task unit: a single task, a {@code Par.map} batch, a group",
+   "component": 2,
+   "scc": 60,
+   "level": 6
+  },
+  {
+   "id": "TaskObservation",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java",
+   "summary": "Per-task observation sink backing {@link TaskFuture#completionFuture()}.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskOptions",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+   "summary": "Immutable execution policy for exactly one task — a task-group",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskState",
+   "kind": "enum",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskState.java",
+   "summary": "Live execution state used for diagnosis: the task's current stage in the execution process,",
+   "component": 2,
+   "scc": 61,
+   "level": 1
+  },
+  {
+   "id": "TaskSubmissions",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskSubmissions.java",
+   "summary": "Prepares scoped tasks and hands them to executors under their submission policy.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskTermination",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskTermination.java",
+   "summary": "Immutable logical termination of one task.",
+   "component": 2,
+   "scc": 9,
+   "level": 0
+  },
+  {
+   "id": "TaskTermination.Kind",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskTermination.java",
+   "summary": "The three mutually exclusive logical termination branches.",
+   "component": 2,
+   "scc": 3,
+   "level": 0
+  },
+  {
+   "id": "TaskType",
+   "kind": "enum",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+   "summary": "Optional workload declaration shared by task units and registered {@link Par} entries.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "TaskTypeMismatches",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+   "summary": "Bounded once-per-pair memory of the submission-time {@link TaskType} mismatches one {@link",
+   "component": 2,
+   "scc": 62,
+   "level": 3
+  },
+  {
+   "id": "TaskTypeMismatches.Outcome",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+   "summary": "What the caller should report for one mismatched admission.",
+   "component": 28,
+   "scc": 63,
+   "level": 0
+  },
+  {
+   "id": "ThreadPoolStarvationObservationScope",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java",
+   "summary": "Explicit observation scope for starvation signals produced by unstructured executor work.",
+   "component": 2,
+   "scc": 64,
+   "level": 3
+  },
+  {
+   "id": "ThreadPoolStarvationObservationScope.Labels",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java",
+   "summary": "",
+   "component": 29,
+   "scc": 65,
+   "level": 0
+  },
+  {
+   "id": "ThreadPoolStarvationObservationScope.ObservedExecutor",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java",
+   "summary": "",
+   "component": 30,
+   "scc": 66,
+   "level": 0
+  },
+  {
+   "id": "ThreadPoolStarvationObservationScope.Sample",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java",
+   "summary": "",
+   "component": 31,
+   "scc": 67,
+   "level": 0
+  },
+  {
+   "id": "ThreadPoolStarvationReport",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java",
+   "summary": "Immutable result of one runtime observation of registered thread pools.",
+   "component": 2,
+   "scc": 17,
+   "level": 0
+  },
+  {
+   "id": "ThreadPoolStarvationReport.Status",
+   "kind": "enum",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java",
+   "summary": "Outcome of the observation.",
+   "component": 32,
+   "scc": 68,
+   "level": 0
+  },
+  {
+   "id": "ThreadPoolStarvationReport.Evidence",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java",
+   "summary": "A snapshot captured when one executor met the potential-starvation condition. It remains in",
+   "component": 33,
+   "scc": 69,
+   "level": 0
+  },
+  {
+   "id": "TokenOutcomes",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java",
+   "summary": "Maps a {@link CancellationToken}'s committed state onto the {@link CancellationReason} of the work",
+   "component": 2,
+   "scc": 70,
+   "level": 3
+  },
+  {
+   "id": "UnitSpec",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+   "summary": "Kernel-facing execution intent of one multi-task unit, adapted from a public option type.",
+   "component": 2,
+   "scc": 27,
+   "level": 3
+  },
+  {
+   "id": "Validation",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/Validation.java",
+   "summary": "The argument checks the public option types, identities, and declaration entries share.",
+   "component": 2,
+   "scc": 14,
+   "level": 0
+  },
+  {
+   "id": "WorkloadClock",
+   "kind": "interface",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java",
+   "summary": "The clocks behind workload-fit screening: a monotonic wall clock and the calling thread's CPU",
+   "component": 22,
+   "scc": 71,
+   "level": 1
+  },
+  {
+   "id": "WorkloadFit",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+   "summary": "Always-on workload-fit screening: the thread CPU time and execution time of library-admitted task",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "WorkloadFit.Timing",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+   "summary": "One execution's opening clock readings.",
+   "component": 34,
+   "scc": 72,
+   "level": 0
+  },
+  {
+   "id": "WorkloadFit.Entry",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+   "summary": "One entry's totals: the aggregate that judges the entry, and its attributed units.",
+   "component": 35,
+   "scc": 73,
+   "level": 0
+  },
+  {
+   "id": "WorkloadFit.Totals",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+   "summary": "Immutable totals. A judged total accumulates the current epoch and, the first time an epoch",
+   "component": 36,
+   "scc": 74,
+   "level": 0
+  },
+  {
+   "id": "WorkloadFitReport",
+   "kind": "class",
+   "nested": false,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java",
+   "summary": "Immutable snapshot of the runtime's always-on workload-fit screening.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "WorkloadFitReport.ParMeasurement",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java",
+   "summary": "The screened executions of one entry. Its counts include the executions of every unit, attributed or",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "WorkloadFitReport.UnitMeasurement",
+   "kind": "class",
+   "nested": true,
+   "file": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java",
+   "summary": "The screened executions of one unit within an entry, keyed by unit name and unit type.",
+   "component": 2,
+   "scc": 19,
+   "level": 2
+  },
+  {
+   "id": "(package-info)",
+   "kind": "package",
+   "nested": false,
+   "file": "package-info.java",
+   "summary": "Structured parallel execution, task groups, cooperative cancellation, observation, and extension",
+   "component": 37,
+   "scc": 75,
+   "level": 0
+  }
+ ],
+ "edges": [
+  {
+   "from": "BatchCombinedResult",
+   "to": "Par",
+   "kind": "link",
+   "reason": "Frozen terminal data of one Par#mapAndCombine run: the element batch result plus the terminal combine's own outcome.",
+   "level": "class",
+   "members": [],
+   "rel": "entry"
+  },
+  {
+   "from": "BatchCombinedResult",
+   "to": "CancellationReason",
+   "kind": "mention",
+   "reason": "Its termination is attributed like an element's: {@code FAILED} with a {@code USER_CODE_FAILURE} cause for a business failure of the combiner (the original throwable is preserved) or {@code SUBMISSION_REJECTED} when the combine's own executor rejected it, and…",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "BatchCombinedResult",
+   "to": "TaskBatchResult",
+   "kind": "link",
+   "reason": "Elements are checked first, exactly as TaskBatchResult#orThrow; then the combine's own recorded failure ({@code USER_CODE_FAILURE} or {@code SUBMISSION_REJECTED}) is rethrown as-is when unchecked and wrapped in CompletionException when checked.",
+   "level": "member",
+   "members": [
+    "orThrow",
+    "executionExitConfirmed",
+    "unexitedExecutions"
+   ],
+   "rel": null
+  },
+  {
+   "from": "BatchOptions",
+   "to": "Par",
+   "kind": "link",
+   "reason": "Immutable options of one Par#map batch: its name, its requested parallelism, and the execution policy applied to every element.",
+   "level": "class",
+   "members": [
+    "taskType",
+    "closeGrace"
+   ],
+   "rel": "entry"
+  },
+  {
+   "from": "BatchOptions",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Timeout and enqueue rejection form the execution policy; an optional TaskType declaration is diagnostic only and never changes execution.",
+   "level": "class",
+   "members": [
+    "taskType"
+   ],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "BatchOptions",
+   "to": "SubmissionAwareBlockingQueue",
+   "kind": "link",
+   "reason": "The policy is honored only when the registered executor's queue is a SubmissionAwareBlockingQueue; with any other queue, enqueue rejection is never triggered and this flag is inert.",
+   "level": "member",
+   "members": [
+    "rejectEnqueue"
+   ],
+   "rel": null
+  },
+  {
+   "from": "BatchOptions",
+   "to": "TaskBatchResult",
+   "kind": "link",
+   "reason": "A terminal cancellation result can coexist with an execution still closing resources; inspect TaskBatchResult#executionExitConfirmed for the frozen direct-execution exit status.",
+   "level": "member",
+   "members": [
+    "closeGrace"
+   ],
+   "rel": null
+  },
+  {
+   "from": "CancellationToken",
+   "to": "TaskTermination",
+   "kind": "link",
+   "reason": "It is deliberately package-private: no public member accepts or returns one, and the public attribution vocabulary is TaskTermination with CancellationReason and FailureCause.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "CancellationToken",
+   "to": "CancellationReason",
+   "kind": "link",
+   "reason": "It is deliberately package-private: no public member accepts or returns one, and the public attribution vocabulary is TaskTermination with CancellationReason and FailureCause.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "CancellationToken",
+   "to": "FailureCause",
+   "kind": "link",
+   "reason": "It is deliberately package-private: no public member accepts or returns one, and the public attribution vocabulary is TaskTermination with CancellationReason and FailureCause.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "CancellationToken",
+   "to": "TaskGroup",
+   "kind": "link",
+   "reason": "Intended for TaskGroup: when a member exceeds its own deadline, the group escalates that timeout onto the group token so the group's completion reason stays {@code TIMEOUT} instead of collapsing into fail-fast.",
+   "level": "member",
+   "members": [
+    "timeoutCancel",
+    "failFastCancel",
+    "addStateListener"
+   ],
+   "rel": null
+  },
+  {
+   "from": "CancellationToken.ParentLink",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "CancellationToken#transitionTo severs the holder when the child commits any terminal state, so a completed child token — including the business results carried by its {@code futureToken} — stays collectable instead of being pinned by the parent's pending liste…",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "CancellationToken.State",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "Lifecycle state of a CancellationToken.",
+   "level": "class",
+   "members": [],
+   "rel": "implementation"
+  },
+  {
+   "from": "CheckpointCancellation",
+   "to": "Checkpoints",
+   "kind": "link",
+   "reason": "Library-marked acknowledgement that a Checkpoints call read a committed cancellation token.",
+   "level": "class",
+   "members": [],
+   "rel": "cancellation"
+  },
+  {
+   "from": "CheckpointCancellation",
+   "to": "LeanCancellationException",
+   "kind": "link",
+   "reason": "Callers outside the package see an ordinary LeanCancellationException.",
+   "level": "class",
+   "members": [],
+   "rel": "cancellation"
+  },
+  {
+   "from": "Checkpoints",
+   "to": "LeanCancellationException",
+   "kind": "link",
+   "reason": "Cancellation checkpoints and blocking-operation adapters check the current scoped task's cancellation state before starting their operation, and a cancelled task produces a LeanCancellationException.",
+   "level": "class",
+   "members": [
+    "checkpoint",
+    "rawCheckpoint",
+    "cancellation"
+   ],
+   "rel": "cancellation"
+  },
+  {
+   "from": "Checkpoints",
+   "to": "CheckpointCancellation",
+   "kind": "link",
+   "reason": "@param token the current token, or {@code null} outside a scoped task @param message the detail message @param cause the translated interruption, or {@code null} @return a CheckpointCancellation for a committed token, else a plain LeanCancellationException",
+   "level": "member",
+   "members": [
+    "cancellation"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Combiner",
+   "to": "GroupValues",
+   "kind": "link",
+   "reason": "Group combines receive a GroupValues snapshot and read member values through their declaration TaskKey objects.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "Combiner",
+   "to": "TaskKey",
+   "kind": "link",
+   "reason": "Group combines receive a GroupValues snapshot and read member values through their declaration TaskKey objects.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "Combiner",
+   "to": "Par",
+   "kind": "link",
+   "reason": "It is submitted to its declared Par; a rejected handoff is recorded as FailureCause.Kind#SUBMISSION_REJECTED.",
+   "level": "class",
+   "members": [],
+   "rel": "entry"
+  },
+  {
+   "from": "Combiner",
+   "to": "FailureCause.Kind",
+   "kind": "link",
+   "reason": "It is submitted to its declared Par; a rejected handoff is recorded as FailureCause.Kind#SUBMISSION_REJECTED.",
+   "level": "class",
+   "members": [
+    "apply"
+   ],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "Deadlines",
+   "to": "MultiTaskContext",
+   "kind": "link",
+   "reason": "Explicit execution timeouts resolve to finite deadlines through MultiTaskContext#resolveDeadlineNanos.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "TaskExecutionState",
+   "kind": "link",
+   "reason": "Every prepared task registers a TaskExecutionState slot before any task is submitted; the {@code executionExit} future starts with an outstanding count of the total task count and completes only when every task execution has exited or has been atomically deter…",
+   "level": "class",
+   "members": [
+    "release"
+   ],
+   "rel": "kernel"
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "Validation",
+   "kind": "mention",
+   "reason": "Validation order: argument checks and the self-await guard run before the interrupt check, which runs before the completion check.",
+   "level": "member",
+   "members": [
+    "awaitExecutionExit"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "TaskGroup",
+   "kind": "mention",
+   "reason": "Shared close sequence for {@code TaskGroup} and {@code TaskBatch} (the {@code Par.map} convergence path): reject self-awaits, run the scope's cancellation entry, then wait up to the close grace for task executions to exit.",
+   "level": "member",
+   "members": [
+    "cancelAndAwaitExecutionExit",
+    "closeGraceBudgetNanos"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "TaskBatch",
+   "kind": "mention",
+   "reason": "Shared close sequence for {@code TaskGroup} and {@code TaskBatch} (the {@code Par.map} convergence path): reject self-awaits, run the scope's cancellation entry, then wait up to the close grace for task executions to exit.",
+   "level": "member",
+   "members": [
+    "cancelAndAwaitExecutionExit",
+    "closeGraceBudgetNanos"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "Shared close sequence for {@code TaskGroup} and {@code TaskBatch} (the {@code Par.map} convergence path): reject self-awaits, run the scope's cancellation entry, then wait up to the close grace for task executions to exit.",
+   "level": "member",
+   "members": [
+    "cancelAndAwaitExecutionExit",
+    "closeGraceBudgetNanos"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "TaskGroup",
+   "kind": "mention",
+   "reason": "Kernel probe for execution-reference release; TaskGroup's test probes read it.",
+   "level": "member",
+   "members": [
+    "callableReleased"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "CheckpointCancellation",
+   "kind": "link",
+   "reason": "Returns Level#FINE for exactly two shapes, both with no suppressed exceptions: a CheckpointCancellation, which only Checkpoints constructs after reading a committed token; and an InterruptedException thrown on this run after this future's cancellation interrup…",
+   "level": "member",
+   "members": [
+    "lateFailureLevel"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "Checkpoints",
+   "kind": "link",
+   "reason": "Returns Level#FINE for exactly two shapes, both with no suppressed exceptions: a CheckpointCancellation, which only Checkpoints constructs after reading a committed token; and an InterruptedException thrown on this run after this future's cancellation interrup…",
+   "level": "member",
+   "members": [
+    "lateFailureLevel"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutorRuntime",
+   "to": "ParRuntime",
+   "kind": "mention",
+   "reason": "Internal to the {@code ParRuntime} package.",
+   "level": "class",
+   "members": [],
+   "rel": "implementation"
+  },
+  {
+   "from": "ExecutorRuntime",
+   "to": "SubmissionAwareBlockingQueue",
+   "kind": "link",
+   "reason": "Whether a requested {@code rejectEnqueue} can actually take effect for this executor, which requires the introspectable executor to be a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue, the only implementation that reads it.",
+   "level": "member",
+   "members": [
+    "enqueueRefusalEffective"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "The executor waits-for graph one ParRuntime accumulates over its lifetime.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ExecutorIdentity",
+   "kind": "link",
+   "reason": "Nodes are the executors registered with the runtime, keyed by ExecutorIdentity.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ExecutorWaitReport.Component",
+   "kind": "mention",
+   "reason": "Component identity sets are the announcement deduplication keys.",
+   "level": "member",
+   "members": [
+    "componentsAbsentFrom"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ExecutorWaitReport",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "Immutable snapshot of the executor waits-for structure a ParRuntime has observed.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "ExecutorWaitReport",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "An executor waits for another when a task execution running on the first synchronously waits — in {@code Par.map}, {@code Par.mapAndCombine}, or a task group's {@code runAll()} — for work on the second, and the second is starvation-prone: it parks a submission…",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "ExecutorWaitReport.Component",
+   "to": "ParId",
+   "kind": "link",
+   "reason": "Each executor is given as the set of every ParId it is registered under: several ids may share one executor, which is still one node.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "GroupStart",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "First stage of a one-shot task-group declaration, returned by ParRuntime#group and ParRuntime#groupInheriting.",
+   "level": "class",
+   "members": [
+    "runAll"
+   ],
+   "rel": "entry"
+  },
+  {
+   "from": "GroupStart",
+   "to": "Par",
+   "kind": "link",
+   "reason": "A group is declared and submitted in a single fluent chain: each #par states a member's name, its Par, its declared result type, and this run's execution.",
+   "level": "class",
+   "members": [
+    "par"
+   ],
+   "rel": "entry"
+  },
+  {
+   "from": "GroupStart",
+   "to": "GroupStep",
+   "kind": "link",
+   "reason": "Declaring a member moves the chain to GroupStep, which never exposes these settings again, so a late {@code closeGrace} or {@code cancelOn} does not compile.",
+   "level": "class",
+   "members": [],
+   "rel": "builder"
+  },
+  {
+   "from": "GroupStart",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "The frozen TaskGroupResult can be used across threads.",
+   "level": "class",
+   "members": [
+    "adopt"
+   ],
+   "rel": "result"
+  },
+  {
+   "from": "GroupStart",
+   "to": "FailureCause.Kind",
+   "kind": "link",
+   "reason": "The member succeeds with the source's value and fails with its failure as a FailureCause.Kind#USER_CODE_FAILURE; cancellation is attributed through the group like any member's.",
+   "level": "member",
+   "members": [
+    "adopt"
+   ],
+   "rel": null
+  },
+  {
+   "from": "GroupStart",
+   "to": "GroupValues",
+   "kind": "mention",
+   "reason": "Consumes the draft and returns a frozen result with empty GroupValues.",
+   "level": "member",
+   "members": [
+    "runAll"
+   ],
+   "rel": null
+  },
+  {
+   "from": "GroupStep",
+   "to": "GroupValues",
+   "kind": "link",
+   "reason": "Member values are read through the declaration keys in GroupValues.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "GroupStep",
+   "to": "GroupStart",
+   "kind": "link",
+   "reason": "The same one-shot, single-threaded, stage-checked contract as GroupStart applies.",
+   "level": "class",
+   "members": [],
+   "rel": "builder"
+  },
+  {
+   "from": "GroupStep",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "@throws NullPointerException if any argument is null @throws IllegalArgumentException if the name is duplicated or the Par belongs to another runtime @throws IllegalStateException if this stage is stale or used from another thread @param member result type @pa…",
+   "level": "member",
+   "members": [
+    "par",
+    "combine",
+    "combineValues"
+   ],
+   "rel": null
+  },
+  {
+   "from": "GroupValues",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "Read-only snapshot of one group run's successful member values, published by TaskGroupResult#valuesOrThrow and handed to a terminal Combiner.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "GroupValues",
+   "to": "Combiner",
+   "kind": "link",
+   "reason": "Read-only snapshot of one group run's successful member values, published by TaskGroupResult#valuesOrThrow and handed to a terminal Combiner.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "GroupValues",
+   "to": "TaskKey",
+   "kind": "link",
+   "reason": "Typed lookup uses the exact TaskKey supplied at declaration.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "TaskTermination.Kind",
+   "kind": "link",
+   "reason": "Whether the termination is TaskTermination.Kind#SUCCESS, matching TaskExitObservation#successful.",
+   "level": "member",
+   "members": [
+    "successful"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "TaskExitObservation",
+   "kind": "link",
+   "reason": "Whether the termination is TaskTermination.Kind#SUCCESS, matching TaskExitObservation#successful.",
+   "level": "member",
+   "members": [
+    "successful"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "LeanCancellationException",
+   "kind": "link",
+   "reason": "The throwable stored for a cancellation-attributed task: the task's own cancellation exception when the future failed with one, otherwise a LeanCancellationException naming the cancellation reason and chaining the settled signal.",
+   "level": "member",
+   "members": [
+    "cancellationFailure"
+   ],
+   "rel": null
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "UnitSpec",
+   "kind": "link",
+   "reason": "Resolution is the only place where a UnitSpec becomes executable values: requested parallelism is capped by task count, an explicit timeout uses the earlier of its own and any parent deadline, and an inherited timeout resolves to the enclosing deadline (reject…",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "Immutable resolved state for one multi-task unit — a {@code Par.map} batch or one task-group member; never cached by a {@code Par} or {@code ParRuntime}.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "ParRuntime",
+   "kind": "mention",
+   "reason": "Immutable resolved state for one multi-task unit — a {@code Par.map} batch or one task-group member; never cached by a {@code Par} or {@code ParRuntime}.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "MultiTaskContext.Resolution",
+   "kind": "mention",
+   "reason": "Resolution is the only place where a becomes executable values: requested parallelism is capped by task count, an explicit timeout uses the earlier of its own and any parent deadline, and an inherited timeout resolves to the enclosing deadline (rejected when t…",
+   "level": "class",
+   "members": [],
+   "rel": "implementation"
+  },
+  {
+   "from": "MultiTaskContext.Resolution",
+   "to": "UnitSpec",
+   "kind": "link",
+   "reason": "Resolution parameters for one unit: everything #resolve needs beyond the UnitSpec.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "Par",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "An execution entry bound to one executor in a ParRuntime.",
+   "level": "class",
+   "members": [
+    "runtime",
+    "map",
+    "mapAndCombine",
+    "submit"
+   ],
+   "rel": "entry"
+  },
+  {
+   "from": "Par",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Returns the work this entry was registered to carry; TaskType#UNKNOWN when the registration declared none.",
+   "level": "member",
+   "members": [
+    "taskType",
+    "reportTaskTypeMismatch"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Par",
+   "to": "WorkloadFit",
+   "kind": "link",
+   "reason": "This entry's workload-fit totals; see WorkloadFit.",
+   "level": "member",
+   "members": [
+    "workload"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Par",
+   "to": "BatchOptions",
+   "kind": "link",
+   "reason": "A source declared through BatchOptions#cancelOn cancels on any completion and interrupts running executions the same way.",
+   "level": "member",
+   "members": [
+    "map"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Par",
+   "to": "TaskBatchResult",
+   "kind": "link",
+   "reason": "Cleanup waits within BatchOptions#closeGrace (or the remaining deadline when unset); inspect TaskBatchResult#executionExitConfirmed before releasing resources shared by direct executions; nested calls must confirm their own exit separately.",
+   "level": "member",
+   "members": [
+    "map"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Par",
+   "to": "Combiner",
+   "kind": "link",
+   "reason": "A direct executor retains its normal inline behavior; see Combiner.",
+   "level": "member",
+   "members": [
+    "mapAndCombine"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Par",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "This is the unary entry point of the same pipeline #map uses: the task gets its own child CancellationToken with the resolved deadline, a TTL snapshot taken on this thread, an observation future published on completion, and structured cancellation from any enc…",
+   "level": "member",
+   "members": [
+    "submit"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParId",
+   "to": "Par",
+   "kind": "link",
+   "reason": "Identity of one Par entry registered on a ParRuntime.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "ParId",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "Identity of one Par entry registered on a ParRuntime.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "ParId",
+   "to": "ParRuntime.Builder",
+   "kind": "link",
+   "reason": "Obtaining a {@code Par} always goes through this id: ParRuntime#par, ParRuntime#find, and the registration endpoints on ParRuntime.Builder.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Par",
+   "kind": "link",
+   "reason": "Immutable application execution topology containing logical Par entries.",
+   "level": "class",
+   "members": [
+    "installGlobal",
+    "defaultPar",
+    "par",
+    "find",
+    "executorWaitReport",
+    "group"
+   ],
+   "rel": "entry"
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ParRuntime.Builder",
+   "kind": "link",
+   "reason": "Registration is a composition-root operation: after Builder#build, the names, policies, and executor bindings cannot change.",
+   "level": "class",
+   "members": [],
+   "rel": "builder"
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Announcements",
+   "kind": "link",
+   "reason": "The runtime-owned executor that delivers diagnostic log messages; see Announcements.",
+   "level": "member",
+   "members": [
+    "ParRuntime",
+    "runtimeFor"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ExecutorWaitReport",
+   "kind": "link",
+   "reason": "The report accumulates for the runtime's lifetime and is a structural risk signal, not a deadlock proof; see ExecutorWaitReport.",
+   "level": "member",
+   "members": [
+    "executorWaitReport"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ThreadPoolStarvationReport",
+   "kind": "link",
+   "reason": "The scope samples each distinct physical executor at the requested interval and publishes a ThreadPoolStarvationReport when closed.",
+   "level": "member",
+   "members": [
+    "openThreadPoolStarvationObservation"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "GroupStep",
+   "kind": "link",
+   "reason": "Execution budgets and TTL context are resolved only at GroupStep#runAll or GroupStart#runAll.",
+   "level": "member",
+   "members": [
+    "group"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "GroupStart",
+   "kind": "link",
+   "reason": "Execution budgets and TTL context are resolved only at GroupStep#runAll or GroupStart#runAll.",
+   "level": "member",
+   "members": [
+    "group"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskGroup",
+   "kind": "link",
+   "reason": "Submitting the chain from a thread with no enclosing scoped task fails at run preparation with IllegalArgumentException; no TaskGroup or future is created.",
+   "level": "member",
+   "members": [
+    "groupInheriting"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "GroupDraft",
+   "kind": "link",
+   "reason": "Called by GroupDraft#submit after the declaration is complete and its executions have moved into {@code payloads}.",
+   "level": "member",
+   "members": [
+    "submitPreparedGroup"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "A group accepted before the topology closes converges fully; runtime failures (member failure, rejection, timeout, cancellation) are reported through the futures and TaskGroupResult, not by throwing from here.",
+   "level": "member",
+   "members": [
+    "submitPreparedGroup"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Task",
+   "kind": "mention",
+   "reason": "Task-execution exit is tracked separately from future completion: a task cancelled while running completes its future immediately but may still be executing user code that ignores interruption.",
+   "level": "member",
+   "members": [
+    "awaitQuiescence",
+    "trackExecutions"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Validation",
+   "kind": "mention",
+   "reason": "Validation order: argument checks run before the interrupt check, which runs before the quiescence state check.",
+   "level": "member",
+   "members": [
+    "awaitQuiescence"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Executions are measured when either their entry or unit declares TaskType#COMPUTE.",
+   "level": "member",
+   "members": [
+    "workloadFitReport"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "WorkloadFitReport",
+   "kind": "link",
+   "reason": "See WorkloadFitReport for verdicts, calibration, and limitations.",
+   "level": "member",
+   "members": [
+    "workloadFitReport"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "Callers that already hold a completion aggregate — such as the one returned by CancellationToken#bind over the same futures — pass it to #retainUntilComplete instead of building a second aggregate here.",
+   "level": "member",
+   "members": [
+    "retainUntilComplete"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "Mutable composition-root builder for an immutable ParRuntime.",
+   "level": "class",
+   "members": [
+    "register"
+   ],
+   "rel": "builder"
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Registers a logical entry with one exact executor object and no declared TaskType; equivalent to #register with TaskType#UNKNOWN.",
+   "level": "member",
+   "members": [
+    "register"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "ParId",
+   "kind": "link",
+   "reason": "The id is only a build-time lookup and diagnostic label; it is validated once by ParId#of.",
+   "level": "member",
+   "members": [
+    "register"
+   ],
+   "rel": null
+  },
+  {
+   "from": "ParRuntimeSnapshot",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "A diagnostic sample of a ParRuntime's shutdown/drain state, produced by ParRuntime#snapshot.",
+   "level": "class",
+   "members": [
+    "unexitedExecutionSignals"
+   ],
+   "rel": "observability"
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "TaskExecutionContext",
+   "kind": "link",
+   "reason": "The previous TaskExecutionContext is restored on exit.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "ParRuntime",
+   "kind": "mention",
+   "reason": "Creates a task wrapper from the batch context owned by one ParRuntime execution.",
+   "level": "member",
+   "members": [
+    "call"
+   ],
+   "rel": null
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "That is what lets the caller bind its CancellationToken before submission: the token holds the same objects the caller does, and cancelling one forwards to the prepared future, whose {@code interruptTask()} reaches the thread actually running the execution — i…",
+   "level": "member",
+   "members": [
+    "viewsFor"
+   ],
+   "rel": null
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "Task",
+   "kind": "link",
+   "reason": "Each returned future is the Task view of the exact ExecutionPhaseHintFuture passed in: the caller prepares tasks via TaskSubmissions and builds their views with #viewsFor, and this executor only coordinates when each prepared future enters the worker pool.",
+   "level": "member",
+   "members": [
+    "submitAll"
+   ],
+   "rel": null
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "ExecutionPhaseHintFuture",
+   "kind": "link",
+   "reason": "Each returned future is the Task view of the exact ExecutionPhaseHintFuture passed in: the caller prepares tasks via TaskSubmissions and builds their views with #viewsFor, and this executor only coordinates when each prepared future enters the worker pool.",
+   "level": "member",
+   "members": [
+    "submitAll",
+    "logHandoffError"
+   ],
+   "rel": null
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "TaskSubmissions",
+   "kind": "link",
+   "reason": "Each returned future is the Task view of the exact ExecutionPhaseHintFuture passed in: the caller prepares tasks via TaskSubmissions and builds their views with #viewsFor, and this executor only coordinates when each prepared future enters the worker pool.",
+   "level": "member",
+   "members": [
+    "submitAll"
+   ],
+   "rel": null
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "TaskBatch",
+   "kind": "mention",
+   "reason": "@param tasks prepared task futures to execute @param results the element views from , positionally aligned with {@code tasks}; taken as a parameter so the caller can bind them before submission starts @return TaskBatch containing individual task futures",
+   "level": "member",
+   "members": [
+    "submitAll"
+   ],
+   "rel": null
+  },
+  {
+   "from": "SubmissionAwareBlockingQueue",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Its TaskType never takes part: the type is a diagnostic declaration, so a unit declared TaskType#COMPUTE is queued like any other unless it also sets {@code rejectEnqueue}.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "SubmissionAwareBlockingQueue",
+   "to": "TaskOptions",
+   "kind": "link",
+   "reason": "Refusal is opt-in, so the capacity means something: the default on TaskOptions/BatchOptions is {@code rejectEnqueue=false}.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "SubmissionAwareBlockingQueue",
+   "to": "BatchOptions",
+   "kind": "link",
+   "reason": "Refusal is opt-in, so the capacity means something: the default on TaskOptions/BatchOptions is {@code rejectEnqueue=false}.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "SubmissionException",
+   "to": "TaskGroup",
+   "kind": "mention",
+   "reason": "{@code TaskGroup} classifies member failures by this type, so it must stay a distinct shared type rather than being wrapped anonymously.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "SubmissionScope",
+   "to": "SubmissionAwareBlockingQueue",
+   "kind": "mention",
+   "reason": "This scope lets a {@code SubmissionAwareBlockingQueue} apply the unit's enqueue policy before a worker begins executing a task.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "Task",
+   "to": "TaskFuture",
+   "kind": "link",
+   "reason": "The kernel's TaskFuture view over one prepared task execution.",
+   "level": "class",
+   "members": [
+    "transform"
+   ],
+   "rel": "kernel"
+  },
+  {
+   "from": "Task",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "A task is a thin forwarding shell over the future that actually carries its outcome, plus the name and CancellationToken that belong to the task rather than to that future.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "Task",
+   "to": "TaskSubmissions",
+   "kind": "link",
+   "reason": "The observation is the one the TaskSubmissions pipeline attached to the prepared future, so the caller-facing view and the future that executes the task publish the same observation.",
+   "level": "member",
+   "members": [
+    "of",
+    "observationOf"
+   ],
+   "rel": null
+  },
+  {
+   "from": "Task",
+   "to": "FailureCause.Kind",
+   "kind": "link",
+   "reason": "Returns the failure behind a FailureCause.Kind#USER_CODE_FAILURE or {@code SUBMISSION_REJECTED} termination, read from the same settle-time attribution as #termination; null while running and for success or cancellation-attributed endings.",
+   "level": "member",
+   "members": [
+    "failure"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskFuture",
+   "kind": "link",
+   "reason": "Bundles the list of individual TaskFuture results together with a {@code submitCanceller} future used to cancel ongoing submission.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "TaskBatch",
+   "to": "Task",
+   "kind": "link",
+   "reason": "Every task this class freezes is a pinned view built by Task#of: the constructor and both factories are package-private, and the batch submission paths are their only producers.",
+   "level": "member",
+   "members": [
+    "settledTerminationOf",
+    "of"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskExitObservation",
+   "kind": "link",
+   "reason": "Returns the batch observation future: the input-ordered, immutable list of every element's final TaskExitObservation snapshot — identity, submit/start/end times, queue wait, outcome, failure, and on success the result.",
+   "level": "member",
+   "members": [
+    "observationsFuture"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatch",
+   "to": "LeanCancellationException",
+   "kind": "link",
+   "reason": "Unlike #results, forgetting to handle failure is not possible here: the first recorded element failure in input order takes precedence over fail-fast cancellation and propagates as an ExecutionException; cancellation with no recorded failure surfaces as Cancel…",
+   "level": "member",
+   "members": [
+    "valuesOrThrow"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskGroup",
+   "kind": "link",
+   "reason": "This is the batch's structured-close entry, symmetric with TaskGroup#close: cancellation goes through the batch token, so every element and the submission loop are cancelled with the usual attribution.",
+   "level": "member",
+   "members": [
+    "close"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatch",
+   "to": "BatchOptions",
+   "kind": "link",
+   "reason": "The close grace is a cleanup budget configured on BatchOptions#closeGrace, independent of the batch's execution timeout.",
+   "level": "member",
+   "members": [
+    "close"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskBatch.BatchReport",
+   "kind": "mention",
+   "reason": "@return a BatchReport containing termination counts and the first exception (if any)",
+   "level": "member",
+   "members": [
+    "report"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "Aggregate reads follow the same rule as TaskGroupResult: #orThrow is the failure gate, and #valuesOrThrow passes through it.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "Task",
+   "kind": "mention",
+   "reason": "Task-local resources belong in the execution's try-with-resources.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TaskExecutionState",
+   "to": "ExecutionExitTracker",
+   "kind": "link",
+   "reason": "Per-task execution lifecycle slot registered with a ExecutionExitTracker before submission.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskBatchResult",
+   "kind": "link",
+   "reason": "Synchronous batches expose available snapshots through TaskBatchResult#completions; groups expose them through TaskGroupResult#members and TaskGroupResult#terminal.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "Synchronous batches expose available snapshots through TaskBatchResult#completions; groups expose them through TaskGroupResult#members and TaskGroupResult#terminal.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskGroupReport",
+   "kind": "link",
+   "reason": "Snapshots inside a TaskGroupReport do not embed member or combine values; a group summary embeds its report instead.",
+   "level": "class",
+   "members": [
+    "groupSummary"
+   ],
+   "rel": "result"
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskGroup",
+   "kind": "link",
+   "reason": "Creates the single group-level summary carried by the observation of TaskGroup#convergenceFuture: the group name stands in for the task name, the group's own identity fills #groupId while #unitId stays null — a group run is not a task unit — the index is zero,…",
+   "level": "member",
+   "members": [
+    "groupSummary",
+    "groupId"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "ExecutionDisposition",
+   "kind": "link",
+   "reason": "The group summary's projection of the scope termination: the scope itself is the unit that ran, so the summary always reads ExecutionDisposition#CLAIMED.",
+   "level": "member",
+   "members": [
+    "summaryTermination"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "ImmediateResult",
+   "kind": "link",
+   "reason": "A record read from a batch or group result carries the same termination as the task's frozen ImmediateResult: there is one attribution per task.",
+   "level": "member",
+   "members": [
+    "termination"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "FailureCause.Kind",
+   "kind": "link",
+   "reason": "Every non-success termination can carry a throwable: the execution-thrown exception for FailureCause.Kind#USER_CODE_FAILURE — including an InterruptedException or java.util.concurrent.CancellationException the execution raised itself — and, for cancellation-at…",
+   "level": "member",
+   "members": [
+    "failure"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "CancellationReason.Kind",
+   "kind": "link",
+   "reason": "Every non-success termination can carry a throwable: the execution-thrown exception for FailureCause.Kind#USER_CODE_FAILURE — including an InterruptedException or java.util.concurrent.CancellationException the execution raised itself — and, for cancellation-at…",
+   "level": "member",
+   "members": [
+    "failure"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "LeanCancellationException",
+   "kind": "link",
+   "reason": "Every non-success termination can carry a throwable: the execution-thrown exception for FailureCause.Kind#USER_CODE_FAILURE — including an InterruptedException or java.util.concurrent.CancellationException the execution raised itself — and, for cancellation-at…",
+   "level": "member",
+   "members": [
+    "failure"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskFuture",
+   "to": "Task",
+   "kind": "link",
+   "reason": "Package-private, with Task as its only implementation: batch elements, group members, the terminal combine, and the group completion summary are all {@code Task} views.",
+   "level": "class",
+   "members": [],
+   "rel": "implementation"
+  },
+  {
+   "from": "TaskFuture",
+   "to": "ImmediateResult",
+   "kind": "link",
+   "reason": "No public signature exposes it; callers receive frozen ImmediateResult and TaskExitObservation data instead.",
+   "level": "class",
+   "members": [],
+   "rel": "result"
+  },
+  {
+   "from": "TaskFuture",
+   "to": "TaskExitObservation",
+   "kind": "link",
+   "reason": "No public signature exposes it; callers receive frozen ImmediateResult and TaskExitObservation data instead.",
+   "level": "class",
+   "members": [
+    "completionFuture"
+   ],
+   "rel": "result"
+  },
+  {
+   "from": "TaskFuture",
+   "to": "FailureCause.Kind",
+   "kind": "link",
+   "reason": "Returns the failure behind a FailureCause.Kind#USER_CODE_FAILURE or {@code SUBMISSION_REJECTED} termination; null otherwise.",
+   "level": "member",
+   "members": [
+    "failure"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskFuture",
+   "to": "TaskBatch",
+   "kind": "link",
+   "reason": "Once the enclosing scope has completed (every future terminal and every task execution exited), this future is guaranteed to be done; TaskBatch#awaitExecutionExit returning {@code true} implies the data is already available.",
+   "level": "member",
+   "members": [
+    "completionFuture"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskFuture",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "Compose it with {@code Futures.addCallback} on an executor of the caller's choice for immediate reaction; the attribution here is the task's own direct one — a group member's authoritative post-convergence attribution remains TaskGroupResult#members.",
+   "level": "member",
+   "members": [
+    "completionFuture"
+   ],
+   "rel": "result"
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "A group is declared and submitted in one fluent chain — ParRuntime#group or ParRuntime#groupInheriting, then GroupStart#par, then GroupStep#runAll — the internal running object holds the complete member registry: futures are looked up by declaration position (…",
+   "level": "class",
+   "members": [
+    "prepare"
+   ],
+   "rel": "entry"
+  },
+  {
+   "from": "TaskGroup",
+   "to": "GroupStart",
+   "kind": "link",
+   "reason": "A group is declared and submitted in one fluent chain — ParRuntime#group or ParRuntime#groupInheriting, then GroupStart#par, then GroupStep#runAll — the internal running object holds the complete member registry: futures are looked up by declaration position (…",
+   "level": "class",
+   "members": [
+    "close"
+   ],
+   "rel": "builder"
+  },
+  {
+   "from": "TaskGroup",
+   "to": "GroupStep",
+   "kind": "link",
+   "reason": "A group is declared and submitted in one fluent chain — ParRuntime#group or ParRuntime#groupInheriting, then GroupStart#par, then GroupStep#runAll — the internal running object holds the complete member registry: futures are looked up by declaration position (…",
+   "level": "class",
+   "members": [],
+   "rel": "builder"
+  },
+  {
+   "from": "TaskGroup",
+   "to": "GroupValues",
+   "kind": "link",
+   "reason": "Successful member values are published as a keyed GroupValues snapshot in declaration order.",
+   "level": "class",
+   "members": [
+    "valuesFuture"
+   ],
+   "rel": "result"
+  },
+  {
+   "from": "TaskGroup",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "Its execution context and TTL snapshot are prepared at submission like a member's, but it is submitted to its own {@code Par} only after all members succeed, and the group completes only when its future is terminal.",
+   "level": "class",
+   "members": [],
+   "rel": "entry"
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroupReport",
+   "kind": "link",
+   "reason": "Per-member outcomes stay in #convergenceFuture's TaskGroupReport.",
+   "level": "member",
+   "members": [
+    "valuesFuture",
+    "convergenceFuture"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroupResult",
+   "kind": "link",
+   "reason": "The report is an observation of the run and does not imply that user code has exited; use TaskGroupResult#executionExitConfirmed on the frozen result for that guarantee.",
+   "level": "member",
+   "members": [
+    "convergenceFuture"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskFuture",
+   "kind": "link",
+   "reason": "A {@code true} result additionally waits out the member observation publication barrier, so every member's TaskFuture#completionFuture is already done with its final snapshot.",
+   "level": "member",
+   "members": [
+    "awaitExecutionExit"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "Par",
+   "kind": "link",
+   "reason": "Each slot carries its name, the Par resolved at declaration time, immutable TaskOptions, and the TaskKey used for typed result lookup.",
+   "level": "class",
+   "members": [],
+   "rel": "entry"
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "TaskOptions",
+   "kind": "link",
+   "reason": "Each slot carries its name, the Par resolved at declaration time, immutable TaskOptions, and the TaskKey used for typed result lookup.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "TaskKey",
+   "kind": "link",
+   "reason": "Each slot carries its name, the Par resolved at declaration time, immutable TaskOptions, and the TaskKey used for typed result lookup.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "GroupDraft",
+   "kind": "mention",
+   "reason": "Frozen, package-private structure of one group run, produced by {@code GroupDraft#freeze()} at the {@code submitAll()} boundary.",
+   "level": "class",
+   "members": [],
+   "rel": "implementation"
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "TaskGroup",
+   "kind": "link",
+   "reason": "The explicit close grace used by TaskGroup#close; null means it is derived.",
+   "level": "member",
+   "members": [
+    "closeGrace"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskGroupDefinition.Slot",
+   "to": "Par",
+   "kind": "link",
+   "reason": "One declared slot: key, the Par it runs on, and options.",
+   "level": "class",
+   "members": [],
+   "rel": "entry"
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "TaskBatchResult",
+   "kind": "link",
+   "reason": "Counts member termination branches — including the terminal combine when declared — like TaskBatchResult#terminationKindCounts.",
+   "level": "member",
+   "members": [
+    "terminationKindCounts",
+    "reportString"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskBatchResult",
+   "kind": "link",
+   "reason": "TaskBatchResult#orThrow and BatchCombinedResult#orThrow follow the same rule.",
+   "level": "member",
+   "members": [
+    "orThrow"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "BatchCombinedResult",
+   "kind": "link",
+   "reason": "TaskBatchResult#orThrow and BatchCombinedResult#orThrow follow the same rule.",
+   "level": "member",
+   "members": [
+    "orThrow"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskId",
+   "to": "TaskId.Unit",
+   "kind": "link",
+   "reason": "The hierarchy is closed: the base constructor is private, so Unit and GroupRun are the only kinds, and the two identity spaces are disjoint at compile time.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskId",
+   "to": "TaskId.GroupRun",
+   "kind": "link",
+   "reason": "The hierarchy is closed: the base constructor is private, so Unit and GroupRun are the only kinds, and the two identity spaces are disjoint at compile time.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskId",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "A {@code Unit} id names a task unit — a single task, a {@code Par.map} batch, a group member, or a terminal combine — and a {@code GroupRun} id names one run of a task group.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskId.Unit",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "The identity of a task unit: a single task, a {@code Par.map} batch, a group member, or a terminal combine — anything with its own execution.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskKey",
+   "to": "TaskId",
+   "kind": "link",
+   "reason": "A key does not prove that a task was declared or executed, and is not a TaskId.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskNode",
+   "to": "ExecutorWaitGraph",
+   "kind": "link",
+   "reason": "Who waits for whom is recorded by the runtime's ExecutorWaitGraph at admission, never by the node; a node only names the waiting and awaited units of a recorded wait.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "TaskNode",
+   "to": "MultiTaskContext",
+   "kind": "link",
+   "reason": "Every other field is a fact fixed when the unit was resolved; MultiTaskContext creates exactly one node per unit, so equal nodes also carry equal facts in production.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TaskNode",
+   "to": "Par",
+   "kind": "mention",
+   "reason": "The resolved identity and facts of one task unit: a single task, a {@code Par.map} batch, a group member, or a terminal combine.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskFuture",
+   "kind": "link",
+   "reason": "Per-task observation sink backing TaskFuture#completionFuture.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskExitObservation",
+   "kind": "link",
+   "reason": "The sink is a SettableFuture that is set exactly once with the task's final immutable TaskExitObservation snapshot.",
+   "level": "class",
+   "members": [
+    "settledSnapshot"
+   ],
+   "rel": "result"
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskExecutionState",
+   "kind": "link",
+   "reason": "Publication waits out the window in which the task future is already terminal but the user task code's {@code finally} has not run yet: an instrumented task publishes only after its future has settled and its TaskExecutionState slot reached {@code EXITED} or {…",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TaskObservation",
+   "to": "GroupDraft.Start",
+   "kind": "mention",
+   "reason": "Start and end times are zero.",
+   "level": "member",
+   "members": [
+    "publishSkipped"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskOptions",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "This type carries only what one task execution reads: its deadline policy and its enqueue-rejection policy, plus an optional diagnostic TaskType declaration that never changes execution.",
+   "level": "class",
+   "members": [
+    "taskType"
+   ],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "TaskOptions",
+   "to": "GroupStart",
+   "kind": "link",
+   "reason": "A task's name comes from its GroupStart#par or GroupStep#combine declaration.",
+   "level": "class",
+   "members": [],
+   "rel": "builder"
+  },
+  {
+   "from": "TaskOptions",
+   "to": "GroupStep",
+   "kind": "link",
+   "reason": "A task's name comes from its GroupStart#par or GroupStep#combine declaration.",
+   "level": "class",
+   "members": [],
+   "rel": "builder"
+  },
+  {
+   "from": "TaskOptions",
+   "to": "BatchOptions",
+   "kind": "link",
+   "reason": "A batch declares BatchOptions; group-level configuration is declared by ParRuntime#group and the whole-scope methods on GroupStart.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "TaskOptions",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "A batch declares BatchOptions; group-level configuration is declared by ParRuntime#group and the whole-scope methods on GroupStart.",
+   "level": "class",
+   "members": [],
+   "rel": "entry"
+  },
+  {
+   "from": "TaskOptions",
+   "to": "SubmissionAwareBlockingQueue",
+   "kind": "link",
+   "reason": "The policy is honored only when the registered executor's queue is a SubmissionAwareBlockingQueue; with any other queue this flag is inert.",
+   "level": "member",
+   "members": [
+    "rejectEnqueue"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskState",
+   "to": "TaskTermination",
+   "kind": "link",
+   "reason": "The stages cover the whole execution life, including the result-settled and exited stages; TaskTermination remains the terminal outcome authority.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "ScopedCallable",
+   "kind": "link",
+   "reason": "Wraps {@code callable} with ScopedCallable instrumentation and captures the current thread's TTL context for replay on the worker thread.",
+   "level": "member",
+   "members": [
+    "wrapScoped"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "ExecutionPhaseHintFuture",
+   "kind": "link",
+   "reason": "Prepares one scoped task as an ExecutionPhaseHintFuture.",
+   "level": "member",
+   "members": [
+    "prepare",
+    "submitScoped"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "TaskObservation",
+   "kind": "link",
+   "reason": "Its TaskObservation is attached here, so every later {@code Task} view of the future exposes the same observation future.",
+   "level": "member",
+   "members": [
+    "prepare"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "Task",
+   "kind": "mention",
+   "reason": "Its is attached here, so every later {@code Task} view of the future exposes the same observation future.",
+   "level": "member",
+   "members": [
+    "prepare"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "SubmissionScope",
+   "kind": "link",
+   "reason": "Submits a prepared future to {@code executor} with the unit's SubmissionScope installed, so enqueue policies see the submitting unit.",
+   "level": "member",
+   "members": [
+    "submitScoped"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "SubmissionException",
+   "kind": "link",
+   "reason": "A rejection fails the future with a SubmissionException without running user code.",
+   "level": "member",
+   "members": [
+    "submitScoped"
+   ],
+   "rel": null
+  },
+  {
+   "from": "TaskType",
+   "to": "Par",
+   "kind": "link",
+   "reason": "Optional workload declaration shared by task units and registered Par entries.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "TaskType",
+   "to": "BatchOptions",
+   "kind": "link",
+   "reason": "On a unit (BatchOptions#taskType or TaskOptions#taskType) the type describes what the execution does.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "TaskType",
+   "to": "TaskOptions",
+   "kind": "link",
+   "reason": "On a unit (BatchOptions#taskType or TaskOptions#taskType) the type describes what the execution does.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "TaskType",
+   "to": "ParRuntime.Builder",
+   "kind": "link",
+   "reason": "On a registration (ParRuntime.Builder#register) it describes the work the entry is meant to carry.",
+   "level": "class",
+   "members": [],
+   "rel": "vocabulary"
+  },
+  {
+   "from": "TaskType",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "The runtime always compares the thread CPU time of library-admitted executions with their execution time where either side declares #COMPUTE, logs low CPU use once, and reports it in ParRuntime#workloadFitReport.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "TaskTypeMismatches",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Bounded once-per-pair memory of the submission-time TaskType mismatches one ParRuntime has reported.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "TaskTypeMismatches",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "Bounded once-per-pair memory of the submission-time TaskType mismatches one ParRuntime has reported.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "TaskTypeMismatches",
+   "to": "Par",
+   "kind": "link",
+   "reason": "A pair is a Par and a unit name.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "The scope samples each distinct physical ThreadPoolExecutor registered with its owning ParRuntime.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "CancellationToken",
+   "kind": "link",
+   "reason": "Maps a CancellationToken's committed state onto the CancellationReason of the work it cancelled.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "CancellationReason",
+   "kind": "link",
+   "reason": "Maps a CancellationToken's committed state onto the CancellationReason of the work it cancelled.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "CancellationReason.Kind",
+   "kind": "link",
+   "reason": "The mapping reads the token as the single authority, because a token commits its state before cancelling the futures bound to it: {@code TIMEOUT} → CancellationReason.Kind#DEADLINE_EXCEEDED {@code FAIL_FAST} → CancellationReason.Kind#ABORTED_BY_FAIL_FAST {@cod…",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "TaskGroup",
+   "kind": "mention",
+   "reason": "This is the single implementation of the token-to-reason attribution table shared by {@code TaskGroup} member classification, {@code TaskFuture} termination attribution and observation snapshots, and batch reports.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "TaskFuture",
+   "kind": "mention",
+   "reason": "This is the single implementation of the token-to-reason attribution table shared by {@code TaskGroup} member classification, {@code TaskFuture} termination attribution and observation snapshots, and batch reports.",
+   "level": "class",
+   "members": [],
+   "rel": "kernel"
+  },
+  {
+   "from": "UnitSpec",
+   "to": "BatchOptions",
+   "kind": "link",
+   "reason": "A batch adapts BatchOptions — its own name and requested parallelism; a task-group member or terminal combine adapts TaskOptions — the key's name and a requested parallelism fixed at 1, because a single task has no fan-out to limit.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "UnitSpec",
+   "to": "TaskOptions",
+   "kind": "link",
+   "reason": "A batch adapts BatchOptions — its own name and requested parallelism; a task-group member or terminal combine adapts TaskOptions — the key's name and a requested parallelism fixed at 1, because a single task has no fan-out to limit.",
+   "level": "class",
+   "members": [],
+   "rel": "options"
+  },
+  {
+   "from": "UnitSpec",
+   "to": "TaskId.Unit",
+   "kind": "mention",
+   "reason": "Unit resolution consumes this carrier independently of the public entry point that supplied the options.",
+   "level": "class",
+   "members": [],
+   "rel": "identity"
+  },
+  {
+   "from": "WorkloadClock",
+   "to": "SystemWorkloadClock",
+   "kind": "link",
+   "reason": "Package-private seam so tests can script both; production uses SystemWorkloadClock#INSTANCE.",
+   "level": "class",
+   "members": [],
+   "rel": "implementation"
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Always-on workload-fit screening: the thread CPU time and execution time of library-admitted task executions whose entry or unit is declared TaskType#COMPUTE.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "WorkloadFitReport",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "The runtime measures executions admitted through an entry or unit declared TaskType#COMPUTE, comparing thread CPU time with execution time.",
+   "level": "class",
+   "members": [
+    "pars"
+   ],
+   "rel": "observability"
+  },
+  {
+   "from": "WorkloadFitReport",
+   "to": "WorkloadFitReport.ParMeasurement",
+   "kind": "link",
+   "reason": "Low CPU use sets ParMeasurement#issue only for entries declared {@code COMPUTE} and logs one {@code WARNING} per entry.",
+   "level": "class",
+   "members": [
+    "anyIssue"
+   ],
+   "rel": "observability"
+  },
+  {
+   "from": "WorkloadFitReport",
+   "to": "WorkloadFitReport.UnitMeasurement",
+   "kind": "link",
+   "reason": "A unit declared {@code COMPUTE} can independently set UnitMeasurement#suspectedDeclarationDrift and log one {@code INFO}; unit drift never sets the entry's issue.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "WorkloadFitReport",
+   "to": "ParRuntime",
+   "kind": "link",
+   "reason": "Reports are created only by the library; read one with ParRuntime#workloadFitReport.",
+   "level": "class",
+   "members": [],
+   "rel": "observability"
+  },
+  {
+   "from": "WorkloadFitReport.ParMeasurement",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Whether the entry is declared TaskType#COMPUTE and an epoch of its executions used CPU for less than half their execution time.",
+   "level": "member",
+   "members": [
+    "issue"
+   ],
+   "rel": null
+  },
+  {
+   "from": "WorkloadFitReport.UnitMeasurement",
+   "to": "TaskType",
+   "kind": "link",
+   "reason": "Whether the unit is declared TaskType#COMPUTE and an epoch of its executions used CPU for less than half their execution time, suggesting the declaration no longer matches the execution.",
+   "level": "member",
+   "members": [
+    "suspectedDeclarationDrift"
+   ],
+   "rel": null
+  },
+  {
+   "from": "WorkloadFitReport.UnitMeasurement",
+   "to": "WorkloadFitReport.ParMeasurement",
+   "kind": "link",
+   "reason": "Set once, for the runtime's lifetime; never sets ParMeasurement#issue.",
+   "level": "member",
+   "members": [
+    "suspectedDeclarationDrift"
+   ],
+   "rel": null
+  }
+ ],
+ "codeEdges": [
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ExecutorIdentity",
+   "weight": 71
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroup.MemberState",
+   "weight": 51
+  },
+  {
+   "from": "Par",
+   "to": "MultiTaskContext",
+   "weight": 23
+  },
+  {
+   "from": "WorkloadFit.Entry",
+   "to": "WorkloadFit.Totals",
+   "weight": 23
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "ImmediateResult",
+   "weight": 22
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "ExecutionPhase",
+   "weight": 19
+  },
+  {
+   "from": "Task",
+   "to": "TaskTermination",
+   "weight": 19
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ExecutorWaitGraph.Wait",
+   "weight": 17
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ExecutorIdentity",
+   "weight": 17
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskFuture",
+   "weight": 15
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskExitObservation",
+   "weight": 15
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ImmediateResult",
+   "weight": 15
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskExitObservation",
+   "weight": 14
+  },
+  {
+   "from": "TaskTermination",
+   "to": "ExecutionDisposition",
+   "weight": 14
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ExecutionExitTracker",
+   "weight": 13
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "ImmediateResult",
+   "weight": 13
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ParId",
+   "weight": 12
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskTermination",
+   "weight": 12
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "TaskExitObservation",
+   "weight": 12
+  },
+  {
+   "from": "WorkloadFit.Entry",
+   "to": "TaskType",
+   "weight": 12
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskFuture",
+   "weight": 11
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskExitObservation",
+   "weight": 11
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ScopeTermination",
+   "weight": 11
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "TaskExecutionState",
+   "weight": 10
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "TaskTermination",
+   "weight": 10
+  },
+  {
+   "from": "Task",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 10
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroupReport",
+   "weight": 10
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ExecutionExitTracker",
+   "weight": 10
+  },
+  {
+   "from": "ThreadPoolStarvationReport",
+   "to": "ThreadPoolStarvationReport.Status",
+   "weight": 10
+  },
+  {
+   "from": "Checkpoints",
+   "to": "Deadlines",
+   "weight": 9
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "TaskNode",
+   "weight": 9
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "TaskKey",
+   "weight": 9
+  },
+  {
+   "from": "Par",
+   "to": "TaskType",
+   "weight": 9
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Par",
+   "weight": 9
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ExecutorRuntime",
+   "weight": 9
+  },
+  {
+   "from": "ScopeTermination",
+   "to": "ScopeTerminationCause",
+   "weight": 9
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskTermination",
+   "weight": 9
+  },
+  {
+   "from": "TaskGroup",
+   "to": "GroupValues",
+   "weight": 9
+  },
+  {
+   "from": "TaskGroup",
+   "to": "CancellationReason",
+   "weight": 9
+  },
+  {
+   "from": "ExecutorWaitReport.Component",
+   "to": "ParId",
+   "weight": 8
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "Par",
+   "weight": 8
+  },
+  {
+   "from": "GroupStep",
+   "to": "TaskKey",
+   "weight": 8
+  },
+  {
+   "from": "Par",
+   "to": "BatchOptions",
+   "weight": 8
+  },
+  {
+   "from": "ScopeTerminationAccumulator",
+   "to": "ScopeTerminationCause",
+   "weight": 8
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 8
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ScopeTerminationCause",
+   "weight": 8
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "MultiTaskContext",
+   "weight": 8
+  },
+  {
+   "from": "BatchCombinedResult",
+   "to": "TaskBatchResult",
+   "weight": 7
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "TaskState",
+   "weight": 7
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ParRuntime.Builder",
+   "weight": 7
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ExecutorWaitGraph.Wait",
+   "weight": 7
+  },
+  {
+   "from": "ExecutorWaitReport",
+   "to": "ExecutorWaitReport.Component",
+   "weight": 7
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "GroupDraft.Step",
+   "weight": 7
+  },
+  {
+   "from": "GroupStep",
+   "to": "Par",
+   "weight": 7
+  },
+  {
+   "from": "Par",
+   "to": "TaskBatch",
+   "weight": 7
+  },
+  {
+   "from": "Task",
+   "to": "TaskObservation",
+   "weight": 7
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskId",
+   "weight": 7
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "TaskGroupDefinition.Slot",
+   "weight": 7
+  },
+  {
+   "from": "TaskTermination",
+   "to": "FailureCause",
+   "weight": 7
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ThreadPoolStarvationObservationScope.ObservedExecutor",
+   "weight": 7
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "CancellationReason",
+   "weight": 7
+  },
+  {
+   "from": "BatchOptions",
+   "to": "TaskType",
+   "weight": 6
+  },
+  {
+   "from": "CancellationToken",
+   "to": "CancellationToken.RequestCancellationLink",
+   "weight": 6
+  },
+  {
+   "from": "Checkpoints",
+   "to": "CancellationToken",
+   "weight": 6
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ExecutorWaitReport.Component",
+   "weight": 6
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupDraft.MemberDecl",
+   "weight": 6
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "GroupDraft.Combined",
+   "weight": 6
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "TaskNode",
+   "weight": 6
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "CancellationToken",
+   "weight": 6
+  },
+  {
+   "from": "Par",
+   "to": "ExecutionExitTracker",
+   "weight": 6
+  },
+  {
+   "from": "Par",
+   "to": "TaskSubmissions",
+   "weight": 6
+  },
+  {
+   "from": "Par",
+   "to": "TaskExecutionContext",
+   "weight": 6
+  },
+  {
+   "from": "Par",
+   "to": "Task",
+   "weight": 6
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ExecutorIdentity",
+   "weight": 6
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "ParId",
+   "weight": 6
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "TaskExecutionContext",
+   "weight": 6
+  },
+  {
+   "from": "SubmissionScope",
+   "to": "MultiTaskContext",
+   "weight": 6
+  },
+  {
+   "from": "Task",
+   "to": "CancellationToken",
+   "weight": 6
+  },
+  {
+   "from": "Task",
+   "to": "ExecutionDisposition",
+   "weight": 6
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "TaskGroup.MemberState",
+   "weight": 6
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "Task",
+   "weight": 6
+  },
+  {
+   "from": "TaskGroupDefinition.Slot",
+   "to": "Par",
+   "weight": 6
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskExitObservation",
+   "weight": 6
+  },
+  {
+   "from": "TaskOptions",
+   "to": "TaskType",
+   "weight": 6
+  },
+  {
+   "from": "TaskTermination",
+   "to": "CancellationReason",
+   "weight": 6
+  },
+  {
+   "from": "TaskTypeMismatches",
+   "to": "TaskTypeMismatches.Outcome",
+   "weight": 6
+  },
+  {
+   "from": "TaskTypeMismatches",
+   "to": "ParId",
+   "weight": 6
+  },
+  {
+   "from": "AdoptedSource",
+   "to": "TaskExecutionContext",
+   "weight": 5
+  },
+  {
+   "from": "CancellationToken",
+   "to": "CancellationToken.ParentLink",
+   "weight": 5
+  },
+  {
+   "from": "CancellationToken.ParentLink",
+   "to": "CancellationToken",
+   "weight": 5
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "TaskExecutionState",
+   "weight": 5
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "SubmissionException",
+   "weight": 5
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "ExecutionDisposition",
+   "weight": 5
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ExecutorWaitReport.Component",
+   "weight": 5
+  },
+  {
+   "from": "GroupDraft",
+   "to": "TaskGroupDefinition.Slot",
+   "weight": 5
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupDraft.CombineDecl",
+   "weight": 5
+  },
+  {
+   "from": "GroupDraft",
+   "to": "TaskGroup",
+   "weight": 5
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "TaskKey",
+   "weight": 5
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "TaskOptions",
+   "weight": 5
+  },
+  {
+   "from": "MultiTaskContext.Resolution",
+   "to": "MultiTaskContext",
+   "weight": 5
+  },
+  {
+   "from": "Par",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 5
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ParRuntime.Builder",
+   "weight": 5
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "Task",
+   "weight": 5
+  },
+  {
+   "from": "TaskBatch",
+   "to": "Task",
+   "weight": 5
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ImmediateResult",
+   "weight": 5
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "ScopeTermination",
+   "weight": 5
+  },
+  {
+   "from": "TaskExecutionState",
+   "to": "ExecutionExitTracker",
+   "weight": 5
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskId.Unit",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskKey",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroup",
+   "to": "CancellationToken",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroup",
+   "to": "MultiTaskContext",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "TaskExecutionContext",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroupDefinition.Slot",
+   "to": "TaskOptions",
+   "weight": 5
+  },
+  {
+   "from": "TaskGroupDefinition.Slot",
+   "to": "TaskKey",
+   "weight": 5
+  },
+  {
+   "from": "TaskTypeMismatches",
+   "to": "WorkloadFit.Entry",
+   "weight": 5
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ThreadPoolStarvationReport",
+   "weight": 5
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ThreadPoolStarvationObservationScope.Labels",
+   "weight": 5
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope.ObservedExecutor",
+   "to": "ThreadPoolStarvationObservationScope.Sample",
+   "weight": 5
+  },
+  {
+   "from": "ThreadPoolStarvationReport",
+   "to": "ThreadPoolStarvationReport.Evidence",
+   "weight": 5
+  },
+  {
+   "from": "WorkloadFitReport",
+   "to": "WorkloadFitReport.ParMeasurement",
+   "weight": 5
+  },
+  {
+   "from": "BatchCombinedResult",
+   "to": "ImmediateResult",
+   "weight": 4
+  },
+  {
+   "from": "BatchCombinedResult",
+   "to": "TaskExitObservation",
+   "weight": 4
+  },
+  {
+   "from": "BatchCombinedResult",
+   "to": "ScopeTermination",
+   "weight": 4
+  },
+  {
+   "from": "BatchOptions",
+   "to": "Validation",
+   "weight": 4
+  },
+  {
+   "from": "Checkpoints",
+   "to": "LeanCancellationException",
+   "weight": 4
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "MultiTaskContext",
+   "weight": 4
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "TaskObservation",
+   "weight": 4
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ParId",
+   "weight": 4
+  },
+  {
+   "from": "ExecutorWaitGraph.Wait",
+   "to": "ExecutorIdentity",
+   "weight": 4
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ExecutorWaitReport",
+   "weight": 4
+  },
+  {
+   "from": "GroupDraft",
+   "to": "Par",
+   "weight": 4
+  },
+  {
+   "from": "GroupDraft",
+   "to": "TaskGroupDefinition",
+   "weight": 4
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "Par",
+   "weight": 4
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "Combiner",
+   "weight": 4
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "GroupValues",
+   "weight": 4
+  },
+  {
+   "from": "GroupStart",
+   "to": "GroupStep",
+   "weight": 4
+  },
+  {
+   "from": "GroupStart",
+   "to": "TaskKey",
+   "weight": 4
+  },
+  {
+   "from": "GroupStep",
+   "to": "CombinedGroupStep",
+   "weight": 4
+  },
+  {
+   "from": "GroupStep",
+   "to": "Combiner",
+   "weight": 4
+  },
+  {
+   "from": "GroupStep",
+   "to": "GroupValues",
+   "weight": 4
+  },
+  {
+   "from": "GroupValues",
+   "to": "TaskKey",
+   "weight": 4
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "CancellationReason",
+   "weight": 4
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "LeanCancellationException",
+   "weight": 4
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "Par",
+   "weight": 4
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "MultiTaskContext.Resolution",
+   "weight": 4
+  },
+  {
+   "from": "MultiTaskContext.Resolution",
+   "to": "CancellationToken",
+   "weight": 4
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "Deadlines",
+   "weight": 4
+  },
+  {
+   "from": "Par",
+   "to": "ParRuntime",
+   "weight": 4
+  },
+  {
+   "from": "Par",
+   "to": "ExecutorRuntime",
+   "weight": 4
+  },
+  {
+   "from": "Par",
+   "to": "ParId",
+   "weight": 4
+  },
+  {
+   "from": "Par",
+   "to": "SlidingWindowSubmitter",
+   "weight": 4
+  },
+  {
+   "from": "ParRuntime",
+   "to": "GroupDraft.Start",
+   "weight": 4
+  },
+  {
+   "from": "ParRuntime",
+   "to": "GroupDraft",
+   "weight": 4
+  },
+  {
+   "from": "ScopeTermination",
+   "to": "ImmediateResult",
+   "weight": 4
+  },
+  {
+   "from": "ScopeTerminationCause",
+   "to": "FailureCause",
+   "weight": 4
+  },
+  {
+   "from": "ScopeTerminationCause",
+   "to": "CancellationReason",
+   "weight": 4
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "MultiTaskContext",
+   "weight": 4
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "TaskBatch",
+   "weight": 4
+  },
+  {
+   "from": "Task",
+   "to": "SubmissionException",
+   "weight": 4
+  },
+  {
+   "from": "TaskBatch",
+   "to": "CancellationToken",
+   "weight": 4
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskBatchResult",
+   "weight": 4
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskBatch.BatchReport",
+   "weight": 4
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "TaskTermination.Kind",
+   "weight": 4
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "TaskExitObservation",
+   "weight": 4
+  },
+  {
+   "from": "TaskExecutionContext",
+   "to": "MultiTaskContext",
+   "weight": 4
+  },
+  {
+   "from": "TaskExecutionState",
+   "to": "TaskState",
+   "weight": 4
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskGroupReport",
+   "weight": 4
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "ExecutionDisposition",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskTermination.Kind",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ParRuntime.Builder",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ParRuntime",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup",
+   "to": "Combiner",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ExecutionDisposition",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "TaskKey",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "TaskExecutionContext",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "AdoptedSource",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup.RunBindings",
+   "to": "AdoptedSource",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroup.RunBindings",
+   "to": "Combiner",
+   "weight": 4
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "GroupValues",
+   "weight": 4
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 4
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ExecutorRuntime",
+   "weight": 4
+  },
+  {
+   "from": "WorkloadFit.Entry",
+   "to": "WorkloadFitReport.UnitMeasurement",
+   "weight": 4
+  },
+  {
+   "from": "WorkloadFit.Entry",
+   "to": "Par",
+   "weight": 4
+  },
+  {
+   "from": "AdoptedSource",
+   "to": "AdoptedSource.Mirror",
+   "weight": 3
+  },
+  {
+   "from": "CancellationToken",
+   "to": "Deadlines",
+   "weight": 3
+  },
+  {
+   "from": "Checkpoints",
+   "to": "MultiTaskContext",
+   "weight": 3
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "Deadlines",
+   "weight": 3
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "SubmissionScope",
+   "weight": 3
+  },
+  {
+   "from": "ExecutorRuntime",
+   "to": "ExecutorIdentity",
+   "weight": 3
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ParRuntime.Builder",
+   "weight": 3
+  },
+  {
+   "from": "ExecutorWaitReport.Component",
+   "to": "ExecutorIdentity",
+   "weight": 3
+  },
+  {
+   "from": "GroupDraft",
+   "to": "TaskGroup.RunBindings",
+   "weight": 3
+  },
+  {
+   "from": "GroupDraft.MemberDecl",
+   "to": "Par",
+   "weight": 3
+  },
+  {
+   "from": "GroupDraft.MemberDecl",
+   "to": "TaskOptions",
+   "weight": 3
+  },
+  {
+   "from": "GroupDraft.MemberDecl",
+   "to": "TaskKey",
+   "weight": 3
+  },
+  {
+   "from": "GroupDraft",
+   "to": "TaskKey",
+   "weight": 3
+  },
+  {
+   "from": "GroupDraft",
+   "to": "AdoptedSource",
+   "weight": 3
+  },
+  {
+   "from": "GroupStart",
+   "to": "Par",
+   "weight": 3
+  },
+  {
+   "from": "GroupStep",
+   "to": "TaskOptions",
+   "weight": 3
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "FailureCause",
+   "weight": 3
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "TaskFuture",
+   "weight": 3
+  },
+  {
+   "from": "Par",
+   "to": "WorkloadFit.Entry",
+   "weight": 3
+  },
+  {
+   "from": "Par",
+   "to": "TaskTypeMismatches.Outcome",
+   "weight": 3
+  },
+  {
+   "from": "Par",
+   "to": "BatchCombinedResult",
+   "weight": 3
+  },
+  {
+   "from": "Par",
+   "to": "Combiner",
+   "weight": 3
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ExecutorWaitGraph",
+   "weight": 3
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskTypeMismatches",
+   "weight": 3
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Announcements",
+   "weight": 3
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Validation",
+   "weight": 3
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskGroup",
+   "weight": 3
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "TaskType",
+   "weight": 3
+  },
+  {
+   "from": "ScopeTermination",
+   "to": "ScopeTerminationCause.Kind",
+   "weight": 3
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "ExecutionExitTracker",
+   "weight": 3
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "SlidingWindowSubmitter.RefillDriver",
+   "weight": 3
+  },
+  {
+   "from": "SlidingWindowSubmitter.RefillDriver",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 3
+  },
+  {
+   "from": "Task",
+   "to": "FailureCause",
+   "weight": 3
+  },
+  {
+   "from": "Task",
+   "to": "CancellationReason",
+   "weight": 3
+  },
+  {
+   "from": "Task",
+   "to": "TokenOutcomes",
+   "weight": 3
+  },
+  {
+   "from": "Task",
+   "to": "TaskState",
+   "weight": 3
+  },
+  {
+   "from": "TaskBatch.BatchReport",
+   "to": "TaskTermination.Kind",
+   "weight": 3
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskTermination",
+   "weight": 3
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ScopeTermination",
+   "weight": 3
+  },
+  {
+   "from": "TaskExecutionContext",
+   "to": "TaskExecutionState",
+   "weight": 3
+  },
+  {
+   "from": "TaskExecutionState",
+   "to": "ExecutionDisposition",
+   "weight": 3
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskId.GroupRun",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "TaskGroupDefinition.Slot",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroup",
+   "to": "CancellationReason.Kind",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroupDefinition",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroup.PreparationContext",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "Par",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TokenOutcomes",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "TaskId.GroupRun",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "TaskTermination.Kind",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "ScopeTermination",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskTermination.Kind",
+   "weight": 3
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskKey",
+   "weight": 3
+  },
+  {
+   "from": "TaskId",
+   "to": "TaskId.Unit",
+   "weight": 3
+  },
+  {
+   "from": "TaskId",
+   "to": "TaskId.GroupRun",
+   "weight": 3
+  },
+  {
+   "from": "TaskNode",
+   "to": "TaskId.Unit",
+   "weight": 3
+  },
+  {
+   "from": "TaskNode",
+   "to": "ExecutorIdentity",
+   "weight": 3
+  },
+  {
+   "from": "TaskNode",
+   "to": "TaskType",
+   "weight": 3
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskId",
+   "weight": 3
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskId.Unit",
+   "weight": 3
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ParId",
+   "weight": 3
+  },
+  {
+   "from": "UnitSpec",
+   "to": "TaskType",
+   "weight": 3
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "WorkloadFit.Timing",
+   "weight": 3
+  },
+  {
+   "from": "WorkloadFit.Entry",
+   "to": "WorkloadFitReport",
+   "weight": 3
+  },
+  {
+   "from": "WorkloadFitReport.ParMeasurement",
+   "to": "ParId",
+   "weight": 3
+  },
+  {
+   "from": "WorkloadFitReport.ParMeasurement",
+   "to": "TaskType",
+   "weight": 3
+  },
+  {
+   "from": "WorkloadFitReport.ParMeasurement",
+   "to": "WorkloadFitReport.UnitMeasurement",
+   "weight": 3
+  },
+  {
+   "from": "WorkloadFitReport.UnitMeasurement",
+   "to": "TaskType",
+   "weight": 3
+  },
+  {
+   "from": "BatchOptions",
+   "to": "CancellationToken",
+   "weight": 2
+  },
+  {
+   "from": "BatchOptions",
+   "to": "UnitSpec",
+   "weight": 2
+  },
+  {
+   "from": "Checkpoints",
+   "to": "TaskExecutionContext",
+   "weight": 2
+  },
+  {
+   "from": "ContextExecutors",
+   "to": "ContextExecutors.ContextPropagatingDirectExecutor",
+   "weight": 2
+  },
+  {
+   "from": "ContextExecutors",
+   "to": "ContextExecutors.CapturedDirectExecutor",
+   "weight": 2
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "Validation",
+   "weight": 2
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "TaskExecutionContext",
+   "weight": 2
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "ExecutorWaitReport",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft",
+   "to": "ParRuntime",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.MemberDecl",
+   "to": "AdoptedSource",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.CombineDecl",
+   "to": "Par",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.CombineDecl",
+   "to": "TaskOptions",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.CombineDecl",
+   "to": "TaskKey",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.CombineDecl",
+   "to": "Combiner",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft",
+   "to": "Validation",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft",
+   "to": "TaskOptions",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft",
+   "to": "Combiner",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "GroupDraft",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "TaskOptions",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "GroupDraft",
+   "weight": 2
+  },
+  {
+   "from": "GroupDraft.Combined",
+   "to": "GroupDraft",
+   "weight": 2
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "ExecutionDisposition",
+   "weight": 2
+  },
+  {
+   "from": "MultiTaskContext.Resolution",
+   "to": "UnitSpec",
+   "weight": 2
+  },
+  {
+   "from": "MultiTaskContext.Resolution",
+   "to": "Par",
+   "weight": 2
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "UnitSpec",
+   "weight": 2
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "TaskExecutionContext",
+   "weight": 2
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "Validation",
+   "weight": 2
+  },
+  {
+   "from": "Par",
+   "to": "UnitSpec",
+   "weight": 2
+  },
+  {
+   "from": "Par",
+   "to": "TaskFuture",
+   "weight": 2
+  },
+  {
+   "from": "Par",
+   "to": "TaskOptions",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "WorkloadFitReport.ParMeasurement",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "WorkloadClock",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ParRuntime.DispatchingScheduledExecutorService",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ThreadPoolStarvationObservationScope",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "GroupStart",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "WorkloadFitReport",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ParRuntimeSnapshot",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "WorkloadClock",
+   "weight": 2
+  },
+  {
+   "from": "ParRuntime.Builder",
+   "to": "ParRuntime",
+   "weight": 2
+  },
+  {
+   "from": "ScopeTermination",
+   "to": "TaskTermination.Kind",
+   "weight": 2
+  },
+  {
+   "from": "ScopeTerminationAccumulator",
+   "to": "TaskTermination.Kind",
+   "weight": 2
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "SubmissionScope",
+   "weight": 2
+  },
+  {
+   "from": "SlidingWindowSubmitter.RefillDriver",
+   "to": "Task",
+   "weight": 2
+  },
+  {
+   "from": "SystemWorkloadClock",
+   "to": "SystemWorkloadClock.Threads",
+   "weight": 2
+  },
+  {
+   "from": "Task",
+   "to": "TaskExitObservation",
+   "weight": 2
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskTermination.Kind",
+   "weight": 2
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ScopeTerminationAccumulator",
+   "weight": 2
+  },
+  {
+   "from": "TaskBatch",
+   "to": "BatchCombinedResult",
+   "weight": 2
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ScopeTerminationCause",
+   "weight": 2
+  },
+  {
+   "from": "TaskBatch",
+   "to": "LeanCancellationException",
+   "weight": 2
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "LeanCancellationException",
+   "weight": 2
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "TaskTermination.Kind",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskId.GroupRun",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ScopeTermination.Kind",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroupDefinition.Slot",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "CancellationToken.State",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskObservation",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "Task",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ScopeTerminationAccumulator",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroupResult",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskGroup.RunBindings",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "TaskGroup.RunBindings",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "CancellationToken",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "ExecutionExitTracker",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "TaskSubmissions",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroup",
+   "to": "FailureCause",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "CancellationToken",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskGroupReport",
+   "weight": 2
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "ScopeTermination",
+   "weight": 2
+  },
+  {
+   "from": "TaskId",
+   "to": "Validation",
+   "weight": 2
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskExecutionContext",
+   "weight": 2
+  },
+  {
+   "from": "TaskObservation",
+   "to": "CancellationToken",
+   "weight": 2
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskTermination",
+   "weight": 2
+  },
+  {
+   "from": "TaskOptions",
+   "to": "UnitSpec",
+   "weight": 2
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "TaskExecutionContext",
+   "weight": 2
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "MultiTaskContext",
+   "weight": 2
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "SubmissionScope",
+   "weight": 2
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ThreadPoolStarvationReport.Evidence",
+   "weight": 2
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ParRuntime",
+   "weight": 2
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope.ObservedExecutor",
+   "to": "ThreadPoolStarvationReport",
+   "weight": 2
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope.ObservedExecutor",
+   "to": "ThreadPoolStarvationReport.Evidence",
+   "weight": 2
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "TaskType",
+   "weight": 2
+  },
+  {
+   "from": "WorkloadFit.Timing",
+   "to": "Par",
+   "weight": 2
+  },
+  {
+   "from": "WorkloadFit.Timing",
+   "to": "TaskType",
+   "weight": 2
+  },
+  {
+   "from": "WorkloadFit.Timing",
+   "to": "WorkloadClock",
+   "weight": 2
+  },
+  {
+   "from": "WorkloadFit.Entry",
+   "to": "WorkloadFitReport.ParMeasurement",
+   "weight": 2
+  },
+  {
+   "from": "AdoptedSource",
+   "to": "TaskExecutionState",
+   "weight": 1
+  },
+  {
+   "from": "BatchOptions",
+   "to": "CancellationToken.RequestCancellationLink",
+   "weight": 1
+  },
+  {
+   "from": "Checkpoints",
+   "to": "CheckpointCancellation",
+   "weight": 1
+  },
+  {
+   "from": "CombinedGroupStep",
+   "to": "TaskGroupResult",
+   "weight": 1
+  },
+  {
+   "from": "ExecutionExitTracker",
+   "to": "CancellationToken",
+   "weight": 1
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "TaskTermination",
+   "weight": 1
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "FailureCause",
+   "weight": 1
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "MultiTaskContext",
+   "weight": 1
+  },
+  {
+   "from": "ExecutionPhaseHintFuture",
+   "to": "CheckpointCancellation",
+   "weight": 1
+  },
+  {
+   "from": "ExecutorRuntime",
+   "to": "SubmissionAwareBlockingQueue",
+   "weight": 1
+  },
+  {
+   "from": "ExecutorWaitGraph",
+   "to": "Announcements",
+   "weight": 1
+  },
+  {
+   "from": "ExecutorWaitGraph.State",
+   "to": "ExecutorWaitGraph",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupDraft.Start",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupStart",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "TaskGroupResult",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft.Start",
+   "to": "TaskGroup",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupDraft.Step",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupStep",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "TaskGroupResult",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft.Step",
+   "to": "TaskGroup",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft",
+   "to": "GroupDraft.Combined",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft",
+   "to": "CombinedGroupStep",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft.Combined",
+   "to": "TaskGroupResult",
+   "weight": 1
+  },
+  {
+   "from": "GroupDraft.Combined",
+   "to": "TaskGroup",
+   "weight": 1
+  },
+  {
+   "from": "GroupStart",
+   "to": "TaskOptions",
+   "weight": 1
+  },
+  {
+   "from": "GroupStart",
+   "to": "TaskGroupResult",
+   "weight": 1
+  },
+  {
+   "from": "GroupStep",
+   "to": "TaskGroupResult",
+   "weight": 1
+  },
+  {
+   "from": "ImmediateResult",
+   "to": "TaskTermination.Kind",
+   "weight": 1
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "TaskId.Unit",
+   "weight": 1
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "ExecutorRuntime",
+   "weight": 1
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "TaskId",
+   "weight": 1
+  },
+  {
+   "from": "MultiTaskContext",
+   "to": "TaskType",
+   "weight": 1
+  },
+  {
+   "from": "Par",
+   "to": "CancellationToken.RequestCancellationLink",
+   "weight": 1
+  },
+  {
+   "from": "Par",
+   "to": "WorkloadFit",
+   "weight": 1
+  },
+  {
+   "from": "Par",
+   "to": "TaskBatchResult",
+   "weight": 1
+  },
+  {
+   "from": "Par",
+   "to": "CancellationToken",
+   "weight": 1
+  },
+  {
+   "from": "Par",
+   "to": "TaskTypeMismatches",
+   "weight": 1
+  },
+  {
+   "from": "ParId",
+   "to": "Validation",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskGroup.RunBindings",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "SystemWorkloadClock",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "WorkloadFit.Entry",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskType",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ExecutorWaitReport",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "TaskGroupDefinition",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "Deadlines",
+   "weight": 1
+  },
+  {
+   "from": "ParRuntime",
+   "to": "ExecutionExitTracker",
+   "weight": 1
+  },
+  {
+   "from": "ScopeTerminationAccumulator",
+   "to": "ScopeTerminationCause.Kind",
+   "weight": 1
+  },
+  {
+   "from": "ScopeTerminationAccumulator",
+   "to": "CancellationReason.Kind",
+   "weight": 1
+  },
+  {
+   "from": "ScopeTerminationAccumulator",
+   "to": "TaskTermination",
+   "weight": 1
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "WorkloadFit.Timing",
+   "weight": 1
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "Checkpoints",
+   "weight": 1
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "TaskExecutionState",
+   "weight": 1
+  },
+  {
+   "from": "ScopedCallable",
+   "to": "WorkloadFit",
+   "weight": 1
+  },
+  {
+   "from": "SlidingWindowSubmitter",
+   "to": "ParRuntime.Builder",
+   "weight": 1
+  },
+  {
+   "from": "SubmissionAwareBlockingQueue",
+   "to": "MultiTaskContext",
+   "weight": 1
+  },
+  {
+   "from": "SubmissionAwareBlockingQueue",
+   "to": "SubmissionScope",
+   "weight": 1
+  },
+  {
+   "from": "Task",
+   "to": "TaskTermination.Kind",
+   "weight": 1
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ScopeTerminationCause.Kind",
+   "weight": 1
+  },
+  {
+   "from": "TaskBatch",
+   "to": "ParRuntime.Builder",
+   "weight": 1
+  },
+  {
+   "from": "TaskBatch",
+   "to": "TaskObservation",
+   "weight": 1
+  },
+  {
+   "from": "TaskBatch",
+   "to": "CancellationReason",
+   "weight": 1
+  },
+  {
+   "from": "TaskBatch",
+   "to": "Deadlines",
+   "weight": 1
+  },
+  {
+   "from": "TaskBatchResult",
+   "to": "CancellationReason",
+   "weight": 1
+  },
+  {
+   "from": "TaskExecutionContext",
+   "to": "Validation",
+   "weight": 1
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "Validation",
+   "weight": 1
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "ImmediateResult",
+   "weight": 1
+  },
+  {
+   "from": "TaskExitObservation",
+   "to": "ScopeTermination",
+   "weight": 1
+  },
+  {
+   "from": "TaskFuture",
+   "to": "TaskTermination",
+   "weight": 1
+  },
+  {
+   "from": "TaskFuture",
+   "to": "TaskState",
+   "weight": 1
+  },
+  {
+   "from": "TaskFuture",
+   "to": "TaskExitObservation",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ScopeTerminationCause.Kind",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "MultiTaskContext.Resolution",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "CancellationToken.RequestCancellationLink",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskId",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "LeanCancellationException",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "Deadlines",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "AdoptedSource",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.PreparationContext",
+   "to": "Combiner",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "SubmissionException",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "ExecutionPhaseHintFuture",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup",
+   "to": "TaskNode",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "TaskTermination",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "TaskObservation",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "TaskSubmissions",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroup.MemberState",
+   "to": "TaskNode",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroupDefinition",
+   "to": "CancellationToken.RequestCancellationLink",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "ScopeTermination.Kind",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroupReport",
+   "to": "TaskTermination",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskId.GroupRun",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "ScopeTermination.Kind",
+   "weight": 1
+  },
+  {
+   "from": "TaskGroupResult",
+   "to": "TaskBatchResult",
+   "weight": 1
+  },
+  {
+   "from": "TaskKey",
+   "to": "Validation",
+   "weight": 1
+  },
+  {
+   "from": "TaskObservation",
+   "to": "TaskExecutionState",
+   "weight": 1
+  },
+  {
+   "from": "TaskObservation",
+   "to": "MultiTaskContext",
+   "weight": 1
+  },
+  {
+   "from": "TaskObservation",
+   "to": "Task",
+   "weight": 1
+  },
+  {
+   "from": "TaskOptions",
+   "to": "Validation",
+   "weight": 1
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "ScopedCallable",
+   "weight": 1
+  },
+  {
+   "from": "TaskSubmissions",
+   "to": "TaskObservation",
+   "weight": 1
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "TaskObservation",
+   "weight": 1
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "Validation",
+   "weight": 1
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "Deadlines",
+   "weight": 1
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "WorkloadFit.Entry",
+   "weight": 1
+  },
+  {
+   "from": "ThreadPoolStarvationObservationScope",
+   "to": "ThreadPoolStarvationObservationScope.Sample",
+   "weight": 1
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "CancellationToken.State",
+   "weight": 1
+  },
+  {
+   "from": "TokenOutcomes",
+   "to": "CancellationToken",
+   "weight": 1
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "MultiTaskContext",
+   "weight": 1
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "Par",
+   "weight": 1
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "WorkloadClock",
+   "weight": 1
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "WorkloadFit.Entry",
+   "weight": 1
+  },
+  {
+   "from": "WorkloadFit",
+   "to": "WorkloadFit.Totals",
+   "weight": 1
+  },
+  {
+   "from": "WorkloadFitReport",
+   "to": "WorkloadFitReport.UnitMeasurement",
+   "weight": 1
+  }
+ ],
+ "componentSizes": {
+  "0": 1,
+  "1": 1,
+  "2": 77,
+  "3": 1,
+  "4": 1,
+  "5": 1,
+  "6": 1,
+  "7": 1,
+  "8": 1,
+  "9": 1,
+  "10": 1,
+  "11": 1,
+  "12": 1,
+  "13": 1,
+  "14": 1,
+  "15": 1,
+  "16": 1,
+  "17": 1,
+  "18": 1,
+  "19": 1,
+  "20": 1,
+  "21": 1,
+  "22": 2,
+  "23": 1,
+  "24": 1,
+  "25": 1,
+  "26": 1,
+  "27": 1,
+  "28": 1,
+  "29": 1,
+  "30": 1,
+  "31": 1,
+  "32": 1,
+  "33": 1,
+  "34": 1,
+  "35": 1,
+  "36": 1,
+  "37": 1
+ },
+ "categories": {
+  "entry": "入口归属",
+  "options": "选项与配置载体",
+  "result": "结果与冻结视图",
+  "builder": "分阶段构建链",
+  "vocabulary": "契约词汇",
+  "identity": "标识与类型标签",
+  "observability": "观测与诊断",
+  "kernel": "执行内核机制",
+  "cancellation": "取消检查点路径",
+  "implementation": "实现归属与创建来源"
+ }
+}

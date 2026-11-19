@@ -1,0 +1,528 @@
+{
+ "categories": {
+  "entry": {
+   "label": "入口归属",
+   "desc": "该类由谁创建、注册、提交或读取：指针指向 Par / ParRuntime 入口。"
+  },
+  "options": {
+   "label": "选项与配置载体",
+   "desc": "配置存放在哪个类型、由谁适配为执行规格。"
+  },
+  "result": {
+   "label": "结果与冻结视图",
+   "desc": "终态数据（值、outcome、观测快照）由谁发布、经谁读取。"
+  },
+  "builder": {
+   "label": "分阶段构建链",
+   "desc": "一次性声明链各阶段之间的衔接与契约共享。"
+  },
+  "vocabulary": {
+   "label": "契约词汇",
+   "desc": "枚举/分类类型作为公共归因或诊断语言被引用。"
+  },
+  "identity": {
+   "label": "标识与类型标签",
+   "desc": "id、key、身份种类之间的区分与归属。"
+  },
+  "observability": {
+   "label": "观测与诊断",
+   "desc": "等待图、负载筛查、饥饿采样等诊断结构与报告。"
+  },
+  "kernel": {
+   "label": "执行内核机制",
+   "desc": "取消、生命周期、归因、上下文恢复等内部机制的相互引用。"
+  },
+  "cancellation": {
+   "label": "取消检查点路径",
+   "desc": "检查点确认与取消异常在包内外的形态。"
+  },
+  "implementation": {
+   "label": "实现归属与创建来源",
+   "desc": "嵌套类型归属外层、唯一实现、冻结产物的创建点。"
+  }
+ },
+ "dropped": [
+  {
+   "from": "TaskExecutionState",
+   "to": "CancellationToken.State",
+   "why": "误报：\"State machine\" 中的泛词 State 被解析为嵌套枚举"
+  },
+  {
+   "from": "TaskGroupRun",
+   "to": "CancellationReason.Kind",
+   "why": "误报：\"Kind tag\" 中的泛词 Kind（该类型已在 e17423fb 移除）"
+  },
+  {
+   "from": "TaskUnit",
+   "to": "CancellationReason.Kind",
+   "why": "误报：同上（该类型已在 e17423fb 移除）"
+  },
+  {
+   "from": "ThreadPoolStarvationReport.Status",
+   "to": "TaskTypeMismatches.Outcome",
+   "why": "误报：\"Outcome of the observation\" 中的泛词 Outcome"
+  }
+ ],
+ "edges": {
+  "BatchCombinedResult||Par": {
+   "rel": "entry",
+   "gloss": "一次 Par#mapAndCombine 运行的冻结产物"
+  },
+  "BatchOptions||Par": {
+   "rel": "entry",
+   "gloss": "一个 Par#map 批次的选项"
+  },
+  "Combiner||Par": {
+   "rel": "entry",
+   "gloss": "combine 提交到声明的 Par，拒绝记为 SUBMISSION_FAILURE"
+  },
+  "GroupStart||ParRuntime": {
+   "rel": "entry",
+   "gloss": "由 ParRuntime#group / #groupInheriting 返回"
+  },
+  "GroupStart||Par": {
+   "rel": "entry",
+   "gloss": "#par 声明成员时绑定其 Par"
+  },
+  "Par||ParRuntime": {
+   "rel": "entry",
+   "gloss": "Par 是绑定在 ParRuntime 上的执行入口"
+  },
+  "ParRuntime||Par": {
+   "rel": "entry",
+   "gloss": "拓扑由逻辑 Par 条目组成"
+  },
+  "TaskGroup||ParRuntime": {
+   "rel": "entry",
+   "gloss": "组声明链从 ParRuntime#group 开始"
+  },
+  "TaskGroup||Par": {
+   "rel": "entry",
+   "gloss": "终端 combine 在成员全部成功后提交到自己的 Par"
+  },
+  "TaskGroupDefinition||Par": {
+   "rel": "entry",
+   "gloss": "slot 记录声明期解析的 Par"
+  },
+  "TaskGroupDefinition.Slot||Par": {
+   "rel": "entry",
+   "gloss": "单个 slot 绑定的 Par"
+  },
+  "TaskOptions||ParRuntime": {
+   "rel": "entry",
+   "gloss": "组级配置由 ParRuntime#group 声明"
+  },
+  "MultiTaskContext||UnitSpec": {
+   "rel": "options",
+   "gloss": "Resolution 把 UnitSpec 解析为可执行值"
+  },
+  "MultiTaskContext.Resolution||UnitSpec": {
+   "rel": "options",
+   "gloss": "解析参数 = UnitSpec 之外所需的一切"
+  },
+  "SubmissionAwareBlockingQueue||TaskOptions": {
+   "rel": "options",
+   "gloss": "rejectEnqueue 默认 false 使容量语义成立"
+  },
+  "SubmissionAwareBlockingQueue||BatchOptions": {
+   "rel": "options",
+   "gloss": "同上（批次侧默认值）"
+  },
+  "TaskGroupDefinition||TaskOptions": {
+   "rel": "options",
+   "gloss": "slot 携带不可变 TaskOptions"
+  },
+  "TaskOptions||BatchOptions": {
+   "rel": "options",
+   "gloss": "批次用 BatchOptions 声明（对照组级配置）"
+  },
+  "UnitSpec||BatchOptions": {
+   "rel": "options",
+   "gloss": "批次规格适配自 BatchOptions"
+  },
+  "UnitSpec||TaskOptions": {
+   "rel": "options",
+   "gloss": "组成员/combine 规格适配自 TaskOptions"
+  },
+  "Combiner||GroupValues": {
+   "rel": "result",
+   "gloss": "combine 接收 GroupValues 快照读取成员值"
+  },
+  "GroupStart||TaskGroupResult": {
+   "rel": "result",
+   "gloss": "冻结结果可跨线程使用"
+  },
+  "GroupStep||GroupValues": {
+   "rel": "result",
+   "gloss": "成员值经声明 key 从 GroupValues 读取"
+  },
+  "GroupValues||TaskGroupResult": {
+   "rel": "result",
+   "gloss": "由 TaskGroupResult#valuesOrThrow 发布"
+  },
+  "GroupValues||Combiner": {
+   "rel": "result",
+   "gloss": "同一快照交给终端 combine"
+  },
+  "TaskBatch||TaskFuture": {
+   "rel": "result",
+   "gloss": "打包各元素 TaskFuture 结果与提交取消器"
+  },
+  "TaskBatchResult||TaskGroupResult": {
+   "rel": "result",
+   "gloss": "聚合读取遵循同一 orThrow 规则"
+  },
+  "TaskExitObservation||TaskBatchResult": {
+   "rel": "result",
+   "gloss": "批次经 #completions 暴露快照"
+  },
+  "TaskExitObservation||TaskGroupResult": {
+   "rel": "result",
+   "gloss": "组经成员快照暴露"
+  },
+  "TaskExitObservation||TaskGroupReport": {
+   "rel": "result",
+   "gloss": "报告内快照不含成员值"
+  },
+  "TaskFuture||ImmediateResult": {
+   "rel": "result",
+   "gloss": "调用方收到冻结 ImmediateResult"
+  },
+  "TaskFuture||TaskExitObservation": {
+   "rel": "result",
+   "gloss": "调用方收到冻结观测快照"
+  },
+  "TaskFuture||TaskGroupResult": {
+   "rel": "result",
+   "gloss": "归属作用域的冻结分类出处"
+  },
+  "TaskGroup||GroupValues": {
+   "rel": "result",
+   "gloss": "成功成员值按声明序发布为 GroupValues"
+  },
+  "TaskObservation||TaskExitObservation": {
+   "rel": "result",
+   "gloss": "sink 恰好一次写入最终快照"
+  },
+  "GroupStart||GroupStep": {
+   "rel": "builder",
+   "gloss": "声明成员后进入 GroupStep 阶段"
+  },
+  "GroupStep||GroupStart": {
+   "rel": "builder",
+   "gloss": "两阶段共享同一一次性契约"
+  },
+  "ParRuntime||ParRuntime.Builder": {
+   "rel": "builder",
+   "gloss": "注册是组合根操作，build 后不可变"
+  },
+  "ParRuntime.Builder||ParRuntime": {
+   "rel": "builder",
+   "gloss": "可变 builder 产出不可变 runtime"
+  },
+  "TaskGroup||GroupStart": {
+   "rel": "builder",
+   "gloss": "链式声明经 GroupStart#par"
+  },
+  "TaskGroup||GroupStep": {
+   "rel": "builder",
+   "gloss": "链式声明终于 GroupStep#runAll"
+  },
+  "TaskOptions||GroupStart": {
+   "rel": "builder",
+   "gloss": "任务名来自 GroupStart#par 声明"
+  },
+  "TaskOptions||GroupStep": {
+   "rel": "builder",
+   "gloss": "或 GroupStep#combine 声明"
+  },
+  "BatchOptions||TaskType": {
+   "rel": "vocabulary",
+   "gloss": "可选 TaskType 声明仅诊断，不改变执行"
+  },
+  "SubmissionAwareBlockingQueue||TaskType": {
+   "rel": "vocabulary",
+   "gloss": "类型不参与排队语义"
+  },
+  "TaskOptions||TaskType": {
+   "rel": "vocabulary",
+   "gloss": "可选诊断声明"
+  },
+  "TaskType||Par": {
+   "rel": "vocabulary",
+   "gloss": "任务单元与注册条目共享的负载声明"
+  },
+  "TaskType||BatchOptions": {
+   "rel": "vocabulary",
+   "gloss": "单元上描述执行内容"
+  },
+  "TaskType||TaskOptions": {
+   "rel": "vocabulary",
+   "gloss": "同上（任务侧）"
+  },
+  "TaskType||ParRuntime.Builder": {
+   "rel": "vocabulary",
+   "gloss": "注册上描述条目用途"
+  },
+  "Combiner||TaskKey": {
+   "rel": "identity",
+   "gloss": "经声明 TaskKey 读取成员值"
+  },
+  "ExecutorWaitGraph||ExecutorIdentity": {
+   "rel": "identity",
+   "gloss": "节点按 ExecutorIdentity 键控"
+  },
+  "ExecutorWaitReport.Component||ParId": {
+   "rel": "identity",
+   "gloss": "执行器以其全部 ParId 集合表示"
+  },
+  "GroupValues||TaskKey": {
+   "rel": "identity",
+   "gloss": "类型化查找使用声明时的 TaskKey"
+  },
+  "MultiTaskContext||Par": {
+   "rel": "identity",
+   "gloss": "单元枚举：Par.map 批次或组成员"
+  },
+  "MultiTaskContext||ParRuntime": {
+   "rel": "identity",
+   "gloss": "单元归属说明；不被 runtime 缓存"
+  },
+  "ParId||Par": {
+   "rel": "identity",
+   "gloss": "Par 条目的身份"
+  },
+  "ParId||ParRuntime": {
+   "rel": "identity",
+   "gloss": "条目注册于 ParRuntime"
+  },
+  "ParId||ParRuntime.Builder": {
+   "rel": "identity",
+   "gloss": "获取 Par 必经 ParId（注册端点）"
+  },
+  "TaskGroupDefinition||TaskKey": {
+   "rel": "identity",
+   "gloss": "slot 携带类型化结果查找键"
+  },
+  "TaskId||TaskId.Unit": {
+   "rel": "identity",
+   "gloss": "封闭层级的两个种类之一：任务单元"
+  },
+  "TaskId||TaskId.GroupRun": {
+   "rel": "identity",
+   "gloss": "封闭层级的两个种类之一：组运行"
+  },
+  "TaskId||Par": {
+   "rel": "identity",
+   "gloss": "单元枚举含 Par.map 批次"
+  },
+  "TaskId.Unit||Par": {
+   "rel": "identity",
+   "gloss": "单元种类枚举：单任务/批次/成员/combine"
+  },
+  "TaskKey||TaskId": {
+   "rel": "identity",
+   "gloss": "key 不证明声明/执行，不是 TaskId"
+  },
+  "TaskNode||Par": {
+   "rel": "identity",
+   "gloss": "单元事实枚举：单任务/批次/成员/combine"
+  },
+  "UnitSpec||TaskId.Unit": {
+   "rel": "identity",
+   "gloss": "解析产物的单元身份类型"
+  },
+  "ExecutorWaitGraph||ParRuntime": {
+   "rel": "observability",
+   "gloss": "每个 runtime 生命周期内累积的等待图"
+  },
+  "ExecutorWaitReport||ParRuntime": {
+   "rel": "observability",
+   "gloss": "runtime 观测到的等待结构快照"
+  },
+  "ExecutorWaitReport||Par": {
+   "rel": "observability",
+   "gloss": "Par.map 中的同步等待成边语义"
+  },
+  "ParRuntimeSnapshot||ParRuntime": {
+   "rel": "observability",
+   "gloss": "关闭/排空状态诊断采样"
+  },
+  "TaskNode||ExecutorWaitGraph": {
+   "rel": "observability",
+   "gloss": "等待关系由图在准入时记录，节点自身不记录"
+  },
+  "TaskType||ParRuntime": {
+   "rel": "observability",
+   "gloss": "runtime 比较 CPU 时间与执行时间"
+  },
+  "TaskTypeMismatches||TaskType": {
+   "rel": "observability",
+   "gloss": "提交时类型不匹配的有界记忆"
+  },
+  "TaskTypeMismatches||ParRuntime": {
+   "rel": "observability",
+   "gloss": "每个 runtime 每对报告一次"
+  },
+  "TaskTypeMismatches||Par": {
+   "rel": "observability",
+   "gloss": "不匹配对 = Par + 单元名"
+  },
+  "ThreadPoolStarvationObservationScope||ParRuntime": {
+   "rel": "observability",
+   "gloss": "采样 runtime 注册的执行器"
+  },
+  "WorkloadFit||TaskType": {
+   "rel": "observability",
+   "gloss": "仅对声明 COMPUTE 的准入计时"
+  },
+  "WorkloadFitReport||TaskType": {
+   "rel": "observability",
+   "gloss": "比较声明 COMPUTE 条目的两种时间"
+  },
+  "WorkloadFitReport||WorkloadFitReport.ParMeasurement": {
+   "rel": "observability",
+   "gloss": "条目级低 CPU 判定与告警"
+  },
+  "WorkloadFitReport||WorkloadFitReport.UnitMeasurement": {
+   "rel": "observability",
+   "gloss": "单元级声明漂移判定"
+  },
+  "WorkloadFitReport||ParRuntime": {
+   "rel": "observability",
+   "gloss": "报告经 ParRuntime#workloadFitReport 读取"
+  },
+  "CancellationToken.ParentLink||CancellationToken": {
+   "rel": "kernel",
+   "gloss": "子终态时 sever 保持可回收"
+  },
+  "Deadlines||MultiTaskContext": {
+   "rel": "kernel",
+   "gloss": "显式超时解析为有限 deadline"
+  },
+  "ExecutionExitTracker||TaskExecutionState": {
+   "rel": "kernel",
+   "gloss": "提交前注册每任务状态槽"
+  },
+  "ScopedCallable||TaskExecutionContext": {
+   "rel": "kernel",
+   "gloss": "退出时恢复先前的上下文"
+  },
+  "SubmissionException||TaskGroup": {
+   "rel": "kernel",
+   "gloss": "组按此类型归类成员失败"
+  },
+  "SubmissionScope||SubmissionAwareBlockingQueue": {
+   "rel": "kernel",
+   "gloss": "入队策略在工作线程执行前应用"
+  },
+  "Task||TaskFuture": {
+   "rel": "kernel",
+   "gloss": "Task 是 TaskFuture 上的薄转发壳"
+  },
+  "Task||CancellationToken": {
+   "rel": "kernel",
+   "gloss": "壳携带名字与取消 token"
+  },
+  "TaskBatchResult||Task": {
+   "rel": "kernel",
+   "gloss": "任务本地资源属于 try-with-resources"
+  },
+  "TaskExecutionState||ExecutionExitTracker": {
+   "rel": "kernel",
+   "gloss": "槽注册于 tracker（反向指针）"
+  },
+  "TaskNode||MultiTaskContext": {
+   "rel": "kernel",
+   "gloss": "节点由解析时创建，每单元恰一个"
+  },
+  "TaskObservation||TaskFuture": {
+   "rel": "kernel",
+   "gloss": "观测 sink 支撑 completionFuture"
+  },
+  "TaskObservation||TaskExecutionState": {
+   "rel": "kernel",
+   "gloss": "发布等待 finally 窗口"
+  },
+  "TokenOutcomes||CancellationToken": {
+   "rel": "kernel",
+   "gloss": "token 终态映射为归因分类"
+  },
+  "TokenOutcomes||TaskGroup": {
+   "rel": "kernel",
+   "gloss": "归因表被组成员归类共享"
+  },
+  "TokenOutcomes||TaskFuture": {
+   "rel": "kernel",
+   "gloss": "归因表被 future 终态共享"
+  },
+  "CheckpointCancellation||Checkpoints": {
+   "rel": "cancellation",
+   "gloss": "库标记的检查点确认"
+  },
+  "CheckpointCancellation||LeanCancellationException": {
+   "rel": "cancellation",
+   "gloss": "包外表现为普通取消异常"
+  },
+  "Checkpoints||LeanCancellationException": {
+   "rel": "cancellation",
+   "gloss": "检查点在开始前读取消状态"
+  },
+  "CancellationToken.State||CancellationToken": {
+   "rel": "implementation",
+   "gloss": "外层 token 的生命周期状态枚举"
+  },
+  "ExecutorRuntime||ParRuntime": {
+   "rel": "implementation",
+   "gloss": "包内部归属说明"
+  },
+  "MultiTaskContext||MultiTaskContext.Resolution": {
+   "rel": "implementation",
+   "gloss": "嵌套解析参数类型"
+  },
+  "TaskFuture||Task": {
+   "rel": "implementation",
+   "gloss": "TaskFuture 的唯一实现"
+  },
+  "TaskGroupDefinition||GroupDraft": {
+   "rel": "implementation",
+   "gloss": "由 GroupDraft#freeze() 在提交边界产出"
+  },
+  "WorkloadClock||SystemWorkloadClock": {
+   "rel": "implementation",
+   "gloss": "生产实现（测试可脚本化 seam）"
+  },
+  "BatchCombinedResult||CancellationReason": {
+   "rel": "vocabulary",
+   "gloss": "终止归因取值（USER_CODE_FAILURE/SUBMISSION_REJECTED）"
+  },
+  "CancellationToken||TaskTermination": {
+   "rel": "vocabulary",
+   "gloss": "包外公共归因词汇（终止模型）"
+  },
+  "CancellationToken||CancellationReason": {
+   "rel": "vocabulary",
+   "gloss": "归因词汇的取消原因部分"
+  },
+  "CancellationToken||FailureCause": {
+   "rel": "vocabulary",
+   "gloss": "归因词汇的失败原因部分"
+  },
+  "Combiner||FailureCause.Kind": {
+   "rel": "vocabulary",
+   "gloss": "拒绝提交记为 SUBMISSION_REJECTED"
+  },
+  "TaskState||TaskTermination": {
+   "rel": "kernel",
+   "gloss": "执行全程阶段；TaskTermination 是终局权威"
+  },
+  "TokenOutcomes||CancellationReason": {
+   "rel": "kernel",
+   "gloss": "token 终态映射为 CancellationReason"
+  },
+  "TokenOutcomes||CancellationReason.Kind": {
+   "rel": "kernel",
+   "gloss": "TIMEOUT→DEADLINE_EXCEEDED 等映射规则"
+  }
+ }
+}
