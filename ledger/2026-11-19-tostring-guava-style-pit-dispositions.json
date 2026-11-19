@@ -32,8 +32,8 @@
   },
   "gates": {
     "failures": {
-      "mvn pitest": 1,
-      "mvn test": 1
+      "mvn pitest": 4,
+      "mvn test": 2
     }
   },
   "pit": [
@@ -48,16 +48,28 @@
       "total": 489,
       "inconclusive": 4,
       "inconclusiveRate": 0.0082
+    },
+    {
+      "source": "tmp/pit-tostring-guava-style-2026-11-19/mutations-broad-final-tree.xml",
+      "statuses": {
+        "KILLED": 463,
+        "NO_COVERAGE": 5,
+        "SURVIVED": 16,
+        "TIMED_OUT": 6
+      },
+      "total": 490,
+      "inconclusive": 6,
+      "inconclusiveRate": 0.0122
     }
   ],
   "interventions": {
     "asks": 0,
-    "corrections": 0
+    "corrections": 1
   },
   "usage": {
     "totalTokens": null,
     "cost": null,
     "currency": null
   },
-  "notes": "round-4 V1 fix: broad rerun converted 95 of 128 off-diff entries, five new assertions killed 10, 7 proven equivalent, 16 residual NEEDS MAINTAINER DISPOSITION (14 after the dev-line merge killed two); all 8 timeouts attributed; branch merged dev/v0.5.0 (flattening) and refreshed the TaskBatch scope; one broad-run attempt failed the JDK enforcer, one merged-tree mvn test failed on the incoming redaction expectation before alignment"
+  "notes": "round-4 V1 fix: broad rerun converted 95 of 128 off-diff entries, five new assertions killed 10, 7 proven equivalent, 16 residual NEEDS MAINTAINER DISPOSITION (14 after the dev-line merge killed two); branch merged dev/v0.5.0 (flattening) and refreshed the TaskBatch scope; one broad-run attempt failed the JDK enforcer, one merged-tree mvn test failed on the incoming redaction expectation before alignment. Round-5 V1-V3 fix: final-tree broad rerun at 131dcdb6 (490 mutants: 463/16/5/6) supersedes all pre-merge partitions; forTask:85 full-run TIMED_OUT not reproducible with the full-run test selection (KILLED in 1 test) -> recorded as an unresolved tool/execution limitation, round-4 order attribution retracted; final run's 6 timeouts attributed from a final-tree focused reproduction (4 liveness, 2 order-dependent); G1 split (verifier -> E4 all-supported-path equivalence), G4 split into G4a/G4b; 13 residual entries in 9 groups await maintainer disposition; gate failures added: two JDK-enforcer failures (mvn test, mvn pitest) and one Task* scope-error PIT rerun, each addressed at the cause"
 }
