@@ -497,7 +497,7 @@ class TaskFutureTest {
     @Test
     void stateReadsPendingAndExitedFromAPlainDelegate() {
         SettableFuture<String> delegate = SettableFuture.create();
-        Task<String> view = Task.of("orders", new CancellationToken(), delegate);
+        Task<String> view = ordersTask(delegate);
         assertThat(view.state()).isEqualTo(TaskState.PENDING);
         delegate.set("ok");
         assertThat(view.state()).isEqualTo(TaskState.EXITED);
@@ -506,7 +506,7 @@ class TaskFutureTest {
     @Test
     void unsubmittedElementDeliversListenersRegisteredBeforeItRuns() {
         ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> "done");
-        Task<String> element = Task.of("orders", new CancellationToken(), prepared);
+        Task<String> element = ordersTask(prepared);
         AtomicReference<String> observed = new AtomicReference<>();
 
         // The view is the element's final handle from creation on, so a listener registered before
@@ -531,7 +531,7 @@ class TaskFutureTest {
             executionRan.set(true);
             return "done";
         });
-        Task<String> element = Task.of("orders", new CancellationToken(), prepared);
+        Task<String> element = ordersTask(prepared);
 
         assertThat(element.cancel(true)).isTrue();
         // Cancelling the view forwards to the prepared future: the executor may still invoke it, and
@@ -547,8 +547,8 @@ class TaskFutureTest {
     void submissionFailureAndCancellationAttributeTheirOwnCause() {
         ExecutionPhaseHintFuture<String> rejected = preparedFuture(() -> "unreachable");
         ExecutionPhaseHintFuture<String> cancelled = preparedFuture(() -> "unreachable");
-        Task<String> rejectedView = Task.of("orders", new CancellationToken(), rejected);
-        Task<String> cancelledView = Task.of("orders", new CancellationToken(), cancelled);
+        Task<String> rejectedView = ordersTask(rejected);
+        Task<String> cancelledView = ordersTask(cancelled);
 
         assertThat(rejected.claimSubmissionFailure(new InterruptedException("submitter interrupted")))
                 .isTrue();
@@ -567,7 +567,7 @@ class TaskFutureTest {
     @Test
     void aClaimedSubmissionFailureOutranksACascadeCancellationThatRacesIt() {
         ExecutionPhaseHintFuture<String> prepared = preparedFuture(() -> "unreachable");
-        Task<String> element = Task.of("orders", new CancellationToken(), prepared);
+        Task<String> element = ordersTask(prepared);
 
         // The batch claims every element on a handoff failure, then settles them. A fail-fast
         // cascade fired by an earlier settle can cancel this element in between; its recorded
@@ -734,14 +734,14 @@ class TaskFutureTest {
 
     @Test
     void toStringDescribesTheTaskForDiagnostics() {
-        Task<String> succeeded = Task.of("orders", new CancellationToken(), Futures.immediateFuture("done"));
+        Task<String> succeeded = ordersTask(Futures.immediateFuture("done"));
         Task<String> timed = Task.of(
                 "orders",
                 new CancellationToken(null, System.nanoTime() + TimeUnit.SECONDS.toNanos(30)),
                 SettableFuture.<String>create());
         Task<String> failed = Task.of(
                 "orders", new CancellationToken(), Futures.immediateFailedFuture(new IllegalStateException("boom")));
-        Task<String> cancelled = Task.of("orders", new CancellationToken(), SettableFuture.<String>create());
+        Task<String> cancelled = ordersTask(SettableFuture.<String>create());
         cancelled.cancel(false);
 
         assertThat(succeeded.toString())
@@ -788,13 +788,12 @@ class TaskFutureTest {
         // Wrapping the failure in an ExecutionException renders its cause (JDK behavior), so a
         // cause whose toString throws cannot reach the FAILURE branch; Guava's UNKNOWN branch keeps
         // the diagnostic itself from throwing.
-        Task<String> unrenderable =
-                Task.of("orders", new CancellationToken(), Futures.immediateFailedFuture(new RuntimeException("boom") {
-                    @Override
-                    public String toString() {
-                        throw new AssertionError("the cause's toString may throw");
-                    }
-                }));
+        Task<String> unrenderable = ordersTask(Futures.immediateFailedFuture(new RuntimeException("boom") {
+            @Override
+            public String toString() {
+                throw new AssertionError("the cause's toString may throw");
+            }
+        }));
 
         assertThat(unrenderable.toString())
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(unrenderable))
@@ -823,7 +822,7 @@ class TaskFutureTest {
                 return super.isDone();
             }
         };
-        Task<String> task = Task.of("orders", new CancellationToken(), settlingMidRender);
+        Task<String> task = ordersTask(settlingMidRender);
 
         assertThat(task.toString())
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(task))
@@ -833,14 +832,14 @@ class TaskFutureTest {
 
     @Test
     void completionFutureRendersItsOwnReadOnlyEnvelope() {
-        Task<String> pending = Task.of("orders", new CancellationToken(), SettableFuture.<String>create());
+        Task<String> pending = ordersTask(SettableFuture.<String>create());
         ListenableFuture<TaskExitObservation<String>> pendingView = pending.completionFuture();
         assertThat(pendingView.toString())
                 .isEqualTo("ReadOnlyView@" + Integer.toHexString(System.identityHashCode(pendingView))
                         + "[status=PENDING]");
         assertThat(pendingView.cancel(true)).isFalse();
 
-        Task<String> settled = Task.of("orders", new CancellationToken(), Futures.immediateFuture("done"));
+        Task<String> settled = ordersTask(Futures.immediateFuture("done"));
         ListenableFuture<TaskExitObservation<String>> settledView = settled.completionFuture();
         assertThat(settledView.toString())
                 .isEqualTo("ReadOnlyView@" + Integer.toHexString(System.identityHashCode(settledView))
@@ -850,7 +849,7 @@ class TaskFutureTest {
 
     @Test
     void terminationReadsSuccessEvenWhenTheCallingThreadIsInterrupted() {
-        Task<String> succeeded = Task.of("orders", new CancellationToken(), Futures.immediateFuture("done"));
+        Task<String> succeeded = ordersTask(Futures.immediateFuture("done"));
 
         Thread.currentThread().interrupt();
         try {
@@ -884,6 +883,11 @@ class TaskFutureTest {
 
     private static String boom() {
         throw new IllegalStateException("boom");
+    }
+
+    /** A task view named {@code orders} with a fresh unbounded token over {@code delegate}. */
+    private static Task<String> ordersTask(ListenableFuture<String> delegate) {
+        return Task.of("orders", new CancellationToken(), delegate);
     }
 
     private static <T> T awaitQuietly(ListenableFuture<T> future) {
