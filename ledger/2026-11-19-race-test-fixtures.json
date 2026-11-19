@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-race-test-fixtures",
+  "date": "2026-11-19",
+  "topic": "race-test-fixtures",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "test: require a test case for every race claim and shared prepared states",
+      "test: build race-test prepared states from shared PreparedStates fixtures",
+      "test: cover the ParRuntime admission/close race deterministically",
+      "test: assert admission visibility in closed() and inFlight()",
+      "refactor: inline BoundTask and replace a fixed sleep with a state listener (R1, R2)"
+    ],
+    "files": 10,
+    "insertions": 243,
+    "deletions": 77
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "race-test-fixtures-509e37c2-20261119-085555-a7b70c",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 14208,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 93302,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-race-test-fixtures-2026-11-19",
+        "head": "a3acdb1914737afc12260cf32cc748ca519ee5f7",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M06"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "T03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 2,
+      "refactoring-review verify": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "core/target/pit-reports/mutations.xml",
+      "statuses": {
+        "KILLED": 89,
+        "NO_COVERAGE": 25,
+        "SURVIVED": 11,
+        "TIMED_OUT": 5
+      },
+      "total": 130,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0385
+    }
+  ],
+  "interventions": {
+    "asks": 1,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": ""
+}
