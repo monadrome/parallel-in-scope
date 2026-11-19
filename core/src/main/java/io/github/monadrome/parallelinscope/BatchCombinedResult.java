@@ -16,10 +16,11 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The terminal combine shares the batch's deadline and cancellation lifecycle: it runs exactly
  * once, only after every element succeeded, and it is cancelled without running when any element
- * failed, was cancelled, or the deadline expired first. Its outcome is attributed like an element's
- * — {@code USER_FAILURE} for a business failure of the combiner (the original throwable is
- * preserved), {@code SUBMISSION_FAILURE} when the combine's own executor rejected it, {@code
- * FAIL_FAST}/{@code TIMEOUT}/{@code GROUP_CANCELLED} for the framework paths.
+ * failed, was cancelled, or the deadline expired first. Its termination is attributed like an
+ * element's: {@code FAILED} with a {@code USER_CODE_FAILURE} cause for a business failure of the
+ * combiner (the original throwable is preserved) or {@code SUBMISSION_REJECTED} when the combine's
+ * own executor rejected it, and {@code CANCELLED} with the matching {@code CancellationReason}
+ * (deadline, fail-fast, caller, or parent scope) for the framework paths.
  *
  * <p>The element results keep their full fidelity in {@link #batchResult()}; both the elements and
  * the combine are covered by {@link #executionExitConfirmed()} and {@link #unexitedExecutions()}.
