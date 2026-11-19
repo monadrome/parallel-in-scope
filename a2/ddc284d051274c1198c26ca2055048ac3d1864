@@ -1,0 +1,19 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeAdmissionRaceTest.java
+  s_b8d4cd8e170dbe::t_6f8e01e77bf5b4 45-48,62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a2ddc284d051274c1198c26ca2055048ac3d1864",
+  "prompts": {},
+  "sessions": {
+    "s_b8d4cd8e170dbe": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2feb75ae-05de-4fb7-82d5-301564e15632",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
