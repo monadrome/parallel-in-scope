@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-gate-coupled-headings-principle",
+  "date": "2026-11-18",
+  "topic": "gate-coupled-headings-principle",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: warn that structural text may be gate-coupled"
+    ],
+    "files": 1,
+    "insertions": 6,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "design/AGENTS.md maintenance principle 11 from the session reflect-agents-md audit; lightweight review on gpt-5.6-terra PASS (.agents/tasks/review-principle-11/report.md); doc gates pass"
+}
