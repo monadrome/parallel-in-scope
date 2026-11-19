@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -58,7 +57,7 @@ class TaskFutureTest {
             assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
             TaskFuture<String> pending = batch.results().get(2);
             assertThat(pending.taskName()).isEqualTo("orders");
-            assertThat(pending.outcome()).isEqualTo(TaskClassification.RUNNING);
+            TerminationAssertions.assertPending(pending.termination());
             assertThat(pending.deadlineNanos()).isNotEqualTo(Long.MAX_VALUE);
 
             block.countDown();
@@ -90,12 +89,12 @@ class TaskFutureTest {
             assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
             for (TaskFuture<String> element : batch.results()) {
                 assertThat(element.taskName()).isEqualTo("rejected");
-                assertThat(element.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+                TerminationAssertions.assertSubmissionFailure(element.termination());
                 assertThat(element.failure()).isInstanceOf(SubmissionException.class);
             }
-            assertThat(batch.report().stateCounts())
-                    .containsOnlyKeys(TaskClassification.SUBMISSION_FAILURE)
-                    .containsEntry(TaskClassification.SUBMISSION_FAILURE, 2);
+            assertThat(batch.report().terminationCounts())
+                    .containsOnlyKeys(TaskTermination.Kind.FAILED)
+                    .containsEntry(TaskTermination.Kind.FAILED, 2);
         } finally {
             global.close();
         }
@@ -125,8 +124,8 @@ class TaskFutureTest {
             assertThat(group.members().values())
                     .allSatisfy(future -> assertThat(future).isNotNull());
             assertThat(group.convergenceFuture()).isInstanceOf(TaskFuture.class);
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
         } finally {
             global.close();
             pool.shutdownNow();
@@ -169,7 +168,7 @@ class TaskFutureTest {
 
             TaskFuture<String> element = batch.results().get(0);
             assertThat(element.get(2, TimeUnit.SECONDS)).isEqualTo("done");
-            assertThat(element.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertSuccess(element.termination());
             assertThat(element.failure()).isNull();
         } finally {
             global.close();
@@ -194,7 +193,7 @@ class TaskFutureTest {
 
             TaskFuture<String> element = batch.results().get(0);
             await().atMost(2, TimeUnit.SECONDS).until(element::isDone);
-            assertThat(element.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertUserFailure(element.termination());
             assertThat(element.failure()).isSameAs(boom);
             assertThatThrownBy(element::get)
                     .isInstanceOf(ExecutionException.class)
@@ -228,15 +227,16 @@ class TaskFutureTest {
 
             // The member snapshot records the reason before the group cancels itself for the other
             // members, so it keeps the initiating member distinct from the fall-out.
-            assertThat(Objects.requireNonNull(snapshot.members().get("slow")).outcome())
-                    .isEqualTo(TaskClassification.MEMBER_CANCELLED);
-            // The group-level outcome is the post-hoc view: the group token was cancelled to protect
-            // the remaining members, so the group reads GROUP_CANCELLED.
-            assertThat(snapshot.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
-            // A future reads the token chain only. The member token is wired to the group token, so
-            // once the group's own cancel lands it reports the group's cancellation too — the
-            // transient MEMBER_CANCELLED a caller may see right after its own cancel() is not stable.
-            await().atMost(2, TimeUnit.SECONDS).until(() -> member.outcome() == TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(snapshot.members().get("slow")).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_CALLER);
+            // The group-level scope termination is the post-hoc view: the member's direct
+            // cancellation ended the group, so the scope records the member as its primary cause.
+            TerminationAssertions.assertScopeCancelled(
+                    snapshot.termination(), CancellationReason.Kind.CANCELLED_BY_MEMBER);
+            // The member view's termination is frozen at settle: it keeps the direct-cancellation
+            // attribution even after the group's own cancel lands on the token chain.
+            TerminationAssertions.assertCancelled(member.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
         } finally {
             block.countDown();
             global.close();
@@ -266,11 +266,14 @@ class TaskFutureTest {
                     .submitAll();
 
             group.cancel();
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertScopeCancelled(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_CALLER);
 
-            assertThat(group.findMember("first").get().outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
-            assertThat(group.findMember("second").get().outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertCancelled(
+                    group.findMember("first").get().termination(), CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE);
+            TerminationAssertions.assertCancelled(
+                    group.findMember("second").get().termination(), CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE);
         } finally {
             block.countDown();
             global.close();
@@ -293,8 +296,9 @@ class TaskFutureTest {
 
             await().atMost(2, TimeUnit.SECONDS)
                     .until(() -> batch.results().get(1).isDone());
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
+            TerminationAssertions.assertUserFailure(batch.results().get(0).termination());
+            TerminationAssertions.assertCancelled(
+                    batch.results().get(1).termination(), CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
         } finally {
             block.countDown();
             global.close();
@@ -318,7 +322,7 @@ class TaskFutureTest {
             await().atMost(2, TimeUnit.SECONDS)
                     .until(() -> batch.results().get(0).isDone());
             TaskFuture<String> element = batch.results().get(0);
-            assertThat(element.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertCancelled(element.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
             assertThat(element.remaining()).isEqualTo(Duration.ZERO);
             assertThat(element.failure()).isNull();
         } finally {
@@ -371,8 +375,9 @@ class TaskFutureTest {
                             .isDone());
             // The member token only learned about the cancellation by propagation, so the reported
             // cause is the originating state at the root of the chain, not the propagation link.
-            assertThat(Objects.requireNonNull(innerMember.get()).outcome())
-                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(innerMember.get()).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE);
         } finally {
             block.countDown();
             global.close();
@@ -408,7 +413,8 @@ class TaskFutureTest {
 
             await().atMost(2, TimeUnit.SECONDS)
                     .until(() -> batch.results().get(0).isDone());
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertCancelled(
+                    batch.results().get(0).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
         } finally {
             block.countDown();
             global.close();
@@ -433,8 +439,9 @@ class TaskFutureTest {
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo("fast");
             await().atMost(2, TimeUnit.SECONDS)
                     .until(() -> batch.results().get(1).isDone());
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.TIMEOUT);
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertCancelled(
+                    batch.results().get(1).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+            TerminationAssertions.assertSuccess(batch.results().get(0).termination());
         } finally {
             block.countDown();
             global.close();
@@ -456,22 +463,23 @@ class TaskFutureTest {
                             BatchOptions.timeout("orders", Duration.ofMillis(50)));
             TaskFuture<String> element = batch.results().get(0);
 
-            Optional<TaskClassification> terminal = Optional.empty();
+            TaskTermination<String> terminal = null;
             boolean regressed = false;
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
             while (System.nanoTime() < deadline) {
-                TaskClassification observed = element.outcome();
-                if (observed == TaskClassification.RUNNING) {
-                    regressed = terminal.isPresent();
+                TaskTermination<String> observed = element.termination();
+                if (observed == null) {
+                    regressed = terminal != null;
                 } else {
-                    terminal = Optional.of(observed);
+                    terminal = observed;
                     if (element.isDone()) break;
                 }
             }
 
             assertThat(regressed).isFalse();
             assertThat(element.isDone()).isTrue();
-            assertThat(element.outcome()).isEqualTo(terminal.get()).isEqualTo(TaskClassification.TIMEOUT);
+            assertThat(element.termination()).isNotNull();
+            TerminationAssertions.assertCancelled(element.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
         } finally {
             block.countDown();
             global.close();
@@ -501,13 +509,17 @@ class TaskFutureTest {
 
         // The view is the element's final handle from creation on, so a listener registered before
         // anything is submitted fires with the executed outcome — no bind step swaps the delegate.
-        element.addListener(() -> observed.set(element.outcome().name()), Runnable::run);
-        assertThat(element.outcome()).isEqualTo(TaskClassification.RUNNING);
+        element.addListener(
+                () -> observed.set(com.google.common.base.Verify.verifyNotNull(element.termination())
+                        .kind()
+                        .name()),
+                Runnable::run);
+        TerminationAssertions.assertPending(element.termination());
 
         prepared.run();
 
         assertThat(observed.get()).isEqualTo("SUCCESS");
-        assertThat(element.outcome()).isEqualTo(TaskClassification.SUCCESS);
+        TerminationAssertions.assertSuccess(element.termination());
     }
 
     @Test
@@ -526,7 +538,7 @@ class TaskFutureTest {
         prepared.run();
 
         assertThat(executionRan).isFalse();
-        assertThat(element.outcome()).isEqualTo(TaskClassification.MEMBER_CANCELLED);
+        TerminationAssertions.assertCancelled(element.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
     }
 
     @Test
@@ -542,12 +554,12 @@ class TaskFutureTest {
         cancelled.skipExecution();
         cancelled.cancel(true);
 
-        assertThat(rejectedView.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+        TerminationAssertions.assertSubmissionFailure(rejectedView.termination());
         assertThat(rejectedView.failure())
                 .isInstanceOf(SubmissionException.class)
                 .hasCauseInstanceOf(InterruptedException.class);
         assertThat(cancelledView.isCancelled()).isTrue();
-        assertThat(cancelledView.outcome()).isEqualTo(TaskClassification.MEMBER_CANCELLED);
+        TerminationAssertions.assertCancelled(cancelledView.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
     }
 
     @Test
@@ -563,7 +575,7 @@ class TaskFutureTest {
                 .isTrue();
         prepared.cancel(true);
 
-        assertThat(element.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+        TerminationAssertions.assertSubmissionFailure(element.termination());
         assertThat(element.failure())
                 .isInstanceOf(SubmissionException.class)
                 .hasCauseInstanceOf(IllegalStateException.class);
@@ -708,7 +720,7 @@ class TaskFutureTest {
             assertThat(transformed.deadlineNanos()).isEqualTo(origin.deadlineNanos());
             assertThat(transformed.toString()).doesNotContain("placeholder=");
             assertThat(transformed.get(2, TimeUnit.SECONDS)).isEqualTo(5);
-            assertThat(transformed.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertSuccess(transformed.termination());
             assertThat(recovered.get(2, TimeUnit.SECONDS)).isEqualTo("fallback");
             assertThatThrownBy(() -> bounded.get(2, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
@@ -727,16 +739,16 @@ class TaskFutureTest {
                 SettableFuture.<String>create());
 
         assertThat(succeeded.toString()).isEqualTo("Task[name=orders, state=SUCCESS, remaining=unbounded]");
-        assertThat(timed.toString()).contains("name=orders", "state=RUNNING", "remaining=PT");
+        assertThat(timed.toString()).contains("name=orders", "state=PENDING", "remaining=PT");
     }
 
     @Test
-    void outcomeReadsSuccessEvenWhenTheCallingThreadIsInterrupted() {
+    void terminationReadsSuccessEvenWhenTheCallingThreadIsInterrupted() {
         Task<String> succeeded = Task.of("orders", new CancellationToken(), Futures.immediateFuture("done"));
 
         Thread.currentThread().interrupt();
         try {
-            assertThat(succeeded.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertSuccess(succeeded.termination());
             assertThat(succeeded.failure()).isNull();
         } finally {
             Thread.interrupted();

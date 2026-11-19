@@ -80,7 +80,7 @@ final class SlidingWindowSubmitter<V> {
     ImmutableList<Task<V>> viewsFor(List<? extends ExecutionPhaseHintFuture<V>> tasks) {
         ImmutableList.Builder<Task<V>> views = ImmutableList.builderWithExpectedSize(tasks.size());
         for (ExecutionPhaseHintFuture<V> task : tasks) {
-            views.add(Task.attributedOnSettle(unit.name(), unit.cancellationToken(), task));
+            views.add(Task.of(unit.name(), unit.cancellationToken(), task));
         }
         return views.build();
     }

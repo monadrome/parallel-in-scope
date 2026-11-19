@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -185,9 +184,8 @@ final class TaskGroup<R> implements AutoCloseable {
      * <ul>
      *   <li>every member and the declared terminal combine succeeded: completes normally with the
      *       group's {@link GroupValues};
-     *   <li>a member or the terminal recorded a {@link TaskClassification#USER_FAILURE} or {@link
-     *       TaskClassification#SUBMISSION_FAILURE}: fails with that failure as the cause, so {@code get()}
-     *       throws {@link ExecutionException};
+     *   <li>a member or the terminal recorded a failure: fails with that failure as the cause, so
+     *       {@code get()} throws {@link ExecutionException};
      *   <li>the group was cancelled, a member was cancelled directly, or the group or a member
      *       deadline expired with no recorded failure: is cancelled, so {@code get()} throws {@link
      *       CancellationException}.
@@ -260,19 +258,28 @@ final class TaskGroup<R> implements AutoCloseable {
             }
         }
         ImmediateResult<GroupValues> frozenValues;
-        if (report.outcome() == TaskClassification.SUCCESS) {
+        ScopeTermination scope = report.termination();
+        if (scope.kind() == ScopeTermination.Kind.SUCCEEDED) {
             try {
                 frozenValues = ImmediateResult.succeeded(Futures.getDone(values));
             } catch (ExecutionException impossible) {
                 throw new AssertionError("successful group values cannot fail", impossible);
             }
         } else {
-            Throwable failure = report.recordedFailure();
-            if (failure == null) {
-                failure =
-                        new LeanCancellationException("task group '" + groupName + "' ended with " + report.outcome());
+            ScopeTerminationCause cause = com.google.common.base.Verify.verifyNotNull(
+                    scope.cause(), "a non-successful group scope carries no cause");
+            if (cause.kind() == ScopeTerminationCause.Kind.FAILURE) {
+                frozenValues =
+                        ImmediateResult.failed(com.google.common.base.Verify.verifyNotNull(cause.failureCause()));
+            } else {
+                CancellationReason reason = com.google.common.base.Verify.verifyNotNull(cause.cancellationReason());
+                Throwable failure = report.recordedFailure();
+                if (failure == null) {
+                    failure =
+                            new LeanCancellationException("task group '" + groupName + "' ended with " + reason.kind());
+                }
+                frozenValues = ImmediateResult.cancelled(reason, failure);
             }
-            frozenValues = ImmediateResult.failed(report.outcome(), failure);
         }
         Map<String, Integer> unfinished = executionExit.unexitedExecutionSummary();
         ImmediateResult<R> terminalResult = terminal == null ? null : castResult(freezeResult(terminal));
@@ -294,8 +301,9 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     private ImmediateResult<Object> freezeResult(MemberState member) {
-        TaskClassification reason = com.google.common.base.Verify.verifyNotNull(member.reason);
-        return ImmediateResult.fromTask(member.view, reason);
+        TaskTermination<Object> termination = com.google.common.base.Verify.verifyNotNull(
+                member.termination, "member termination is recorded before freezing");
+        return ImmediateResult.fromTask(member.view, termination);
     }
 
     private @Nullable TaskExitObservation<?> finalObservation(MemberState member, ImmediateResult<?> immediate) {
@@ -836,41 +844,28 @@ final class TaskGroup<R> implements AutoCloseable {
             return;
         }
         try {
-            if (member.future.isCancelled()) {
-                member.reason = classifyCancelled(member);
-            } else {
-                try {
-                    Futures.getDone(member.future);
-                    member.reason = TaskClassification.SUCCESS;
-                } catch (ExecutionException failure) {
-                    member.failure = failure.getCause();
-                    member.reason = classifyFailure(member, member.failure);
-                }
-            }
-            TaskClassification observedReason = member.reason;
+            member.termination = classifyMemberTermination(member);
+            TaskTermination<Object> observedTermination = member.termination;
 
-            ScopeTerminationCause explicitCause = explicitScopeCause(member, observedReason);
+            ScopeTerminationCause explicitCause = explicitScopeCause(member, observedTermination);
             if (explicitCause == null) {
-                scopeTermination.observe(
-                        TaskTermination.fromLegacy(
-                                observedReason, member.failure, memberDisposition(member), member.name),
-                        member.name);
+                scopeTermination.observe(observedTermination, member.name);
             } else {
                 scopeTermination.observe(explicitCause);
             }
 
-            if (member != terminal && observedReason == TaskClassification.SUCCESS) {
+            boolean failed = observedTermination.kind() == TaskTermination.Kind.FAILED;
+            if (member != terminal && observedTermination.kind() == TaskTermination.Kind.SUCCESS) {
                 memberSuccesses.incrementAndGet();
             }
-            if (observedReason == TaskClassification.USER_FAILURE
-                    || observedReason == TaskClassification.SUBMISSION_FAILURE) {
+            if (failed) {
                 failedTaskName.compareAndSet(null, member.name);
             }
             if (terminal != null && memberSuccesses.get() == memberStates.size()) {
                 submitTerminalOnce();
             }
 
-            if (observedReason == TaskClassification.MEMBER_CANCELLED) {
+            if (cancelledDirectly(observedTermination)) {
                 groupToken.cancel();
                 for (MemberState other : membersAndTerminal) {
                     if (!other.future.isDone()) {
@@ -878,11 +873,8 @@ final class TaskGroup<R> implements AutoCloseable {
                     }
                 }
             }
-            if (observedReason == TaskClassification.USER_FAILURE
-                    || observedReason == TaskClassification.SUBMISSION_FAILURE) {
-                if (member == terminal) {
-                    groupToken.failFastCancel();
-                }
+            if (failed && member == terminal) {
+                groupToken.failFastCancel();
             }
         } finally {
             if (completedTasks.incrementAndGet() == totalTasks) {
@@ -892,54 +884,88 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     /**
-     * Classifies an exceptionally completed member. A failure that merely signals observed
-     * cancellation — a checkpoint threw a {@link CancellationException}, or the worker thread was
-     * interrupted — can win the race against the cascade cancel on the member future; it is
-     * attributed through the tokens like a cancellation instead of being recorded as a user
-     * failure. A spontaneous {@code CancellationException} from user code with no committed
-     * framework cancellation still reads {@link TaskClassification#USER_FAILURE}.
+     * Returns whether the termination records a direct member cancellation: no framework
+     * cancellation path committed on the member or group token, so the member future was cancelled
+     * directly — by the caller or by an adopted source cancelled from outside.
      */
-    private TaskClassification classifyFailure(MemberState member, @Nullable Throwable failure) {
-        if (failure instanceof SubmissionException) {
-            return TaskClassification.SUBMISSION_FAILURE;
-        }
-        if (TokenOutcomes.causedByCancellation(failure)) {
-            return classifyCancelled(member, TaskClassification.USER_FAILURE);
-        }
-        return TaskClassification.USER_FAILURE;
+    private static boolean cancelledDirectly(TaskTermination<?> termination) {
+        return termination.kind() == TaskTermination.Kind.CANCELLED
+                && com.google.common.base.Verify.verifyNotNull(termination.cancellationReason())
+                                .kind()
+                        == CancellationReason.Kind.CANCELLED_BY_CALLER;
     }
 
     /**
-     * Returns the cancellation outcome of a settled member from its member and group deadlines and
-     * the group's cancellation state.
+     * Attributes a settled member natively: submission rejection first, then cancellation from the
+     * member and group tokens' committed states, then success or failure from the future itself. A
+     * failure that merely signals observed cancellation — a checkpoint threw a {@link
+     * CancellationException}, or the worker thread was interrupted — can win the race against the
+     * cascade cancel on the member future; it is attributed through the tokens like a cancellation
+     * instead of being recorded as a user failure. A spontaneous {@code CancellationException} from
+     * user code with no committed framework cancellation still reads {@link
+     * FailureCause.Kind#USER_CODE_FAILURE}.
      */
-    private TaskClassification classifyCancelled(MemberState member) {
-        return classifyCancelled(member, TaskClassification.MEMBER_CANCELLED);
-    }
-
-    private TaskClassification classifyCancelled(MemberState member, TaskClassification whenUncommitted) {
-        if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
-            return TaskClassification.TIMEOUT;
+    private TaskTermination<Object> classifyMemberTermination(MemberState member) {
+        if (member.future.isCancelled()) {
+            return TaskTermination.cancelled(
+                    com.google.common.base.Verify.verifyNotNull(
+                            memberCancellation(member, CancellationReason.cancelledByCaller(member.name))),
+                    memberDisposition(member));
         }
-        return TokenOutcomes.forCancelled(groupToken, whenUncommitted);
+        try {
+            return TaskTermination.success(Futures.getDone(member.future), memberDisposition(member));
+        } catch (ExecutionException failure) {
+            member.failure = failure.getCause();
+            if (member.failure instanceof SubmissionException) {
+                return TaskTermination.failed(
+                        FailureCause.submissionRejected(member.failure), memberDisposition(member));
+            }
+            if (TokenOutcomes.causedByCancellation(member.failure)) {
+                CancellationReason reason = memberCancellation(member, null);
+                if (reason != null) {
+                    return TaskTermination.cancelled(reason, memberDisposition(member));
+                }
+            }
+            return TaskTermination.failed(
+                    FailureCause.userCodeFailure(com.google.common.base.Verify.verifyNotNull(member.failure)),
+                    ExecutionDisposition.CLAIMED);
+        }
     }
 
-    private @Nullable ScopeTerminationCause explicitScopeCause(MemberState member, TaskClassification reason) {
-        if (reason == TaskClassification.MEMBER_CANCELLED) {
+    /**
+     * Returns the cancellation reason of a settled member from its member and group deadlines and
+     * the group's cancellation state, or {@code whenUncommitted} when no framework cancellation
+     * path committed.
+     */
+    private @Nullable CancellationReason memberCancellation(
+            MemberState member, @Nullable CancellationReason whenUncommitted) {
+        if (member.context.multiTaskContext().cancellationToken().state() == CancellationToken.State.TIMEOUT) {
+            return CancellationReason.deadlineExceeded(member.name);
+        }
+        return TokenOutcomes.cancellationReason(groupToken, member.name, whenUncommitted);
+    }
+
+    private @Nullable ScopeTerminationCause explicitScopeCause(
+            MemberState member, TaskTermination<Object> termination) {
+        if (cancelledDirectly(termination)) {
             return ScopeTerminationCause.cancelled(CancellationReason.cancelledByMember(member.name));
         }
-        if (reason == TaskClassification.GROUP_CANCELLED && groupToken.cancelledByCaller()) {
+        if (termination.kind() == TaskTermination.Kind.CANCELLED
+                && com.google.common.base.Verify.verifyNotNull(termination.cancellationReason())
+                                .kind()
+                        == CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE
+                && groupToken.cancelledByCaller()) {
             return ScopeTerminationCause.cancelled(CancellationReason.cancelledByCaller(groupName));
         }
         return null;
     }
 
     /**
-     * Publishes the final group decision after every task's classification is available. The values
+     * Publishes the final group decision after every task's termination is available. The values
      * future is terminal before the convergence future is published.
      */
     private void converge() {
-        TaskClassification decided = deriveOutcome();
+        ScopeTermination decided = deriveScopeTermination();
         TaskGroupReport result = snapshot(decided, failedTaskName.get());
         try {
             publishValues(decided);
@@ -965,12 +991,12 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     /**
-     * Settles {@link #values} from the outcome the group converged on. The three branches are the
-     * documented completion contract: a value, the recorded failure, or a cancellation. It is never
-     * left pending, so waiting on it cannot outlive the group.
+     * Settles {@link #values} from the termination the group converged on. The three branches are
+     * the documented completion contract: a value, the recorded failure, or a cancellation. It is
+     * never left pending, so waiting on it cannot outlive the group.
      */
-    private void publishValues(TaskClassification decided) {
-        if (decided == TaskClassification.SUCCESS) {
+    private void publishValues(ScopeTermination decided) {
+        if (decided.kind() == ScopeTermination.Kind.SUCCEEDED) {
             List<@Nullable Object> collected = new ArrayList<>(orderedMembers.size());
             for (MemberState member : orderedMembers) {
                 collected.add(settledValue(member));
@@ -992,33 +1018,35 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     /**
-     * Derives the group outcome from the group token state. A recorded failure takes precedence:
-     * whenever a member or the terminal combine already failed, the group reports that failure's
-     * own outcome regardless of whether the group token committed {@code FAIL_FAST} yet, so the
-     * outcome no longer depends on completion order. On fail-fast with no failed member the trigger
-     * was a direct member cancellation, so the group reports {@link TaskClassification#MEMBER_CANCELLED}.
-     * A token still RUNNING or SUCCESS with no recorded failure means no framework cancellation
-     * path committed: the group succeeded only if every member did.
+     * Derives the group scope termination from the group token state and the recorded terminations.
+     * A recorded failure takes precedence: whenever a member or the terminal combine already
+     * failed, the group reports that failure's own termination regardless of whether the group
+     * token committed fail-fast yet, so the scope does not depend on completion order. On
+     * fail-fast with no failed member the trigger was a direct member cancellation. A token still
+     * RUNNING or SUCCESS with no recorded failure means no framework cancellation path committed:
+     * the group succeeded only if every member did.
      */
-    private TaskClassification deriveOutcome() {
-        switch (groupToken.state()) {
-            case FAIL_FAST:
-                MemberState failFastFailure = failedTask();
-                return failFastFailure != null
-                        ? Objects.requireNonNull(failFastFailure.reason)
-                        : TaskClassification.MEMBER_CANCELLED;
-            case SUCCESS:
-            case RUNNING:
-                MemberState recordedFailure = failedTask();
-                if (recordedFailure != null) {
-                    return Objects.requireNonNull(recordedFailure.reason);
-                }
-                boolean allSuccess = memberSuccesses.get() == memberStates.size()
-                        && (terminal == null || terminal.reason == TaskClassification.SUCCESS);
-                return allSuccess ? TaskClassification.SUCCESS : TaskClassification.MEMBER_CANCELLED;
-            default:
-                return TokenOutcomes.forCancelled(groupToken, TaskClassification.MEMBER_CANCELLED);
+    private ScopeTermination deriveScopeTermination() {
+        MemberState failed = failedTask();
+        if (failed != null) {
+            return ScopeTermination.failed(ScopeTerminationCause.failed(
+                    com.google.common.base.Verify.verifyNotNull(
+                            com.google.common.base.Verify.verifyNotNull(failed.termination)
+                                    .failureCause(),
+                            "a recorded failed task carries no failure cause"),
+                    failedTaskName.get()));
         }
+        boolean allSuccess = memberSuccesses.get() == memberStates.size()
+                && (terminal == null
+                        || com.google.common.base.Verify.verifyNotNull(terminal.termination)
+                                        .kind()
+                                == TaskTermination.Kind.SUCCESS);
+        if (allSuccess) {
+            return ScopeTermination.succeeded();
+        }
+        return ScopeTermination.cancelled(ScopeTerminationCause.cancelled(
+                com.google.common.base.Verify.verifyNotNull(TokenOutcomes.cancellationReason(
+                        groupToken, groupName, CancellationReason.cancelledByCaller(groupName)))));
     }
 
     /**
@@ -1036,7 +1064,7 @@ final class TaskGroup<R> implements AutoCloseable {
 
     private void completeEmpty() {
         setValues(new ArrayList<>());
-        completion.set(snapshot(TaskClassification.SUCCESS, null));
+        completion.set(snapshot(ScopeTermination.succeeded(), null));
     }
 
     /**
@@ -1053,44 +1081,31 @@ final class TaskGroup<R> implements AutoCloseable {
         }
     }
 
-    private TaskGroupReport snapshot(TaskClassification outcome, @Nullable String failedName) {
+    private TaskGroupReport snapshot(ScopeTermination decided, @Nullable String failedName) {
         Map<String, TaskExitObservation<?>> snapshots = new LinkedHashMap<>();
         for (MemberState member : orderedMembers) {
             snapshots.put(member.name, memberSnapshot(member));
         }
         ScopeTerminationCause primary = scopeTermination.cause();
-        ScopeTermination aggregate = ScopeTermination.fromPrimary(
-                primary, ScopeTermination.fromLegacy(outcome, failedName, failureCauseFor(failedName), groupName));
+        ScopeTermination aggregate = ScopeTermination.fromPrimary(primary, decided);
         return new TaskGroupReport(
                 groupId,
                 groupName,
                 startTimeNanos,
                 System.nanoTime(),
                 deadlineNanos,
-                Objects.requireNonNull(outcome, "group outcome is committed before snapshot"),
                 failedName,
                 snapshots,
                 terminal == null ? null : memberSnapshot(terminal),
                 aggregate);
     }
 
-    private @Nullable FailureCause failureCauseFor(@Nullable String failedName) {
-        if (failedName == null) {
-            return null;
-        }
-        MemberState failed = com.google.common.base.Verify.verifyNotNull(failedTask());
-        return com.google.common.base.Verify.verifyNotNull(
-                        failed.view.termination(), "failed member termination is published before snapshot")
-                .failureCause();
-    }
-
     private static ExecutionDisposition memberDisposition(MemberState member) {
-        if (member.view.termination() != null) {
-            return com.google.common.base.Verify.verifyNotNull(member.view.termination())
-                    .disposition();
-        }
         ExecutionPhaseHintFuture<Object> prepared = member.prepared;
-        return prepared == null ? ExecutionDisposition.CLAIMED : prepared.executionDisposition();
+        if (prepared != null) {
+            return prepared.executionDisposition();
+        }
+        return member.future.isCancelled() ? ExecutionDisposition.NOT_CLAIMED : ExecutionDisposition.CLAIMED;
     }
 
     private static TaskExitObservation<?> memberSnapshot(MemberState member) {
@@ -1098,24 +1113,11 @@ final class TaskGroup<R> implements AutoCloseable {
                 member.name,
                 member.context.multiTaskContext().unitId(),
                 com.google.common.base.Verify.verifyNotNull(
-                        member.reason, "member reason is recorded before convergence"),
+                        member.termination, "member termination is recorded before convergence"),
                 member.failure,
                 member.context.submitTimeNanos(),
                 member.context.startTimeNanos(),
-                member.context.endTimeNanos(),
-                terminationSnapshot(member));
-    }
-
-    private static TaskTermination<Object> terminationSnapshot(MemberState member) {
-        if (member.view.termination() != null) {
-            return com.google.common.base.Verify.verifyNotNull(member.view.termination());
-        }
-        return TaskTermination.fromLegacy(
-                com.google.common.base.Verify.verifyNotNull(
-                        member.reason, "member reason is recorded before convergence"),
-                member.failure,
-                memberDisposition(member),
-                member.name);
+                member.context.endTimeNanos());
     }
 
     /** Returns a member or terminal awaited by the caller; member-to-combine data flow adds no edge. */
@@ -1142,7 +1144,7 @@ final class TaskGroup<R> implements AutoCloseable {
         private final @Nullable Executor executor;
         private final @Nullable AdoptedSource adopted;
 
-        private @Nullable TaskClassification reason;
+        private @Nullable TaskTermination<Object> termination;
         private @Nullable Throwable failure;
 
         /** One-shot guard that keeps this member from being counted twice by the barrier. */

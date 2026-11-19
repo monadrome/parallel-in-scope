@@ -51,7 +51,7 @@ class ParSubmitTest {
 
             assertThat(task.get(2, TimeUnit.SECONDS)).isEqualTo("done");
             assertThat(task.taskName()).isEqualTo("single");
-            assertThat(task.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertSuccess(task.termination());
             TaskExitObservation<String> completion = task.completionFuture().get(2, TimeUnit.SECONDS);
             assertThat(completion.taskName()).isEqualTo("single");
             assertThat(completion.result()).isEqualTo("done");
@@ -90,7 +90,7 @@ class ParSubmitTest {
                     .isInstanceOf(SubmissionException.class)
                     .cause()
                     .isInstanceOf(RejectedExecutionException.class);
-            assertThat(task.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(task.termination());
             assertThat(ran).isFalse();
         } finally {
             global.close();
@@ -121,7 +121,7 @@ class ParSubmitTest {
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
-            assertThat(task.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(task.termination());
             assertThat(executionRan.get()).isFalse();
         } finally {
             global.close();
@@ -163,7 +163,7 @@ class ParSubmitTest {
 
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
-            assertThat(task.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertCancelled(task.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -331,7 +331,7 @@ class ParSubmitTest {
             TaskFuture<Integer> task = global.par(ParId.of("broken"))
                     .submit("single", () -> 1, TaskOptions.timeout(Duration.ofSeconds(30)));
 
-            assertThat(task.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(task.termination());
             assertThat(task.failure()).isInstanceOf(SubmissionException.class).hasCauseInstanceOf(AssertionError.class);
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)

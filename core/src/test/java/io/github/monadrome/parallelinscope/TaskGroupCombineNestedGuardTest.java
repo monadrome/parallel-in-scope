@@ -76,7 +76,7 @@ class TaskGroupCombineNestedGuardTest {
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(result.termination());
             assertThat(combineThread.get()).isEqualTo("combine-worker");
             assertThat(nestedThreads.get()).hasSize(3);
         } finally {
@@ -138,7 +138,7 @@ class TaskGroupCombineNestedGuardTest {
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(result.termination());
             assertThat(outerThread.get()).isEqualTo("outer-combine");
             assertThat(innerThread.get()).isEqualTo("inner-combine");
         } finally {
@@ -173,7 +173,7 @@ class TaskGroupCombineNestedGuardTest {
             });
         }
         AtomicReference<String> innerThread = new AtomicReference<>();
-        AtomicReference<TaskClassification> innerOutcome = new AtomicReference<>();
+        AtomicReference<ScopeTermination> innerOutcome = new AtomicReference<>();
         try {
             TaskGroup<String> group = runtime.groupDraft("outer", Duration.ofSeconds(10))
                     .par(
@@ -204,15 +204,21 @@ class TaskGroupCombineNestedGuardTest {
                                         .submitAll();
                                 innerOutcome.set(nested.convergenceFuture()
                                         .get(5, TimeUnit.SECONDS)
-                                        .outcome());
+                                        .termination());
                                 return "outer-done";
                             })
                     .submitAll();
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
-            assertThat(innerOutcome.get()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertScopeSucceeded(result.termination());
+            ScopeTermination innerScope = com.google.common.base.Verify.verifyNotNull(innerOutcome.get());
+            TerminationAssertions.assertScopeFailed(innerScope);
+            assertThat(com.google.common.base.Verify.verifyNotNull(
+                                    com.google.common.base.Verify.verifyNotNull(innerScope.cause())
+                                            .failureCause())
+                            .kind())
+                    .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
             assertThat(innerThread.get()).isNull();
         } finally {
             release.countDown();

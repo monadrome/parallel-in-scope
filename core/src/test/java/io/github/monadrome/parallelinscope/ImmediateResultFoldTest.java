@@ -5,9 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,10 +18,8 @@ class ImmediateResultFoldTest {
 
     @Test
     void successAppliesOnValueIncludingNull() {
-        String present = ImmediateResult.succeeded("v")
-                .fold(v -> "value:" + v, f -> "user", f -> "submission", (o, t) -> "cancelled");
-        String absent = ImmediateResult.<String>succeeded(null)
-                .fold(v -> "value:" + v, f -> "user", f -> "submission", (o, t) -> "x");
+        String present = ImmediateResult.succeeded("v").fold(v -> "value:" + v, f -> "failure", (r, d) -> "cancelled");
+        String absent = ImmediateResult.<String>succeeded(null).fold(v -> "value:" + v, f -> "failure", (r, d) -> "x");
 
         assertThat(present).isEqualTo("value:v");
         assertThat(absent).isEqualTo("value:null");
@@ -30,65 +27,56 @@ class ImmediateResultFoldTest {
     }
 
     @Test
-    void everyTerminalOutcomeReachesExactlyOneBranch() {
-        Map<TaskClassification, String> branches = new EnumMap<>(TaskClassification.class);
-        for (TaskClassification outcome : TaskClassification.values()) {
-            if (outcome == TaskClassification.RUNNING) {
-                continue;
-            }
-            if (outcome == TaskClassification.SUCCESS) {
-                branches.put(
-                        outcome,
-                        ImmediateResult.succeeded(1).fold(v -> "value", f -> "user", f -> "submission", (o, t) -> "x"));
-                continue;
-            }
-            IllegalStateException stored = new IllegalStateException(outcome.name());
-            ImmediateResult<Integer> result = ImmediateResult.failed(outcome, stored);
+    void everyTerminalBranchReachesExactlyOneHandler() {
+        Map<String, String> branches = new HashMap<>();
+        branches.put("SUCCESS", ImmediateResult.succeeded(1).fold(v -> "value", f -> "failure", (r, d) -> "x"));
+
+        for (FailureCause.Kind kind : FailureCause.Kind.values()) {
+            IllegalStateException stored = new IllegalStateException(kind.name());
+            FailureCause cause = kind == FailureCause.Kind.SUBMISSION_REJECTED
+                    ? FailureCause.submissionRejected(stored)
+                    : FailureCause.userCodeFailure(stored);
+            ImmediateResult<Integer> result = ImmediateResult.failed(cause);
             assertThat(result.successful()).isFalse();
             branches.put(
-                    outcome,
+                    kind.name(),
                     result.fold(
                             v -> "value",
-                            userFailure -> {
-                                assertThat(userFailure).isSameAs(stored);
-                                return "user";
+                            failure -> {
+                                assertThat(failure.cause()).isSameAs(stored);
+                                return "failed";
                             },
-                            submissionFailure -> {
-                                assertThat(submissionFailure).isSameAs(stored);
-                                return "submission";
-                            },
-                            (cancelledOutcome, detail) -> {
-                                assertThat(cancelledOutcome).isEqualTo(outcome);
-                                assertThat(detail).isSameAs(stored);
-                                return "cancelled";
-                            }));
+                            (reason, disposition) -> "cancelled"));
         }
+
+        IllegalStateException stored = new IllegalStateException("cancelled");
+        CancellationReason reason = CancellationReason.deadlineExceeded("test");
+        ImmediateResult<Integer> cancelled = ImmediateResult.cancelled(reason, stored);
+        assertThat(cancelled.successful()).isFalse();
+        branches.put("CANCELLED", cancelled.fold(v -> "value", failure -> "failed", (cancelledReason, disposition) -> {
+            assertThat(cancelledReason).isSameAs(reason);
+            assertThat(disposition).isEqualTo(ExecutionDisposition.CLAIMED);
+            return "cancelled";
+        }));
+
         assertThat(branches)
-                .containsEntry(TaskClassification.SUCCESS, "value")
-                .containsEntry(TaskClassification.USER_FAILURE, "user")
-                .containsEntry(TaskClassification.SUBMISSION_FAILURE, "submission")
-                .containsEntry(TaskClassification.MEMBER_CANCELLED, "cancelled")
-                .containsEntry(TaskClassification.GROUP_CANCELLED, "cancelled")
-                .containsEntry(TaskClassification.FAIL_FAST, "cancelled")
-                .containsEntry(TaskClassification.TIMEOUT, "cancelled")
-                .hasSize(TaskClassification.values().length - 1);
+                .containsEntry("SUCCESS", "value")
+                .containsEntry("USER_CODE_FAILURE", "failed")
+                .containsEntry("SUBMISSION_REJECTED", "failed")
+                .containsEntry("CANCELLED", "cancelled")
+                .hasSize(2 + FailureCause.Kind.values().length);
     }
 
     @Test
     @SuppressWarnings("NullAway")
     void foldRejectsNullFunctions() {
         ImmediateResult<String> result = ImmediateResult.succeeded("v");
-        assertThatThrownBy(() -> result.fold(null, f -> "", f -> "", (o, t) -> ""))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> result.fold(v -> "", null, f -> "", (o, t) -> ""))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> result.fold(v -> "", f -> "", null, (o, t) -> ""))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> result.fold(v -> "", f -> "", f -> "", null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(null, f -> "", (r, d) -> "")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(v -> "", null, (r, d) -> "")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(v -> "", f -> "", null)).isInstanceOf(NullPointerException.class);
         ImmediateResult<String> failed =
-                ImmediateResult.failed(TaskClassification.USER_FAILURE, new IllegalStateException());
-        assertThatThrownBy(() -> failed.fold(null, f -> "", f -> "", (o, t) -> ""))
-                .isInstanceOf(NullPointerException.class);
+                ImmediateResult.failed(FailureCause.userCodeFailure(new IllegalStateException()));
+        assertThatThrownBy(() -> failed.fold(null, f -> "", (r, d) -> "")).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -112,19 +100,19 @@ class ImmediateResultFoldTest {
             int failures = 0;
             int cancellations = 0;
             for (ImmediateResult<Integer> result : batch.results()) {
-                String kind = result.fold(v -> "value", f -> "user", f -> "submission", (o, t) -> "cancelled");
-                if (kind.equals("user") || kind.equals("submission")) {
+                String kind = result.fold(v -> "value", f -> "failed", (r, d) -> "cancelled");
+                if (kind.equals("failed")) {
                     failures++;
                 } else if (kind.equals("cancelled")) {
                     cancellations++;
                 }
             }
-            assertThat(batch.outcomeCounts())
-                    .containsEntry(TaskClassification.USER_FAILURE, 1)
-                    .containsEntry(TaskClassification.FAIL_FAST, 5);
+            assertThat(batch.terminationKindCounts())
+                    .containsEntry(TaskTermination.Kind.FAILED, 1)
+                    .containsEntry(TaskTermination.Kind.CANCELLED, 5);
             assertThat(failures).isEqualTo(1);
             assertThat(cancellations).isEqualTo(5);
-            assertThat(batch.results().get(1).failure()).isInstanceOf(CancellationException.class);
+            assertThat(batch.results().get(1).failure()).isInstanceOf(java.util.concurrent.CancellationException.class);
         } finally {
             release.countDown();
             executor.shutdownNow();

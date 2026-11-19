@@ -1,6 +1,5 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Verify;
@@ -23,78 +22,31 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ImmediateResult<T> {
     private final TaskTermination<T> termination;
-    private final TaskClassification outcome;
     private final @Nullable T value;
     private final @Nullable Throwable failure;
 
-    private ImmediateResult(
-            TaskTermination<T> termination,
-            TaskClassification outcome,
-            @Nullable T value,
-            @Nullable Throwable failure) {
+    private ImmediateResult(TaskTermination<T> termination, @Nullable T value, @Nullable Throwable failure) {
         this.termination = checkNotNull(termination, "termination cannot be null");
-        this.outcome = outcome;
         this.value = value;
         this.failure = failure;
     }
 
     /** Creates an already successful result, including a null value. */
     public static <T> ImmediateResult<T> succeeded(@Nullable T value) {
-        return new ImmediateResult<>(TaskTermination.success(value), TaskClassification.SUCCESS, value, null);
-    }
-
-    /**
-     * Creates a non-success terminal result; RUNNING and SUCCESS are rejected.
-     *
-     * <p>The outcome is attribution metadata and does not convert the supplied throwable. Reads,
-     * including through {@link #asFuture()}, preserve it as the ExecutionException cause.
-     *
-     * @throws NullPointerException if {@code outcome} or {@code failure} is null
-     * @throws IllegalArgumentException if {@code outcome} is {@code SUCCESS} or {@code RUNNING}
-     */
-    static <T> ImmediateResult<T> failed(TaskClassification outcome, Throwable failure) {
-        checkNotNull(outcome, "outcome cannot be null");
-        checkArgument(
-                outcome != TaskClassification.SUCCESS && outcome != TaskClassification.RUNNING,
-                "failed result requires a non-success terminal outcome, but was %s",
-                outcome);
-        Throwable original = checkNotNull(failure, "failure cannot be null");
-        return new ImmediateResult<>(
-                TaskTermination.fromLegacy(outcome, null, original, dispositionFor(outcome), "result"),
-                outcome,
-                null,
-                original);
+        return new ImmediateResult<>(TaskTermination.success(value), value, null);
     }
 
     /** Creates a failed result preserving the original throwable in {@link #failure()}. */
     public static <T> ImmediateResult<T> failed(FailureCause cause) {
         checkNotNull(cause, "cause cannot be null");
-        return new ImmediateResult<>(
-                TaskTermination.failed(cause),
-                cause.submissionRejected() ? TaskClassification.SUBMISSION_FAILURE : TaskClassification.USER_FAILURE,
-                null,
-                cause.cause());
+        return new ImmediateResult<>(TaskTermination.failed(cause), null, cause.cause());
     }
 
     /** Creates a cancelled result preserving the supplied throwable for transport reads. */
     public static <T> ImmediateResult<T> cancelled(CancellationReason reason, Throwable failure) {
         Throwable original = checkNotNull(failure, "failure cannot be null");
         return new ImmediateResult<>(
-                TaskTermination.cancelled(checkNotNull(reason, "reason cannot be null")),
-                TaskClassification.MEMBER_CANCELLED,
-                null,
-                original);
-    }
-
-    private static ExecutionDisposition dispositionFor(TaskClassification outcome) {
-        return outcome == TaskClassification.SUBMISSION_FAILURE
-                ? ExecutionDisposition.NOT_CLAIMED
-                : ExecutionDisposition.CLAIMED;
-    }
-
-    /** Returns the frozen terminal attribution; never RUNNING. */
-    TaskClassification outcome() {
-        return outcome;
+                TaskTermination.cancelled(checkNotNull(reason, "reason cannot be null")), null, original);
     }
 
     /** Returns the immutable logical termination represented by this result. */
@@ -123,12 +75,13 @@ public final class ImmediateResult<T> {
     }
 
     /**
-     * Whether the outcome is {@code SUCCESS}, matching {@link TaskExitObservation#successful()}.
+     * Whether the termination is {@link TaskTermination.Kind#SUCCESS}, matching {@link
+     * TaskExitObservation#successful()}.
      *
      * @return {@code true} exactly when this result holds a value
      */
     public boolean successful() {
-        return outcome == TaskClassification.SUCCESS;
+        return termination.kind() == TaskTermination.Kind.SUCCESS;
     }
 
     /** Consumes the three canonical task termination branches. */
@@ -137,33 +90,6 @@ public final class ImmediateResult<T> {
             Function<? super FailureCause, ? extends R> onFailure,
             BiFunction<? super CancellationReason, ? super ExecutionDisposition, ? extends R> onCancelled) {
         return termination.fold(onSuccess, onFailure, onCancelled);
-    }
-
-    <R> R fold(
-            Function<? super @Nullable T, ? extends R> onValue,
-            Function<? super Throwable, ? extends R> onUserFailure,
-            Function<? super Throwable, ? extends R> onSubmissionFailure,
-            BiFunction<? super TaskClassification, ? super Throwable, ? extends R> onCancelled) {
-        checkNotNull(onValue, "onValue cannot be null");
-        checkNotNull(onUserFailure, "onUserFailure cannot be null");
-        checkNotNull(onSubmissionFailure, "onSubmissionFailure cannot be null");
-        checkNotNull(onCancelled, "onCancelled cannot be null");
-        switch (outcome) {
-            case SUCCESS:
-                return onValue.apply(value);
-            case USER_FAILURE:
-                return onUserFailure.apply(Verify.verifyNotNull(failure));
-            case SUBMISSION_FAILURE:
-                return onSubmissionFailure.apply(Verify.verifyNotNull(failure));
-            case MEMBER_CANCELLED:
-            case GROUP_CANCELLED:
-            case FAIL_FAST:
-            case TIMEOUT:
-                return onCancelled.apply(outcome, Verify.verifyNotNull(failure));
-            case RUNNING:
-            default:
-                throw new AssertionError("immediate result has no terminal outcome: " + outcome);
-        }
     }
 
     /**
@@ -205,72 +131,74 @@ public final class ImmediateResult<T> {
     }
 
     /**
-     * Returns a diagnostic string naming the outcome and either the value or the failure, for
-     * example {@code ImmediateResult[outcome=USER_FAILURE, failure=java.lang.IllegalStateException:
+     * Returns a diagnostic string naming the termination branch and either the value or the
+     * failure, for example {@code ImmediateResult[kind=FAILED, failure=java.lang.IllegalStateException:
      * boom]}. The format is for logs and debuggers, not for parsing. Identity stays reference
      * identity: results with equal contents are distinct objects.
      */
     @Override
     public String toString() {
         return failure == null
-                ? "ImmediateResult[outcome=" + outcome + ", value=" + value + ']'
-                : "ImmediateResult[outcome=" + outcome + ", failure=" + failure + ']';
+                ? "ImmediateResult[kind=" + termination.kind() + ", value=" + value + ']'
+                : "ImmediateResult[kind=" + termination.kind() + ", failure=" + failure + ']';
     }
 
-    /** Freezes a done task using the enclosing scope's authoritative attribution. */
-    static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskClassification outcome) {
-        checkArgument(outcome != TaskClassification.RUNNING, "task '%s' is still running", task.taskName());
-        ExecutionDisposition disposition = dispositionOf(task);
-        Throwable recorded = task.failure();
-        if (recorded != null) {
-            return fromFailure(task, outcome, recorded, disposition);
-        }
-        try {
-            T value = Futures.getDone(task);
-            if (outcome == TaskClassification.SUCCESS) {
+    /** Freezes a done task using its own pinned or recomputed termination. */
+    static <T> ImmediateResult<T> fromTask(TaskFuture<T> task) {
+        TaskTermination<T> termination =
+                Verify.verifyNotNull(task.termination(), "task '%s' is still running", task.taskName());
+        return fromTask(task, termination);
+    }
+
+    /** Freezes a done task using the enclosing scope's authoritative termination. */
+    static <T> ImmediateResult<T> fromTask(TaskFuture<T> task, TaskTermination<T> termination) {
+        switch (termination.kind()) {
+            case SUCCESS:
+                try {
+                    return new ImmediateResult<>(termination, Futures.getDone(task), null);
+                } catch (ExecutionException impossible) {
+                    throw new AssertionError("successful task cannot have a failed future", impossible);
+                }
+            case FAILED:
                 return new ImmediateResult<>(
-                        TaskTermination.success(value, disposition), TaskClassification.SUCCESS, value, null);
-            }
+                        termination,
+                        null,
+                        Verify.verifyNotNull(termination.failureCause()).cause());
+            case CANCELLED:
+                return new ImmediateResult<>(termination, null, cancellationFailure(task, termination));
+            default:
+                throw new AssertionError("unknown task termination kind: " + termination.kind());
+        }
+    }
+
+    /**
+     * The throwable stored for a cancellation-attributed task: the task's own cancellation
+     * exception when the future failed with one, otherwise a {@link LeanCancellationException}
+     * naming the cancellation reason and chaining the settled signal.
+     */
+    private static Throwable cancellationFailure(TaskFuture<?> task, TaskTermination<?> termination) {
+        Throwable settled;
+        try {
+            Futures.getDone(task);
+            throw new AssertionError("cancelled task has a successful value");
         } catch (ExecutionException failure) {
-            Throwable cause = Verify.verifyNotNull(failure.getCause());
-            return fromFailure(task, outcome, cause, disposition);
-        } catch (CancellationException failure) {
-            LeanCancellationException cancellation =
-                    new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
-            cancellation.initCause(failure);
-            return fromFailure(task, outcome, cancellation, disposition);
+            settled = Verify.verifyNotNull(failure.getCause());
+            if (settled instanceof CancellationException) {
+                return settled;
+            }
+        } catch (CancellationException cancelled) {
+            LeanCancellationException lean = leanCancellation(task.taskName(), termination);
+            lean.initCause(cancelled);
+            return lean;
         }
-        throw new AssertionError("successful task has non-success attribution: " + outcome);
+        LeanCancellationException lean = leanCancellation(task.taskName(), termination);
+        lean.initCause(settled);
+        return lean;
     }
 
-    private static ExecutionDisposition dispositionOf(TaskFuture<?> task) {
-        TaskTermination<?> termination = task.termination();
-        return termination == null ? dispositionFor(task.outcome()) : termination.disposition();
-    }
-
-    private static <T> ImmediateResult<T> fromFailure(
-            TaskFuture<T> task, TaskClassification outcome, Throwable cause, ExecutionDisposition disposition) {
-        if (outcome == TaskClassification.USER_FAILURE || outcome == TaskClassification.SUBMISSION_FAILURE) {
-            FailureCause failure = outcome == TaskClassification.SUBMISSION_FAILURE
-                    ? FailureCause.submissionRejected(cause)
-                    : FailureCause.userCodeFailure(cause);
-            return new ImmediateResult<>(
-                    TaskTermination.failed(
-                            failure,
-                            outcome == TaskClassification.SUBMISSION_FAILURE
-                                    ? disposition
-                                    : ExecutionDisposition.CLAIMED),
-                    outcome,
-                    null,
-                    cause);
-        }
-        LeanCancellationException cancellation =
-                new LeanCancellationException("task '" + task.taskName() + "' ended with " + outcome);
-        Throwable stored = cause instanceof CancellationException ? cause : cancellation;
-        if (stored != cause) {
-            cancellation.initCause(cause);
-        }
-        return new ImmediateResult<>(
-                TaskTermination.fromLegacy(outcome, null, cause, disposition, task.taskName()), outcome, null, stored);
+    private static LeanCancellationException leanCancellation(String taskName, TaskTermination<?> termination) {
+        CancellationReason reason =
+                Verify.verifyNotNull(termination.cancellationReason(), "cancelled termination carries no reason");
+        return new LeanCancellationException("task '" + taskName + "' ended with " + reason.kind());
     }
 }

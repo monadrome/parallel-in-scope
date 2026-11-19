@@ -88,10 +88,10 @@ class ScopedTaskContractTest {
                 // A recorded member failure takes precedence over the group token state: even
                 // though convergence runs while the group token is still RUNNING, the group
                 // adopts the failed member's own outcome.
-                assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+                TerminationAssertions.assertScopeFailed(result.termination());
                 assertThat(result.failedTaskName()).isEqualTo("task");
-                assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
-                        .isEqualTo(TaskClassification.USER_FAILURE);
+                TerminationAssertions.assertUserFailure(
+                        Objects.requireNonNull(result.members().get("task")).termination());
                 assertThat(result.members().get("task").failure()).isSameAs(boom);
             }
             TaskExitObservation<Object> event = observation(future);
@@ -175,14 +175,14 @@ class ScopedTaskContractTest {
             assertThatThrownBy(() -> future.get(2, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
             assertThat(executions).hasValue(0);
             TaskExitObservation<Object> event = observation(future);
-            assertThat(event.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(event.termination());
             assertThat(event.failure()).isInstanceOf(SubmissionException.class);
             assertThat(event.startTimeNanos()).isZero();
             assertThat(event.endTimeNanos()).isZero();
             if (entry == Entry.GROUP) {
                 TaskGroupReport result = lastGroupResult();
-                assertThat(Objects.requireNonNull(result.members().get("task")).outcome())
-                        .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+                TerminationAssertions.assertSubmissionFailure(
+                        Objects.requireNonNull(result.members().get("task")).termination());
                 assertThat(result.members().get("task").failure()).isInstanceOf(SubmissionException.class);
             }
         } finally {
@@ -224,9 +224,9 @@ class ScopedTaskContractTest {
                         .submitAll();
                 assertThat(group.futureOf("queued").cancel(true)).isTrue();
                 TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
-                assertThat(Objects.requireNonNull(result.members().get("queued"))
-                                .outcome())
-                        .isEqualTo(TaskClassification.MEMBER_CANCELLED);
+                TerminationAssertions.assertCancelled(
+                        Objects.requireNonNull(result.members().get("queued")).termination(),
+                        CancellationReason.Kind.CANCELLED_BY_CALLER);
             }
             assertThat(queuedRuns).hasValue(0);
         } finally {

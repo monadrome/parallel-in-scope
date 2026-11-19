@@ -57,7 +57,7 @@ class TaskGroupFailedTaskResultTest {
             assertThat(result.failedTaskName()).isEqualTo("bad");
             Optional<ImmediateResult<?>> failed = result.failedTaskResult();
             assertThat(failed).isPresent();
-            assertThat(failed.get().outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertUserFailure(failed.get().termination());
             assertThat(failed.get().failure()).isSameAs(boom);
         } finally {
             executor.shutdownNow();
@@ -80,7 +80,7 @@ class TaskGroupFailedTaskResultTest {
             assertThat(result.failedTaskName()).isEqualTo("join");
             Optional<ImmediateResult<?>> failed = result.failedTaskResult();
             assertThat(failed).isPresent();
-            assertThat(failed.get().outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertUserFailure(failed.get().termination());
             assertThat(failed.get().failure()).isSameAs(boom);
         } finally {
             executor.shutdownNow();

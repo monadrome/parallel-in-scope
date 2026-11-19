@@ -248,7 +248,7 @@ store. Real SDK/agent integration verification remains with the OTel proposal `P
 The library already times and attributes every task. The synchronously returned
 `TaskBatchResult.completions()` / `TaskGroupResult.members()` give terminal snapshots directly
 — no callback registration needed; `TaskExitObservation` exposes `taskName()`, `unitId()`,
-`taskIndex()`, `outcome()`, `failure()`, `executionTime()`, `waitTime()`, `totalTime()`, and
+`taskIndex()`, `termination()`, `failure()`, `executionTime()`, `waitTime()`, `totalTime()`, and
 `enqueued()`:
 
 ```java

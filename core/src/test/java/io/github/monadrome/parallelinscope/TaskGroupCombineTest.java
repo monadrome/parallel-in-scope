@@ -61,11 +61,12 @@ class TaskGroupCombineTest {
             assertThat(combineRuns).hasValue(1);
             assertThat(combineThread.get()).isNotEqualTo(Thread.currentThread().getName());
             assertThat(combineTask.get()).isEqualTo("assemble");
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(result.termination());
             assertThat(result.members().keySet()).containsExactly("user", "orders");
             assertThat(result.terminal()).isNotNull();
             assertThat(Objects.requireNonNull(result.terminal()).taskName()).isEqualTo("assemble");
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertSuccess(
+                    Objects.requireNonNull(result.terminal()).termination());
             assertThat(result.failedTaskName()).isNull();
         } finally {
             global.close();
@@ -94,9 +95,11 @@ class TaskGroupCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(declaredTerminal(group).isCancelled()).isTrue();
-            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThat(result.failedTaskName()).isEqualTo("failure");
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(result.terminal()).termination(),
+                    CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
             assertThat(Objects.requireNonNull(result.terminal()).startTimeNanos())
                     .isZero();
             // The skipped combine released its execution holder with the terminal future
@@ -122,11 +125,12 @@ class TaskGroupCombineTest {
                     .submitAll();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertSuccess(
+                    Objects.requireNonNull(result.members().get("user")).termination());
+            TerminationAssertions.assertUserFailure(
+                    Objects.requireNonNull(result.terminal()).termination());
             assertThat(Objects.requireNonNull(result.terminal()).failure()).isInstanceOf(IOException.class);
             assertThatThrownBy(() -> declaredTerminal(group).get())
                     .isInstanceOf(ExecutionException.class)
@@ -159,10 +163,10 @@ class TaskGroupCombineTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(combineRuns).hasValue(0);
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(Objects.requireNonNull(result.terminal()).outcome())
-                    .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(
+                    Objects.requireNonNull(result.terminal()).termination());
         } finally {
             global.close();
             executor.shutdownNow();
@@ -198,10 +202,10 @@ class TaskGroupCombineTest {
                     .get(2, TimeUnit.SECONDS);
 
             assertThat(combineRuns).hasValue(0);
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(Objects.requireNonNull(result.terminal()).outcome())
-                    .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(
+                    Objects.requireNonNull(result.terminal()).termination());
         } finally {
             global.close();
             executor.shutdownNow();
@@ -311,10 +315,10 @@ class TaskGroupCombineTest {
 
             TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
             assertThat(combineRuns).hasValue(0);
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThat(result.failedTaskName()).isEqualTo("assemble");
-            assertThat(Objects.requireNonNull(result.terminal()).outcome())
-                    .isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+            TerminationAssertions.assertSubmissionFailure(
+                    Objects.requireNonNull(result.terminal()).termination());
             assertThatThrownBy(() -> declaredTerminal(group).get(1, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(SubmissionException.class);
@@ -350,9 +354,11 @@ class TaskGroupCombineTest {
 
             assertThat(combineRuns).hasValue(0);
             assertThat(declaredTerminal(group).isCancelled()).isTrue();
-            assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
-            assertThat(Objects.requireNonNull(result.terminal()).outcome())
-                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertScopeCancelled(
+                    result.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(result.terminal()).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE);
         } finally {
             global.close();
             executor.shutdownNow();
@@ -379,10 +385,11 @@ class TaskGroupCombineTest {
                     .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskClassification.TIMEOUT);
-            assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(result.terminal()).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+            TerminationAssertions.assertSuccess(
+                    Objects.requireNonNull(result.members().get("user")).termination());
         } finally {
             global.close();
             executor.shutdownNow();
@@ -432,7 +439,7 @@ class TaskGroupCombineTest {
                     })
                     .runAll();
 
-            assertThat(result.outcomeCounts()).containsEntry(TaskClassification.SUCCESS, 2);
+            assertThat(result.terminationKindCounts()).containsEntry(TaskTermination.Kind.SUCCESS, 2);
             assertThat(seenInput.get()).isNotNull();
             assertThat(result.terminalValueOrThrow()).isEqualTo("ok");
         } finally {
@@ -471,7 +478,7 @@ class TaskGroupCombineTest {
             // one member and the one combine declared above.
             TaskGroupReport result = combined.submitAll().convergenceFuture().get(2, TimeUnit.SECONDS);
             assertThat(result.members().keySet()).containsExactly("user");
-            assertThat(result.outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(result.termination());
             assertThat(Objects.requireNonNull(result.terminal()).taskName()).isEqualTo("assemble");
         } finally {
             global.close();
@@ -526,10 +533,11 @@ class TaskGroupCombineTest {
                     .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
-            assertThat(Objects.requireNonNull(result.terminal()).outcome()).isEqualTo(TaskClassification.TIMEOUT);
-            assertThat(Objects.requireNonNull(result.members().get("user")).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+            TerminationAssertions.assertCancelled(
+                    Objects.requireNonNull(result.terminal()).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+            TerminationAssertions.assertSuccess(
+                    Objects.requireNonNull(result.members().get("user")).termination());
         } finally {
             global.close();
             executor.shutdownNow();

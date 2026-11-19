@@ -40,7 +40,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                     })
                     .runAll();
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThatThrownBy(result::orThrow).isSameAs(boom);
         } finally {
             global.close();
@@ -104,7 +104,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                     })
                     .runAll();
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
             assertThatThrownBy(result::orThrow)
                     .isInstanceOf(java.util.concurrent.CancellationException.class)
                     .hasMessageContaining("page");
@@ -174,7 +174,8 @@ class TaskGroupCascadeAndLoudFailureTest {
                     .convergenceFuture()
                     .get(5, TimeUnit.SECONDS);
 
-            assertThat(timedOut.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertScopeCancelled(
+                    timedOut.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
             assertThatThrownBy(timedOut::orThrow)
                     .isInstanceOf(java.util.concurrent.CancellationException.class)
                     .hasMessageContaining("page");
@@ -216,7 +217,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 assertThat(group.futureOf("second").isCancelled()).isTrue();
             });
             TaskGroupReport report = group.convergenceFuture().get(5, TimeUnit.SECONDS);
-            assertThat(report.outcome()).isNotEqualTo(TaskClassification.SUCCESS);
+            assertThat(report.termination().kind()).isNotEqualTo(ScopeTermination.Kind.SUCCEEDED);
         } finally {
             release.countDown();
             global.close();
@@ -267,8 +268,8 @@ class TaskGroupCascadeAndLoudFailureTest {
 
             // Convergence survives the broken listener, and the publication failure leaves a
             // severe diagnostic naming the group.
-            assertThat(group.convergenceFuture().get(5, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(5, TimeUnit.SECONDS).termination());
             assertThat(severe)
                     .anySatisfy(record -> assertThat(record.getMessage()).contains("page"));
         } finally {

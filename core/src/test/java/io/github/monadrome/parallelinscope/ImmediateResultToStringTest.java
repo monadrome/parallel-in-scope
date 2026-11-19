@@ -10,20 +10,20 @@ class ImmediateResultToStringTest {
     @Test
     void aSuccessNamesItsValueIncludingNull() {
         assertThat(ImmediateResult.succeeded("price").toString())
-                .isEqualTo("ImmediateResult[outcome=SUCCESS, value=price]");
-        assertThat(ImmediateResult.succeeded(null).toString())
-                .isEqualTo("ImmediateResult[outcome=SUCCESS, value=null]");
+                .isEqualTo("ImmediateResult[kind=SUCCESS, value=price]");
+        assertThat(ImmediateResult.succeeded(null).toString()).isEqualTo("ImmediateResult[kind=SUCCESS, value=null]");
     }
 
     @Test
     void aFailureNamesItsOutcomeAndThrowable() {
         IllegalStateException boom = new IllegalStateException("boom");
 
-        assertThat(ImmediateResult.failed(TaskClassification.USER_FAILURE, boom).toString())
-                .isEqualTo("ImmediateResult[outcome=USER_FAILURE, failure=java.lang.IllegalStateException: boom]");
-        assertThat(ImmediateResult.failed(TaskClassification.TIMEOUT, new LeanCancellationException("late"))
+        assertThat(ImmediateResult.failed(FailureCause.userCodeFailure(boom)).toString())
+                .isEqualTo("ImmediateResult[kind=FAILED, failure=java.lang.IllegalStateException: boom]");
+        assertThat(ImmediateResult.cancelled(
+                                CancellationReason.deadlineExceeded(), new LeanCancellationException("late"))
                         .toString())
-                .startsWith("ImmediateResult[outcome=TIMEOUT, failure=")
+                .startsWith("ImmediateResult[kind=CANCELLED, failure=")
                 .contains("LeanCancellationException", "late");
     }
 }

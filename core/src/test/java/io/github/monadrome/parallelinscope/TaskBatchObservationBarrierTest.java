@@ -120,7 +120,7 @@ class TaskBatchObservationBarrierTest {
         CancellationToken token = CancellationToken.create();
         ExecutionPhaseHintFuture<Integer> future = ExecutionPhaseHintFuture.create(() -> 7);
         future.observation(observation);
-        Task<Integer> task = Task.attributedOnSettle("observed", token, future);
+        Task<Integer> task = Task.of("observed", token, future);
         future.run();
         return TaskBatch.of(
                 ExecutionExitTracker.empty(),
@@ -132,6 +132,6 @@ class TaskBatchObservationBarrierTest {
 
     /** A successful record with distinct times makes publication and freezing assertions concrete. */
     private static TaskExitObservation<Integer> snapshot() {
-        return TaskExitObservation.snapshot("observed", null, 0, 1, 2, 3, TaskClassification.SUCCESS, 7, null);
+        return TaskExitObservation.snapshot("observed", null, 0, 1, 2, 3, TaskTermination.success(7), 7, null);
     }
 }

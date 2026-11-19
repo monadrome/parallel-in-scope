@@ -37,14 +37,14 @@ public class TaskBatchResultTest {
 
         TaskBatch.BatchReport report = batch.report();
 
-        assertThat(report.stateCounts())
-                .containsEntry(TaskClassification.SUCCESS, 1)
-                .containsEntry(TaskClassification.USER_FAILURE, 2)
-                .containsEntry(TaskClassification.MEMBER_CANCELLED, 1)
+        assertThat(report.terminationCounts())
+                .containsEntry(TaskTermination.Kind.SUCCESS, 1)
+                .containsEntry(TaskTermination.Kind.FAILED, 2)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 1)
                 .hasSize(3);
+        assertThat(report.pending()).isZero();
         assertThat(report.firstException()).isSameAs(firstFailure);
-        assertThat(batch.reportString())
-                .isEqualTo("SUCCESS:1,USER_FAILURE:2,MEMBER_CANCELLED:1 | firstException=first failure");
+        assertThat(batch.reportString()).isEqualTo("SUCCESS:1,FAILED:2,CANCELLED:1 | firstException=first failure");
     }
 
     @Test
@@ -58,19 +58,22 @@ public class TaskBatchResultTest {
         pending.set("now done");
         TaskBatch.BatchReport afterCompletion = batch.report();
 
-        assertThat(beforeCompletion.stateCounts())
-                .containsEntry(TaskClassification.RUNNING, 1)
-                .containsEntry(TaskClassification.SUCCESS, 1);
-        assertThat(afterCompletion.stateCounts())
-                .containsOnlyKeys(TaskClassification.SUCCESS)
-                .containsEntry(TaskClassification.SUCCESS, 2);
+        assertThat(beforeCompletion.terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.SUCCESS)
+                .containsEntry(TaskTermination.Kind.SUCCESS, 1);
+        assertThat(beforeCompletion.pending()).isEqualTo(1);
+        assertThat(afterCompletion.terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.SUCCESS)
+                .containsEntry(TaskTermination.Kind.SUCCESS, 2);
+        assertThat(afterCompletion.pending()).isZero();
     }
 
     @Test
     public void report_emptyBatchHasNoStatesOrException() {
         TaskBatch<String> batch = TaskBatch.of(Collections.<TaskFuture<String>>emptyList());
 
-        assertThat(batch.report().stateCounts()).isEmpty();
+        assertThat(batch.report().terminationCounts()).isEmpty();
+        assertThat(batch.report().pending()).isZero();
         assertThat(batch.report().firstException()).isNull();
         assertThat(batch.reportString()).isEmpty();
     }
@@ -89,11 +92,11 @@ public class TaskBatchResultTest {
     public void batchReport_toStringIncludesCountsAndFirstException() {
         RuntimeException failure = new RuntimeException("boom");
         TaskBatch.BatchReport report =
-                new TaskBatch.BatchReport(Collections.singletonMap(TaskClassification.USER_FAILURE, 1), failure);
+                new TaskBatch.BatchReport(Collections.singletonMap(TaskTermination.Kind.FAILED, 1), 0, failure);
 
         assertThat(report.toString())
                 .isEqualTo(
-                        "BatchReport{stateCounts={USER_FAILURE=1}, firstException=java.lang.RuntimeException: boom}");
+                        "BatchReport{terminationCounts={FAILED=1}, pending=0, firstException=java.lang.RuntimeException: boom}");
     }
 
     @Test
@@ -111,26 +114,26 @@ public class TaskBatchResultTest {
     }
 
     @Test
-    public void batchReport_defensivelyCopiesAndExposesUnmodifiableStateCounts() {
-        Map<TaskClassification, Integer> source = new EnumMap<>(TaskClassification.class);
-        source.put(TaskClassification.SUCCESS, 1);
-        TaskBatch.BatchReport report = new TaskBatch.BatchReport(source, null);
+    public void batchReport_defensivelyCopiesAndExposesUnmodifiableTerminationCounts() {
+        Map<TaskTermination.Kind, Integer> source = new EnumMap<>(TaskTermination.Kind.class);
+        source.put(TaskTermination.Kind.SUCCESS, 1);
+        TaskBatch.BatchReport report = new TaskBatch.BatchReport(source, 0, null);
 
-        source.put(TaskClassification.USER_FAILURE, 1);
+        source.put(TaskTermination.Kind.FAILED, 1);
 
-        assertThat(report.stateCounts())
-                .containsOnlyKeys(TaskClassification.SUCCESS)
-                .containsEntry(TaskClassification.SUCCESS, 1);
-        assertThatThrownBy(() -> report.stateCounts().put(TaskClassification.MEMBER_CANCELLED, 1))
+        assertThat(report.terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.SUCCESS)
+                .containsEntry(TaskTermination.Kind.SUCCESS, 1);
+        assertThatThrownBy(() -> report.terminationCounts().put(TaskTermination.Kind.CANCELLED, 1))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @SuppressWarnings("NullAway")
     @Test
-    public void batchReport_rejectsNullStateCounts() {
+    public void batchReport_rejectsNullTerminationCounts() {
         RuntimeException failure = new RuntimeException("failure");
 
-        assertThatThrownBy(() -> new TaskBatch.BatchReport(null, failure)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new TaskBatch.BatchReport(null, 0, failure)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -223,9 +226,9 @@ public class TaskBatchResultTest {
                 task(token, Futures.<String>immediateCancelledFuture()),
                 task(token, Futures.<String>immediateCancelledFuture())));
 
-        assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskClassification.TIMEOUT)
-                .containsEntry(TaskClassification.TIMEOUT, 2);
+        assertThat(batch.report().terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.CANCELLED)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 2);
     }
 
     @Test
@@ -239,9 +242,9 @@ public class TaskBatchResultTest {
         TaskBatch<String> batch = TaskBatch.of(Arrays.asList(failed, sibling));
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
-        assertThat(batch.report().stateCounts())
-                .containsEntry(TaskClassification.USER_FAILURE, 1)
-                .containsEntry(TaskClassification.FAIL_FAST, 1)
+        assertThat(batch.report().terminationCounts())
+                .containsEntry(TaskTermination.Kind.FAILED, 1)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 1)
                 .hasSize(2);
         assertThat(batch.report().firstException()).hasMessage("boom");
         assertThat(aggregate).isDone();
@@ -254,9 +257,8 @@ public class TaskBatchResultTest {
     public void scopeTerminationPrefersTheFailureOverAReplayOfFailFastCancellation() {
         CancellationToken token = new CancellationToken();
         token.failFastCancel();
-        Task<String> cancelled = Task.attributedOnSettle("batch", token, Futures.<String>immediateCancelledFuture());
-        Task<String> failed = Task.attributedOnSettle(
-                "batch", token, Futures.immediateFailedFuture(new IllegalStateException("boom")));
+        Task<String> cancelled = Task.of("batch", token, Futures.<String>immediateCancelledFuture());
+        Task<String> failed = Task.of("batch", token, Futures.immediateFailedFuture(new IllegalStateException("boom")));
 
         TaskBatchResult<String> result =
                 TaskBatch.of(Arrays.asList(cancelled, failed)).finish();
@@ -276,9 +278,9 @@ public class TaskBatchResultTest {
         TaskBatch<String> batch =
                 TaskBatch.of(Collections.singletonList(task(token, Futures.<String>immediateCancelledFuture())));
 
-        assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskClassification.GROUP_CANCELLED)
-                .containsEntry(TaskClassification.GROUP_CANCELLED, 1);
+        assertThat(batch.report().terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.CANCELLED)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 1);
     }
 
     @Test
@@ -295,13 +297,13 @@ public class TaskBatchResultTest {
         assertThat(TaskBatch.of(Collections.singletonList(
                                 task(propagatedTimeout, Futures.<String>immediateCancelledFuture())))
                         .report()
-                        .stateCounts())
-                .containsOnlyKeys(TaskClassification.TIMEOUT);
+                        .terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.CANCELLED);
         assertThat(TaskBatch.of(Collections.singletonList(
                                 task(propagatedCancel, Futures.<String>immediateCancelledFuture())))
                         .report()
-                        .stateCounts())
-                .containsOnlyKeys(TaskClassification.GROUP_CANCELLED);
+                        .terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.CANCELLED);
     }
 
     @Test
@@ -311,9 +313,9 @@ public class TaskBatchResultTest {
                 TaskBatch.of(Collections.singletonList(task(token, Futures.<String>immediateCancelledFuture())));
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.RUNNING);
-        assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskClassification.MEMBER_CANCELLED)
-                .containsEntry(TaskClassification.MEMBER_CANCELLED, 1);
+        assertThat(batch.report().terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.CANCELLED)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 1);
     }
 
     @Test
@@ -327,9 +329,9 @@ public class TaskBatchResultTest {
         Task<String> interrupted = task(token, Futures.immediateFailedFuture(new InterruptedException("interrupted")));
         TaskBatch<String> batch = TaskBatch.of(Arrays.asList(checkpointFailure, interrupted));
 
-        assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskClassification.TIMEOUT)
-                .containsEntry(TaskClassification.TIMEOUT, 2);
+        assertThat(batch.report().terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.CANCELLED)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 2);
         assertThat(batch.report().firstException()).isNull();
     }
 
@@ -340,9 +342,9 @@ public class TaskBatchResultTest {
                 task(token, Futures.immediateFailedFuture(new LeanCancellationException("spontaneous")))));
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.RUNNING);
-        assertThat(batch.report().stateCounts())
-                .containsOnlyKeys(TaskClassification.USER_FAILURE)
-                .containsEntry(TaskClassification.USER_FAILURE, 1);
+        assertThat(batch.report().terminationCounts())
+                .containsOnlyKeys(TaskTermination.Kind.FAILED)
+                .containsEntry(TaskTermination.Kind.FAILED, 1);
     }
 
     private static <T> Task<T> task(CancellationToken token, ListenableFuture<T> delegate) {

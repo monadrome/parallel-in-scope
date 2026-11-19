@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Aggregate reads follow the same rule as {@link TaskGroupResult}: {@link #orThrow()} is the
  * failure gate, and {@link #valuesOrThrow()} passes through it. The selected failure is the first
- * element in input order whose outcome is {@code USER_FAILURE} or {@code SUBMISSION_FAILURE}; it is
+ * element in input order whose termination is a failure; it is
  * rethrown as-is when unchecked and wrapped in {@link CompletionException} when checked. A batch
  * that did not succeed without recording such a failure throws {@link CancellationException}.
  *
@@ -117,7 +117,7 @@ public final class TaskBatchResult<T> {
 
     /**
      * Returns this result when every element succeeded; otherwise throws the selected failure. The
-     * first {@code USER_FAILURE} or {@code SUBMISSION_FAILURE} element in input order is selected
+     * first failed element in input order is selected
      * and rethrown as-is when unchecked, wrapped in {@link CompletionException} when checked. When
      * no element recorded such a failure, the first non-successful element's cancellation is thrown
      * as a {@link CancellationException}.
@@ -157,18 +157,10 @@ public final class TaskBatchResult<T> {
         return Maps.immutableEnumMap(counts);
     }
 
-    Map<TaskClassification, Integer> outcomeCounts() {
-        EnumMap<TaskClassification, Integer> counts = new EnumMap<>(TaskClassification.class);
-        for (ImmediateResult<T> result : results) {
-            counts.merge(result.outcome(), 1, Integer::sum);
-        }
-        return Maps.immutableEnumMap(counts);
-    }
-
     /**
-     * The first element in input order whose outcome is {@code USER_FAILURE} or {@code
-     * SUBMISSION_FAILURE}. Empty when no element recorded a failure, including a batch that ended by
-     * deadline or cancellation alone. Locate the element with {@code results().indexOf(...)}.
+     * The first element in input order whose termination is a failure. Empty when no element
+     * recorded a failure, including a batch that ended by deadline or cancellation alone. Locate
+     * the element with {@code results().indexOf(...)}.
      *
      * @return the first failed element's result, or empty
      */
@@ -182,13 +174,13 @@ public final class TaskBatchResult<T> {
     }
 
     /**
-     * A one-line summary for logs: the {@link #outcomeCounts()} and the first recorded failure's
-     * message, as in {@code SUCCESS:2,USER_FAILURE:1 | firstException=boom}. The format is
+     * A one-line summary for logs: the {@link #terminationKindCounts()} and the first recorded
+     * failure's message, as in {@code SUCCESS:2,FAILED:1 | firstException=boom}. The format is
      * diagnostic, not a parsing contract.
      */
     public String reportString() {
         StringBuilder text =
-                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(terminationKindCounts()));
         failedTaskResult()
                 .map(ImmediateResult::failure)
                 .ifPresent(failure -> text.append(" | firstException=").append(failure.getMessage()));
@@ -200,8 +192,7 @@ public final class TaskBatchResult<T> {
     }
 
     static boolean isRecordedFailure(ImmediateResult<?> result) {
-        return result.outcome() == TaskClassification.USER_FAILURE
-                || result.outcome() == TaskClassification.SUBMISSION_FAILURE;
+        return result.termination().kind() == TaskTermination.Kind.FAILED;
     }
 
     /** The exception an aggregate read throws for a selected failure; an Error is thrown directly. */
@@ -217,7 +208,9 @@ public final class TaskBatchResult<T> {
         if (cause instanceof CancellationException) {
             return (CancellationException) cause;
         }
-        LeanCancellationException cancelled = new LeanCancellationException(messagePrefix + result.outcome());
+        CancellationReason reason =
+                Verify.verifyNotNull(result.cancellationReason(), "a cancelled result carries no cancellation reason");
+        LeanCancellationException cancelled = new LeanCancellationException(messagePrefix + reason.kind());
         cancelled.initCause(cause);
         return cancelled;
     }

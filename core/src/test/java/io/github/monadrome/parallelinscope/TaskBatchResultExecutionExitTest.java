@@ -227,7 +227,7 @@ class TaskBatchResultExecutionExitTest {
         CancellationToken token = new CancellationToken();
         TaskObservation<String> observation = TaskObservation.of(
                 () -> TaskExitObservation.snapshot(
-                        "element", TaskId.unit("batch"), 0, 0, 0, 0, TaskClassification.SUCCESS, "done", null),
+                        "element", TaskId.unit("batch"), 0, 0, 0, 0, TaskTermination.success("done"), "done", null),
                 observationSignal);
         TaskBatch<String> batch =
                 TaskBatch.of(Collections.singletonList(Task.of("element", token, element, observation)));
@@ -473,8 +473,8 @@ class TaskBatchResultExecutionExitTest {
             assertThat(batch.results().get(0).get(2, TimeUnit.SECONDS)).isEqualTo(1);
             assertThatThrownBy(() -> batch.results().get(1).get(2, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(IllegalStateException.class);
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.SUCCESS);
-            assertThat(batch.results().get(1).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertSuccess(batch.results().get(0).termination());
+            TerminationAssertions.assertUserFailure(batch.results().get(1).termination());
         } finally {
             global.close();
             executor.shutdownNow();
@@ -514,7 +514,8 @@ class TaskBatchResultExecutionExitTest {
                 Thread.sleep(5);
             }
             assertThat(batch.results().get(0).isCancelled()).isTrue();
-            assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertCancelled(
+                    batch.results().get(0).termination(), CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE);
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
             assertThat(batch.awaitExecutionExit(Duration.ZERO)).isFalse();
 
@@ -798,7 +799,7 @@ class TaskBatchResultExecutionExitTest {
 
         settle.set(1);
         assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
-        assertThat(batch.report().stateCounts()).containsExactly(entry(TaskClassification.SUCCESS, 1));
+        assertThat(batch.report().terminationCounts()).containsExactly(entry(TaskTermination.Kind.SUCCESS, 1));
         assertThat(batch.observationsFuture().get(2, TimeUnit.SECONDS))
                 .allSatisfy(completion -> assertThat(completion.successful()).isTrue());
     }
@@ -824,7 +825,7 @@ class TaskBatchResultExecutionExitTest {
                                 },
                                 options("fail-fast-report").parallelism(1).taskType(TaskType.BLOCKING));
                 assertThat(batch.awaitExecutionExit(Duration.ofSeconds(5))).isTrue();
-                assertThat(batch.report().stateCounts()).doesNotContainKey(TaskClassification.RUNNING);
+                assertThat(batch.report().pending()).isZero();
                 batch.close();
             }
         } finally {

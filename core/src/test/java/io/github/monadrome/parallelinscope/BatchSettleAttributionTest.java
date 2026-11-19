@@ -34,11 +34,11 @@ import org.junit.jupiter.api.Timeout;
 /**
  * A batch element whose execution raises its own {@link CancellationException} or {@link
  * InterruptedException}, with no framework cancellation committed, ends as {@link
- * TaskClassification#USER_FAILURE} carrying that throwable, exactly as a group member does.
+ * FailureCause.Kind#USER_CODE_FAILURE} carrying that throwable, exactly as a group member does.
  *
- * <p>The element's own failure commits the batch token's {@code FAIL_FAST}, so a freeze that reads
+ * <p>The element's own failure commits the batch token's fail-fast, so a freeze that reads
  * the token after the fact reattributes the element that caused the cascade. The freeze must use the
- * attribution pinned when the element settled. On a direct executor every element settles inside
+ * termination pinned when the element settled. On a direct executor every element settles inside
  * submission, so the cascade has always committed before the freeze: the old freeze-time read failed
  * those tests deterministically. The pooled tests lock the cross-thread race, where the caller can
  * wake before the cascade commits.
@@ -74,11 +74,11 @@ class BatchSettleAttributionTest {
                 },
                 BatchOptions.timeout("own-cancellation", TIMEOUT));
 
-        assertThat(result.results().get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(result.results().get(0).termination());
         assertThat(result.results().get(0).failure()).isSameAs(own);
         TaskExitObservation<String> completion = result.completions().get(0);
         assertThat(completion).isNotNull();
-        assertThat(completion.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(completion.termination());
         assertThat(completion.failure()).isSameAs(own);
         assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(own);
         assertThatThrownBy(result::valuesOrThrow).isSameAs(own);
@@ -96,7 +96,7 @@ class BatchSettleAttributionTest {
                 },
                 BatchOptions.timeout("own-interruption", TIMEOUT));
 
-        assertThat(result.results().get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(result.results().get(0).termination());
         assertThat(result.results().get(0).failure()).isSameAs(own);
         assertThatThrownBy(result::valuesOrThrow)
                 .isInstanceOf(CompletionException.class)
@@ -115,10 +115,10 @@ class BatchSettleAttributionTest {
                 BatchOptions.timeout("own-cancellations", TIMEOUT));
 
         List<ImmediateResult<String>> elements = result.results();
-        assertThat(elements.get(0).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(elements.get(0).termination());
         assertThat(elements.get(0).failure()).hasMessage("the execution's own a");
         for (ImmediateResult<String> sibling : elements.subList(1, elements.size())) {
-            assertThat(sibling.outcome()).isEqualTo(TaskClassification.FAIL_FAST);
+            TerminationAssertions.assertCancelled(sibling.termination(), CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
         }
         assertThatThrownBy(result::valuesOrThrow)
                 .isInstanceOf(CancellationException.class)
@@ -140,13 +140,13 @@ class BatchSettleAttributionTest {
                 });
 
         assertThat(result.batchResult().results())
-                .extracting(ImmediateResult::outcome)
-                .containsExactly(TaskClassification.SUCCESS, TaskClassification.SUCCESS);
-        assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+                .extracting(result0 -> result0.termination().kind())
+                .containsExactly(TaskTermination.Kind.SUCCESS, TaskTermination.Kind.SUCCESS);
+        TerminationAssertions.assertUserFailure(result.terminalResult().termination());
         assertThat(result.terminalResult().failure()).isSameAs(own);
         TaskExitObservation<Integer> terminal = result.terminal();
         assertThat(terminal).isNotNull();
-        assertThat(terminal.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(terminal.termination());
         assertThatThrownBy(result::terminalValueOrThrow).isSameAs(own);
     }
 
@@ -169,7 +169,7 @@ class BatchSettleAttributionTest {
                     return Objects.requireNonNull(values).size();
                 });
 
-        assertThat(result.terminalResult().outcome()).isEqualTo(TaskClassification.SUCCESS);
+        TerminationAssertions.assertSuccess(result.terminalResult().termination());
         assertThat(result.terminalValueOrThrow()).isEqualTo(2);
     }
 
@@ -185,7 +185,9 @@ class BatchSettleAttributionTest {
                     },
                     BatchOptions.timeout("own-cancellation", TIMEOUT).closeGrace(Duration.ZERO));
 
-            assertThat(result.results().get(0).outcome()).as("run %s", run).isEqualTo(TaskClassification.USER_FAILURE);
+            assertThat(result.results().get(0).termination())
+                    .as("run %s", run)
+                    .satisfies(TerminationAssertions::assertUserFailure);
             assertThatThrownBy(result::valuesOrThrow)
                     .as("run %s", run)
                     .isInstanceOf(CancellationException.class)
@@ -207,8 +209,7 @@ class BatchSettleAttributionTest {
 
             assertThat(result.results())
                     .as("run %s", run)
-                    .extracting(ImmediateResult::outcome)
-                    .contains(TaskClassification.USER_FAILURE);
+                    .anySatisfy(element -> TerminationAssertions.assertUserFailure(element.termination()));
             assertThatThrownBy(result::valuesOrThrow)
                     .as("run %s", run)
                     .isInstanceOf(CancellationException.class)
@@ -218,10 +219,11 @@ class BatchSettleAttributionTest {
 
     /**
      * An element cancelled directly while the token still runs freezes as {@link
-     * TaskClassification#MEMBER_CANCELLED}, like a directly cancelled group member, while the live read
-     * already sees the {@code FAIL_FAST} its own cancellation committed. The kernel view is the
-     * handle here; {@link #anElementItsExecutorCancelsFreezesAsMemberCancelled} reaches the same
-     * shape through a registered executor.
+     * CancellationReason.Kind#CANCELLED_BY_CALLER}, like a directly cancelled group member, and the
+     * pinned termination keeps that attribution after the element's own cancellation committed
+     * fail-fast on the batch token. The kernel view is the handle here; {@link
+     * #anElementItsExecutorCancelsFreezesAsMemberCancelled} reaches the same shape through a
+     * registered executor.
      */
     @Test
     void aDirectlyCancelledElementFreezesAsMemberCancelledWhileItsSiblingReadsFailFast() throws Exception {
@@ -247,18 +249,20 @@ class BatchSettleAttributionTest {
         assertThat(batch.results().get(0).cancel(true)).isTrue();
         TaskBatchResult<String> frozen = batch.finish();
 
-        assertThat(frozen.results())
-                .extracting(ImmediateResult::outcome)
-                .containsExactly(TaskClassification.MEMBER_CANCELLED, TaskClassification.FAIL_FAST);
-        assertThat(batch.results().get(0).outcome()).isEqualTo(TaskClassification.FAIL_FAST);
+        TerminationAssertions.assertCancelled(
+                frozen.results().get(0).termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
+        TerminationAssertions.assertCancelled(
+                frozen.results().get(1).termination(), CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
+        TerminationAssertions.assertCancelled(
+                batch.results().get(0).termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
     }
 
     /**
      * The Runnable a registered executor receives is the element's own future, so a user executor
      * can cancel it — a {@code shutdownNow()} caller cancelling the returned tasks is the common
-     * case. The element it cancelled freezes as {@link TaskClassification#MEMBER_CANCELLED}; the sibling
-     * its cancellation took down reads {@code FAIL_FAST}. The freeze-time read gave both {@code
-     * FAIL_FAST}.
+     * case. The element it cancelled freezes as {@link CancellationReason.Kind#CANCELLED_BY_CALLER};
+     * the sibling its cancellation took down reads {@code ABORTED_BY_FAIL_FAST}. A freeze-time read
+     * would give both {@code ABORTED_BY_FAIL_FAST}.
      */
     @Test
     void anElementItsExecutorCancelsFreezesAsMemberCancelled() {
@@ -283,16 +287,17 @@ class BatchSettleAttributionTest {
                         },
                         BatchOptions.timeout("executor-cancel", TIMEOUT).parallelism(2));
 
-        assertThat(result.results())
-                .extracting(ImmediateResult::outcome)
-                .containsExactly(TaskClassification.MEMBER_CANCELLED, TaskClassification.FAIL_FAST);
+        TerminationAssertions.assertCancelled(
+                result.results().get(0).termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
+        TerminationAssertions.assertCancelled(
+                result.results().get(1).termination(), CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
     }
 
     /**
      * Building an observation snapshot can only fail on a broken kernel invariant or an exhausted
      * stack, but it runs inside the settling future's listener fan-out, which Guava stops at the
      * first escaping {@code Error}. The observation must end exceptionally instead, so every
-     * listener registered after it — a batch element's settle-attribution pin among them — still
+     * listener registered after it — a batch element's settle-termination pin among them — still
      * runs and the freeze cannot wait on it forever.
      */
     @Test
@@ -351,16 +356,15 @@ class BatchSettleAttributionTest {
     void thePinKeepsTheAttributionReadWhenTheElementSettled() throws Exception {
         CancellationToken token = new CancellationToken();
         SettableFuture<String> delegate = SettableFuture.create();
-        Task<String> view = Task.attributedOnSettle("batch", token, delegate);
-        ListenableFuture<TaskClassification> pin = view.settledAttribution();
-        assertThat(pin).isNotNull();
+        Task<String> view = Task.of("batch", token, delegate);
+        ListenableFuture<TaskTermination<String>> pin = view.terminationFuture();
         assertThat(pin.isDone()).isFalse();
 
         delegate.setException(new CancellationException("the execution's own"));
         token.failFastCancel();
 
-        assertThat(Futures.getDone(pin)).isEqualTo(TaskClassification.USER_FAILURE);
-        assertThat(view.outcome()).isEqualTo(TaskClassification.FAIL_FAST);
+        TerminationAssertions.assertUserFailure(Futures.getDone(pin));
+        TerminationAssertions.assertUserFailure(view.termination());
     }
 
     @Test
@@ -368,21 +372,12 @@ class BatchSettleAttributionTest {
         CancellationToken token = new CancellationToken();
         token.timeoutCancel();
         SettableFuture<String> delegate = SettableFuture.create();
-        ListenableFuture<TaskClassification> pin =
-                Task.attributedOnSettle("batch", token, delegate).settledAttribution();
-        assertThat(pin).isNotNull();
+        ListenableFuture<TaskTermination<String>> pin =
+                Task.of("batch", token, delegate).terminationFuture();
 
         delegate.setException(new CancellationException("checkpoint observed the deadline"));
 
-        assertThat(Futures.getDone(pin)).isEqualTo(TaskClassification.TIMEOUT);
-    }
-
-    @Test
-    void viewsOutsideTheBatchPipelineCarryNoPin() {
-        CancellationToken token = new CancellationToken();
-
-        assertThat(Task.of("plain", token, SettableFuture.<String>create()).settledAttribution())
-                .isNull();
+        TerminationAssertions.assertCancelled(Futures.getDone(pin), CancellationReason.Kind.DEADLINE_EXCEEDED);
     }
 
     private Par directPar() {

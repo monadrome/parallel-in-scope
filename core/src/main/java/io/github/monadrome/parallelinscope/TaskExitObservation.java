@@ -15,8 +15,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Successful unary and batch observations, and successful observations published through {@link
  * TaskGroupResult#members()} and {@link TaskGroupResult#terminal()}, contain the actual value,
  * including null. Snapshots inside a {@link TaskGroupReport} do not embed member or combine values;
- * a group summary embeds its report instead. Outcomes agree with the enclosing execution's frozen
- * results. A never-started task has zero start/end times and durations. Ticker readings may
+ * a group summary embeds its report instead. Terminations agree with the enclosing execution's
+ * frozen results. A never-started task has zero start/end times and durations. Ticker readings may
  * otherwise be negative. Missing observations are represented explicitly by the enclosing result,
  * rather than by records with provisional end times.
  */
@@ -32,10 +32,9 @@ public final class TaskExitObservation<T> {
     private final long submitTimeNanos;
     private final long startTimeNanos;
     private final long endTimeNanos;
-    private final TaskClassification outcome;
+    private final TaskTermination<T> termination;
     private final @Nullable T result;
     private final @Nullable Throwable failure;
-    private final @Nullable TaskTermination<T> termination;
 
     private TaskExitObservation(
             String taskName,
@@ -45,10 +44,9 @@ public final class TaskExitObservation<T> {
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos,
-            TaskClassification outcome,
+            TaskTermination<T> termination,
             @Nullable T result,
-            @Nullable Throwable failure,
-            @Nullable TaskTermination<T> termination) {
+            @Nullable Throwable failure) {
         this.taskName = checkNotNull(taskName, "taskName cannot be null");
         Verify.verify(unitId == null || groupId == null, "a record names at most one identity space");
         this.unitId = unitId;
@@ -58,10 +56,9 @@ public final class TaskExitObservation<T> {
         this.submitTimeNanos = submitTimeNanos;
         this.startTimeNanos = startTimeNanos;
         this.endTimeNanos = endTimeNanos;
-        this.outcome = checkNotNull(outcome, "outcome cannot be null");
+        this.termination = checkNotNull(termination, "termination cannot be null");
         this.result = result;
         this.failure = failure;
-        this.termination = termination;
     }
 
     /**
@@ -71,53 +68,19 @@ public final class TaskExitObservation<T> {
     static TaskExitObservation<Object> memberSnapshot(
             String memberName,
             TaskId.Unit unitId,
-            TaskClassification outcome,
+            TaskTermination<Object> termination,
             @Nullable Throwable failure,
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos) {
         return new TaskExitObservation<>(
-                memberName,
-                unitId,
-                null,
-                0,
-                submitTimeNanos,
-                startTimeNanos,
-                endTimeNanos,
-                outcome,
-                null,
-                failure,
-                null);
-    }
-
-    /** Creates a member snapshot with the authoritative claim disposition. */
-    static TaskExitObservation<Object> memberSnapshot(
-            String memberName,
-            TaskId.Unit unitId,
-            TaskClassification outcome,
-            @Nullable Throwable failure,
-            long submitTimeNanos,
-            long startTimeNanos,
-            long endTimeNanos,
-            TaskTermination<Object> termination) {
-        return new TaskExitObservation<>(
-                memberName,
-                unitId,
-                null,
-                0,
-                submitTimeNanos,
-                startTimeNanos,
-                endTimeNanos,
-                outcome,
-                null,
-                failure,
-                termination);
+                memberName, unitId, null, 0, submitTimeNanos, startTimeNanos, endTimeNanos, termination, null, failure);
     }
 
     /**
      * Creates the internal final observation snapshot: the full per-task record with its real
-     * identity, timings, outcome, and — on success — result. The unit id is null when no unit backs
-     * the task, as for a derived fluent view.
+     * identity, timings, termination, and — on success — result. The unit id is null when no unit
+     * backs the task, as for a derived fluent view.
      */
     static <T> TaskExitObservation<T> snapshot(
             String taskName,
@@ -126,7 +89,7 @@ public final class TaskExitObservation<T> {
             long submitTimeNanos,
             long startTimeNanos,
             long endTimeNanos,
-            TaskClassification outcome,
+            TaskTermination<T> termination,
             @Nullable T result,
             @Nullable Throwable failure) {
         return new TaskExitObservation<>(
@@ -137,16 +100,15 @@ public final class TaskExitObservation<T> {
                 submitTimeNanos,
                 startTimeNanos,
                 endTimeNanos,
-                outcome,
+                termination,
                 result,
-                failure,
-                null);
+                failure);
     }
 
-    /** Combines confirmed final timing with the enclosing execution's frozen attribution. */
+    /** Combines confirmed final timing with the enclosing execution's frozen result. */
     static <T> TaskExitObservation<T> withResult(TaskExitObservation<?> timing, ImmediateResult<T> result) {
         T value = null;
-        if (result.outcome() == TaskClassification.SUCCESS) {
+        if (result.termination().kind() == TaskTermination.Kind.SUCCESS) {
             try {
                 value = result.valueOrThrow();
             } catch (java.util.concurrent.ExecutionException impossible) {
@@ -161,10 +123,9 @@ public final class TaskExitObservation<T> {
                 timing.submitTimeNanos(),
                 timing.startTimeNanos(),
                 timing.endTimeNanos(),
-                result.outcome(),
+                result.termination(),
                 value,
-                result.failure(),
-                result.termination());
+                result.failure());
     }
 
     /**
@@ -175,19 +136,46 @@ public final class TaskExitObservation<T> {
      * the {@link TaskGroupReport} itself. The summary describes no additional task execution, so it is
      * not counted among the members or as a task unit.
      */
-    static TaskExitObservation<TaskGroupReport> groupSummary(TaskGroupReport result) {
+    static TaskExitObservation<TaskGroupReport> groupSummary(TaskGroupReport report) {
         return new TaskExitObservation<>(
-                result.groupName(),
+                report.groupName(),
                 null,
-                result.groupId(),
+                report.groupId(),
                 0,
-                result.startTimeNanos(),
-                result.startTimeNanos(),
-                result.endTimeNanos(),
-                result.outcome(),
-                result,
-                result.recordedFailure(),
-                null);
+                report.startTimeNanos(),
+                report.startTimeNanos(),
+                report.endTimeNanos(),
+                summaryTermination(report),
+                report,
+                report.recordedFailure());
+    }
+
+    /**
+     * The group summary's projection of the scope termination: the scope itself is the unit that
+     * ran, so the summary always reads {@link ExecutionDisposition#CLAIMED}.
+     */
+    private static TaskTermination<TaskGroupReport> summaryTermination(TaskGroupReport report) {
+        ScopeTermination scope = report.termination();
+        switch (scope.kind()) {
+            case SUCCEEDED:
+                return TaskTermination.success(report, ExecutionDisposition.CLAIMED);
+            case FAILED:
+                return TaskTermination.failed(
+                        Verify.verifyNotNull(
+                                Verify.verifyNotNull(scope.cause(), "failed scope carries no cause")
+                                        .failureCause(),
+                                "failed scope carries no failure cause"),
+                        ExecutionDisposition.CLAIMED);
+            case CANCELLED:
+                return TaskTermination.cancelled(
+                        Verify.verifyNotNull(
+                                Verify.verifyNotNull(scope.cause(), "cancelled scope carries no cause")
+                                        .cancellationReason(),
+                                "cancelled scope carries no cancellation reason"),
+                        ExecutionDisposition.CLAIMED);
+            default:
+                throw new AssertionError("unknown scope termination kind: " + scope.kind());
+        }
     }
 
     /**
@@ -244,41 +232,29 @@ public final class TaskExitObservation<T> {
     }
 
     /**
-     * Returns how this task ended; never {@link TaskClassification#RUNNING} in a delivered record. A record
-     * read from a batch or group result carries the same outcome as the task's frozen {@link
+     * Returns the immutable logical termination captured by this exit observation. A record read
+     * from a batch or group result carries the same termination as the task's frozen {@link
      * ImmediateResult}: there is one attribution per task.
      */
-    TaskClassification outcome() {
-        return outcome;
-    }
-
-    /** Returns the immutable logical termination captured by this exit observation. */
     public TaskTermination<T> termination() {
-        TaskTermination<T> frozen = termination;
-        if (frozen != null) {
-            return frozen;
-        }
-        ExecutionDisposition disposition = outcome == TaskClassification.SUCCESS || startTimeNanos != 0
-                ? ExecutionDisposition.CLAIMED
-                : ExecutionDisposition.NOT_CLAIMED;
-        return TaskTermination.fromLegacy(outcome, result, failure, disposition, taskName);
+        return termination;
     }
 
     /** Returns whether the execution claim was acquired. */
     public ExecutionDisposition disposition() {
-        return termination().disposition();
+        return termination.disposition();
     }
 
     /** Returns whether the task completed successfully, including with a null result. */
     public boolean successful() {
-        return outcome == TaskClassification.SUCCESS;
+        return termination.kind() == TaskTermination.Kind.SUCCESS;
     }
 
     /**
      * Returns the value embedded in this record, which may be null even on success. Snapshots
      * inside a group report do not embed member or combine values; a group summary embeds its
-     * report instead. Use {@link #successful()} or {@link #outcome()}, not null, to classify this
-     * record.
+     * report instead. Use {@link #successful()} or {@link #termination()}, not null, to classify
+     * this record.
      */
     public @Nullable T result() {
         return result;
@@ -287,13 +263,13 @@ public final class TaskExitObservation<T> {
     /**
      * Returns the throwable recorded for this task, or null on success.
      *
-     * <p>Every non-success outcome carries a throwable: the execution-thrown exception for {@link
-     * TaskClassification#USER_FAILURE} — including an {@link InterruptedException} or {@link
-     * java.util.concurrent.CancellationException} the execution raised itself — and, for
-     * cancellation-attributed endings such as {@link TaskClassification#TIMEOUT} or {@link
-     * TaskClassification#FAIL_FAST}, normally a {@link LeanCancellationException} naming the outcome. Read
-     * {@link #successful()} or {@link #outcome()} for the verdict; this accessor carries the
-     * detail.
+     * <p>Every non-success termination can carry a throwable: the execution-thrown exception for
+     * {@link FailureCause.Kind#USER_CODE_FAILURE} — including an {@link InterruptedException} or
+     * {@link java.util.concurrent.CancellationException} the execution raised itself — and, for
+     * cancellation-attributed endings such as {@link CancellationReason.Kind#DEADLINE_EXCEEDED} or
+     * {@link CancellationReason.Kind#ABORTED_BY_FAIL_FAST}, normally a {@link
+     * LeanCancellationException} naming the reason. Read {@link #successful()} or {@link
+     * #termination()} for the verdict; this accessor carries the detail.
      */
     public @Nullable Throwable failure() {
         return failure;

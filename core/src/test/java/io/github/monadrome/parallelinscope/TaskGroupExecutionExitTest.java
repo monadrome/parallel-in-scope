@@ -70,8 +70,9 @@ class TaskGroupExecutionExitTest {
 
             // The cancel lands and the future converges while the execution is still parked: close must
             // keep waiting for the execution to exit rather than returning with the future.
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertScopeCancelled(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_CALLER);
             assertThat(closeReturned.await(200, TimeUnit.MILLISECONDS)).isFalse();
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
@@ -252,8 +253,9 @@ class TaskGroupExecutionExitTest {
             // No wait at all: cancellation took effect, the execution is still parked, and close
             // returned far below any grace.
             assertThat(closeElapsedMillis).isLessThan(1000);
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertScopeCancelled(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_CALLER);
             assertThat(executionExited.getCount()).isEqualTo(1);
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isFalse();
 
@@ -323,8 +325,9 @@ class TaskGroupExecutionExitTest {
             } finally {
                 Thread.interrupted();
             }
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.GROUP_CANCELLED);
+            TerminationAssertions.assertScopeCancelled(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination(),
+                    CancellationReason.Kind.CANCELLED_BY_CALLER);
 
             release.countDown();
             assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
@@ -455,8 +458,8 @@ class TaskGroupExecutionExitTest {
             groupRef.set(group);
             groupReady.countDown();
 
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
             assertThat(awaitFailure.get()).isInstanceOf(IllegalStateException.class);
             assertThat(closeFailure.get()).isInstanceOf(IllegalStateException.class);
         } finally {
@@ -543,8 +546,8 @@ class TaskGroupExecutionExitTest {
             assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
 
             callbackRelease.countDown();
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
         } finally {
             callbackRelease.countDown();
             callbackExecutor.shutdownNow();
@@ -600,8 +603,8 @@ class TaskGroupExecutionExitTest {
                             TaskKey.<String>named("assemble"), global.par(ParId.of("worker")), values -> "combined")
                     .submitAll();
 
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             // The future's own holder release sits in run()'s finally, just after completion:
             // await the probe instead of racing it.
@@ -624,8 +627,8 @@ class TaskGroupExecutionExitTest {
             TaskGroup<Void> group = global.groupDraft("empty", TIMEOUT).submitAll();
             assertThat(group.awaitExecutionExit(Duration.ZERO)).isTrue();
             group.close();
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
         } finally {
             global.close();
             executor.shutdownNow();

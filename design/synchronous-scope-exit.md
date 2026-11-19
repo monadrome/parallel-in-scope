@@ -172,7 +172,7 @@ cancellation; for a group, the recorded failed member or combine. A selected fai
 (the message names the scope and locates the task); with no recorded failure and a
 non-`SUCCESS` outcome, `CancellationException` is thrown. A `CancellationException` thrown by
 the execution itself is `USER_FAILURE`; thrown as-is it has the same type as a framework
-cancellation, and the distinction requires reading `outcome()`. The single-task container
+cancellation, and the distinction requires reading `termination()`. The single-task container
 `ImmediateResult.valueOrThrow()` is not an aggregate read and stays checked: scope-level join is
 unchecked while the single-task Either is checked, matching the division between JDK 25
 `StructuredTaskScope.join()` and `Future.get()`. Result functions do not rerun executions.

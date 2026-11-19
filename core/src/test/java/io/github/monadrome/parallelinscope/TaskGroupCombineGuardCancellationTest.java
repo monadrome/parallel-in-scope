@@ -3,8 +3,6 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
-import java.util.EnumSet;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,16 +36,30 @@ import org.junit.jupiter.api.Test;
 class TaskGroupCombineGuardCancellationTest {
 
     /**
-     * Every outcome that is a correct answer here. The assertions below also pin the one actually
-     * observed, so this set is the weaker claim that survives a timing shift rather than a license for
-     * any of them: a run that started reporting a different member of the set would still be a change
-     * worth seeing, and the exact assertion is what would show it.
+     * Every scope termination that is a correct answer here. The assertions below also pin the one
+     * actually observed, so this predicate is the weaker claim that survives a timing shift rather
+     * than a license for any of them: a run that started reporting a different answer would still
+     * be a change worth seeing, and the exact assertion is what would show it.
      */
-    private static final Set<TaskClassification> LEGITIMATE = EnumSet.of(
-            TaskClassification.SUBMISSION_FAILURE,
-            TaskClassification.TIMEOUT,
-            TaskClassification.FAIL_FAST,
-            TaskClassification.GROUP_CANCELLED);
+    private static boolean legitimate(ScopeTermination scope) {
+        if (scope.kind() == ScopeTermination.Kind.FAILED) {
+            return com.google.common.base.Verify.verifyNotNull(
+                            com.google.common.base.Verify.verifyNotNull(scope.cause())
+                                    .failureCause())
+                    .submissionRejected();
+        }
+        if (scope.kind() == ScopeTermination.Kind.CANCELLED) {
+            CancellationReason.Kind kind = com.google.common.base.Verify.verifyNotNull(
+                            com.google.common.base.Verify.verifyNotNull(scope.cause())
+                                    .cancellationReason())
+                    .kind();
+            return kind == CancellationReason.Kind.DEADLINE_EXCEEDED
+                    || kind == CancellationReason.Kind.ABORTED_BY_FAIL_FAST
+                    || kind == CancellationReason.Kind.CANCELLED_BY_CALLER
+                    || kind == CancellationReason.Kind.CANCELLED_BY_PARENT_SCOPE;
+        }
+        return false;
+    }
 
     private static ThreadPoolExecutor saturatingPool(String threadName) {
         return new ThreadPoolExecutor(
@@ -105,8 +117,13 @@ class TaskGroupCombineGuardCancellationTest {
 
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-                assertThat(result.outcome()).isIn(LEGITIMATE);
-                assertThat(result.outcome()).isEqualTo(TaskClassification.SUBMISSION_FAILURE);
+                assertThat(legitimate(result.termination())).isTrue();
+                TerminationAssertions.assertScopeFailed(result.termination());
+                assertThat(com.google.common.base.Verify.verifyNotNull(com.google.common.base.Verify.verifyNotNull(
+                                                result.termination().cause())
+                                        .failureCause())
+                                .kind())
+                        .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
                 assertThat(executionRan).isFalse();
                 // A stranded slot here would mean the guard's path skipped the exit publish that its
                 // phase claim made it responsible for.
@@ -178,8 +195,9 @@ class TaskGroupCombineGuardCancellationTest {
 
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
-                assertThat(result.outcome()).isIn(LEGITIMATE);
-                assertThat(result.outcome()).isEqualTo(TaskClassification.GROUP_CANCELLED);
+                assertThat(legitimate(result.termination())).isTrue();
+                TerminationAssertions.assertScopeCancelled(
+                        result.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
                 assertThat(executionRan).isFalse();
                 assertThat(group.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             } finally {
