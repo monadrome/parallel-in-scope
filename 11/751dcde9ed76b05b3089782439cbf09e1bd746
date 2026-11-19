@@ -1,0 +1,25 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java
+  s_ecf5eb70cbe7cc::t_c5a3b578203fdc 236
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_ecf5eb70cbe7cc::t_ef4a99da388274 362
+  s_ecf5eb70cbe7cc::t_a6dd1c4a5a9cf1 332,343-346,357,360-361
+core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java
+  s_ecf5eb70cbe7cc::t_445a7d8c03e04c 3-6
+  s_ecf5eb70cbe7cc::t_14f1a799d60a48 56-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "11751dcde9ed76b05b3089782439cbf09e1bd746",
+  "prompts": {},
+  "sessions": {
+    "s_ecf5eb70cbe7cc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b22b1bf4-30c5-4ed8-b233-5f8b7fe8d108",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
