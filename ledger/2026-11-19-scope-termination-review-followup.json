@@ -1,0 +1,209 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-scope-termination-review-followup",
+  "date": "2026-11-19",
+  "topic": "scope-termination-review-followup",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "refactor: centralize scope termination selection"
+    ],
+    "files": 8,
+    "insertions": 47,
+    "deletions": 17
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "scope-termination-review-b6cb266d-20261119-155314-7db049",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 320986,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 9063,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "scope-termination-review-followup/refactoring-run",
+        "head": "35c7561956e6bf3df2494699b8fda3c21a13262d",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "C05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "D02"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "D01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": true,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "V01"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R8",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R9",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1,
+      "review-cli-build": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "scope-termination-review-followup/pit-all-tests/mutations.xml",
+      "statuses": {
+        "KILLED": 399,
+        "NO_COVERAGE": 10,
+        "SURVIVED": 20,
+        "TIMED_OUT": 5
+      },
+      "total": 434,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0115
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Applied six review candidates and rejected the overlapping freezeResults tail extraction; Kiro completed with zero findings, Codex failed twice on a blocked UserPromptSubmit hook; final broad PIT remains inconclusive with raw gaps retained; local JDK 11 unavailable; direct dev/v0.5.0 delivery authorized by maintainer"
+}
