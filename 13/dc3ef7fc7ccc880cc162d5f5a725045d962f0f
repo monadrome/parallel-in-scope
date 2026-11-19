@@ -1,0 +1,33 @@
+scripts/check-race-claims.py
+  s_4730cd68820ed7::t_260fac74670c1e 153,162,167-168,188-193
+  s_4730cd68820ed7::t_71d067cceae4db 48
+  s_4730cd68820ed7::t_205be53214469b 258-260,263-264
+  s_4730cd68820ed7::t_a588b556bffc44 47
+  s_4730cd68820ed7::t_bda9b4910da2ac 27
+  s_4730cd68820ed7::t_f73b0b4da0a801 152,154-161,163-166,179-184,194-199
+verification/race-claims/README.md
+  s_4730cd68820ed7::t_68cd4ad22cfc9d 94-97
+  s_4730cd68820ed7::t_b8129f98978608 51-52
+  s_4730cd68820ed7::t_c7b02f32d9a370 50
+scripts/tests/test_check_race_claims.py
+  s_4730cd68820ed7::t_0bf0c0a989209c 168,172-189
+  s_4730cd68820ed7::t_c80db515ae861a 152
+  s_4730cd68820ed7::t_f84e82c14fafc8 135-151,153-167,169-171,190-206
+  s_4730cd68820ed7::t_812344a1587fa5 235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "13dc3ef7fc7ccc880cc162d5f5a725045d962f0f",
+  "prompts": {},
+  "sessions": {
+    "s_4730cd68820ed7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_42934f9a-fcbd-41f9-ae4e-88b54c46f585",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
