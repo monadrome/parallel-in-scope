@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-tostring-guava-style",
+  "date": "2026-11-19",
+  "topic": "tostring-guava-style",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "refactor: align diagnostic toString rendering with Guava's future philosophy",
+      "refactor: render future envelopes, guarded failures, and aggregate counts",
+      "fix: close the task render race and seal diagnostic envelopes",
+      "refactor: share the terminal status branch renderer (R1, R2, R3)",
+      "refactor: move the pendingToString mechanics to an implementation comment (R4)",
+      "refactor: extract an orders-task factory in TaskFutureTest (R5)",
+      "test: cover the cancelled terminal branch of the future envelopes"
+    ],
+    "files": 32,
+    "insertions": 795,
+    "deletions": 96
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-tostring-guava-style-2026-11-19",
+        "head": "7a420daa1f643bf039ef9fae082e178304472ddf",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "V04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "V04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 2,
+      "refactoring-review detect": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-tostring-guava-style-2026-11-19/mutations-full.xml",
+      "statuses": {
+        "KILLED": 355,
+        "NO_COVERAGE": 70,
+        "SURVIVED": 60,
+        "TIMED_OUT": 4
+      },
+      "total": 489,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0082
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "F5-F8 review fixes; PIT full run 489 mutants (355K/60S/70NC/4TO) plus cancelled-branch partition rerun all-killed; codex reviewer hook-blocked, detectors reran on kimi k3.1-pro"
+}
