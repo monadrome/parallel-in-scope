@@ -1,36 +1,46 @@
-# Guava ListenableFuture 取消传播机制
+# Guava ListenableFuture Cancellation Propagation Mechanics
 
-> `CancellationToken.bind` 的正确性依赖一组 Guava 取消传播语义，这些语义并不直观。
-> 本文记录这套机制与正确用法。全部结论对 `guava-33.6.0-jre` 源码逐条验证过，每节附源码位置。
-> 取消机制各层如何衔接、各问题归哪份契约，见 [取消机制总览](cancellation-model.md)。
+> The correctness of `CancellationToken.bind` depends on a set of Guava cancellation-propagation
+> semantics that are not intuitive. This document records those mechanics and their correct use.
+> Every conclusion has been verified line by line against the `guava-33.6.0-jre` source, with
+> source locations appended per section.
+> For how the cancellation mechanism's layers connect and which contract owns each question, see
+> the [cancellation model overview](cancellation-model.md).
 
-## 1. 当前 bind 形态
+## 1. The current bind shape
 
 ```java
 public <T> void bind(
         List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
-    // deadline 存在 token 内部（构造时与 parent 取 min），bind 不再接收 Duration
-    // 统一取消句柄：successfulAsList 要等全部 input 完成才终态，
-    // 所以在「某个成员已失败」的时刻它仍然 pending，取消它能级联到所有 inputs
+    // The deadline lives inside the token (min'ed with the parent at construction); bind no
+    // longer takes a Duration.
+    // Unified cancel handle: successfulAsList stays pending until every input completes, so at
+    // the moment "one member has failed" it is still pending, and cancelling it cascades to all
+    // inputs.
     ListenableFuture<?> allFutures =
             Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
 
-    // 事件来源必须按来源区分，不能按异常类型猜：业务体可以合法抛 TimeoutException。
-    // allAsList 回调是唯一 FAIL_FAST 来源；显式调度的 timer 任务是唯一 TIMEOUT 来源。
+    // Event sources must be distinguished by source, never guessed by exception type: a business
+    // body may legitimately throw TimeoutException.
+    // The allAsList callback is the only FAIL_FAST source; the explicitly scheduled timer task is
+    // the only TIMEOUT source.
     ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
-    // 已终态 token 不再布防：没有任何转换能再获胜，deadline 已无意义；其取消经
-    // futureToken/setFuture 桥与 onFailure 回调完整到达。跳过也使终态 token 的 bind
-    // 不触碰所属 runtime 可能已关闭的调度器（组启动竞态）。
+    // An already-terminal token is not armed: no transition can win anymore and the deadline is
+    // meaningless; its cancellation still arrives intact through the futureToken/setFuture bridge
+    // and the onFailure callback. Skipping also keeps a terminal token's bind from touching a
+    // scheduler that may already be closed with its owning runtime (group start race).
     if (deadlineNanos != Long.MAX_VALUE && state() == RUNNING) {
-        // 域调度器退役时回退到调用方 scheduler；两者都拒绝时，token 已并发终态则吸收
-        // （返回 null——终态已蕴含取消，timer 无事可做），仍 RUNNING 才抛出：
-        // 静默丢弃存活 deadline 违背超时契约（§5.2）。
+        // Fall back to the caller's scheduler when the domain scheduler is retired; when both
+        // reject, absorb if the token concurrently went terminal (return null — terminal already
+        // implies cancellation and the timer has nothing to do), and throw only if still RUNNING:
+        // silently dropping a live deadline violates the timeout contract (§5.2).
         @Nullable ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
             transitionTo(TIMEOUT);
             cancelBoundWork(allFutures); // always cancel(true): every cancellation interrupts
         }, remaining);
-        // token 以任何路径终态都会完成 futureToken，在那里取消已调度的任务，
-        // 避免共享 timer 把一个已终态 token 保留到 deadline；吸收路径返回 null，无事可挂。
+        // Any terminal path completes futureToken, where the scheduled task is cancelled, so a
+        // shared timer does not pin a terminal token until its deadline; the absorb path returns
+        // null and has nothing to attach.
         if (timeoutHandle != null) {
             futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
         }
@@ -43,263 +53,356 @@ public <T> void bind(
 }
 ```
 
-三条形状约束决定了这个形态（机制见 §2/§3，规则汇总见 §7）：
+Three shape constraints determine this form (mechanics in §2/§3, rules collected in §7):
 
-1. **取消动作必须放在 `addCallback` 里**：top-down 取消到达不了 `catchingAsync` 的
-   fallback（§2.1），写在 fallback 里的取消逻辑是死代码；`addCallback` 的 `onFailure`
-   两个方向都会触发（§2.3）。
-2. **统一取消句柄必须是还 pending 的组合 future（`successfulAsList`）**：`allAsList`
-   在第一个失败/取消时就终态，对已完成 future 调 `cancel` 是 no-op，级联不到 inputs（§3）。
-3. **TIMEOUT 的唯一来源是 timer 任务**：历史上用 `withTimeout` 包 `allAsList`，再按
-   `instanceof TimeoutException` 归因；业务 `TimeoutException` 会被误记为框架 TIMEOUT。
-   `withTimeout` 仍在 `Task.withTimeout` 派生视图使用，不再承担 token 归因。
+1. **The cancellation action must live in `addCallback`**: top-down cancellation never reaches
+   `catchingAsync`'s fallback (§2.1), so cancellation logic written in the fallback is dead code;
+   `addCallback`'s `onFailure` fires in both directions (§2.3).
+2. **The unified cancel handle must be a still-pending aggregate future (`successfulAsList`)**:
+   `allAsList` goes terminal at the first failure/cancellation, and calling `cancel` on a
+   completed future is a no-op that cannot cascade to inputs (§3).
+3. **The timer task is the only TIMEOUT source**: historically `allAsList` was wrapped in
+   `withTimeout` and attribution was done by `instanceof TimeoutException`; a business
+   `TimeoutException` was misrecorded as a framework TIMEOUT. `withTimeout` is still used in
+   `Task.withTimeout` derived views; it no longer plays a token-attribution role.
 
-## 2. 机制一：取消和失败是两条传播路径
+## 2. Mechanic one: cancellation and failure travel on two different paths
 
-失败沿链**向下游**（output 方向）传播：input 失败 → output 失败（transform 跳过、catching 进 fallback）。
-取消沿链**向上游**（input 方向）传播：output 被取消 → `afterDone()` → `maybePropagateCancellationTo(input)`
-→ input 被取消 → 一路传到链基。方向相反，是全部混乱的来源。
+Failure propagates **downstream** along the chain (toward the output): input fails → output
+fails (transform skips, catching enters the fallback).
+Cancellation propagates **upstream** along the chain (toward the input): output is cancelled →
+`afterDone()` → `maybePropagateCancellationTo(input)` → input is cancelled → all the way to the
+chain base. The opposite directions are the source of all the confusion.
 
-以一条通用组合链示意两个方向（不代表 bind 的实际形状，bind 里没有 catchingAsync）：
+One generic combination chain illustrates both directions (not bind's actual shape — bind has no
+catchingAsync):
 
 ```text
 output.cancel(true)                     member.future.cancel(true)
         │                                        │
-        ▼ （向上游）                              ▼ （从链基向上）
+        ▼ (upstream)                             ▼ (from the chain base upward)
 catchingAsync → transform → withTimeout → allAsList → withTimeout → transform → catchingAsync
         │                                        │
-        ▼ fallback 不跑                           ▼ fallback 会跑（见下）
+        ▼ fallback does not run                  ▼ fallback runs (see below)
 ```
 
-### 2.1 catching 系：取消不进 fallback
+### 2.1 The catching family: cancellation does not enter the fallback
 
-`AbstractCatchingFuture.run()` 开头：
+The top of `AbstractCatchingFuture.run()`:
 
 ```java
 if ((localInputFuture == null | ...) 
-        || isCancelled()) {    // volatile read，检查的是输出(self)
+        || isCancelled()) {    // volatile read, checking the output (self)
     return;
 }
 ```
 
-top-down 取消先取消 catchingAsync 的**输出**，之后 input 完成触发 `run()`，`isCancelled()` 命中直接 return。
-fallback 里的任何逻辑在这条路径上都是死代码。
+Top-down cancellation cancels the catchingAsync's **output** first; when the input later
+completes and triggers `run()`, `isCancelled()` hits and returns immediately. Any logic in the
+fallback is dead code on this path.
 
-### 2.2 bottom-up：取消会以 CancellationException 进 fallback
+### 2.2 Bottom-up: cancellation enters the fallback as CancellationException
 
-成员 future 被直接取消时，取消从链基向上传：input 取消 → `transform` 的 `run()` 对 cancelled input 执行
-`cancel(false)`（`AbstractTransformFuture.run()`，源码注释 "inputFuture is cancelled... cancel(false)"）
-→ 到达 catchingAsync 时 input 已 cancelled、输出未取消 → `getDone(input)` 抛 `CancellationException`
-→ 被 `catch (Throwable t)` 接住（源码原注释 *"this includes CancellationException"*）
-→ `exceptionType` 是 `Throwable.class` → 匹配 → **fallback 以 CancellationException 被调用**。
+When a member future is cancelled directly, cancellation travels from the chain base upward:
+input cancelled → `transform`'s `run()` runs `cancel(false)` on itself for the cancelled input
+(`AbstractTransformFuture.run()`, source comment "inputFuture is cancelled... cancel(false)")
+→ by the time it reaches catchingAsync the input is cancelled but the output is not →
+`getDone(input)` throws `CancellationException` → caught by `catch (Throwable t)` (the source
+comment says *"this includes CancellationException"*) → `exceptionType` is `Throwable.class` →
+matches → **the fallback is invoked with a CancellationException**.
 
-即同一个 fallback：top-down 不跑，bottom-up 跑。方向决定行为。
+The same fallback: does not run top-down, runs bottom-up. Direction decides behavior.
 
-### 2.3 addCallback：取消也进 onFailure
+### 2.3 addCallback: cancellation enters onFailure too
 
-`Futures.CallbackListener.run()` 对 future `getUninterruptibly`，cancelled future 抛
-`CancellationException`（RuntimeException）→ `catch (RuntimeException | Error e)` → `onFailure(e)` 被调用。
-**两个方向都进 onFailure**——这是 addCallback 与 catching 系的本质区别。
+`Futures.CallbackListener.run()` calls `getUninterruptibly` on the future; a cancelled future
+throws `CancellationException` (a RuntimeException) → `catch (RuntimeException | Error e)` →
+`onFailure(e)` is invoked. **Both directions enter onFailure** — this is the essential
+difference between addCallback and the catching family.
 
-## 3. 机制二：组合 future 的取消级联（allAsList ≠ successfulAsList）
+## 3. Mechanic two: the aggregate future's cancellation cascade (allAsList ≠ successfulAsList)
 
-`AggregateFuture.afterDone()`：组合 future 被取消时遍历取消所有 inputs
-（`future.cancel(wasInterrupted())`）。**前提：组合 future 还 pending 且 `futures` 字段未清空**。
+`AggregateFuture.afterDone()`: when an aggregate future is cancelled, it iterates and cancels
+all inputs (`future.cancel(wasInterrupted())`). **Precondition: the aggregate future is still
+pending and its `futures` field has not been cleared.**
 
-| | `allAsList`（allMustSucceed=true） | `successfulAsList`（allMustSucceed=false） |
+| | `allAsList` (allMustSucceed=true) | `successfulAsList` (allMustSucceed=false) |
 |---|---|---|
-| 某 input 失败 | 组合 future **立即失败**（终态）→ 之后 cancel 它是 no-op，级联不到任何 input | 失败记 null，等**全部** input 完成才终态 → 此刻仍 pending |
-| 某 input 被取消 | `processAllMustSucceedDoneFuture`: `futures = null; cancel(false)` → 组合 future 以 **cancelled** 终态完成，**不**级联其他 inputs | 同上保持 pending |
-| 取消组合 future（pending 时） | 级联取消全部 inputs | 级联取消全部 inputs |
-| 适用角色 | 「全部成功才算成功」的判定器 | **统一取消句柄** |
+| An input fails | The aggregate future **fails immediately** (terminal) → cancelling it afterwards is a no-op, no cascade to any input | The failure is recorded as null; terminal only when **all** inputs complete → still pending at this moment |
+| An input is cancelled | `processAllMustSucceedDoneFuture`: `futures = null; cancel(false)` → the aggregate completes as **cancelled**, **no** cascade to other inputs | Stays pending as above |
+| Cancel the aggregate (while pending) | Cascades to all inputs | Cascades to all inputs |
+| Suitable role | The "all must succeed" arbiter | **The unified cancel handle** |
 
-结论：**能安全当取消句柄用的，只有还 pending 的组合 future**。
-`allAsList` 在第一个失败/取消时就终态，天然错过取消窗口。
-`successfulAsList(futures, submitCanceller)` 嵌套一层，把任务 futures 和 submitter 拉进同一个可取消句柄。
+Conclusion: **only a still-pending aggregate future is safe to use as a cancel handle.**
+`allAsList` is terminal at the first failure/cancellation and naturally misses the cancellation
+window. Nesting one layer of `successfulAsList(futures, submitCanceller)` pulls the task futures
+and the submitter into the same cancellable handle.
 
-## 4. setFuture 与 cancel 的双向桥
+## 4. The two-way bridge of setFuture and cancel
 
-- **cancel-before-bind 生效的原因**：对已 cancelled 的 future 调 `setFuture(x)`，返回 false 且
-  **取消 x**（`AbstractFuture.setFuture` 尾部 `localValue instanceof Cancellation` 分支）。
-  所以 `futureToken` 先被 cancel、之后才 bind，链照样被取消。
-- **二次 bind 不误伤**：对已**成功**的 future 调 `setFuture(x)` 只返回 false，x 不受影响。
-- **cancel 向委托传播**：`futureToken.cancel` 对 `setFuture` 进来的 chain（DelegatingToFuture）
-  会继续取消该 chain（`AbstractFuture.cancel` 的 Trusted 循环），并一路 `afterDone` 向上游传。
-- **TimeoutFuture**：输出被取消 → 取消 delegate + 取消已调度的 timer task（防泄漏）。
+- **Why cancel-before-bind works**: calling `setFuture(x)` on an already-cancelled future
+  returns false and **cancels x** (the `localValue instanceof Cancellation` branch at the tail
+  of `AbstractFuture.setFuture`). So if `futureToken` is cancelled first and bound afterwards,
+  the chain still gets cancelled.
+- **A second bind does no collateral damage**: calling `setFuture(x)` on an already-**successful**
+  future only returns false; x is unaffected.
+- **cancel propagates to the delegate**: `futureToken.cancel` continues cancelling the chain
+  brought in by `setFuture` (a DelegatingToFuture) — the Trusted loop of `AbstractFuture.cancel`
+  — and propagates upstream through `afterDone` all the way.
+- **TimeoutFuture**: output cancelled → cancels the delegate + cancels the scheduled timer task
+  (leak prevention).
 
-## 5. 中断标志的传播
+## 5. Propagation of the interrupt bit
 
-`cancel(mayInterruptIfRunning)` 把中断位存进 `Cancellation` 值，之后沿链用 `wasInterrupted()` 保持：
+`cancel(mayInterruptIfRunning)` stores the interrupt bit into the `Cancellation` value, and it
+is preserved along the chain via `wasInterrupted()`:
 
-- `maybePropagateCancellationTo`: `related.cancel(wasInterrupted())` — 链式传播不丢中断位
-- `AggregateFuture.afterDone` 级联 inputs 用 `wasInterrupted()`
-- `allAsList` 对 cancelled input 的自我取消用 `cancel(false)`——那是「以取消完成」的语义，不是「要求取消」，不该带中断
-- `cancel(false)` 契约：级联照常，但运行中任务不被中断。本库的取消路径不使用它（§5.1），
-  只在「以取消完成」的镜像与组合器内部出现
+- `maybePropagateCancellationTo`: `related.cancel(wasInterrupted())` — chained propagation does
+  not drop the interrupt bit
+- `AggregateFuture.afterDone` cascades to inputs with `wasInterrupted()`
+- `allAsList`'s self-cancellation for a cancelled input uses `cancel(false)` — that is the
+  semantics of "completing as cancelled", not "requesting cancellation", and should not carry
+  interruption
+- The `cancel(false)` contract: the cascade proceeds as usual, but running tasks are not
+  interrupted. This library's cancellation paths do not use it (§5.1); it appears only inside
+  the "completing as cancelled" mirror and combiners
 
-## 5.1 框架取消一律中断
+## 5.1 Every framework cancellation interrupts
 
-MUST：框架发起的每一次取消——deadline、fail-fast、显式与请求来源取消、祖先传播——都以
-`cancel(true)` 取消绑定工作并中断运行中的执行。token 不记录中断意图：终态只有 state，
-`transitionTo` 以一次 `compareAndSet(RUNNING, terminal)` 提交，状态监听在 CAS 成功之后才运行。
-`ParentLink.parentFinished()` 先提交子的 `PROPAGATED_CANCELLED`，再以 `cancel(true)` 取消子的
-`futureToken`；级联取消统一走 `cancelBoundWork`，对 `allFutures` 调用 `cancel(true)`。first-wins
-不变：已终态的子不受父取消影响，输掉 first-wins 的回调仍无条件级联（§7 第 5 条）。
+MUST: every framework-initiated cancellation — deadline, fail-fast, explicit and request-source
+cancellation, ancestor propagation — cancels bound work with `cancel(true)` and interrupts
+running executions. The token records no interruption intent: terminal states are only states,
+`transitionTo` commits with one `compareAndSet(RUNNING, terminal)`, and state listeners run only
+after the CAS succeeds. `ParentLink.parentFinished()` commits the child's
+`PROPAGATED_CANCELLED` first, then cancels the child's `futureToken` with `cancel(true)`;
+cascade cancellation uniformly goes through `cancelBoundWork`, calling `cancel(true)` on
+`allFutures`. First-wins is unchanged: an already-terminal child is unaffected by parent
+cancellation, and callbacks that lost first-wins still cascade unconditionally (§7 rule 5).
 
-MUST NOT：不提供不中断的取消入口，公开 `cancelOn` 也不接收中断参数。
+MUST NOT: no non-interrupting cancellation entry; the public `cancelOn` takes no interruption
+parameter either.
 
-依据：是否能承受中断是执行的性质，取消来源不知道；deadline 与 fail-fast 的活性依赖中断，
-因此只在某一个来源上关闭中断只能半覆盖，怕中断的执行仍会被另外三个来源中断。取消时结果
-已经落定，不中断只会让线程多占用一段时间，执行迟到的值无人读取。
+Rationale: whether an execution can tolerate interruption is a property of the execution, which
+the cancellation source does not know; the liveness of deadlines and fail-fast depends on
+interruption, so turning interruption off for only one source is half a cover — an
+interruption-averse execution would still be interrupted by the other three sources. At
+cancellation time the result is already settled; not interrupting only keeps the thread
+occupied a while longer, and a late value has no reader.
 
-被否决：保留 `cancelOn(signal, boolean interrupt)` 与 token 中的中断意图（`Decision` 同时发布
-state 与意图、意图沿父链传播、输家不得升级意图）——只给一个来源提供半覆盖的保护，却要求内核
-维护整套意图不变量；作用域或成员级「不中断」政策——需要对四个来源同时生效并削弱 deadline
-的活性，没有真实需求前不引入。重开条件：出现真实需求，且新设计对全部取消来源一致生效。
+Rejected: keeping `cancelOn(signal, boolean interrupt)` and an interruption intent in the token
+(a `Decision` publishing state and intent together, intent propagating down the parent chain,
+losers forbidden from upgrading intent) — it would give one source half-cover protection while
+requiring the kernel to maintain a whole set of intent invariants; a scope- or member-level
+"no interruption" policy — it would have to take effect on all four sources at once and weaken
+deadline liveness, and is not introduced before a real need exists. Re-entry condition: a real
+need appears, and the new design takes effect consistently across all cancellation sources.
 
-不视为缺陷：输掉 first-wins 的转换再取消一次 `futureToken`——对已终态 future 的取消是 no-op，其值从不被读取，
-父传播与 timer 撤销都重读 state；被收养成员的镜像不会从外部以 `cancel(false)` 取消——公开面没有成员句柄，
-被收养成员也不交给执行器。
+Not defects: a transition that lost first-wins cancelling `futureToken` once more — cancelling
+an already-terminal future is a no-op, its value is never read, and both parent propagation and
+timer revocation re-read state; an adopted member's mirror is never cancelled from outside with
+`cancel(false)` — the public surface has no member handle, and adopted members are not handed to
+executors.
 
-## 5.2 截止时钟域（内部时间缝）
+## 5.2 The deadline clock domain (an internal time seam)
 
-`CancellationToken` 持有一个 `Ticker` 作为其 deadline 的时钟域：
+`CancellationToken` holds a `Ticker` as the clock domain of its deadline:
 
-- MUST：子 token 继承父 token 的时钟（构造器强制），一棵 token 树共享一个时钟域；只有根
-  token 接受显式时钟——公开构造恒为系统时钟，包内构造供测试注入手动时钟。
-- MUST：deadline 的读取（`remaining()`、bind 的过期检查与调度延迟、`Checkpoints` 的到期
-  backstop）一律读 token 自己的时钟，不与另一时钟域混读。
-- MUST：时钟与触发它的调度器成对沿 token 树传播。根 token 从 `ParRuntime` 的根时钟与
-  `timeoutScheduler()`（同一个测试缝的两半，包内 Builder 钩子，不是公开 SPI，替换时必须
-  成对）取得两者；子 token 与父 token 继承同一个调度器。bind 优先使用 token 树携带的域
-  调度器，形参 scheduler 只是无运行时缝的 token 的兜底——否则嵌套单元的 deadline 会带着
-  虚拟域的延迟值坐上子运行时的真实调度器，受控时间下永不触发。  例外配对：域调度器所属的祖先 runtime 可能已关闭（被取消的执行仍在运行并向其他
-  runtime 嵌套提交），其调度器拒绝新任务；此时 bind 回退到调用方的存活 scheduler 来布防
-  deadline——祖先在真实时钟上退役时延迟值仍有效，手动时钟退役后本不会再前进，回退不会
-  更晚触发。
-- MUST：已终态 token 的 bind 不布防 timer。终态后没有任何转换能再获胜，deadline 已无意义；
-  取消经 futureToken/setFuture 桥与 onFailure 回调完整到达绑定工作。跳过布防同时保证终态
-  token 的 bind 不触碰可能已随所属 runtime 关闭的调度器（组启动可在准入后遭遇取消与关闭）。
-  MUST：布防的活性检查与 schedule 之间是 check-then-act：取消可在其间落锤并随 runtime 关闭
-  退役调度器。两个调度器都拒绝时，若 token 已并发进入终态，bind 吸收该拒绝（终态已蕴含
-  取消，timer 无事可做）；若 token 仍 RUNNING，deadline 无法执行，必须照常抛出——静默
-  丢弃 deadline 违背超时契约。
-- MUST：由 deadline 推导的清理预算（closeGrace 缺省值）在 token 自己的时钟域内推导相对
-  预算，再把该预算当作真实有界等待花掉。不得把 token 的 deadline 与 `System.nanoTime()`
-  交叉相减：手动时钟域里那样读出 0，会把清理等待静默缩成单次检查。
-- 嵌套 ParRuntime：`MultiTaskContext.resolve` 在有取消父时继承父 token 的时钟与调度器，
-  只有根提交取本 runtime 的一对；跨 runtime 嵌套不混域。空嵌套 group 的 token 不挂父链
-  （避免父 listener 滞留），但其时钟与调度器仍取父域——该 token 从不 bind、也不调度
-  timer，取父域只是不让配对规则出现例外。
-- 有界清理等待与观测时间戳（submitTime/start/end、报告时间）MUST 保持真实时钟：它们是跨线程
-  的真实时间观测，虚拟时钟只管辖 deadline 的判定与调度，不伪造等待的流逝。
-- 虚拟时间不运行真实 worker：执行的执行、runner 中断投递与竞态仍发生在真实线程上；确定性
-  交错测试（gate/latch）照旧，不被时间缝取代。
+- MUST: a child token inherits its parent's clock (enforced by the constructor); one token tree
+  shares one clock domain; only a root token accepts an explicit clock — the public constructor
+  always uses the system clock, and the package-private constructor lets tests inject a manual
+  clock.
+- MUST: deadline reads (`remaining()`, bind's expiry check and scheduling delay, `Checkpoints`'
+  expiry backstop) always read the token's own clock; never mix reads across two clock domains.
+- MUST: the clock and the scheduler that fires on it propagate down the token tree as a pair. A
+  root token takes both from the `ParRuntime`'s root clock and `timeoutScheduler()` (two halves
+  of the same test seam — package-private Builder hooks, not a public SPI — and must be replaced
+  as a pair); child tokens inherit the same scheduler from their parent. bind prefers the
+  domain scheduler carried by the token tree; the scheduler parameter is only a backstop for
+  tokens with no runtime seam — otherwise a nested unit's deadline would carry a virtual
+  domain's delay value onto a child runtime's real scheduler and never fire under controlled
+  time.  Exceptional pairing: the ancestor runtime owning the domain scheduler may already be
+  closed (a cancelled execution still running and nesting submissions into another runtime),
+  and its scheduler rejects new tasks; bind then falls back to the caller's live scheduler to
+  arm the deadline — when the ancestor retired on the real clock the delay value is still
+  valid, and a retired manual clock would never advance again, so the fallback cannot fire
+  later.
+- MUST: a terminal token's bind does not arm a timer. After a terminal state no transition can
+  win, and the deadline is meaningless; cancellation arrives at the bound work intact through
+  the futureToken/setFuture bridge and the onFailure callback. Skipping the arming also keeps a
+  terminal token's bind from touching a scheduler that may have closed with its owning runtime
+  (a group start can hit cancellation and closure after admission).
+  MUST: the liveness check and the schedule between arming are check-then-act: cancellation can
+  land in between and retire the scheduler with the runtime closing. When both schedulers
+  reject, if the token concurrently went terminal, bind absorbs the rejection (terminal already
+  implies cancellation; the timer has nothing to do); if the token is still RUNNING, the
+  deadline cannot be enforced and the rejection must propagate as usual — silently dropping a
+  deadline violates the timeout contract.
+- MUST: a cleanup budget derived from a deadline (the closeGrace default) derives its relative
+  budget inside the token's own clock domain, then spends that budget as a real bounded wait.
+  Never cross-subtract the token's deadline with `System.nanoTime()`: inside a manual clock
+  domain that reads 0 and would silently shrink the cleanup wait into a single check.
+- Nested ParRuntimes: `MultiTaskContext.resolve` inherits the parent token's clock and
+  scheduler when a cancellation parent exists; only a root submission takes the local runtime's
+  pair — cross-runtime nesting does not mix domains. An empty nested group's token has no
+  parent link (avoiding a lingering parent listener), but its clock and scheduler still come
+  from the parent domain — that token never binds and never schedules a timer; taking the
+  parent domain only keeps the pairing rule exception-free.
+- Bounded cleanup waits and observation timestamps (submitTime/start/end, report times) MUST
+  stay on the real clock: they are cross-thread real-time observations; the virtual clock only
+  governs deadline judgment and scheduling and must not fake the passage of a wait.
+- Virtual time runs no real workers: executions, runner interrupt delivery, and races still
+  happen on real threads; deterministic interleaving tests (gates/latches) are unchanged and
+  are not replaced by the time seam.
 
-## 5.3 token 是包私有内核类型
+## 5.3 The token is a package-private kernel type
 
-`CancellationToken` 与 `CancellationToken.State` MUST 保持包私有：没有公开成员接收或返回 token，
-用户自建的 token 不会接入任何执行（无调度器、deadline 不触发、`cancel()` 无作用对象），公开它只会制造
-「手里有取消句柄」的错觉。公开归因词汇 MUST 只有 `TaskTermination`；公开 javadoc 与用户文档 MUST NOT 链接或
-教授 token。外部取消一次运行 MUST 通过 §5.4 的显式取消输入接入已有执行 token，MUST NOT 重新公开
-token。被否决：保持公开但在 javadoc 标注 internal（Java 8 无模块边界，根包的包私有就是封装边界）；只删
-公开构造器（仍是拿不到实例的公开类型）；增加 `map(..., token)` 入口（等于恢复公开运行句柄并暴露父链、
-deadline、bind 与归因状态机）。历史来源：`proposal:P0025`（internal-cancellation-token）。
+`CancellationToken` and `CancellationToken.State` MUST stay package-private: no public member
+accepts or returns a token; a user-built token connects to no execution (no scheduler, the
+deadline never fires, `cancel()` has no object to act on), and making it public would only
+create the illusion of "holding a cancellation handle". The public attribution vocabulary MUST
+be `TaskTermination` alone; public Javadoc and user documentation MUST NOT link to or teach the
+token. Cancelling a run from outside MUST go through the explicit cancellation inputs of §5.4
+into the existing execution token; the token MUST NOT be re-exposed. Rejected: keeping it
+public with an "internal" Javadoc note (Java 8 has no module boundary — the root package's
+package-private boundary is the encapsulation boundary); only removing the public constructors
+(still a public type users cannot obtain instances of); adding a `map(..., token)` entry
+(equivalent to restoring a public run handle and exposing the parent chain, deadline, bind, and
+the attribution state machine). Historical source: `proposal:P0025`
+(internal-cancellation-token).
 
-## 5.4 显式请求取消输入
+## 5.4 Explicit request-cancellation inputs
 
-`BatchOptions.cancelOn(ListenableFuture<?> signal)` 与
-`GroupStart.cancelOn(ListenableFuture<?> signal)` 把请求断开等外部事件接入
-现有执行 token。它们只表达作用域级取消；`TaskOptions` MUST NOT 增加同名能力，以免在成员上
-制造第二套政策与归因表面。声明只保存来源，MUST NOT 创建运行状态或注册监听。
+`BatchOptions.cancelOn(ListenableFuture<?> signal)` and
+`GroupStart.cancelOn(ListenableFuture<?> signal)` wire external events such as request
+disconnects into the existing execution token. They express only scope-level cancellation;
+`TaskOptions` MUST NOT grow a same-named capability, to avoid creating a second policy and
+attribution surface on members. A declaration only stores the source and MUST NOT create
+runtime state or register listeners.
 
-- 来源以成功、失败或取消中的任一方式完成时，MUST 调用现有执行 token 的 `CANCELLED` 路径，
-  像其他取消来源一样中断运行中的执行（§5.1）。MUST NOT 完成或反向取消用户所有的来源。
-  不新增 parent 树、请求作用域或公共取消句柄。
-- 全部准备成功后、token bind 与任何提交之前 MUST 完成注册；组路径先经过空组捷径。先安装可切断的
-  持有者，再调用 `signal.addListener(..., directExecutor())`，使已完成来源的同步回调先于任何
-  inline 执行生效。准备失败 MUST NOT 留下监听；注册后准入失败 MUST 切断持有者并保持原异常行为。
-- 执行 token 的任一终态 MUST 确定性地切断来源到执行的引用。来源监听只到达持有间接取消动作的
-  持有者；终态清空该动作后，不得再直接保留执行 token、运行 future 或结果。MUST NOT 用
-  `WeakReference` 代替显式切断。一个来源跨多次执行复用时，每次准入有独立持有者与生命周期。
-- 来源先赢时沿用 `CANCELLED -> GROUP_CANCELLED` 归因；与祖先、deadline、fail-fast 的竞态继续
-  first-wins。
-- 空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 的空输入拒绝保持不变。
-  同步出口、有界清理与执行退出确认保持不变；中断是协作信号，MUST NOT 宣称任意 HTTP/JDBC IO
-  或用户代码已经停止。
+- When the source completes in any way — success, failure, or cancellation — it MUST invoke the
+  existing execution token's `CANCELLED` path, interrupting running executions like every other
+  cancellation source (§5.1). It MUST NOT complete or reversely cancel the user-owned source.
+  No new parent tree, request scope, or public cancellation handle is added.
+- Registration MUST complete after all preparation succeeds and before the token bind and any
+  submission; the group path passes through the empty-group shortcut first. Install the
+  severable holder first, then call `signal.addListener(..., directExecutor())`, so an
+  already-completed source's synchronous callback takes effect before any inline execution. A
+  preparation failure MUST NOT leave a listener behind; an admission failure after registration
+  MUST sever the holder and preserve the original exception behavior.
+- Any terminal state of the execution token MUST deterministically sever the source's reference
+  to the execution. The source listener only reaches the holder of an indirect cancellation
+  action; once a terminal state clears that action, it must no longer directly retain the
+  execution token, running futures, or results. MUST NOT use `WeakReference` in place of
+  explicit severing. When one source is reused across multiple executions, each admission has
+  its own holder and lifecycle.
+- When the source wins, the `CANCELLED -> GROUP_CANCELLED` attribution applies; races with
+  ancestors, deadlines, and fail-fast continue first-wins.
+- Empty batches and empty groups register no source and remain immediately `SUCCESS` as usual;
+  `mapAndCombine`'s empty-input rejection is unchanged. The synchronous exit, bounded cleanup,
+  and execution-exit confirmation are unchanged; interruption is a cooperative signal and MUST
+  NOT be claimed to have stopped arbitrary HTTP/JDBC I/O or user code.
 
-被否决的替代方向：重新公开 token 或新增公共 `CancellationSource`（重复概念并暴露内部状态机）；
-接收 `CompletionStage`（形成第二套 future 体系）；ambient `RequestScope` 或第二棵 parent 树
-（增加归因与封口协议）；要求 immutable options 自动清空来源（来源字段本来就随请求寿命持有）。
-历史来源：`proposal:P0001`；中断参数的移除见 §5.1。
+Rejected alternative directions: re-exposing the token or adding a public `CancellationSource`
+(a duplicated concept exposing the internal state machine); accepting a `CompletionStage`
+(forming a second future system); an ambient `RequestScope` or a second parent tree (adding
+attribution and sealing protocols); requiring immutable options to clear the source
+automatically (the source field is held for the request's lifetime anyway).
+Historical source: `proposal:P0001`; the removal of the interruption parameter is in §5.1.
 
-评审中驳回的主张（2026-11-04，§5.1 中断意图移除的三轮评审）：要求统计终态竞争输家的第二次
-取消——输家只多调用一次 `futureToken.cancel(true)`，该 future 的值从不被读取，其监听（父传播、timer
-撤销）都重读 state，SUCCESS 已提交时父传播是 no-op，与不调用等价；要求被收养成员支持 `cancel(false)`——
-公开面没有成员句柄，被收养成员也不交给执行器，不存在可选择的中断意图。更早的时钟域评审驳回过
-「普通 bound 直消或父传 `cancel(false)` 一律升级为 `true`」：Guava 沿 futureToken→allAsList 链先以
-`wasInterrupted()=false` 取消输入，聚合回调的 `cancel(true)` 落在已终态 future 上是 no-op，反向验证
-在旧代码下全部通过；该区分随 §5.1 的意图移除失去对象，不重提。同轮还驳回「combine 超时回归须断言
-token 归因」：评审的故障注入直接把批次决定写成 `TIMEOUT`，生产路径不可达（只有 timer 能提交
-`TIMEOUT`），而业务 `TimeoutException` 按契约恒为 `USER_FAILURE`，与 token 状态无关。
+Claims rejected in review (2026-11-04, the three review rounds of §5.1's interruption-intent
+removal): counting the second cancellation from a terminal-race loser was requested — the loser
+only calls `futureToken.cancel(true)` once more; that future's value is never read, its
+listeners (parent propagation, timer revocation) all re-read state, and with SUCCESS already
+committed parent propagation is a no-op, equivalent to not calling. Supporting `cancel(false)`
+for adopted members was requested — the public surface has no member handle and adopted members
+are not handed to executors, so there is no selectable interruption intent. An earlier
+clock-domain review rejected "upgrading every ordinary bound direct-cancel or parent-propagated
+`cancel(false)` to `true`": Guava first cancels the inputs with `wasInterrupted()=false` along
+the futureToken→allAsList chain, and the aggregate callback's `cancel(true)` landing on an
+already-terminal future is a no-op — reverse verification passed entirely on the old code; that
+distinction lost its object with §5.1's intent removal and is not reopened. The same round also
+rejected "the combine timeout regression must assert token attribution": the review's fault
+injection wrote the batch decision directly as `TIMEOUT`, which the production path cannot
+reach (only the timer can commit `TIMEOUT`), while a business `TimeoutException` is always
+`USER_FAILURE` by contract, independent of token state.
 
-## 6. 速查表
+## 6. Cheat sheet
 
-| API | input 被取消 | output 被取消 |
+| API | Input cancelled | Output cancelled |
 |---|---|---|
-| `transform` | `run()` 里 `cancel(false)` 自己，向上传 | `afterDone` 向 input 传播 |
-| `catching` / `catchingAsync` | 输出未取消：fallback 以 `CancellationException` 跑；输出已取消：早退 | 向 input 传播，fallback 不跑 |
-| `withTimeout` | Fire → `cancel(false)` | 取消 delegate + timer task |
+| `transform` | `cancel(false)` on itself in `run()`, propagates upward | `afterDone` propagates to the input |
+| `catching` / `catchingAsync` | Output not cancelled: fallback runs with `CancellationException`; output cancelled: early return | Propagates to the input; fallback does not run |
+| `withTimeout` | Fire → `cancel(false)` | Cancels the delegate + the timer task |
 | `addCallback` | `onFailure(CancellationException)` | `onFailure(CancellationException)` |
-| `allAsList` | 自身变 cancelled 终态，不级联 | pending 时级联全部；已 failed 时 no-op |
-| `successfulAsList` | 保持 pending | 级联全部 |
+| `allAsList` | Itself becomes cancelled-terminal, no cascade | Cascades to all while pending; no-op once failed |
+| `successfulAsList` | Stays pending | Cascades to all |
 
-## 7. 写给我们自己的规则
+## 7. Rules for ourselves
 
-1. **取消也要触发处理逻辑 → `addCallback`**；只处理失败 → `catchingAsync`。fallback 里放取消动作前，先想清楚 top-down 取消怎么到达它（答案：到不了）。
-2. **统一取消句柄选还 pending 的组合 future（`successfulAsList`）**，不要选会提前终态的（`allAsList`）。
-3. **归因不靠猜**：`isCancelled()` 事后看不出谁取消的。token 状态机先 CAS 再执行取消动作，观察者读状态即可归因（`CancellationToken.transitionTo` 的 CAS-notify-cancel 顺序）。
-4. 链式简洁是有代价的：每层组合器对取消的处理不同，重写前先核对 §6 的表格。
-5. **onFailure 里的取消动作无条件执行**：转换输掉 first-wins（例如显式 cancel 已先提交
-   CANCELLED）时，业务回调仍是到达 submitCanceller 的唯一路径；对已终态 future 的 cancel 是
-   no-op，所以重复级联无害，跳过才会漏取消。`cancelBoundWork` 总是 `cancel(true)`（§5.1）。
+1. **Cancellation must also trigger handling logic → `addCallback`**; handling failure only →
+   `catchingAsync`. Before putting a cancellation action in a fallback, think through how
+   top-down cancellation would reach it (answer: it doesn't).
+2. **Choose a still-pending aggregate future (`successfulAsList`) as the unified cancel
+   handle**, not one that goes terminal early (`allAsList`).
+3. **Attribution is not guessing**: `isCancelled()` cannot tell after the fact who cancelled.
+   The token state machine CASes first and then performs the cancellation actions, so an
+   observer attributes by reading the state (the CAS-notify-cancel order of
+   `CancellationToken.transitionTo`).
+4. Chained conciseness has a price: each combiner handles cancellation differently — check the
+   §6 table before rewriting.
+5. **The cancellation action in onFailure runs unconditionally**: when the transition loses
+   first-wins (for example an explicit cancel already committed CANCELLED), the business
+   callback is still the only path that reaches the submitCanceller; cancelling an
+   already-terminal future is a no-op, so a repeated cascade is harmless while skipping loses
+   cancellations. `cancelBoundWork` is always `cancel(true)` (§5.1).
 
-## 8. 父监听的终态切断（结果保留契约）
+## 8. Terminal severing of the parent listener (the result-retention contract)
 
-父→子取消传播的实现形态：子 token 构造时在 `parent.futureToken` 上注册一个监听，该监听
-**不直接捕获子 token**，而是通过可切断的私有持有者 `ParentLink`（持有 parent 与可空的
-child）到达子 token。父 future 终态派发时，持有者非空才执行传播。
+The implementation shape of parent→child cancellation propagation: at child-token construction
+a listener is registered on `parent.futureToken`; that listener **does not capture the child
+token directly** but reaches it through the severable private holder `ParentLink` (holding the
+parent and a nullable child). When the parent future dispatches its terminal state, propagation
+runs only while the holder is non-null.
 
-- MUST：子 token 在 `transitionTo` 赢得任何终态转换（SUCCESS、TIMEOUT、FAIL_FAST、
-  CANCELLED、PROPAGATED_CANCELLED）时切断持有者（child 置空），使已完成的子 token
-  不再被仍运行的父 token 的 pending listener 列表强引用。
-- MUST NOT：父侧监听不得以 lambda 捕获或方法引用直接强引用子 token。否则仍运行的父
-  token 会通过自己未终态的 listener 列表保留每个已完成子的 token，进而保留子
-  `futureToken` 上的成功结果列表（历史成功子调用的结果保留随调用数增长，而非随活动子
-  范围数增长）。
-- MUST NOT：不得用 `WeakReference` 代替显式切断。传播必须对仍 RUNNING 的子保持有效，
-  即使用户代码已丢弃子句柄；弱引用会在这种时刻静默丢失传播。
-- MUST：构造期先安装持有者，再注册父监听。父 future 可能已终态，监听会在 `addListener`
-  内同步运行并让子提交 `PROPAGATED_CANCELLED`；持有者必须已经可见，该同步终态转换才能
-  切断它，否则构造结束后会残留一个未切断的链接。
-- 残留（已接受）：父运行期间，其 listener 栈仍会为每个历史（已终态）子批次累积一个
-  `ParentLink` 节点。业务结果已释放，节点是每子一个的小常数；释放边界仍是父 future 终态。
-- 竞态：父终态派发与子终态切断可并发。切断只是 GC 卫生，不是同步协议：裁决点仍是子的
-  终态 CAS——子 RUNNING 时持有者非空、传播照旧；子已终态时传播本来就是 no-op（CAS 失败，
-  或对已终态 future 的 cancel 是 no-op）。切断不改变任何可观察行为。
-- bind-before-submit、first-wins 归因、deadline 最小值传播都不经过该持有者，不受切断
-  影响。
+- MUST: when the child token wins any terminal transition in `transitionTo` (SUCCESS, TIMEOUT,
+  FAIL_FAST, CANCELLED, PROPAGATED_CANCELLED), it severs the holder (child set to null), so a
+  completed child token is no longer strongly referenced by the still-running parent token's
+  pending listener list.
+- MUST NOT: the parent-side listener must not strongly reference the child token through a
+  lambda capture or method reference. Otherwise a still-running parent token would retain every
+  completed child's token through its own non-terminal listener list, and with it the success
+  result list on the child's `futureToken` (historical successful child calls' results would
+  then be retained in proportion to call count instead of active child scope count).
+- MUST NOT: do not use `WeakReference` in place of explicit severing. Propagation must remain
+  effective for a still-RUNNING child even after user code has dropped the child handle; a weak
+  reference would silently lose propagation at exactly that moment.
+- MUST: at construction, install the holder first, then register the parent listener. The
+  parent future may already be terminal, in which case the listener runs synchronously inside
+  `addListener` and makes the child commit `PROPAGATED_CANCELLED`; the holder must already be
+  visible for that synchronous terminal transition to sever it, otherwise an unsevered link
+  survives construction.
+- Residue (accepted): while the parent runs, its listener stack still accumulates one
+  `ParentLink` node per historical (terminal) child batch. The business results are released;
+  a node is a small constant per child; the release boundary remains the parent future's
+  terminal state.
+- Race: the parent's terminal dispatch and the child's terminal severing can be concurrent.
+  Severing is GC hygiene, not a synchronization protocol: the decision point is still the
+  child's terminal CAS — while the child is RUNNING the holder is non-null and propagation
+  proceeds; once the child is terminal, propagation was already a no-op (the CAS fails, or
+  cancelling an already-terminal future is a no-op). Severing changes no observable behavior.
+- bind-before-submit, first-wins attribution, and deadline-min propagation do not pass through
+  the holder and are unaffected by severing.
 
-## 源码索引（guava-33.6.0-jre）
+## Source index (guava-33.6.0-jre)
 
-| 结论 | 位置 |
+| Conclusion | Location |
 |---|---|
-| 取消向 input 传播 | `AbstractFuture#maybePropagateCancellationTo` |
-| setFuture 对已取消 future 取消入参 | `AbstractFuture#setFuture` |
-| cancel 向 DelegatingToFuture 传播 | `AbstractFuture#cancel` |
-| catching 的 isCancelled 早退 / catch Throwable 含取消 | `AbstractCatchingFuture#run` |
-| transform 对 cancelled input 的 cancel(false) | `AbstractTransformFuture#run` |
-| 超时输出取消时清 timer | `TimeoutFuture#afterDone`、`TimeoutFuture.Fire#run` |
-| 组合 future 取消级联 | `AggregateFuture#afterDone` |
-| allAsList 对 cancelled input 的自我取消 | `AggregateFuture#processAllMustSucceedDoneFuture` |
-| 取消也进 onFailure | `Futures.CallbackListener#run` |
+| Cancellation propagates to the input | `AbstractFuture#maybePropagateCancellationTo` |
+| setFuture cancels its argument on an already-cancelled future | `AbstractFuture#setFuture` |
+| cancel propagates into DelegatingToFuture | `AbstractFuture#cancel` |
+| catching's isCancelled early return / catch Throwable includes cancellation | `AbstractCatchingFuture#run` |
+| transform's cancel(false) for a cancelled input | `AbstractTransformFuture#run` |
+| Timer cleared when the timeout output is cancelled | `TimeoutFuture#afterDone`, `TimeoutFuture.Fire#run` |
+| Aggregate future cancellation cascade | `AggregateFuture#afterDone` |
+| allAsList's self-cancellation for a cancelled input | `AggregateFuture#processAllMustSucceedDoneFuture` |
+| Cancellation enters onFailure too | `Futures.CallbackListener#run` |

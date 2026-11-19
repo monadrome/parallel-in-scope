@@ -19,7 +19,8 @@ only for the single winning `cancel(true)`, so there is only one delivery writer
 The cancelling thread publishes delivery in progress before reading runner and clears
 the flag in finally after calling interrupt. The executing thread clears runner before
 waiting out delivery, then restores its entry interrupt state and returns to its owner.
-The normative MUST/MUST NOT requirements live in the interruption contract's "取消中断投递不越界" section.
+The normative MUST/MUST NOT requirements live in the interruption contract's "cancel-interrupt
+delivery stays within bounds" section.
 
 Volatile accesses have a total synchronization order. If cancellation reads a non-null
 runner, its flag publication precedes that read and the runner's withdrawal. The exiting

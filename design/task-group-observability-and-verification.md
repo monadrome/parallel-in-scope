@@ -1,51 +1,72 @@
-# TaskGroup 设计契约：观测与验收
+# TaskGroup Design Contract: Observability and Acceptance
 
-> 组的声明形状见 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md)；
-> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)。本文约束观测快照、执行器等待
-> 规则、并发不变量与验收矩阵。
+> The group's declaration shape is in [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md);
+> the public execution/result shapes are in the [synchronous exit contract](synchronous-scope-exit.md).
+> This document constrains observation snapshots, executor-wait rules, concurrency invariants,
+> and the acceptance matrix.
 >
-> 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
-> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
+> This document is part of the TaskGroup design contract series (split by chapter from the
+> original "Independent Parallel Task Group Final Design Contract").
+> Series navigation: [API and options](task-group-api-and-options.md) · [Lifecycle and state machine](task-group-lifecycle.md) · [Submission and rejection](task-group-submission.md) · [Cancellation and attribution](task-group-cancellation.md) · [Observability and acceptance](task-group-observability-and-verification.md); the route index is [design/AGENTS.md](AGENTS.md).
 
-## 10. 任务观测与 Group telemetry
+## 10. Task observation and Group telemetry
 
-### 10.1 成员级观测快照
+### 10.1 Member-level observation snapshots
 
-成员有两个独立的可观察值：逻辑终止由 `ImmediateResult.termination()` 在 future 终态时冻结，退出后
-观测由 `TaskExitObservation` 在 execution-exit 信号后发布。逻辑终止可能先于用户线程退出；调用方必须用
-`executionExitConfirmed()` 或 `TaskState.EXITED` 判断直接执行是否已退出。
+A member has two independent observable values: logical termination, frozen by
+`ImmediateResult.termination()` at future terminality; and post-exit observation, published by
+`TaskExitObservation` after the execution-exit signal. Logical termination may precede the user
+thread's exit; callers must use `executionExitConfirmed()` or `TaskState.EXITED` to determine
+whether a direct execution has exited.
 
-成员完成时发布统一的 `TaskExitObservation` 终态快照（成员 future 终态与执行退出两个信号汇合），
-最终经 `TaskGroupResult.members()`/`terminal()` 可见：
+A unified `TaskExitObservation` terminal snapshot is published when a member completes (the
+confluence of two signals: member future terminality and execution exit), ultimately visible
+through `TaskGroupResult.members()`/`terminal()`:
 
-- 成功结果、用户异常（`result()`/`failure()`）；
-- submit/start/end timing；
-- queue wait 分类（`enqueued()` 由等待时长派生）；
-- 打平身份字段 `taskName()`、`unitId()`、`taskIndex()`（取自所属 `MultiTaskContext`）；
-- `termination()`：与 `resultOf(name).termination()` 相同的冻结逻辑终止，每个成员只有一个结论；旧的
-  `outcome()` 只作为 `TaskTermination` 兼容投影（[任务终止契约](task-termination-and-scope.md)）。
+- success results and user exceptions (`result()`/`failure()`);
+- submit/start/end timing;
+- queue-wait classification (`enqueued()` derived from the wait duration);
+- flattened identity fields `taskName()`, `unitId()`, `taskIndex()` (taken from the owning
+  `MultiTaskContext`);
+- `termination()`: the same frozen logical termination as `resultOf(name).termination()` — one
+  conclusion per member; the old `outcome()` serves only as a `TaskTermination` compatibility
+  projection ([task termination contract](task-termination-and-scope.md)).
 
-快照在成员 future 终态**且**任务代码进入 `EXITED`/`SKIPPED` 后才发布，end 计时一定为最终值。执行前取消或提交失败的成员没有真实 start/end（计时为零），但以真实 `TaskTermination` 出现在观测快照中，不伪造计时。它们也必须在 `TaskGroupResult` 中可见。
+A snapshot is published only after the member future is terminal **and** the task code has
+entered `EXITED`/`SKIPPED`, so the end timing is always final. Members cancelled before
+execution or failed at submission have no real start/end (timing is zero), but they appear in
+observation snapshots with their real `TaskTermination` — timing is never fabricated. They must
+also be visible in `TaskGroupResult`.
 
-Group 通过 MemberState 中保存的 `TaskExecutionContext` 身份把 memberName 与 TaskExitObservation/结果关联，不需要新增 current group context。TaskExitObservation 只暴露打平后的只读字段，不携带 groupId；组快照的 `taskName()` 即注册成员名。
+The Group correlates memberName with TaskExitObservation/results through the
+`TaskExecutionContext` identity saved in MemberState; no new current-group context is needed.
+TaskExitObservation exposes only flattened read-only fields and carries no groupId; a group
+snapshot's `taskName()` is the registered member name.
 
-### 10.2 组级完成观测
+### 10.2 Group-level completion observation
 
-组完成观测的唯一公开入口是 `runAll()` 的同步返回值：返回即表示全部冻结成员（含 terminal
-combine）已终态、不可变结果已发布，不存在组完成回调的注册入口。
+The only public entry for group completion observation is `runAll()`'s synchronous return
+value: returning means every frozen member (including the terminal combine) is terminal and the
+immutable results have been published; there is no registration entry for group completion
+callbacks.
 
-历史归属：`TaskGroupListener`/`TaskGroupEvent` 随 v0.3 API 重设计删除。理由：future 组合是
-Guava 习语，回调 executor 应由调用方选择，框架不再持有并调用用户代码；原 listener 的保证（异常隔离、
-不改结果、只调用一次）由 future 语义接管，「不在组锁内回调」与「回调期间不安装当前任务」随框架不再
-调用 listener 而消亡。其后的组级完成 Future 与 Guava callback 形态随同步出口一并删除——
-同步返回使"先观察终态再消费"成为结构保证，不再需要回调语义。
+Historical attribution: `TaskGroupListener`/`TaskGroupEvent` were deleted with the v0.3 API
+redesign. Rationale: future composition is the Guava idiom, the callback executor should be the
+caller's choice, and the framework no longer holds and invokes user code; the original
+listener's guarantees (exception isolation, not changing results, invoked only once) were taken
+over by future semantics, and "no callbacks inside the group lock" and "no current-task
+installation during callbacks" died with the framework no longer invoking listeners. The later
+group-level completion Future and Guava callback forms were deleted together with the
+synchronous exit — synchronous return makes "observe terminality before consuming" a structural
+guarantee, so callback semantics are no longer needed.
 
-## 11. 执行器等待规则
+## 11. Executor-wait rules
 
-执行器等待图（节点、等待的记录、有环强连通分量的检测与报告、诊断发布）的契约在
-[task-graph.md](task-graph.md)。本节只约束 Group 侧。
+The contract of the executor wait graph (nodes, wait recording, detection and reporting of
+cyclic strongly connected components, diagnostic publication) is in
+[task-graph.md](task-graph.md). This section constrains only the Group side.
 
-Group membership 不是等待关系：
+Group membership is not a wait relationship:
 
 ```text
 group
@@ -54,7 +75,7 @@ group
 └─ member C
 ```
 
-MUST NOT 产生：
+MUST NOT produce:
 
 ```text
 A -> B
@@ -62,114 +83,154 @@ B -> C
 fake-group-batch -> A/B/C
 ```
 
-规则：
+Rules:
 
-- 一次 `runAll` 的等待作为**一组**安装：scoped task 内创建时，结构父单元的执行器等待每个成员与汇总所在的
-  starvation-prone 执行器；请求线程创建的 Group 没有等待者，不记录；
-- 成员之间、成员与汇总之间 MUST NOT 记录等待，MUST NOT 虚构 group 节点；groupId/memberName 的 membership
-  只写入 Group telemetry；
-- member callable 内部调用 `Par.map()` 时，现有 `TaskExecutionContext.current()` 使该 Batch 成为 member 的真实
-  结构化 child，member 所在执行器等待该 Batch 的执行器；
-- 相同物理 executor 的成员不会仅因同组产生 self-loop/deadlock 告警；
-- 准备失败的 Group MUST NOT 记录任何等待；
-- 记录与告警 MUST NOT 改变 Group 的提交、取消、deadline 或结果；告警不在提交线程上运行。
+- one `runAll`'s waits are installed as **one set**: when created inside a scoped task, the
+  structural parent unit's executor waits on the starvation-prone executors of each member and
+  the combine; a Group created on a request thread has no waiter and records nothing;
+- no waits MUST be recorded between members, or between members and the combine, and no group
+  node MUST be fabricated; the groupId/memberName membership is written only into Group
+  telemetry;
+- when a member callable calls `Par.map()` inside, the existing
+  `TaskExecutionContext.current()` makes that Batch the member's real structural child, and the
+  member's executor waits on that Batch's executor;
+- members on the same physical executor do not produce self-loop/deadlock warnings merely for
+  being in the same group;
+- a Group whose preparation fails MUST NOT record any waits;
+- recording and warning MUST NOT change the Group's submission, cancellation, deadline, or
+  results; warnings do not run on the submitting thread.
 
-## 13. 并发不变量
+## 13. Concurrency invariants
 
-实现和测试必须证明：
+Implementation and tests must prove:
 
-1. 每个 memberName 在一次组声明中至多声明一次；
-2. 每次提交中每个 callable 最多执行一次；
-3. 草稿单次使用；提交时一次性冻结完整成员集合；
-4. Group 一旦发布，其 registry 完整、不可扩展，且每个成员都拥有一个最终终态的成员 future；
-5. executor rejection 不能留下 pending future；提交调用抛出的任何失败（含 `Error`）同样 MUST 以
-   终态 future 收场，MUST NOT 留下 pending；
-6. `completedTasks` 对每个任务（member 或 combine）恰好增加一次：`MemberState.counted` 的 CAS
-   保证"至多一次"，`finally` 保证它不因归类或级联取消抛出 `Error` 而丢失；
-7. Group completion reason 只固定一次；
-8. 组完成恰发布一次：内部 completion 恰好完成一次，`runAll()` 恰好返回一份冻结结果；
-9. 内部 completion future 只在全部冻结成员终态后完成；
-10. 取消赢得 execution claim 时用户 callable 不执行；
-11. 任一 inline 执行前，全部成员已经出现在 registry；
-12. 所有 ThreadLocal/TTL 在正常、异常、取消、拒绝和 inline 路径上恢复；
-13. 内部状态更新（归类、成功计数、首失败名）不持锁、不执行外部调用；级联取消与 combine 提交
-    在这些更新之后触发，收敛屏障的递增与收敛本身排在最后（且在该 callback 的 `finally` 中），
-    重入安全由原子状态的幂等性而非互斥保证；
-14. 同一成员的 `TaskTermination`、成员结果和 Group result 一致；执行退出与逻辑终止分开验证。
+1. each memberName is declared at most once in one group declaration;
+2. each callable executes at most once per submission;
+3. a draft is single-use; the complete member set is frozen at once at submission;
+4. once published, a Group's registry is complete and non-extensible, and every member owns a
+   member future with a final terminal state;
+5. executor rejection cannot leave a pending future; any failure thrown by a submission call
+   (including an `Error`) MUST likewise end in a terminal future and MUST NOT leave one
+   pending;
+6. `completedTasks` is incremented exactly once per task (member or combine): the
+   `MemberState.counted` CAS guarantees "at most once", and the `finally` guarantees it is not
+   lost because classification or cascade cancellation throws an `Error`;
+7. the Group completion reason is fixed only once;
+8. group completion is published exactly once: the internal completion completes exactly once,
+   and `runAll()` returns exactly one frozen result;
+9. the internal completion future completes only after every frozen member is terminal;
+10. when cancellation wins the execution claim, the user callable does not execute;
+11. before any inline execution, all members already appear in the registry;
+12. all ThreadLocal/TTL is restored on the normal, exceptional, cancelled, rejected, and inline
+    paths;
+13. internal state updates (classification, success count, first-failure name) hold no locks
+    and make no external calls; cascade cancellation and combine submission are triggered after
+    these updates, and the convergence barrier's increment and the convergence itself come last
+    (and in that callback's `finally`) — reentrancy safety is guaranteed by the idempotence of
+    atomic state, not mutual exclusion;
+14. the same member's `TaskTermination`, member result, and Group result are consistent;
+    execution exit and logical termination are verified separately.
 
-## 14. 必测矩阵
+## 14. Required test matrix
 
-### 14.1 基本行为
+### 14.1 Basic behavior
 
-1. 三个异构成员分别返回不同类型且各执行一次；
-2. 成员使用不同 `Par`/executor 时并行运行；
-3. 同一 `Par` 上多个成员均独立提交，不经过滑动窗口；
-4. 重复/空白/null 名称与 null 参数、foreign `Par` 在 `par(...)`/`combine(...)` 声明期拒绝；在
-   已推进的草稿阶段或非创建线程上继续调用抛 `IllegalStateException`；
-5. `par(...)`/`combine(...)` 声明不创建执行上下文、不启动 timer、不提交或执行 callable；
-6. 空组提交立即返回 `SUCCESS` 结果，未创建 timer。
+1. three heterogeneous members each return a different type and each executes once;
+2. members run in parallel when using different `Par`s/executors;
+3. multiple members on the same `Par` are each submitted independently, without the sliding
+   window;
+4. duplicate/blank/null names, null arguments, and foreign `Par`s are rejected at
+   `par(...)`/`combine(...)` declaration time; continuing to call on an advanced draft stage or
+   off the creating thread throws `IllegalStateException`;
+5. `par(...)`/`combine(...)` declarations create no execution context, start no timer, and
+   submit or execute no callable;
+6. an empty group returns a `SUCCESS` result immediately after submission, with no timer
+   created.
 
-### 14.2 submit 与关闭竞态
+### 14.2 submit vs. close races
 
-7. 草稿单次使用：提交后继续调用草稿（含重复 `runAll()`）抛 `IllegalStateException`；不同声明
-   产生独立 groupId；
-8. 提交（`runAll()`）与 `ParRuntime.close()` 竞争时，要么完整组被接纳，要么提交完整拒绝，
-   绝无部分 admission；
-9. direct executor/inline fallback 中，任一 callable 执行前完整成员集合已可查询；
-10. executor rejection 产生 SUBMISSION_FAILURE、触发 fail-fast、所有 future 终态；
-11. 已注册但尚未 `executor.execute()` 的成员被 fail-fast/cancel 后不得运行 callable；
-12. 重复清理不重复计数；submit 提交循环中的 inline failure 会终结尚未提交成员。
+7. a draft is single-use: continuing to call it after submission (including a duplicate
+   `runAll()`) throws `IllegalStateException`; different declarations produce independent
+   groupIds;
+8. when submission (`runAll()`) races `ParRuntime.close()`, either the complete group is
+   admitted or the submission is rejected completely — never partial admission;
+9. under a direct executor/inline fallback, the complete member set is queryable before any
+   callable executes;
+10. executor rejection produces SUBMISSION_FAILURE, triggers fail-fast, and leaves all futures
+    terminal;
+11. a member registered but not yet `executor.execute()`d must not run its callable after
+    fail-fast/cancel;
+12. repeated cleanup does not double-count; an inline failure in the submit loop terminates the
+    not-yet-submitted members.
 
-### 14.3 取消与原因
+### 14.3 Cancellation and reasons
 
-13. 经包私有入口取消组使未完成成员记录 GROUP_CANCELLED；
-14. 经包私有入口直消成员 future 级联取消 Group：该成员 `MEMBER_CANCELLED`，未完成 siblings
-    `GROUP_CANCELLED`，Group reason `CANCELLED`；
-15. 成员失败固定其自身 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），与完成顺序无关——含
-    lone failure 在 RUNNING token 下收敛的形状；first failedTaskName 稳定，siblings 为 FAIL_FAST；
-16. 取消发生在 SUBMITTED/RUNNING/TERMINAL 三个阶段时状态一致；
-17. 用户忽略中断时成员 future 可以先取消，但 Group 仍能按成员 future 终态收敛；
-18. outer scoped task 取消向 group/member 传播且不反向影响 outer。
+13. cancelling the group through the package-private entry records GROUP_CANCELLED for
+    unfinished members;
+14. directly cancelling a member future through the package-private entry cascades into
+    cancelling the Group: that member `MEMBER_CANCELLED`, unfinished siblings
+    `GROUP_CANCELLED`, Group reason `CANCELLED`;
+15. a member failure fixes its own outcome (`USER_FAILURE`/`SUBMISSION_FAILURE`) regardless of
+    completion order — including the shape of a lone failure converging under a RUNNING token;
+    the first failedTaskName is stable, and siblings are FAIL_FAST;
+16. cancellation in the SUBMITTED/RUNNING/TERMINAL phases produces consistent states;
+17. when the user ignores interruption, a member future may be cancelled first, but the Group
+    still converges on member future terminality;
+18. an outer scoped task cancellation propagates to the group/members without affecting the
+    outer in reverse.
 
-### 14.4 deadline
+### 14.4 Deadlines
 
-19. group deadline 早于 member deadline，Group TIMEOUT，成员 TIMEOUT；
-20. member deadline 早于 group deadline，该 member TIMEOUT 并使 Group TIMEOUT；
-21. failure、timeout、cancel 同时竞争时 first-wins 且不覆盖；
-22. 外层 deadline 在 submit 准备期间过期：所有冻结成员不执行，Group TIMEOUT；
-23. Group 提前完成后 timer 取消或触发为 no-op。
+19. group deadline earlier than member deadlines: Group TIMEOUT, members TIMEOUT;
+20. a member deadline earlier than the group deadline: that member TIMEOUT and makes the Group
+    TIMEOUT;
+21. failure, timeout, and cancel racing simultaneously: first-wins, no overwriting;
+22. the outer deadline expiring during submit preparation: no frozen member executes, Group
+    TIMEOUT;
+23. after the Group completes early, the timer is cancelled or fires as a no-op.
 
-### 14.5 上下文与监控
+### 14.5 Context and monitoring
 
-24. 每个运行成员看到自己的 `TaskExecutionContext.current()`；执行后恢复 previous/null；
-25. inline 嵌套执行呈现 outer -> member -> outer；
-26. `SubmissionScope` 仅覆盖 executor submission，并在 rejection/inline/异常后恢复；
-27. 成员观测快照的 taskName/unitId/taskIndex 指向正确成员；
-28. 执行前取消和 submission failure 的快照 start/end 为零、outcome 真实，不伪造计时；
-29. `runAll()` 恰好返回一次冻结结果；对结果的重复读取不消耗、不改变；
-30. TTL 值以提交准备阶段为捕获时点传播并恢复；声明期登记时的值不构成快照，普通 ThreadLocal
-    不承诺传播。
+24. every running member sees its own `TaskExecutionContext.current()`; the previous/null is
+    restored after execution;
+25. inline nested execution presents outer -> member -> outer;
+26. `SubmissionScope` covers only the executor submission and is restored after
+    rejection/inline/exception;
+27. member observation snapshots' taskName/unitId/taskIndex point at the correct member;
+28. before-execution-cancelled and submission-failure snapshots have zero start/end and real
+    outcomes — timing is never fabricated;
+29. `runAll()` returns exactly one frozen result; repeated reads of the result neither consume
+    nor change it;
+30. TTL values propagate with the submission preparation phase as capture time and are
+    restored; values at declaration-time registration do not constitute a snapshot, and
+    ordinary ThreadLocals are not promised to propagate.
 
-### 14.6 执行器等待与关闭
+### 14.6 Executor waits and shutdown
 
-31. 请求线程 Group 不记录任何等待；
-32. outer scoped task 创建 Group 时，只记录 outer 执行器等待成员与汇总执行器，且作为一组安装；
-33. member 内嵌套 `Par.map()` 记录 member 执行器等待 child Batch 执行器；
-34. 同一 executor 的 siblings 不因 membership 产生 self-loop；
-35. ParRuntime close 后拒绝新提交；先于 close 完成 admission 的完整 Group 可继续运行；
-36. close 前完整冻结的成员继续走终止、timeout 和 telemetry；
-37. Group 不关闭任何注册 executor。
+31. a request-thread Group records no waits;
+32. when an outer scoped task creates a Group, only the outer executor waiting on member and
+    combine executors is recorded, installed as one set;
+33. a nested `Par.map()` inside a member records the member executor waiting on the child Batch
+    executor;
+34. siblings on the same executor produce no self-loop from membership;
+35. new submissions are rejected after ParRuntime close; a complete Group that finished
+    admission before close keeps running;
+36. members fully frozen before close continue through termination, timeout, and telemetry;
+37. a Group closes no registered executor.
 
-## 15. 验收标准
+## 15. Acceptance criteria
 
-验收时必须同时满足：
+All of the following must hold at acceptance:
 
-- 公共 API、状态机和结果原因符合本文与 group-one-shot/同步出口契约；
-- 没有新增 current-group ThreadLocal/TTL 或虚构 Group Batch；
-- Group 与 Batch 共享单任务运行内核（`TaskSubmissions`），没有复制取消/phase/ScopedCallable 逻辑；
-- submit admission、cancel、run、rejection、timeout 的竞态均有确定且测试覆盖的结果；
-- 所有冻结成员 future 必然终态；
-- 执行器等待图只记录真实的同步等待；
-- 全量 Maven 测试通过且 Java 8 main source 兼容；
-- 用户文档说明 `group(...)`/`par`/`combine`/`runAll`、closeGrace、deadline、成员取消归因和
-  执行器等待报告。
+- the public API, state machine, and result reasons conform to this document and the
+  group-one-shot/synchronous exit contracts;
+- no new current-group ThreadLocal/TTL and no fictitious Group Batch;
+- Group and Batch share the single-task run kernel (`TaskSubmissions`), with no copied
+  cancellation/phase/ScopedCallable logic;
+- the races among submit admission, cancel, run, rejection, and timeout all have determined,
+  test-covered outcomes;
+- every frozen member future necessarily goes terminal;
+- the executor wait graph records only real synchronous waits;
+- the full Maven test suite passes with Java 8 main-source compatibility;
+- user documentation covers `group(...)`/`par`/`combine`/`runAll`, closeGrace, deadlines,
+  member cancellation attribution, and the executor wait report.

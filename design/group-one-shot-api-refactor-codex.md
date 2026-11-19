@@ -1,23 +1,25 @@
-# 一次性 TaskGroup 声明与类型化结果契约
+# One-Shot TaskGroup Declaration and Typed Result Contract
 
-## 1. 决策摘要
+## 1. Decision summary
 
-Group 是异构协调范围。每次运行通过
-`runtime.group(name, timeout).par(key, par, taskCode)…runAll()` 声明和执行。
-`TaskKey<T>` 是可复用的类型化槽位地址；`TaskId` 是逐次生成的执行身份，两者不互换。
-类型安全由声明与读取共享的泛型参数保证，结果不保存或校验运行期类型令牌。
-本决策按 [第一性原理](first-principles.md) 复用现有执行管道，消除重复指定类型产生的漂移。
+A Group is a heterogeneous coordination scope. Each run is declared and executed through
+`runtime.group(name, timeout).par(key, par, taskCode)…runAll()`.
+`TaskKey<T>` is a reusable typed slot address; `TaskId` is the per-run execution identity, and
+the two are not interchangeable. Type safety is guaranteed by the generic parameter shared
+between declaration and read; results neither store nor check runtime type tokens.
+This decision reuses the existing execution pipeline per [first principles](first-principles.md)
+and eliminates the drift caused by specifying the same type twice.
 
-## 2. 改前、改后与迁移
+## 2. Before, after, and migration
 
-0.3 的最佳具名读取：
+The best named read on 0.3:
 
 ```java
 runtime.group("user", timeout).par("user", par, User.class, this::loadUser)
         .runAll().resultOf("user", User.class);
 ```
 
-0.4：
+0.4:
 
 ```java
 TaskKey<User> user = TaskKey.named("user");
@@ -25,159 +27,222 @@ runtime.group("user", timeout).par(user, par, this::loadUser).runAll().resultOf(
 TaskKey<List<Order>> orders = TaskKey.named("orders");
 ```
 
-声明体类型、泛型容器元素类型或读取赋值不匹配 MUST 在正常泛型调用中编译失败。
-迁移时为每个成员和终端保存 key；删除声明和查询的 Class/TypeToken 参数，
-把类型化具名查询改为原 key。动态位置/名称查询保留未类型化返回值；
-`typeAt/typeOf` 和携带 Class/TypeToken 的重载移除。`TaskKey.of(name, type)` 改为
-`TaskKey.named(name)`，类型写在变量声明或显式工厂类型参数中。
+A mismatch of the declared body type, a generic container's element type, or the read's
+assignment MUST fail compilation in ordinary generic calls.
+When migrating, keep one key per member and terminal; remove the Class/TypeToken parameters
+from declarations and queries, and turn typed named queries into reads of the original key.
+Dynamic positional/name queries keep their untyped return values; `typeAt/typeOf` and the
+Class/TypeToken-carrying overloads are removed. `TaskKey.of(name, type)` becomes
+`TaskKey.named(name)`, with the type written in the variable declaration or as an explicit
+factory type argument.
 
-## 3. 阶段与提交边界
+## 3. Stages and the submission boundary
 
-- `GroupStart` 支持 closeGrace、首个 par 或 adopt 和空组 runAll。
-- `GroupStep` 支持后续 par、adopt、combine、combineValues 和 runAll。
-- `CombinedGroupStep<R>` 仅支持 runAll。
+- `GroupStart` supports closeGrace, the first par or adopt, and an empty-group runAll.
+- `GroupStep` supports further par, adopt, combine, combineValues, and runAll.
+- `CombinedGroupStep<R>` supports only runAll.
 
-成员值不再编码为随成员数递归扩展的 V；adopt 成员与 par 成员占同样的位置、名称与 key，
-其所有权、取消与值关闭规则见 [收养契约](task-group-adopted-futures.md)。
-combine 和 combineValues 都接收只含成功普通成员的 `GroupValues`。
-两者通过同一 prepared terminal 执行，MUST 共享成功门控、deadline、TTL、取消、
-拒绝和有界清理机制。terminal 不在普通成员的位置、名称结果或 GroupValues 中，
-但 TaskGroupResult.resultOf(key) MUST 支持 terminal 的 key。
+Member values are no longer encoded as a V that grows recursively with member count; adopted
+members occupy the same positions, names, and keys as par members — their ownership,
+cancellation, and value-closing rules are in the [adoption contract](task-group-adopted-futures.md).
+Both combine and combineValues receive a `GroupValues` containing only successful ordinary
+members. The two execute through the same prepared terminal and MUST share the success gating,
+deadline, TTL, cancellation, rejection, and bounded-cleanup mechanisms. The terminal does not
+appear in ordinary members' positions, name results, or GroupValues, but
+TaskGroupResult.resultOf(key) MUST support the terminal's key.
 
-声明 MUST NOT 创建运行期取消 token、future、绝对 deadline、timer、TTL 快照或调用 executor。
-runAll 是唯一公开准入边界；它同步等待结果收敛并尝试有界清理，保持调用线程中断标志。
-参见 [同步出口](synchronous-scope-exit.md) 和 [提交契约](task-group-submission.md)。
+Declarations MUST NOT create runtime cancellation tokens, futures, absolute deadlines, timers,
+TTL snapshots, or invoke executors. runAll is the only public admission boundary; it
+synchronously waits for result convergence and attempts bounded cleanup, preserving the
+calling thread's interrupt flag. See the [synchronous exit](synchronous-scope-exit.md) and the
+[submission contract](task-group-submission.md).
 
-## 4. 一次性生命周期与统一提交
+## 4. One-shot lifecycle and unified submission
 
-### 4.1 类型化声明键
+### 4.1 Typed declaration keys
 
-- key MUST 按对象身份判等，MUST NOT 按名称、类型或渲染内容恢复身份。
-- key MUST 只保留诊断名称，MUST NOT 存储 Class/TypeToken 或进行结果运行期类型校验。
-- 名称 MUST 在普通成员和终端之间唯一。重复 key 因重复名称被拒绝。
-- key 为 null MUST 抛 NullPointerException；名称在工厂处校验非 null、非空白。
-- 校验失败 MUST NOT 预留名称或推进 stage。
-- 同一个 key MUST 能跨运行复用；结果按运行隔离，执行身份逐次生成。
-- GroupValues.valueOf(key) MUST 只读取普通成员，允许成功 null；未注册 key MUST 抛
-  IllegalArgumentException，包括同名新 key、终端 key 和空组中的 key。
-- TaskGroupResult.resultOf(key) MUST 即时返回已注册成员或终端的成功、失败或取消结果；
-  未注册 key MUST 抛 IllegalArgumentException。
-- 动态名称/位置值查询 MUST 返回 Object，结果容器查询返回 ImmediateResult<?>；
-  MUST NOT 提供允许调用者任意选择 T 的 `<T> T valueOf(String)`。
+- Keys MUST compare by object identity and MUST NOT have their identity recovered from names,
+  types, or rendered content.
+- Keys MUST hold only the diagnostic name and MUST NOT store a Class/TypeToken or perform
+  runtime type checks on results.
+- Names MUST be unique across ordinary members and terminals. A duplicate key is rejected for
+  its duplicate name.
+- A null key MUST throw NullPointerException; names are validated non-null, non-blank at the
+  factory.
+- A validation failure MUST NOT reserve the name or advance the stage.
+- The same key MUST be reusable across runs; results are isolated per run, and execution
+  identities are minted per run.
+- GroupValues.valueOf(key) MUST read only ordinary members and permits successful nulls; an
+  unregistered key MUST throw IllegalArgumentException — including a fresh key with the same
+  name, a terminal key, and a key in an empty group.
+- TaskGroupResult.resultOf(key) MUST immediately return the success, failure, or cancellation
+  result of a registered member or terminal; an unregistered key MUST throw
+  IllegalArgumentException.
+- Dynamic name/position value queries MUST return Object, and result-container queries return
+  ImmediateResult<?>; there MUST NOT be a `<T> T valueOf(String)` letting the caller pick T
+  arbitrarily.
 
-raw type 或 unchecked cast 可破坏泛型约束，由调用者负责。框架 MUST NOT 将这种违规
-通过额外原始类检查转换为 USER_FAILURE；后续使用处仍可能产生 JVM 插入的 ClassCastException。
-用户执行自身抛出的 ClassCastException 与其他异常一样，仍是 USER_FAILURE。
-同名 key 不碰撞并不表示允许重复诊断名称；身份寻址和组内名称唯一是独立约束。
+Raw types or unchecked casts can break the generic constraints; that is the caller's
+responsibility. The framework MUST NOT convert such violations into USER_FAILURE through
+additional raw-class checks; a JVM-inserted ClassCastException may still occur at later use
+sites. A ClassCastException thrown by the user execution itself is, like any other exception,
+USER_FAILURE. Same-name keys not colliding does not mean duplicate diagnostic names are
+allowed: identity addressing and in-group name uniqueness are independent constraints.
 
-### 4.2 草稿生命周期
+### 4.2 Draft lifecycle
 
-草稿只能由创建线程使用；每次调用 MUST 先校验线程和当前 stage，再校验参数。
-par/combine 成功后推进 stage，旧阶段失效；runAll 第一次合法调用消耗草稿，
-即使执行失败也不能重试。closeGrace 只能在首个成员前设置且不推进阶段。
-执行/options/Par/key 不得为 null，Par 必须属于创建草稿的 runtime。
-省略选项等于 TaskOptions.inheritTimeout()。
+A draft is confined to its creating thread; every call MUST validate the thread and the
+current stage first, then the arguments. A successful par/combine advances the stage and
+invalidates earlier stages; the first legal runAll call consumes the draft — even a failed
+execution cannot be retried. closeGrace may only be set before the first member and does not
+advance the stage. Execution/options/Par/key must not be null, and the Par must belong to the
+runtime that created the draft. Omitted options equal TaskOptions.inheritTimeout().
 
-group(name, timeout) 要求显式正数预算；groupInheriting 只在提交现场有外层 scoped task 时有效。
-deadline 从统一提交准备边界起算。执行在准备后移交执行管道；失败路径清空框架持有的 payload。
-尚未提交的草稿可能保留请求 closure，这是显式草稿生命周期的代价。
+group(name, timeout) requires an explicit positive budget; groupInheriting is valid only when
+an outer scoped task exists at the submission site. The deadline counts from the unified
+submission-preparation boundary. After preparation, execution is handed to the execution
+pipeline; failure paths clear framework-held payloads. An unsubmitted draft may retain the
+request closure — this is the price of the explicit draft lifecycle.
 
-## 5. 值视图与终端
+## 5. Value views and the terminal
 
-combineValues 的 GroupValues 输入在普通成员全部成功后构建，先于终端结果；
-公开聚合值视图只在整组成功后可读。值、名称和 key 按声明顺序逐槽对齐；
-完成顺序不影响位置。快照浅层不可变，值列表允许 null。combine 和 combineValues 始终收到
-非 null 视图；空组只有在未声明 terminal 时存在，因此成功 null 成员不会与空组混淆。
+combineValues' GroupValues input is built after all ordinary members succeed, ahead of the
+terminal result; the public aggregate value view is readable only after the whole group
+succeeds. Values, names, and keys align slot by slot in declaration order; completion order
+does not affect positions. Snapshots are shallowly immutable, and value lists permit nulls.
+combine and combineValues always receive a non-null view; an empty group exists only when no
+terminal is declared, so a successful null member cannot be confused with an empty group.
 
-terminalResult 为 null 仅表示未声明 combine；返回 Void/null 的 combine 仍有结果容器。
-成员失败导致 terminal 跳过，但成员及 terminal 的 key 结果必须可读。
-terminal 失败使聚合值读取失败，单独成功成员的结果仍可读。
-运行、取消、拒绝、观测和清理语义见 [终端契约](task-group-terminal-combine.md)。
+A null terminalResult only means no combine was declared; a combine returning Void/null still
+has a result container. A member failure skips the terminal, but the key results of members
+and the terminal must remain readable. A terminal failure fails the aggregate value read,
+while individually successful members' results remain readable.
+Run, cancellation, rejection, observation, and cleanup semantics are in the
+[terminal contract](task-group-terminal-combine.md).
 
-## 6. 错误时机
+## 6. Error timing
 
-工厂校验名称；声明期校验归属、参数和重复名称；准入期检查 runtime 及继承 deadline。
-executor rejection 和执行异常作为运行结果记录。结果查询不等待、不消费中断标志，
-且不因当前线程被中断而改变只读行为。
+The factory validates names; the declaration phase validates ownership, arguments, and
+duplicate names; the admission phase checks the runtime and the inherited deadline. Executor
+rejections and execution exceptions are recorded as run results. Result queries do not wait,
+do not consume the interrupt flag, and do not change their read-only behavior because the
+current thread is interrupted.
 
-## 7. 取舍
+## 7. Trade-offs
 
-省去 Class/TypeToken 的反射、存储和比较，以及每个声明/查询的重复类型参数。
-不再支持运行期 schema 类型自省；动态调用方自行处理 Object。
-key 必须保存原对象，按名称重建会被拒绝；泛型安全不涵盖 raw/unchecked 调用。
-不引入全局 key 注册、反射类型捕获、Tuple3…TupleN 或第二条执行路径。
-成员值统一通过 `GroupValues` 的 key 寻址；动态名称/位置读取只在确实需要时返回 `Object`。
+The reflection, storage, and comparison of Class/TypeToken are gone, along with the repeated
+type argument at every declaration/query. Runtime schema type introspection is no longer
+supported; dynamic callers handle Object themselves. Keys must keep the original object —
+rebuilding one by name is rejected; generic safety does not cover raw/unchecked calls. No
+global key registry, reflective type capture, Tuple3…TupleN, or second execution path is
+introduced. Member values are uniformly addressed by key through `GroupValues`; dynamic
+name/position reads return `Object` only where genuinely needed.
 
-## 8. 验证要求
+## 8. Verification requirements
 
-覆盖 Java 8 编译期正反例、参数化类型、泛型方法内创建 key、可空值、
-身份寻址、跨运行复用、重复声明不消耗 stage、过期/跨线程阶段、foreign runtime，
-以及两种 terminal 输入的成功门控、显式选项、取消、TTL、拒绝和有界清理。
-外部消费、独立只读评审、反向验证和 scoped PIT 分别报告；不能互相替代。
+Cover Java 8 compile-time positive and negative cases, parameterized types, keys created
+inside generic methods, nullable values, identity addressing, cross-run reuse, duplicate
+declarations not consuming stages, stale/cross-thread stages, and foreign runtimes — plus, for
+both terminal input forms, success gating, explicit options, cancellation, TTL, rejection, and
+bounded cleanup. External consumption, independent read-only review, reverse verification, and
+scoped PIT are reported separately; none can substitute for another.
 
-## 9. 评审与验证教训
+## 9. Review and verification lessons
 
-落地后经过三轮独立对抗性评审（逐轮换席位、先读前轮基线）与一轮 PIT 变异测试，16 条
-评审发现全部成立并修复。逐条流水不再入库；值得留下的可推广教训：
+After landing, the change went through three independent adversarial review rounds (fresh seat
+each round, reading the previous round's baseline first) and one PIT mutation run; all 16
+review findings were confirmed and fixed. The per-item transcript is no longer archived; the
+generalizable lessons worth keeping:
 
-**"调用方监听器不得阻断框架收敛"是一个缺陷家族，不止一处。**
+**"Caller listeners must not block framework convergence" is a defect family, not a single
+site.**
 
-- Guava 的监听器扇出只捕获 `RuntimeException`，不捕获 `Error`——监听器抛 `Error` 会
-  中断后续监听器，跳过框架自己的完成逻辑（future 永久 pending、屏障永远数不满）。
-  框架持有回调点的收敛代码必须自己兜住 `Throwable`，并在"值已写入"与"值未写入"两条
-  路径上分别保证不变量成立。
-- 日志调用本身也是故障点：恢复路径上的日志要防 JUL handler 抛错（收敛比诊断重要）。
-- 监听器若跑在收敛线程上，阻塞等待完成 future 会死锁——这是调用方自伤型风险，用
-  javadoc 声明，而不是改造发布机制。
+- Guava's listener fan-out catches only `RuntimeException`, not `Error` — a listener throwing
+  `Error` interrupts subsequent listeners and skips the framework's own completion logic
+  (futures pending forever, barriers never counting down). Convergence code holding callback
+  points must catch `Throwable` itself, and must establish its invariants separately on the
+  "value written" and "value not written" paths.
+- Logging calls are themselves failure points: logging on recovery paths must guard against a
+  JUL handler throwing (convergence matters more than diagnostics).
+- A listener running on the convergence thread that blocks waiting for the completion future
+  deadlocks — this is a caller self-inflicted risk; declare it in Javadoc rather than rework
+  the publication mechanism.
 
-**校验顺序是契约的一部分。** 名字占坑必须放在全部校验通过之后，否则被拒的声明会吃掉
-名字、让重试误报重名；同类重载之间的校验顺序要一致。
+**Validation order is part of the contract.** Name reservation must come after all validation
+passes, or a rejected declaration eats the name and a retry falsely reports a duplicate; the
+validation order must be consistent across overloads of the same kind.
 
-**把不变量做成结构属性，而不是构造器要执行的规则。** "至多一个 combine"靠构造器上的
-两个独立参数表达；此前"打标签的单一 slot 平表 + 构造器分拣"对违约是静默容忍的——传入
-两个 combine 会后者胜出、前者不报错地被丢弃。
+**Make invariants structural properties, not rules a constructor must enforce.** "At most one
+combine" is expressed by two independent parameters on the constructor; the earlier "tagged
+single flat slot list + constructor sorting" silently tolerated violations — passing two
+combines made the latter win while the former was discarded without an error.
 
-**测试要咬得住，而不只是绿。**
+**Tests must bite, not just be green.**
 
-- 声明顺序 ≠ 完成顺序：验证"有序"的用例必须强制两者分离（让声明在后的成员先完成），
-  且顺序要由观察建立（先看到 future 终结），不能靠执行内的时序碰运气。
-- 反向验证（回退修复看测试变红）只覆盖改过的行；关键路径的零覆盖，三轮评审加逐修复
-  反向验证都没有发现，是 PIT 发现的——变异测试问的是另一个问题："这些测试咬不咬得住"。
-  两者互补，都已在根 AGENTS.md 的 Adversarial Review 里成为流程步骤。
-- PIT 幸存者要逐条分类：等价变异体（例如边界条件改向、但 `List.get` 自己会抛）不是
-  缺口；把等价变异体当缺口报，比漏报更损耗读者信任。
-- 手写 stub 可能让被测机制空转甚至挂住（见
-  [interruption-contract.md](interruption-contract.md)「历史教训」一节）；关键路径用真实实现。
+- Declaration order ≠ completion order: a case verifying "ordering" must force the two apart
+  (let a later-declared member finish first), and the order must be established by observation
+  (seeing futures terminate first), not by timing luck inside executions.
+- Reverse verification (revert the fix, watch the test go red) only covers changed lines; zero
+  coverage on critical paths went unnoticed by three review rounds plus per-fix reverse
+  verification — it was PIT that found it. Mutation testing asks a different question: "do
+  these tests bite". The two complement each other and are both process steps in the root
+  AGENTS.md's Adversarial Review.
+- PIT survivors must be classified one by one: equivalent mutants (for example a boundary
+  condition flipped where `List.get` throws anyway) are not gaps; reporting equivalent mutants
+  as gaps costs the reader's trust more than a missed report does.
+- Hand-written stubs can make the mechanism under test spin idle or even hang (see the
+  "Historical lessons" section of [interruption-contract.md](interruption-contract.md));
+  critical paths use real implementations.
 
-### 类型化 key 的评审与验证
+### Review and verification of typed keys
 
-独立只读 Codex CLI harness 在 cmux `task-key-review` 工作区逐条对照类型化 key 契约，
-检查 Java 8、泛型、身份、生命周期、取消与终端输入；未确认实现缺陷。以下测试发现均保留并修正：
+An independent read-only Codex CLI harness in the cmux `task-key-review` workspace checked the
+typed-key contract item by item, covering Java 8, generics, identity, lifecycle, cancellation,
+and terminal inputs; no implementation defect was confirmed. The following test findings were
+all kept and corrected:
 
-- 仅断言终端非成功，无法排除失败成员仍触发终端提交。改为同时要求 `FAIL_FAST` 和
-  terminal executor 零提交，避免输入组装失败掩盖成功门控错误。
-- 仅断言 `TIMEOUT`，无法区分显式成员预算与组预算。加入明显早于组 deadline 的收敛上限；
-  临时丢弃显式选项后测试实际失败，恢复选项后通过。
-- 旧 combine 的覆盖不能替代新值视图入口。新增 join 前取消、终端运行中取消、终端拒绝，
-  分别检查 key 结果、提交或调用次数及执行退出确认。
-- 配合中断退出不能证明有界清理。另用独立 latch 保持执行未退出，通过有界 `Future.get`
-  观察清理返回及未退出摘要；finally 释放执行、确认退出、排空 finish worker 并关闭 scope。
-  复审指出同步调用 finish 可能在故障时卡住测试，改为上述受控 worker 后确认无阻塞发现。
-- key 身份查询的反向验证临时改用名称定位，同名 key 冒用测试实际失败；恢复引用身份后通过。
+- Asserting only terminal non-success cannot rule out a failed member still triggering the
+  terminal submission. Changed to also require `FAIL_FAST` and zero submissions on the
+  terminal executor, so an input-assembly failure cannot mask a success-gating error.
+- Asserting only `TIMEOUT` cannot distinguish an explicit member budget from the group budget.
+  Added a convergence bound well before the group deadline; temporarily dropping the explicit
+  options made the test actually fail, and restoring them made it pass.
+- Coverage of the old combine cannot substitute for the new value-view entry. Added
+  cancel-before-join, cancel-while-terminal-running, and terminal rejection, checking key
+  results, submission or invocation counts, and execution-exit confirmation respectively.
+- Cooperative interrupt exit cannot prove bounded cleanup. Used a separate latch to hold
+  executions unexited, observed cleanup's return and the unexited summary through a bounded
+  `Future.get`; the finally releases the executions, confirms exit, drains the finish worker,
+  and closes the scope. Re-review noted that calling finish synchronously could hang the test
+  on failure, so it was changed to the controlled worker above and confirmed to have no
+  blocking finding.
+- The reverse verification of key identity queries temporarily switched to name-based lookup,
+  and the same-name key impersonation test actually failed; restoring reference identity made
+  it pass.
 
-类型令牌实现的历史验证分数不沿用到移除类型令牌后的实现；后者单独验证与评审。
+The historical verification scores of the type-token implementation do not carry over to the
+implementation after type-token removal; the latter was verified and reviewed separately.
 
-### 无运行期类型令牌的复审
+### Re-review without runtime type tokens
 
-独立只读 gpt-6-astra 按本文 MUST/MUST NOT 核对泛型、Java 8、身份查询、草稿守卫、
-结果冻结及取消/终端交错，未发现生产代码缺陷。两项文档发现均保留并修正：终端契约仍写
-已移除的字符串加类型声明；本文把 combineValues 输入的构建时机错误写成整组成功后。
-修正后的文本分别描述 key 声明，以及“普通成员全成功后构建输入、整组成功后公开聚合值”。
-这些修正不改变执行行为。CLI 评审曾因连接重试无法完成，不计为通过的独立评审。
+Independent read-only gpt-6-astra checked generics, Java 8, identity queries, draft guards,
+result freezing, and cancellation/terminal interleavings against this document's MUST/MUST
+NOT, finding no production-code defect. Two documentation findings were kept and corrected:
+the terminal contract still described the removed string-plus-type declaration; this document
+misstated the construction timing of the combineValues input as after the whole group
+succeeded. The corrected text describes key declarations and "the input built after all
+ordinary members succeed, the aggregate values published after the whole group succeeds"
+respectively. These corrections do not change execution behavior. A CLI review that could not
+complete due to connection retries does not count as a passing independent review.
 
-类型令牌测试移除后，动态名称/位置与可空槽位的边界覆盖须独立保留，不能由 key 测试代替。
-反向验证临时按名称解析 key，同名 key 冒用测试失败；恢复引用身份后全套测试通过。
-本轮 scoped PIT 覆盖 TaskKey、GroupValues、TaskGroupResult，包含 VOID_METHOD_CALLS。
-剩余幸存者仅为值视图及结果的位置上界/显式检查：底层列表仍抛出契约要求的同类异常，
-按现有值与异常类型契约等价。唯一未覆盖变异是 GroupValues.toString 的诊断文本返回值，
-不宣称已覆盖该分支或调度内核的全量变异。真实 JDK 8 消费与行为测试分别验证。
+With type-token tests removed, boundary coverage of dynamic name/position and nullable slots
+must be kept independently and cannot be replaced by key tests. Reverse verification
+temporarily resolved keys by name and the same-name key impersonation test failed; restoring
+reference identity made the full suite pass. This round's scoped PIT covered TaskKey,
+GroupValues, and TaskGroupResult, including VOID_METHOD_CALLS. The remaining survivors are
+only the value view's and result's positional bounds/explicit checks: the underlying lists
+still throw the same exception types the contract requires, equivalent under the existing
+value and exception-type contract. The only uncovered mutation is GroupValues.toString's
+diagnostic-text return value; no claim is made that this branch or the scheduling kernel's
+full mutation space is covered. Real JDK 8 consumption and behavior tests are verified
+separately.

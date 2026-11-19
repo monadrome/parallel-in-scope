@@ -19,7 +19,7 @@ class DesignRoutesTest(GateCase):
         self.routes()
 
     def routes(self, live="| [contract](contract.md) | Contract |\n", proposals="", prose=""):
-        self.write("design/AGENTS.md", f"# Routes\n{prose}\n## 活契约\n{live}\n## 在途提案\n{proposals}")
+        self.write("design/AGENTS.md", f"# Routes\n{prose}\n## Live contracts\n{live}\n## In-flight proposals\n{proposals}")
 
     def proposal(self, name="P0001-request.md", summary="## 摘要\n- Purpose and constraints\n"):
         self.write(f"design/proposal/{name}", f"# Proposal\n{summary}")

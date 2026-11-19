@@ -1,18 +1,23 @@
-# TaskGroup 设计契约：API 与选项
+# TaskGroup Design Contract: API and Options
 
-> 组的声明与提交形状见 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md)；
-> 公开执行/结果形状（`runAll()` 同步返回、`ImmediateResult` 数据与有界清理状态）见
-> [同步出口契约](synchronous-scope-exit.md)。本文约束 Group/Batch 语义边界、选项类型与结果类型。
+> The group's declaration and submission shape is in [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md);
+> the public execution/result shapes (`runAll()`'s synchronous return, `ImmediateResult` data,
+> and bounded-cleanup state) are in the [synchronous exit contract](synchronous-scope-exit.md).
+> This document constrains the Group/Batch semantic boundary, option types, and result types.
 >
-> 本系列是 `TaskGroup` 的独立实施规范（由原《独立并行任务组最终设计契约》按章节拆分）。
-> 实现者只依赖本系列和当前代码库即可完成开发，不需要再参考早期草稿。文中的 MUST、
-> MUST NOT、SHOULD 分别表示必须、禁止和推荐。
-> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
-> 面向使用者的 API 说明见 [使用指南](../docs/zh/user-guide.md) 与 [v0.2 迁移指南](../docs/zh/migration-v0.2.md)。
+> This series is the standalone implementation specification of `TaskGroup` (split by chapter
+> from the original "Independent Parallel Task Group Final Design Contract").
+> An implementer needs only this series and the current codebase to develop; earlier drafts are
+> not required. In this document, MUST, MUST NOT, and SHOULD mean required, forbidden, and
+> recommended respectively.
+> Series navigation: [API and options](task-group-api-and-options.md) · [Lifecycle and state machine](task-group-lifecycle.md) · [Submission and rejection](task-group-submission.md) · [Cancellation and attribution](task-group-cancellation.md) · [Observability and acceptance](task-group-observability-and-verification.md); the route index is [design/AGENTS.md](AGENTS.md).
+> The user-facing API documentation is the [user guide](../docs/zh/user-guide.md) and the
+> [v0.2 migration guide](../docs/zh/migration-v0.2.md).
 
-## 1. 目标与非目标
+## 1. Goals and non-goals
 
-`TaskGroup` 用于在一个显式协调范围内提交少量、具名、类型可以不同、彼此没有数据依赖的任务：
+`TaskGroup` submits a small number of named, potentially differently-typed, mutually
+data-independent tasks inside one explicit coordination scope:
 
 ```text
 account-page group
@@ -21,73 +26,93 @@ account-page group
 └─ get-inventory  -> Inventory
 ```
 
-它提供：
+It provides:
 
-- 通过 `ParRuntime.group(...)`/`groupInheriting(...)` 开启的一次性链式声明收集具名成员
-  （成员声明即携带本次 `Callable`），`runAll()` 在唯一的提交时点统一冻结并同步执行至完成；
-- 组级 deadline、取消和默认 fail-fast；
-- 每个成员独立选择已经注册的 `Par`（声明期解析并绑定到 owner）；
-- 类型安全的成员值视图（`GroupValues` 按原 `TaskKey<T>` 查询；名称/位置查询未类型化）；
-- 所有冻结成员的最终收敛结果和组级 telemetry；
-- 与现有单任务执行、取消、队列清理和观测能力复用。
+- a one-shot chained declaration opened by `ParRuntime.group(...)`/`groupInheriting(...)` that
+  collects named members (each member declaration carries this run's `Callable`), with
+  `runAll()` freezing uniformly at the single submission point and executing synchronously to
+  completion;
+- group-level deadline, cancellation, and default fail-fast;
+- an independently chosen registered `Par` per member (resolved and bound to the owner at
+  declaration);
+- a type-safe member value view (`GroupValues` queried by the original `TaskKey<T>`;
+  name/position queries are untyped);
+- the final convergence result of all frozen members plus group-level telemetry;
+- reuse of the existing single-task execution, cancellation, queue-cleanup, and observation
+  capabilities.
 
-它不提供：
+It does not provide:
 
-- 任务依赖 DAG、结果到下一任务的自动传递；
-- 重试、回退、配额或新的 executor；
-- 列表批量展开或滑动窗口；
-- 任意应用 `ThreadLocal`/MDC 的传播承诺；
-- 一个隐式的“当前任务组” ThreadLocal。
+- a task-dependency DAG or automatic result passing to the next task;
+- retries, fallbacks, quotas, or new executors;
+- list batch expansion or a sliding window;
+- any promise to propagate arbitrary application `ThreadLocal`/MDC;
+- an implicit "current task group" ThreadLocal.
 
-列表处理继续使用 `Par.map()`。一个 Group member 永远代表一次 `Callable` 执行；如果该 callable 内部显式调用 `Par.map()`，那个 map 是成员创建的嵌套 Batch，不是 Group 自动展开的成员。
+List processing continues to use `Par.map()`. A Group member always represents one `Callable`
+execution; if that callable explicitly calls `Par.map()` inside, that map is a nested Batch the
+member created, not a member the Group automatically expands.
 
-## 2. Group 与 Batch 的语义边界
+## 2. The Group/Batch semantic boundary
 
-| 维度 | Batch (`Par.map`) | Group (`TaskGroup`) |
+| Dimension | Batch (`Par.map`) | Group (`TaskGroup`) |
 |---|---|---|
-| 业务含义 | 一个函数映射同类输入 | 多个异构操作共享协调范围 |
-| 集合形成 | `map()` 调用时固定 | 链式声明逐项固定，`runAll()` 冻结并统一提交 |
-| 成员身份 | `taskIndex` | 唯一 `memberName` |
-| 返回类型 | 全部为同一个 `R` | 每个成员可以有不同 `T` |
-| executor | 整个 Batch 使用一个 `Par` | 每个成员选择自己的 `Par` |
-| 调度 | `SlidingWindowSubmitter` 滑动窗口 | submit 时为全部成员准备后逐一独立提交 |
-| 完成 | 固定 futures 全部终态 | submit 时冻结的全部成员终态 |
-| 关系 | 嵌套 Batch 可以形成执行器等待 | membership 本身不是等待 |
+| Business meaning | One function mapping homogeneous inputs | Multiple heterogeneous operations sharing a coordination scope |
+| Set formation | Fixed at the `map()` call | Fixed item by item through chained declaration; `runAll()` freezes and submits uniformly |
+| Member identity | `taskIndex` | Unique `memberName` |
+| Return type | All the same `R` | Each member may have a different `T` |
+| Executor | One `Par` for the whole Batch | Each member chooses its own `Par` |
+| Scheduling | `SlidingWindowSubmitter` sliding window | At submit, all members are prepared and then submitted independently one by one |
+| Completion | All fixed futures terminal | All members frozen at submit terminal |
+| Relationships | Nested Batches can form executor waits | Membership itself is not a wait |
 
-Group MUST NOT 通过 `Par.map(singletonList, ...)` 实现，也 MUST NOT 对外暴露 `TaskBatchResult<Object>`。
+Group MUST NOT be implemented through `Par.map(singletonList, ...)`, and MUST NOT expose
+`TaskBatchResult<Object>` externally.
 
-## 3. 公共 API
+## 3. Public API
 
-公共类型统一放在 `io.github.monadrome.parallelinscope`。执行内核与它们同包，
-但必须保持 package-private，不得为跨包调用扩大可见性。
+Public types live uniformly in `io.github.monadrome.parallelinscope`. The execution kernel
+shares the package, but must stay package-private; visibility must not be widened for
+cross-package calls.
 
-声明链（`GroupStart`/`GroupStep`/`CombinedGroupStep`）、值视图（`GroupValues`）与
-提交形状以 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 为准，
-本节只约束选项类型与结果类型。
+The declaration chain (`GroupStart`/`GroupStep`/`CombinedGroupStep`), the value view
+(`GroupValues`), and the submission shape are governed by
+[group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md); this section
+constrains only option types and result types.
 
-### 3.2 选项：一个作用域一个类型
+### 3.2 Options: one type per scope
 
-选项只在两类位置出现：**作用域**（Batch、Group）与**单次任务执行**（member、combine）。
-三类角色的字段集合互不相同，因此各有独立类型；MUST NOT 用一个超集类型同时承担多种角色。
+Options appear in exactly two kinds of positions: **scopes** (Batch, Group) and **single task
+executions** (member, combine). The three roles' field sets are mutually distinct, so each has
+its own type; one superset type MUST NOT serve multiple roles.
 
-理由不是命名美观，而是本库要消除的错误类别：超集类型允许在成员位置书写 `parallelism`
-这样"被解析但无人读取"的字段——用户以为设置了并发上限，运行时静默失效。字段必须在类型上
-不可表达，而不是靠文档提醒。
+The reason is not naming aesthetics but the error class this library eliminates: a superset
+type lets `parallelism` be written in a member position — a field "parsed but read by nobody";
+the user believes a concurrency cap was set, and the runtime silently ignores it. Fields must
+be inexpressible at the type level, not warned against in documentation.
 
-| 选项类型 | 唯一使用位置 | 字段 | 每个字段的消费者 |
+| Option type | Sole position | Fields | Consumer of each field |
 |---|---|---|---|
-| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / 请求来源 | 批次 unit 解析、滑动窗口并发上限、`TaskType` 诊断（提交时比对与负载匹配筛查，§3.2.1）、`SubmissionAwareBlockingQueue` 入队拒绝、有界清理预算、执行 token 请求取消 |
-| `TaskOptions` | `par(...)`、`combine(...)` 声明 | timeout / taskType / rejectEnqueue | 该次任务执行的 deadline、`TaskType` 诊断（§3.2.1）、`SubmissionAwareBlockingQueue` 入队拒绝 |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / request source | batch unit resolution, the sliding window's concurrency cap, `TaskType` diagnostics (submission-time comparison and workload-fit screening, §3.2.1), `SubmissionAwareBlockingQueue` enqueue refusal, bounded cleanup budget, execution-token request cancellation |
+| `TaskOptions` | `par(...)`, `combine(...)` declarations | timeout / taskType / rejectEnqueue | that task execution's deadline, `TaskType` diagnostics (§3.2.1), `SubmissionAwareBlockingQueue` enqueue refusal |
 
-队列公开类型的命名直接描述其契约（proposal:P0038）：`SubmissionAwareBlockingQueue` 读取提交作用域中的 `rejectEnqueue`，仅在该选项为 true 时拒绝入队；`ResizableBlockingQueue` 提供有界 FIFO 与调用方主动调整容量的 `setCapacity(int)`。两者 MUST 保持既有入队、动态容量和并发语义，MUST NOT 让 `TaskType` 改变入队准入；`DrainingBlockingQueue` 的排干关闭契约不受此命名收口影响。
+The public queue types' names describe their contracts directly (proposal:P0038):
+`SubmissionAwareBlockingQueue` reads `rejectEnqueue` from the submission scope and refuses
+enqueue only when that option is true; `ResizableBlockingQueue` provides bounded FIFO and
+caller-driven capacity changes through `setCapacity(int)`. Both MUST keep their existing
+enqueue, dynamic-capacity, and concurrency semantics, and MUST NOT let `TaskType` change
+enqueue admission; `DrainingBlockingQueue`'s draining-close contract is unaffected by this
+naming consolidation.
 
-> 注：`runOnCallerThread` 字段曾在本表中出现，在 0.3.0 发布前已删除（拒绝处置归执行器的
-> `RejectedExecutionHandler`）；本节其余字段划分不受影响。
+> Note: the `runOnCallerThread` field once appeared in this table and was deleted before the
+> 0.3.0 release (rejection handling belongs to the executor's `RejectedExecutionHandler`); the
+> rest of this section's field division is unaffected.
 
-组级配置不再是选项类型：组名与 timeout（或 inherit 选择）由 `ParRuntime.group(name,
-timeout)`/`ParRuntime.groupInheriting(name)` 入口承担，close grace 与请求取消分别由
-`GroupStart.closeGrace(Duration)`、`GroupStart.cancelOn(ListenableFuture<?>)` 承担，
-两者都必须在首个 `par` 之前声明。
+Group-level configuration is no longer an option type: the group name and timeout (or the
+inherit choice) are carried by the `ParRuntime.group(name, timeout)`/
+`ParRuntime.groupInheriting(name)` entries; close grace and request cancellation are carried by
+`GroupStart.closeGrace(Duration)` and `GroupStart.cancelOn(ListenableFuture<?>)` respectively,
+and both must be declared before the first `par`.
 
 ```java
 public final class TaskOptions {
@@ -119,111 +144,149 @@ public final class BatchOptions {
 }
 ```
 
-**字段即消费集合。** 每个选项类型暴露的字段集合必须等于其消费者读取的集合：成员与 combine
-的身份来自声明名，单任务是单次执行、没有扇出，因此 `TaskOptions` MUST
-NOT 含 name、parallelism、listeners；组不是一次任务执行，因此组级配置 MUST NOT 含
-parallelism、taskType、rejectEnqueue。
+**Fields equal the consumption set.** The field set an option type exposes must equal the set
+its consumers read: member and combine identities come from declaration names, and a single
+task is one execution with no fan-out, so `TaskOptions` MUST NOT contain name, parallelism, or
+listeners; a group is not a single task execution, so group-level configuration MUST NOT
+contain parallelism, taskType, or rejectEnqueue.
 
-**判别式由调用点静态决定。** 就"一个单位的选项"而言，这是把原先的单
-product type 换成按角色划分的 product：`Par.map` 只接受 `BatchOptions`，`par`/`combine`
-只接受 `TaskOptions`——编译器在选择分支的同时排除了其余分支的字段，运行时
-不需要也不存在 tag。因此 MUST NOT 引入公共父类型、角色枚举或运行期判别字段：一旦存在公共
-父类型，"把组选项传给成员位置"就会重新变成可编译的，本节的编译期保证随即失效。
+**The discriminator is statically decided by the call site.** As far as "one unit's options" is
+concerned, this replaces the former single product type with role-divided products: `Par.map`
+accepts only `BatchOptions`, and `par`/`combine` accept only `TaskOptions` — the compiler
+excludes the other branches' fields while selecting one, and no tag is needed or exists at
+runtime. Therefore no public supertype, role enum, or runtime discriminator field MUST be
+introduced: the moment a public supertype exists, "passing group options to a member position"
+becomes compilable again, and this section's compile-time guarantee is void.
 
-**timeout 的显式选择提升为入口/类型不变量。** 组级二选一由两个工厂入口承担：显式
-`group(name, timeout)` 与嵌套继承 `groupInheriting(name)`；不存在隐式无界
-默认值。成员级 `inheritTimeout()` 与 `timeout(Duration)` 是仅有的两个工厂：不存在"未声明"
-状态（遗漏声明是编译错误），两个声明也不可能同时出现（两个工厂都返回终态实例）。这比原先
-"`build()` 时校验二者恰有其一"更强，约束的语义不变。
+**The explicit timeout choice is promoted to an entry/type invariant.** The group-level
+one-of-two is carried by two factory entries: explicit `group(name, timeout)` and nested
+inheritance `groupInheriting(name)`; there is no implicit unbounded default. The member-level
+`inheritTimeout()` and `timeout(Duration)` are the only two factories: there is no "undeclared"
+state (omitting the declaration is a compile error), and the two declarations cannot coexist
+(both factories return terminal instances). This is stronger than the former "validate exactly
+one of the two at `build()`"; the constraint's semantics are unchanged.
 
-**不可变 wither，无可变中间态。** `taskType(...)`/`rejectEnqueue(...)`/`parallelism(...)`/
-`closeGrace(...)`/`cancelOn(...)` 返回新实例，原实例不变；不引入 Builder 与中间可变状态。
-无参工厂（如 `TaskOptions.inheritTimeout()`）MAY 返回共享的不可变实例。
+**Immutable withers, no mutable intermediate state.** `taskType(...)`/`rejectEnqueue(...)`/
+`parallelism(...)`/`closeGrace(...)`/`cancelOn(...)` return new instances, leaving the original
+unchanged; no Builder and no intermediate mutable state. No-arg factories (such as
+`TaskOptions.inheritTimeout()`) MAY return a shared immutable instance.
 
-请求取消只属于 Batch/Group 作用域：`TaskOptions` MUST NOT 增加 `cancelOn`，否则同一请求会在成员级
-形成第二套中断政策与归因表面。`GroupStart` 的阶段 guard 与创建线程约束同样适用于 `cancelOn`；
-声明期只保存值，准入协议见 [取消传播契约](cancellation-propagation.md) §5.4。历史来源：
-`proposal:P0001`。
+Request cancellation belongs only to Batch/Group scopes: `TaskOptions` MUST NOT grow
+`cancelOn`, or the same request would form a second interruption policy and attribution surface
+at member level. `GroupStart`'s stage guard and creating-thread constraint apply to `cancelOn`
+equally; the declaration phase only stores the value — the admission protocol is in the
+[cancellation propagation contract](cancellation-propagation.md) §5.4. Historical source:
+`proposal:P0001`.
 
-语义逐条不变（拆分只改变值的承载类型，不改变任何解析结果或执行行为）：
+Semantics are unchanged item by item (the split only changes the types carrying the values, not
+any resolution result or execution behavior):
 
-- name 非空；timeout 为正数，负值或零在工厂期被拒绝；
-- `timeout()` 访问器返回空 `Optional` 表示继承外层 deadline；
-- `groupInheriting` 声明的组要求提交现场存在外层 scoped task，否则提交
-  在运行准备期整体失败（`IllegalArgumentException`，无结果对象；v0.3 重设计的增补裁定，不产生组、future 或 token，也不执行任何代码）；成员级 `inheritTimeout()` 解析为组 deadline，成员的显式
-  timeout 被组 deadline 截断（`min(自己请求, 父级上限)`）；
-- 成员的诊断名始终取声明名；
-- 成员选项 MAY 省略：不带 options 的 `par(key, par, taskCode)` 重载等价于传
-  `TaskOptions.inheritTimeout()`。省略不放宽任何约束——成员始终受组 deadline 上界约束，不可能
-  因此获得无界执行；这道强制选择已在组级做过且已写明，成员侧的第二次声明在常态下不携带信息。
-  需要更紧的预算、不同的 task type 或入队策略时才显式传入选项；
-- 成员是单任务，不产生多个执行实例；成员内部嵌套提交（`Par.map`、嵌套 group）读取
-  的是该嵌套提交自己的选项；
-- options 不保存运行状态，可安全复用；带请求来源的 options 会按设计持有该来源，因而具有请求寿命，
-  不要求执行后自动清空。组完成观测由 `runAll()` 的同步返回承担，不存在组完成回调的注册入口，
-  options 也不承担回调注册；
-- 校验时机：`Par` 在声明期解析——草稿保存已解析的 owner-bound `Par`，不存在
-  "submit 时才按注册名解析 executor"的路径，Par 不属于 owner `ParRuntime` 在声明期即失败；
-  现场相关校验（inherit deadline 是否存在）仍留在提交时。
+- name non-empty; timeout positive — negative or zero is rejected at the factory;
+- the `timeout()` accessor returns an empty `Optional` to mean inheriting the outer deadline;
+- a group declared with `groupInheriting` requires an outer scoped task at the submission site,
+  otherwise the submission fails as a whole during run preparation (`IllegalArgumentException`,
+  no result object; the v0.3 redesign's supplementary ruling — no group, future, or token is
+  produced, and no code executes); member-level `inheritTimeout()` resolves to the group
+  deadline, and a member's explicit timeout is truncated by the group deadline (`min(own
+  request, parent cap)`);
+- a member's diagnostic name is always its declaration name;
+- member options MAY be omitted: the `par(key, par, taskCode)` overload without options is
+  equivalent to passing `TaskOptions.inheritTimeout()`. Omitting relaxes no constraint — a
+  member is always bounded by the group deadline and cannot gain unbounded execution from this;
+  that forced choice was already made and documented at group level, so the member-side second
+  declaration normally carries no information. Pass options explicitly when a tighter budget, a
+  different task type, or an enqueue policy is needed;
+- a member is a single task and produces no multiple execution instances; a member's internal
+  nested submissions (`Par.map`, nested groups) read the nested submission's own options;
+- options hold no run state and are safe to reuse; options carrying a request source
+  deliberately hold that source and therefore have request lifetime — they are not required to
+  clear automatically after execution. Group completion observation is carried by `runAll()`'s
+  synchronous return; there is no registration entry for group completion callbacks, and
+  options do not carry callback registration either;
+- validation timing: `Par` is resolved at declaration — the draft stores the resolved
+  owner-bound `Par`, there is no "resolve the executor by registered name at submit time" path,
+  and a Par not belonging to the owner `ParRuntime` fails at declaration; site-dependent
+  validation (whether an inherit deadline exists) stays at submission.
 
-**内核对选项类型无感知。** `MultiTaskContext.resolve(...)` MUST NOT 接收公共选项类型；每个
-选项类型提供一个包私有适配方法，把选项折叠成内核载体（name、requestedParallelism、timeout、
-taskType、rejectEnqueue）。成员侧由 `TaskOptions` 适配（name 取成员声明名，
-requestedParallelism 恒为 1），batch 侧由 `BatchOptions` 适配。请求来源不进入 `UnitSpec`，而在
-准入时单独接入执行 token。签名与三 parent 解耦语义见
-[生命周期与状态机 §5](task-group-lifecycle.md)。
+**The kernel is agnostic to option types.** `MultiTaskContext.resolve(...)` MUST NOT accept
+public option types; each option type provides a package-private adapter method folding its
+options into the kernel carrier (name, requestedParallelism, timeout, taskType, rejectEnqueue).
+The member side adapts from `TaskOptions` (name is the member declaration name,
+requestedParallelism is always 1), and the batch side adapts from `BatchOptions`. Request
+sources do not enter `UnitSpec`; they are wired into the execution token separately at
+admission. The signature and the three-parent decoupling semantics are in
+[Lifecycle and state machine §5](task-group-lifecycle.md).
 
-#### 3.2.1 `TaskType`：可选诊断声明
+#### 3.2.1 `TaskType`: an optional diagnostic declaration
 
-`TaskType` 是任务与线程池两侧共用的可选负载声明，取值 `COMPUTE`（主要消耗 CPU，不应在等待中占住
-线程）、`BLOCKING`（任何阶段会阻塞线程：IO、锁、sleep、join、等待其他任务或嵌套批次）、
-`UNKNOWN`（未声明）。单元侧由 `BatchOptions.taskType` / `TaskOptions.taskType` 声明任务代码本身；
-入口侧由 `ParRuntime.Builder.register(ParId, ExecutorService, TaskType)` 声明该入口预期承载的
-任务类型，两参重载等价于 `UNKNOWN`，读取用 `Par.taskType()`。共享同一物理池的多个入口各自保留
-声明。
+`TaskType` is an optional workload declaration shared by the task and pool sides, with values
+`COMPUTE` (mainly consumes CPU; should not hold a thread while waiting), `BLOCKING` (may block
+the thread at any stage: I/O, locks, sleep, join, waiting for other tasks or nested batches),
+and `UNKNOWN` (undeclared). The unit side declares the task code itself through
+`BatchOptions.taskType` / `TaskOptions.taskType`; the entry side declares the task type an
+entry is expected to carry through `ParRuntime.Builder.register(ParId, ExecutorService,
+TaskType)`, with the two-argument overload equivalent to `UNKNOWN`; read it with
+`Par.taskType()`. Multiple entries sharing one physical pool each keep their own declarations.
 
-- `TaskType` MUST NOT 改变准入、入队、拒绝、取消、deadline、归因或任务 outcome。拒绝入队只由
-  `rejectEnqueue` 表达：`SubmissionAwareBlockingQueue.offer` 只读 `rejectEnqueue`，惰性拒绝告警也只针对
-  `rejectEnqueue`。
-- 两侧缺省 MUST 为 `UNKNOWN`；`UNKNOWN` 可显式书写，表示刻意不声明。嵌套单元 MUST NOT 继承父单元
-  的类型：任务代码里提交的 `Par.map`、嵌套组与 `Par.mapAndCombine` 的终端 combine 都按自己的声明
-  解析，未声明即 `UNKNOWN`。类型描述任务代码本身，继承等于替用户编造声明；终端 combine 同样不请求
-  拒绝入队。
-- **提交时比对。** 每个单元在准入处（批次、单任务、组成员、组 combine）比对入口与单元的声明：
-  两侧都非 `UNKNOWN` 且不同时，按 `(Par, 单元名)` 记录一次；方向不需要单独的键，因为一个入口只有
-  一种声明。`COMPUTE` 入口配 `BLOCKING` 单元记 `WARNING`，反向记 `INFO`。任一侧为 `UNKNOWN`
-  MUST NOT 告警。告警 MUST 只表述"声明不一致"，MUST NOT 表述为已经发生饿死、过订阅或误用。
-- 去重 MUST 以 `ParRuntime` 为作用域并有上限：最多记住 1024 对，从不淘汰。记满后，新对的不一致
-  只在首次记一条汇总告警，此后不再记录；溢出之后 MUST NOT 声称仍能发现所有新单元。不设被压下告警的
-  计数：溢出只在单元名按调用拼接时出现，汇总告警已让它可见（ADR 0010）。
-- 诊断 MUST 只记录日志或进入报告，MUST NOT 让任务、批次或组失败，也 MUST NOT 替换其结果。日志
-  MUST 在 runtime 自有线程上投递，准入线程 MUST NOT 调用日志 handler：handler 抛异常或阻塞、投递执行器
-  拒绝或无法为投递创建线程（包括 `OutOfMemoryError`），都不能影响准入，只丢失该条日志。各条日志独立投递，
-  可能不按准入顺序出现。
-  惰性拒绝告警同样遵守这一条。
-  运行时侧的低 CPU 筛查见 [负载匹配筛查契约](workload-fit-screening.md)。
+- `TaskType` MUST NOT change admission, enqueue, rejection, cancellation, deadlines,
+  attribution, or task outcomes. Enqueue refusal is expressed only by `rejectEnqueue`:
+  `SubmissionAwareBlockingQueue.offer` reads only `rejectEnqueue`, and the inert-refusal warning
+  also targets only `rejectEnqueue`.
+- Both sides' default MUST be `UNKNOWN`; `UNKNOWN` may be written explicitly to mean a
+  deliberate non-declaration. A nested unit MUST NOT inherit its parent unit's type: a
+  `Par.map` submitted inside task code, nested groups, and a `Par.mapAndCombine`'s terminal
+  combine all resolve by their own declarations, undeclared being `UNKNOWN`. The type describes
+  the task code itself; inheriting would fabricate a declaration on the user's behalf. The
+  terminal combine likewise does not request enqueue refusal.
+- **Submission-time comparison.** Every unit at admission (batch, single task, group member,
+  group combine) compares the entry's and the unit's declarations: when both sides are
+  non-`UNKNOWN` and differ, record once per `(Par, unit name)`; the direction needs no separate
+  key because an entry has only one declaration. A `COMPUTE` entry with a `BLOCKING` unit logs
+  `WARNING`; the reverse logs `INFO`. Either side being `UNKNOWN` MUST NOT warn. The warning
+  MUST state only "declarations disagree" and MUST NOT be phrased as starvation,
+  oversubscription, or misuse having already occurred.
+- Deduplication MUST be scoped to the `ParRuntime` and bounded: at most 1024 pairs, never
+  evicted. Once full, a new pair's disagreement is recorded only as one summary warning the
+  first time and never again; after overflow it MUST NOT claim all new units are still
+  detected. No counter of suppressed warnings: overflow only occurs when unit names are
+  concatenated per call, and the summary warning already makes it visible (ADR 0010).
+- Diagnostics MUST only log or enter reports; they MUST NOT fail a task, batch, or group, and
+  MUST NOT replace its result. Logs MUST be delivered on a runtime-owned thread; the admission
+  thread MUST NOT invoke log handlers: a handler throwing or blocking, the delivery executor
+  rejecting, or being unable to create a thread for delivery (including `OutOfMemoryError`)
+  must not affect admission — only that log record is lost. Records are delivered independently
+  and may appear out of admission order.
+  The inert-refusal warning follows this same rule.
+  The runtime-side low-CPU screening is in the [workload-fit screening contract](workload-fit-screening.md).
 
-被排除的替代方案：
+Rejected alternatives:
 
-- 保留 `CPU_BOUND` 驱动入队拒绝：诊断标签兼任行为开关，标错一次同时错掉文档和执行语义，用户因此
-  不敢随手声明；用户需要拒绝入队时显式写 `rejectEnqueue(true)`。
-- 保留 `MIXED`：与 `BLOCKING` 在任何检查里等价。
-- 沿用 `CPU_BOUND`/`IO_BOUND` 名称、只改语义：依赖旧拒绝行为的代码会静默改变行为；改名让它编译
-  失败，迁移时必须看一眼。
-- 两侧声明必填：缺省不危险，只是少一项诊断；必填只换来随手乱填。
-- 按池结构（线程数约等于核数、`ForkJoinPool`）推断用途后告警：核数大小的池用于限制下游并发是
-  合理用法，推断出的告警会很吵。
+- Keeping `CPU_BOUND` driving enqueue refusal: a diagnostic label doubling as a behavior
+  switch — one wrong label corrupts both documentation and execution semantics, making users
+  afraid to declare casually; users who need enqueue refusal write `rejectEnqueue(true)`
+  explicitly.
+- Keeping `MIXED`: equivalent to `BLOCKING` in every check.
+- Reusing the `CPU_BOUND`/`IO_BOUND` names with only semantics changed: code depending on the
+  old refusal behavior would silently change behavior; renaming makes it fail compilation,
+  forcing a look during migration.
+- Required declarations on both sides: the default is not dangerous, only one diagnostic
+  fewer; a requirement would only earn careless filler values.
+- Inferring use from pool structure (thread count ≈ core count, `ForkJoinPool`) and warning: a
+  core-sized pool limiting downstream concurrency is legitimate use, and inferred warnings
+  would be noisy.
 
-独立评审处置与变异验证记录见 [负载匹配筛查契约](workload-fit-screening.md) 的 Review history 一节。
-决定见 [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) 与
-[ADR 0010](../adr/0010-always-on-workload-fit-screening.md)。历史来源：
-`proposal:P0025`（`P0025-workload-fit-diagnostics`；同号的 `P0025-internal-cancellation-token`
-是另一份已落地提案）。
+Independent-review dispositions and the mutation-verification record are in the Review history
+section of the [workload-fit screening contract](workload-fit-screening.md). The decisions are
+[ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) and
+[ADR 0010](../adr/0010-always-on-workload-fit-screening.md). Historical source:
+`proposal:P0025` (`P0025-workload-fit-diagnostics`; the same-numbered
+`P0025-internal-cancellation-token` is a separate landed proposal).
 
-### 3.3 结果类型
+### 3.3 Result types
 
-任务的当前逻辑终止值是 `TaskTermination<T>`，而同步 Batch/Group 结果通过 `ImmediateResult<T>` 的
-`termination()` 投影暴露同一值：
+A task's current logical termination value is `TaskTermination<T>`, and synchronous
+Batch/Group results expose the same value through `ImmediateResult<T>`'s `termination()`
+projection:
 
 ```text
 Success(value, CLAIMED)
@@ -231,33 +294,44 @@ Failed(FailureCause, CLAIMED | NOT_CLAIMED)
 Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
 ```
 
-`FailureCause` 区分 `USER_CODE_FAILURE` 与 `SUBMISSION_REJECTED` 并保留原始异常；
-`CancellationReason` 区分 caller、parent scope、deadline、fail-fast 和 member，并携带 source identity。
-`ExecutionDisposition` 只由 execution claim 的原子 CAS 决定，不能由 `ExecutionPhaseHintFuture.phase()`
-单独推断。`TaskState` 单独表达实时的 pending、claim、逻辑终止和退出状态。
+`FailureCause` distinguishes `USER_CODE_FAILURE` from `SUBMISSION_REJECTED` and keeps the
+original exception; `CancellationReason` distinguishes caller, parent scope, deadline,
+fail-fast, and member, and carries a source identity. `ExecutionDisposition` is decided only by
+the execution claim's atomic CAS and cannot be inferred from
+`ExecutionPhaseHintFuture.phase()` alone. `TaskState` separately expresses the live pending,
+claim, logical-termination, and exit states.
 
-冻结任务结果读取 `TaskTermination<T>` 的 `kind()`、`failureCause()`、`cancellationReason()` 和 `disposition()`；其 kind 只有 `SUCCESS`、`FAILED`、`CANCELLED`。实时执行状态读取 `TaskState`，作用域聚合读取 `ScopeTermination`。
+Frozen task results read `TaskTermination<T>`'s `kind()`, `failureCause()`,
+`cancellationReason()`, and `disposition()`; the kind is only `SUCCESS`, `FAILED`, or
+`CANCELLED`. Live execution state reads `TaskState`; scope aggregates read `ScopeTermination`.
 
-完整模型见[任务终止与 scope 原因契约](task-termination-and-scope.md)。
+The full model is in the [task termination and scope reason contract](task-termination-and-scope.md).
 
-`TaskGroupResult<R>` 的访问器面以
-[同步出口契约 §3](synchronous-scope-exit.md) 为单一事实源（`results`/`resultOf`/`resultAt`、
-`valuesResult`/`terminalResult`、`valuesOrThrow()`/`terminalValueOrThrow()`、
-`executionExitConfirmed()`/`unexitedExecutions()` 与 `members()`/`terminal()` 快照）。
+`TaskGroupResult<R>`'s accessor surface takes [synchronous exit contract §3](synchronous-scope-exit.md)
+as its single source of truth (`results`/`resultOf`/`resultAt`,
+`valuesResult`/`terminalResult`, `valuesOrThrow()`/`terminalValueOrThrow()`,
+`executionExitConfirmed()`/`unexitedExecutions()`, and the `members()`/`terminal()` snapshots).
 
-成员完成快照统一为 `TaskExitObservation`（batch 元素与 group 成员共用），字段为
-`taskName()`/`unitId()`/`taskIndex()`/三个时间戳/`outcome()`/`result()`/`failure()`。组结果中的
-成员快照从完成信号重建，保留真实成功值与最终时间；`taskIndex()` 对组成员恒为 0；
-`taskName()` 取成员声明名。
+Member completion snapshots are unified as `TaskExitObservation` (shared by batch elements and
+group members), with fields `taskName()`/`unitId()`/`taskIndex()`/three
+timestamps/`outcome()`/`result()`/`failure()`. Member snapshots in group results are rebuilt
+from completion signals, retaining real success values and final times; `taskIndex()` is always
+0 for group members; `taskName()` is the member declaration name.
 
-要求：
+Requirements:
 
-- Map 按声明顺序稳定输出且不可修改；
-- 非成功成员结果一律携带 throwable，成功结果可为 null；归因、取消归一化与组 valuesResult 的
-  记录失败优先规则见[同步出口契约 §3](synchronous-scope-exit.md)（本文不复述）；
-- 结果保存 `TaskTermination` 与 scope primary cause，MUST NOT 仅根据 `Future.isCancelled()` 反推原因；
-- 成员结果只携带打平后的只读数据，不暴露 `MultiTaskContext` 等引擎管道；运行期的 `TaskExecutionContext` 在完成快照之后 MUST NOT 再被安装为 current task；
-- `runAll()` 正常返回 `TaskGroupResult`：组的非 `SUCCESS` outcome 是结果数据，不通过异常
-  表达（聚合读取的异常规则见同步出口契约 §3）；
-- 内部成员 future 保持普通 Guava 语义：成功返回值、失败抛 `ExecutionException`、取消表现为
-  cancelled；公开侧只见冻结后的 `ImmediateResult` 与独立的 `TaskExitObservation` 退出快照。
+- Maps output stably in declaration order and are unmodifiable;
+- non-success member results always carry a throwable, and success results may be null; the
+  attribution, cancellation normalization, and group valuesResult recorded-failure-priority
+  rules are in [synchronous exit contract §3](synchronous-scope-exit.md) (not repeated here);
+- results store `TaskTermination` and the scope primary cause; the cause MUST NOT be
+  reverse-inferred from `Future.isCancelled()` alone;
+- member results carry only flattened read-only data and expose no engine plumbing such as
+  `MultiTaskContext`; after the completion snapshot, the runtime `TaskExecutionContext` MUST
+  NOT be installed as the current task again;
+- `runAll()` returns `TaskGroupResult` normally: a group's non-`SUCCESS` outcome is result
+  data, not expressed through exceptions (the aggregate-read exception rules are in synchronous
+  exit contract §3);
+- internal member futures keep ordinary Guava semantics: success returns the value, failure
+  throws `ExecutionException`, cancellation appears as cancelled; the public side sees only the
+  frozen `ImmediateResult` and the independent `TaskExitObservation` exit snapshots.

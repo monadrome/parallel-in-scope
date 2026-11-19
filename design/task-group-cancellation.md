@@ -1,66 +1,83 @@
-# TaskGroup 设计契约：取消、deadline 与归因
+# TaskGroup Design Contract: Cancellation, Deadlines, and Attribution
 
-> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)；本文的取消、deadline 与归因
-> 全部是内部机制，公开面不暴露 token 与运行句柄。
+> The public execution/result shapes are in the [synchronous exit contract](synchronous-scope-exit.md);
+> the cancellation, deadline, and attribution mechanisms in this document are entirely internal —
+> the public surface exposes neither tokens nor running handles.
 >
-> 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
-> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
+> This document is part of the TaskGroup design contract series (split by chapter from the
+> original "Independent Parallel Task Group Final Design Contract").
+> Series navigation: [API and options](task-group-api-and-options.md) · [Lifecycle and state machine](task-group-lifecycle.md) · [Submission and rejection](task-group-submission.md) · [Cancellation and attribution](task-group-cancellation.md) · [Observability and acceptance](task-group-observability-and-verification.md); the route index is [design/AGENTS.md](AGENTS.md).
 
-## 8. 取消、deadline 与 fail-fast
+## 8. Cancellation, deadlines, and fail-fast
 
-当前结果契约把取消原因和执行事实分开：任务冻结为 `Cancelled(CancellationReason, disposition)`，
-其中 disposition 只来自 execution claim CAS；Batch/Group 冻结为三态 `ScopeTermination`，只保留一次
-CAS 提交的 primary cause。旧 `TaskTermination` 映射仍供迁移读取，但 `GROUP_CANCELLED`、`MEMBER_CANCELLED`
-和 `FAIL_FAST` 不再是新的稳定任务原因。原因对象携带 parent、member、deadline 或请求入口的 source
-identity，迟到业务失败保留在成员结果和诊断中，不覆盖已经提交的 scope cause。
+The current result contract separates the cancellation reason from execution facts: a task
+freezes as `Cancelled(CancellationReason, disposition)`, where the disposition comes only from
+the execution-claim CAS; a Batch/Group freezes as the three-state `ScopeTermination`, keeping
+only the primary cause committed by a single CAS. The legacy `TaskTermination` mapping remains
+readable for migration, but `GROUP_CANCELLED`, `MEMBER_CANCELLED`, and `FAIL_FAST` are no longer
+new stable task reasons. Reason objects carry the source identity of the parent, member,
+deadline, or request entry; late business failures stay in member results and diagnostics and do
+not overwrite an already-committed scope cause.
 
-### 8.1 Token 结构
+### 8.1 Token structure
 
-不新增公共 `GroupCancellationToken`，也不存在公开的组运行句柄或成员直消入口：组的执行取消来源是显式
-deadline、fail-fast、祖先取消与 `GroupStart.cancelOn` 请求来源（见
-[同步出口契约](synchronous-scope-exit.md) §4）。请求来源以任意方式完成时取消现有 group token，
-不替换 parent 链；像其他取消来源一样中断运行中的执行，注册与确定性切断规则见
-[取消传播契约](cancellation-propagation.md) §5.4。历史来源：`proposal:P0001`。Group 内部复用现有
-`CancellationToken`：
+No public `GroupCancellationToken` is added, and there is no public group run handle or
+member-direct-cancel entry: a group's execution-cancellation sources are explicit deadlines,
+fail-fast, ancestor cancellation, and the `GroupStart.cancelOn` request source (see the
+[synchronous exit contract](synchronous-scope-exit.md) §4). A request source completing in any
+way cancels the existing group token; it does not replace the parent chain. Like every other
+cancellation source it interrupts running executions; the registration and deterministic
+severing rules are in the [cancellation propagation contract](cancellation-propagation.md) §5.4.
+Historical source: `proposal:P0001`. The group reuses the existing `CancellationToken`
+internally:
 
 ```text
-outer task token（可空）
+outer task token (nullable)
 └─ group token
    ├─ member A token
    ├─ member B token
    └─ member C token
 ```
 
-成员 deadline 先于 Group deadline 到期时，成员 token 上的 timeout 监听器必须把超时升级为 `groupToken.timeoutCancel()`，使 Group 收敛为 `TIMEOUT` 而不是 fail-fast 的 `FAILED`。
+When a member deadline expires before the group deadline, the timeout listener on the member
+token must escalate the timeout into `groupToken.timeoutCancel()`, so the group converges to
+`TIMEOUT` instead of fail-fast `FAILED`.
 
-### 8.2 成员主动取消
+### 8.2 Direct member cancellation
 
-成员 future（或成员 token）被直接取消（包私有入口；公开面不存在成员句柄）：
+A member future (or member token) is cancelled directly (a package-private entry; no member
+handle exists on the public surface):
 
-- Group 取消语义与 batch 完全一致（结构化并发）：成员被直接取消即级联取消整个 Group；
-- 该成员原因记录为 `MEMBER_CANCELLED`；
-- 未完成 siblings 通过各自 member token 级联取消，记录 `GROUP_CANCELLED`；
-- Group completion reason 固定为 `GROUP_CANCELLED`；
-- 取消在线程取得执行权前获胜时，用户 callable 不得执行；
-- 取消在 RUNNING 后获胜时发出中断请求，但不保证用户代码立即停止。
+- Group cancellation semantics are exactly the batch's (structured concurrency): a directly
+  cancelled member cascades into cancelling the whole group;
+- that member's reason is recorded as `MEMBER_CANCELLED`;
+- unfinished siblings are cancelled through their own member tokens and recorded
+  `GROUP_CANCELLED`;
+- the group completion reason is fixed as `GROUP_CANCELLED`;
+- when the cancellation wins before a thread acquires execution rights, the user callable must
+  not run;
+- when the cancellation wins after RUNNING, an interrupt request is issued, but user code is not
+  guaranteed to stop immediately.
 
 ### 8.3 Fail-fast
 
-任一成员出现 `USER_FAILURE` 或 `SUBMISSION_FAILURE`：
+Any member producing `USER_FAILURE` or `SUBMISSION_FAILURE`:
 
 ```text
 CAS group reason FAILED
-record failedTaskName（仅 first winner，可为 member 或 terminal combine）
+record failedTaskName (first winner only; may be a member or the terminal combine)
 cancel every other unfinished member
 wait every frozen member future terminal
 publish CLOSED/result
 ```
 
-被传播取消的 siblings 记录 `FAIL_FAST`，不能仅显示为笼统 cancelled。
+Siblings cancelled by propagation are recorded `FAIL_FAST`; they must not show up as a generic
+"cancelled".
 
 ### 8.4 Deadline
 
-逻辑 deadline 在提交准备边界的统一 start 计算；链式声明阶段耗时不计入 Group timeout：
+The logical deadline is computed at a uniform start on the submission-preparation boundary; time
+spent in the chained declaration phase does not count against the group timeout:
 
 ```text
 requestedGroupDeadline = submitStartNanos + resolvedGroupTimeout
@@ -69,152 +86,212 @@ groupDeadline = outerBatch == null
         : min(requestedGroupDeadline, outerBatch.deadlineNanos())
 ```
 
-非空组在全部成员准备并注册后、提交循环开始前安排一个物理 timer；空组不分配 timer。若外层 deadline 在 submit 准备期间已经到期，则 Group 固定 `TIMEOUT`，全部已注册成员记录 `TIMEOUT` 并取消，且不得进入用户 callable。
+A non-empty group schedules one physical timer after all members are prepared and registered,
+before the submission loop starts; an empty group gets no timer. If the outer deadline has
+already expired during submission preparation, the group is fixed `TIMEOUT`, every registered
+member is recorded `TIMEOUT` and cancelled, and none may enter user callables.
 
-timer 触发时：
+When the timer fires:
 
-- first-wins 固定 `TIMEOUT`；
-- 未完成成员取消并记录 `TIMEOUT`；
-- timer 必须在 Group 先完成时取消或成为无害 no-op；
-- timeout action 使用 `ParRuntime.timeoutScheduler()`，Group 不创建 scheduler。
+- first-wins fixes `TIMEOUT`;
+- unfinished members are cancelled and recorded `TIMEOUT`;
+- the timer must be cancelled or become a harmless no-op when the group finishes first;
+- the timeout action uses `ParRuntime.timeoutScheduler()`; the group creates no scheduler.
 
-成员 deadline：
+Member deadlines:
 
 ```text
 memberDeadline = min(member requested deadline, groupDeadline)
 ```
 
-（`inheritTimeout()` 的成员解析为 groupDeadline。）
+(A member with `inheritTimeout()` resolves to groupDeadline.)
 
-若成员自己的 deadline 先到并导致该成员失败/取消，Group 应固定 `TIMEOUT`，因为结果 API 已明确区分 timeout；不得把它误报成普通 user failure。
+If a member's own deadline expires first and causes that member's failure/cancellation, the
+group should be fixed `TIMEOUT`, because the result API already distinguishes timeout; it must
+not be misreported as an ordinary user failure.
 
-deadline 存储在 `CancellationToken` 内部（构造时与 parent 取 min），`bind(List, submitCanceller, timer)`
-不再接收 Duration。Group 的 `start()` 按序遵守以下步骤：
+Deadlines are stored inside `CancellationToken` (taken as the min with the parent at
+construction); `bind(List, submitCanceller, timer)` no longer accepts a Duration. A group's
+`start()` follows these steps in order:
 
-1. 空组立即 `SUCCESS`，不注册请求来源；
-2. 先给每个成员的 future 挂完成 observer，保证后续 bind 触发的取消都被计数；
-3. 全部准备成功后注册声明的请求来源，紧接着对 group token 做一次 `bind`
-   （组 deadline + 统一 fail-fast + 全成功检测）；预完成来源因此在任何提交前生效；
-4. 所有成员与 terminal token MUST 先注册 TIMEOUT 上升监听器，再按 deadline 判断是否省略 bind。
-   监听器在成员 CAS 提交之后、取消动作之前同步调用 `groupToken.timeoutCancel()`。
-   **仅当 `memberToken.deadlineNanos() < groupToken.deadlineNanos()`**（即成员拥有比组更紧的
-   自己 deadline）时，才对该成员 token `bind` 自己的 future。继承组 deadline 的成员跳过 bind：
-   向下传播已由 token 构造期的 parent 监听挂接（group → member `PROPAGATED_CANCELLED`），
-   成员 future 的取消由上面的 group bind 覆盖，成员 bind 只会为同一时刻多 arm 一个冗余
-   timer。跳过 bind 的成员仍可由 checkpoint backstop 提交 TIMEOUT；省略重复 timer MUST NOT
-   同时省略这个真实事件的上升。该 token 不通过 bind 观察 SUCCESS，其他取消仍按父传播归因。
+1. An empty group is `SUCCESS` immediately and registers no request source;
+2. attach a completion observer to every member's future first, so every cancellation the later
+   bind triggers is counted;
+3. after all preparations succeed, register the declared request source, then `bind` the group
+   token once (group deadline + unified fail-fast + all-success detection); a pre-completed
+   source therefore takes effect before any submission;
+4. every member and terminal token MUST register the TIMEOUT-escalation listener first, and only
+   then decide by deadline whether to skip bind. The listener calls
+   `groupToken.timeoutCancel()` synchronously after the member CAS commits and before
+   cancellation actions run.
+   **Only when `memberToken.deadlineNanos() < groupToken.deadlineNanos()`** (i.e. the member has
+   its own tighter deadline than the group) is that member token bound to its own future.
+   Members inheriting the group deadline skip bind: downward propagation is already wired by the
+   parent listener at token construction (group → member `PROPAGATED_CANCELLED`), the member
+   future's cancellation is covered by the group bind above, and a member bind would only arm
+   one redundant timer for the same instant. A member that skips bind can still have TIMEOUT
+   committed by the checkpoint backstop; omitting the duplicate timer MUST NOT also omit the
+   escalation of that real event. Such a token does not observe SUCCESS through bind; its other
+   cancellations are still attributed by parent propagation.
 
-这个修复保留 token 自己的时钟域、真实胜出来源和 first-wins。未提交取消而只有预算经过的
-取消形状仍沿用现有分类；不凭时钟或业务 TimeoutException 猜测来源。历史来源：`proposal:P0015`；
-该独立政策方向保留在 [P0020](proposal/P0020-deadline-attribution-policy.md)。
+This fix preserves the token's own clock domain, the real winning source, and first-wins.
+Cancellation shapes with no committed cancellation and only budget passage keep the existing
+classification; the source is not guessed from clocks or business TimeoutExceptions. Historical
+source: `proposal:P0015`; the standalone policy direction is kept in
+[P0020](proposal/P0020-deadline-attribution-policy.md).
 
-成员取消原因不由发起取消处手写，而是收敛后读 token state：成员 token `TIMEOUT`
-即 `TIMEOUT`；否则 group token 是唯一权威（它在取消成员 futures 之前先提交自己的状态）：
-`TIMEOUT`/`FAIL_FAST`/`CANCELLED` 分别映射
-`TIMEOUT`/`FAIL_FAST`/`GROUP_CANCELLED`；`PROPAGATED_CANCELLED` 读 `originState()`，祖先为超时
-则记 `TIMEOUT`，否则记 `GROUP_CANCELLED`；两个 token 都仍是 `RUNNING` 说明没有框架路径碰过
-该成员，即用户直消，记 `MEMBER_CANCELLED`。
+A member's cancellation reason is not written by the place that initiates the cancellation; it
+is read from token state after convergence: member token `TIMEOUT` means `TIMEOUT`; otherwise
+the group token is the sole authority (it commits its own state before cancelling member
+futures): `TIMEOUT`/`FAIL_FAST`/`CANCELLED` map to
+`TIMEOUT`/`FAIL_FAST`/`GROUP_CANCELLED` respectively; `PROPAGATED_CANCELLED` reads
+`originState()` — `TIMEOUT` when the ancestor timed out, otherwise `GROUP_CANCELLED`; both
+tokens still `RUNNING` means no framework path ever touched the member, i.e. direct user
+cancellation, recorded `MEMBER_CANCELLED`.
 
-组级 outcome 同样读 group token 推导（`TaskGroupResult.termination()`）：`TIMEOUT` → `TIMEOUT`；
-`FAIL_FAST` → 有失败成员则沿用该成员自己的 outcome（`USER_FAILURE`/`SUBMISSION_FAILURE`），
-无失败成员（fail-fast 由成员直消触发）则记 `MEMBER_CANCELLED`；`PROPAGATED_CANCELLED` 按
-`originState()` 归因 `TIMEOUT` 或 `GROUP_CANCELLED`；`CANCELLED`（请求来源、内部直消组或成员直消
-级联）→ `GROUP_CANCELLED`；token 仍在 `RUNNING`/`SUCCESS` 时，已记录失败任务优先沿用其
-outcome（失败归因不随完成顺序漂移），否则全部成员成功记 `SUCCESS`，否则
-`MEMBER_CANCELLED`。
+The group-level outcome is likewise derived by reading the group token
+(`TaskGroupResult.termination()`): `TIMEOUT` → `TIMEOUT`; `FAIL_FAST` → when a failed member
+exists, keep that member's own outcome (`USER_FAILURE`/`SUBMISSION_FAILURE`), otherwise
+(fail-fast triggered by direct member cancellation) record `MEMBER_CANCELLED`;
+`PROPAGATED_CANCELLED` → attributed `TIMEOUT` or `GROUP_CANCELLED` per `originState()`;
+`CANCELLED` (request source, internal direct group cancellation, or direct member cancellation
+cascading) → `GROUP_CANCELLED`; while the token is still `RUNNING`/`SUCCESS`, a recorded failed
+task keeps its outcome first (failure attribution does not drift with completion order),
+otherwise all members successful records `SUCCESS`, otherwise `MEMBER_CANCELLED`.
 
-嵌套提交的终态不唯一但归因确定：成员 callable 内部的嵌套 batch 继承组 deadline 后自身也会被
-bind、arm 自己的 timer，与传播级连同刻竞速，终态可能是 `TIMEOUT`（自己的 timer 先
-触发）而非必然 `PROPAGATED_CANCELLED`；两种终态经 `originState()` 都归因 TIMEOUT。未 bind 的
-成员也可由 checkpoint 提交 TIMEOUT，不能假定它只会进入 PROPAGATED_CANCELLED。嵌套 batch 自己的超时对外
-层只表现为成员失败——谁拥有触发的 deadline，谁报 TIMEOUT。
+Nested submissions have non-unique terminal states but deterministic attribution: a nested batch
+inside a member callable inherits the group deadline, gets bound itself, and arms its own timer,
+racing the propagation cascade at the same instant; its terminal state may be `TIMEOUT` (its own
+timer fired first) rather than necessarily `PROPAGATED_CANCELLED`. Both terminal states are
+attributed TIMEOUT through `originState()`. An unbound member can also have TIMEOUT committed by
+a checkpoint, so it must not be assumed to reach only PROPAGATED_CANCELLED. A nested batch's own
+timeout appears to the outer layer only as a member failure — whoever owns the deadline that
+fired reports TIMEOUT.
 
-### 8.4.1 token → outcome 归因映射（单一实现）
+### 8.4.1 The token → outcome attribution mapping (single implementation)
 
-上述"读 token 归因 outcome"的映射在根包的包私有 `TokenOutcomes.forCancelled(token, whenUncommitted)`
-中实现且仅此一份，`TaskGroup.classifyCancelled`/`deriveOutcome` 与批次元素 `Task.termination()` 的落定归因
-共用：
+The "read the token to attribute the outcome" mapping above is implemented exactly once, in the
+root package's package-private `TokenOutcomes.forCancelled(token, whenUncommitted)`, shared by
+`TaskGroup.classifyCancelled`/`deriveOutcome` and the settle attribution of batch elements'
+`Task.termination()`:
 
-| token state | 归因 outcome |
+| token state | attributed outcome |
 |---|---|
 | `TIMEOUT` | `TIMEOUT` |
 | `FAIL_FAST` | `FAIL_FAST` |
-| `CANCELLED` | `GROUP_CANCELLED`（事后视角：token 整体被取消） |
-| `PROPAGATED_CANCELLED` | `originState()` 为 `TIMEOUT` 则 `TIMEOUT`，否则 `GROUP_CANCELLED` |
-| `RUNNING`/`SUCCESS`（无框架路径提交） | 调用方给定的 `whenUncommitted` |
+| `CANCELLED` | `GROUP_CANCELLED` (after-the-fact view: the token as a whole was cancelled) |
+| `PROPAGATED_CANCELLED` | `TIMEOUT` when `originState()` is `TIMEOUT`, otherwise `GROUP_CANCELLED` |
+| `RUNNING`/`SUCCESS` (no framework path committed) | the caller-supplied `whenUncommitted` |
 
-组侧在共享映射之前有两处前置判断：`TaskGroup.classifyCancelled` 先查成员自己的 token `TIMEOUT`
-（成员自身 deadline），再委托共享映射读 group token；`deriveOutcome` 先拦截 `FAIL_FAST`（沿用失败任务
-outcome）与 `RUNNING`/`SUCCESS`（已记录失败优先，其次全成功判定），其余委托共享映射。
+The group side makes two judgments before the shared mapping: `TaskGroup.classifyCancelled`
+first checks the member's own token for `TIMEOUT` (the member's own deadline), then delegates to
+the shared mapping to read the group token; `deriveOutcome` first intercepts `FAIL_FAST` (keep
+the failed task's outcome) and `RUNNING`/`SUCCESS` (a recorded failure first, then the
+all-success determination), delegating the rest to the shared mapping.
 
-**每个任务只有一个归因。** MUST：批次与组结果中的任务观测（`completions()`、`members()`、`terminal()`）
-的 outcome 等于该任务冻结的 `ImmediateResult` outcome，由 `TaskExitObservation.withResult` 合成。内部观测
-快照在冻结前按自己的 token 读出的 outcome 只是计时载体，MUST NOT 经公开 API 类型返回，也 MUST NOT 参与
-结果归因；包私有的观测 future（任务自身与批次聚合）仍原样携带它，只供内核与测试使用。内部快照可以与冻结 outcome 不同：
-组成员与 `mapAndCombine` 终端按自己的子 token 读取（例如 fail-fast 兄弟或被级联取消的终端读到
-`MEMBER_CANCELLED` 或 `GROUP_CANCELLED`，取决于子 token 传播与执行退出的先后，冻结为 `FAIL_FAST`）；执行晚于落定退出的元素在执行退出时才读 token。冻结 outcome
-始终来自落定时的分类（[落定归因契约](batch-settle-attribution.md)），公开读取一律经 `withResult` 统一。被否决：保留「直接观察」与「事后归因」两种结论——公开面已没有观测事件的读者，两套结论只会让
-同一任务在两个读取口给出不同答案。
+**Every task has exactly one attribution.** MUST: the outcomes of task observations in batch and
+group results (`completions()`, `members()`, `terminal()`) equal the outcome frozen in that
+task's `ImmediateResult`, composed by `TaskExitObservation.withResult`. An internal observation
+snapshot's outcome, read from its own token before freezing, is only a timing carrier: it MUST
+NOT be returned through public API types and MUST NOT participate in result attribution; the
+package-private observation futures (the task's own and the batch aggregate) still carry it
+as-is, for kernel and test use only. An internal snapshot may differ from the frozen outcome:
+group members and `mapAndCombine` terminals read their own child tokens (for example a fail-fast
+sibling or a cascade-cancelled terminal reads `MEMBER_CANCELLED` or `GROUP_CANCELLED`, depending
+on the order of child-token propagation versus execution exit, and freezes as `FAIL_FAST`); an
+element whose execution exits later than settlement reads the token at execution exit. Frozen
+outcomes always come from classification at settle time
+([settle attribution contract](batch-settle-attribution.md)), and public reads are unified
+through `withResult`. Rejected: keeping both "direct observation" and "after-the-fact
+attribution" conclusions — the public surface no longer has readers of observation events, and
+two conclusions would only give the same task different answers at two read points.
 
-批次冻结的逐元素归因由 [落定归因契约](batch-settle-attribution.md) 持有；报告只统计冻结数据，
-不在读取时重新读取 token。共享 token 不妨碍逐元素落定分类。
+Per-element attribution of batch freezes is owned by the
+[settle attribution contract](batch-settle-attribution.md); reports only count frozen data and
+do not re-read tokens at read time. A shared token does not prevent per-element settle
+classification.
 
-**取消信号型失败的改道**：成员/元素的 future 可能不是被 cancel 而是以异常完成——协作检查点
-（`Checkpoints`）在 token 已取消后抛 `CancellationException`，或工作线程被中断后用户代码抛出
-`InterruptedException`，这类 `setException` 会竞赢级联 `cancel(true)`，使 future 呈现为失败而
-非取消。此时异常本身只是"任务观察到了取消"的信号，不记 `USER_FAILURE`：只要异常是
-`CancellationException`/`InterruptedException`（`TokenOutcomes.causedByCancellation`），就改道
-共享映射按 token 归因（`whenUncommitted` 兜底为 `USER_FAILURE`，因此 token 未提交任何取消时，
-用户代码自发抛出的取消异常仍是 `USER_FAILURE`）。`TaskGroup.memberCompleted` 与
-批次落定分类都执行这一改道。
+**Rerouting cancellation-signal failures**: a member's/element's future may complete not by
+cancel but by exception — a cooperative checkpoint (`Checkpoints`) throws
+`CancellationException` after the token is cancelled, or user code throws
+`InterruptedException` after the worker thread is interrupted; such a `setException` can win the
+race against the cascading `cancel(true)`, making the future appear failed rather than
+cancelled. In that case the exception itself is only the signal that "the task observed the
+cancellation" and is not recorded `USER_FAILURE`: as long as the exception is a
+`CancellationException`/`InterruptedException` (`TokenOutcomes.causedByCancellation`), it is
+rerouted to the shared mapping and attributed by token (with `whenUncommitted` falling back to
+`USER_FAILURE`, so a cancellation exception user code throws spontaneously with nothing
+committed on the token is still `USER_FAILURE`). `TaskGroup.memberCompleted` and the batch
+settle classification both perform this rerouting.
 
-### 8.5 close 与执行退出
+### 8.5 close and execution exit
 
-`close()`（包私有；`runAll()` 的同步清理由 `finish()` 复用同一预算规则）采用
-「取消 + 独立 close grace 等待」语义：
+`close()` (package-private; `runAll()`'s synchronous cleanup reuses the same budget rule through
+`finish()`) adopts "cancel + independent close-grace wait" semantics:
 
-- 先校验自等待条件：当前线程正在执行本组成员（含 terminal combine）任务代码——含当前线程上
-  尚未返回的嵌套 inline 调用——时抛 `IllegalStateException`；守卫沿 `structuralParent` 链判定，
-  不只看最内层 current context；任务代码需要终止自身所在组时应抛出业务异常走 fail-fast
-  （公开面没有当前组的直消入口）；
-- 存在未完成成员：等同取消（幂等）组 token；取消处理同步竞争任务入口，尚未取得
-  执行资格的任务转为 `SKIPPED`，已进入 `RUNNING` 的任务只收到中断请求；
-- 取消传播返回后，以 **close grace** 为预算等待全部成员（含 terminal combine）执行退出。
-  close grace 是清理预算：显式配置时（`GroupStart.closeGrace(Duration)`）从 `close()`
-  调用时起算，与执行 deadline 无关；未配置时派生自关闭时剩余的有效 deadline——超时引发的
-  关闭在预算耗尽后直接返回，忽略中断的成员最多把 `close()` 挂到 deadline。grace 为零时
-  `close()` 只取消不等待；
-- grace 耗尽而任务代码仍在运行：以 WARN 级别记录未退出任务的名称——泄漏必须是可见数据，不是
-  沉默；这是正常返回，不是错误；
-- 等待被中断：取消效果保留，恢复调用线程中断标志并返回；进入方法时已中断则先完成取消、
-  跳过等待、保留标志；`close()` 不新增 checked exception；
-- 空组或所有冻结成员已终态：取消无副作用，等待立即返回；
-- 已 `CLOSED`：幂等；future 层的 `CLOSED` 与执行退出相互独立，future 完成不导致等待信号
-  或正在运行的任务状态提前丢失；
-- 不关闭 `ParRuntime` 或任何注册 executor。
+- self-wait conditions are validated first: when the current thread is executing task code of a
+  member of this group (including the terminal combine) — including nested inline calls on the
+  current thread that have not yet returned — throw `IllegalStateException`; the guard follows
+  the `structuralParent` chain and does not only look at the innermost current context; task
+  code that needs to terminate its own group should throw a business exception and go through
+  fail-fast (the public surface has no direct-cancel entry for the current group);
+- with unfinished members present: equivalent to cancelling (idempotently) the group token;
+  cancellation handling synchronously races task admission — tasks that have not yet acquired
+  execution eligibility turn `SKIPPED`, and tasks already `RUNNING` only receive an interrupt
+  request;
+- after cancellation propagation returns, wait for all members (including the terminal combine)
+  to exit execution within the **close grace** budget. Close grace is a cleanup budget: when
+  configured explicitly (`GroupStart.closeGrace(Duration)`) it counts from the `close()` call
+  and is unrelated to the execution deadline; when unconfigured it is derived from the effective
+  deadline remaining at close time — a timeout-triggered close returns directly once the budget
+  is exhausted, so members ignoring interruption hold `close()` at most until the deadline.
+  With zero grace, `close()` only cancels and does not wait;
+- grace exhausted while task code is still running: record the names of the unexited tasks at
+  WARN level — a leak must be visible data, not silence; this is a normal return, not an error;
+- wait interrupted: the cancellation effect is kept, the calling thread's interrupt flag is
+  restored, and the method returns; if already interrupted on entry, the cancellation is
+  completed first, the wait is skipped, and the flag is preserved; `close()` declares no new
+  checked exception;
+- empty group, or every frozen member already terminal: cancellation has no side effects and
+  the wait returns immediately;
+- already `CLOSED`: idempotent; the future layer's `CLOSED` and execution exit are independent —
+  future completion must not lose wait signals or the state of still-running tasks early;
+- does not close the `ParRuntime` or any registered executor.
 
-Batch 侧对称：`Par.map` 同步返回前等待全部元素结果与提交循环落定——返回路径自身不发起
-取消，批次的执行取消来源同样是 deadline、fail-fast、祖先取消与 `BatchOptions.cancelOn` 请求来源，
-没有独立的 cancel-only 运行句柄——再以批次的 close grace（`BatchOptions.closeGrace(Duration)`，未配置时同样派生自剩余
-deadline）等待执行退出。全部元素 future 在返回前已终态（含取消终态），因此 `map` 返回时
-`results()` 中每个容器必为终态——即使任务代码仍在展开。
+The batch side is symmetric: before `Par.map` returns synchronously it waits for every element
+result and the submission loop to settle — the return path itself initiates no cancellation; a
+batch's execution-cancellation sources are likewise deadlines, fail-fast, ancestor cancellation,
+and the `BatchOptions.cancelOn` request source, with no independent cancel-only run handle —
+then waits for execution exit within the batch's close grace
+(`BatchOptions.closeGrace(Duration)`, likewise derived from the remaining deadline when
+unconfigured). Every element future is terminal (including cancelled terminal states) before
+return, so when `map` returns, every container in `results()` is necessarily terminal — even if
+task code is still unwinding.
 
-执行退出由每个任务在提交前预登记的原子状态机跟踪
-（`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`）：`RUNNING` 只表示取得执行资格；正常
-路径在用户任务代码 finally 完成后、listener 调用前发布 `EXITED`，外层 future finally 兜底；取消
-获胜、提交拒绝、占位取消、窗口放弃和 combine 不执行都接入真实 prepared task 的状态，各恰好释放
-一次名额。等待信号是 `AtomicInteger` 计数加 `SettableFuture`（最后一个释放名额的线程直接完成
-它），而不是阻塞原语：定时等待因此能区分「全部退出」与「预算耗尽」，信号也能被
-`ParRuntime.awaitQuiescence` 按提交聚合——quiescence 覆盖执行退出，而不只是 future 终态（运行
-中被取消的任务会立即完成 future，但用户代码可能仍在执行）。listener、TTL 恢复和用户另行启动的
-线程不属于执行退出范围。
+Execution exit is tracked by an atomic state machine each task pre-registers before submission
+(`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`): `RUNNING` only means execution
+eligibility was acquired; on the normal path `EXITED` is published after the user task code's
+finally completes and before listeners are invoked, with the outer future's finally as backstop;
+cancellation winning, submission rejection, placeholder cancellation, window abandonment, and
+combine non-execution all feed into the real prepared task's state, each releasing its slot
+exactly once. The wait signal is an `AtomicInteger` count plus a `SettableFuture` (the thread
+releasing the last slot completes it directly), not a blocking primitive: a timed wait can
+therefore distinguish "all exited" from "budget exhausted", and the signal can also be
+aggregated by submission for `ParRuntime.awaitQuiescence` — quiescence covers execution exit,
+not just future terminality (a task cancelled while running completes its future immediately,
+but user code may still be executing). Listeners, TTL restoration, and threads the user starts
+separately are outside the scope of execution exit.
 
-执行退出的显式等待是包私有 `awaitExecutionExit(Duration)`（公开结果没有 await 入口，
-公开侧由 `executionExitConfirmed()`/`unexitedExecutions()` 表达返回时点的状态）：返回 `true`
-表示全部直接执行已退出或被原子确定为永远不会进入，并建立任务代码写入对等待线程的
-happens-before，结果单调不失效；`false` 只表示预算耗尽，其中可能含尚未启动的任务。校验顺序为
-参数（null → `NullPointerException`，负值 → `IllegalArgumentException`）与自等待
-（`IllegalStateException`）先于中断检查（抛 `InterruptedException` 并清除标志），再检查是否
-完成；零值只做单次检查，超大 Duration 饱和处理。清理正常返回不构成「资源可释放」承诺：
-释放任务代码使用的资源前须以执行退出确认（公开侧即 `executionExitConfirmed()`；它只覆盖直接
-任务代码，嵌套调用须分别确认，见同步出口契约 §1）。
+The explicit wait for execution exit is the package-private `awaitExecutionExit(Duration)`
+(public results have no await entry; the public side expresses the at-return state through
+`executionExitConfirmed()`/`unexitedExecutions()`): returning `true` means every direct
+execution has exited or has been atomically determined to never enter, and establishes
+happens-before from task-code writes to the waiting thread, with the result monotonic and
+non-expiring; `false` only means the budget was exhausted, and may include tasks not yet
+started. The validation order is arguments (null → `NullPointerException`, negative →
+`IllegalArgumentException`) and self-wait (`IllegalStateException`) before the interruption
+check (throws `InterruptedException` with the flag cleared), then the completion check; a zero
+value performs a single check, and oversized Durations saturate. A normal cleanup return is not
+a "resources may be released" promise: confirm execution exit before releasing resources used
+by task code (on the public side, `executionExitConfirmed()`; it covers only direct task code —
+nested calls must be confirmed separately, see the synchronous exit contract §1).

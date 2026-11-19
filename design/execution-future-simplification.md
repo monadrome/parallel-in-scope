@@ -1,16 +1,18 @@
-# Execution future 简化与阶段查询
+# Execution Future Simplification and Phase Queries
 
-## 决策
+## Decision
 
-删除主线的自动 purger、公开 purge 配置和通用 phase 通知，保留包私有
-`ExecutionPhaseHintFuture`、五态 `ExecutionPhase` 及非阻塞 `phase()` 查询。
+Remove the automatic purger, the public purge configuration, and the general phase
+notifications from the main line; keep the package-private `ExecutionPhaseHintFuture`, the
+five-state `ExecutionPhase`, and the non-blocking `phase()` query.
 
-原实现、配置、测试和文档保存在 `dev/experimental` 分支。
-主线不再将执行前取消信号传播到 executor/runtime 的维护服务。
+The original implementation, configuration, tests, and documentation are kept on the
+`dev/experimental` branch. The main line no longer propagates pre-execution cancellation
+signals into the executor's/runtime's maintenance services.
 
-## 用户代码与迁移
+## User code and migration
 
-改前，用户可以启用取消驱动的自动队列维护：
+Before, a user could enable cancellation-driven automatic queue maintenance:
 
 ```java
 ParRuntime runtime = ParRuntime.builder()
@@ -19,114 +21,162 @@ ParRuntime runtime = ParRuntime.builder()
         .build();
 ```
 
-改后，runtime 只管理结构化执行；需要的物理队列清理由 executor 所有者负责：
+After, the runtime only manages structured execution; any needed physical-queue cleanup is the
+executor owner's responsibility:
 
 ```java
 ParRuntime runtime = ParRuntime.builder()
         .register(ParId.of("io"), ioPool)
         .build();
-ioPool.purge(); // 应用自己的维护边界
+ioPool.purge(); // the application's own maintenance boundary
 ```
 
-调用一次 JDK purge 不等价于原自动维护；持续流量需要应用自行管理维护周期和关闭。
-具体删除入口见 [v0.3 迁移指南](../docs/en/migration-v0.3.md#executor-queue-cleanup)。
+One JDK purge call is not equivalent to the former automatic maintenance; sustained traffic
+requires the application to manage the maintenance cycle and shutdown itself. See the
+[v0.3 migration guide](../docs/en/migration-v0.3.md#executor-queue-cleanup) for the concrete
+removed entries.
 
-移除的维护失败面是 phase 通知排序、observer 捕获释放、取消估算与维护服务关闭的协调。
-这不是宣称发现了这些路径的新缺陷。取消、中断投递与执行退出语义不变；取消项可能
-留在物理队列中并占用有界容量，导致后续拒绝。未启用自动 purge 的应用此前就有此行为。
+The removed maintenance failure surface is the coordination of phase-notification ordering,
+capture release for observers, cancellation estimation, and maintenance-service shutdown. This
+is not a claim that new defects were found in those paths. Cancellation, interrupt delivery,
+and execution-exit semantics are unchanged; cancelled items may remain in the physical queue
+and occupy bounded capacity, causing later rejections. Applications that never enabled
+automatic purge already had this behavior.
 
-## 阶段查询契约
+## The phase query contract
 
-`ExecutionPhase` 是执行权与退出进度的提示，独立于 future 的完成状态。
-它不证明物理排队、实际用户执行入口或线程已经交回 executor。
+`ExecutionPhase` is a hint about execution rights and exit progress, independent of the
+future's completion state. It does not prove physical queueing, actual entry into user
+execution, or that the thread has been handed back to the executor.
 
-| 阶段 | 含义 |
+| Phase | Meaning |
 | --- | --- |
-| SUBMITTED | 执行权尚未被 run、取消清理或提交失败认领；准备完毕不等于已入队 |
-| RUNNING | run 取得执行权，尚未完成退出清理；不保证已进入用户执行 |
-| CANCELLED_BEFORE_RUN | 取消清理抢到执行权，后续 run 不会进入执行；保留此分类 |
-| CANCEL_REQUESTED_RUNNING | run 已取得执行权且 future 已被取消；不证明执行已退出 |
-| TERMINAL | run 的退出清理结束（含异常退出），或提交失败取得执行权；后者可以先于 future 结算 |
+| SUBMITTED | Execution rights not yet claimed by run, cancellation cleanup, or submission failure; fully prepared does not mean enqueued |
+| RUNNING | run acquired execution rights and has not finished exit cleanup; does not guarantee user execution was entered |
+| CANCELLED_BEFORE_RUN | Cancellation cleanup claimed execution rights; a later run will not enter execution; keep this classification |
+| CANCEL_REQUESTED_RUNNING | run has acquired execution rights and the future has been cancelled; does not prove the execution has exited |
+| TERMINAL | run's exit cleanup finished (including exceptional exit), or a submission failure acquired execution rights; the latter can precede the future's settlement |
 
-- `phase()` MUST 非阻塞，MUST NOT 读取或清除调用线程的中断标志，MUST NOT 依赖 callback。
-- 运行中 future 已取消而退出清理尚未完成时，查询 MUST 能报告
-  `CANCEL_REQUESTED_RUNNING`，即使取消线程阻塞于中断投递，或投递抛异常使 afterDone 未运行。
-- 退出清理发布 `TERMINAL` 后，迟到的取消清理 MUST NOT 将状态回退为
-  `CANCEL_REQUESTED_RUNNING`。
-- 查询是并发快照，不是完整阶段历史；调用方可能错过中间阶段。并发中的 phase/future
-  读取不是跨字段事务，MUST NOT 作为“取消时一定在运行”或“线程一定已交接”的证明。
-- `cancel()` 的 boolean 仍只表示该调用是否成功取消 future；MUST NOT 用它判定运行前取消。
-- 库 MUST NOT 因任务取消自动 purge 用户 executor；取消 MUST NOT 被解释为物理队列移除。
+- `phase()` MUST be non-blocking, MUST NOT read or clear the calling thread's interrupt flag,
+  and MUST NOT depend on callbacks.
+- While a running future is cancelled but exit cleanup has not completed, a query MUST be able
+  to report `CANCEL_REQUESTED_RUNNING`, even if the cancelling thread is blocked in interrupt
+  delivery, or the delivery threw and afterDone never ran.
+- After exit cleanup publishes `TERMINAL`, a late cancellation cleanup MUST NOT regress the
+  state to `CANCEL_REQUESTED_RUNNING`.
+- A query is a concurrent snapshot, not a complete phase history; callers may miss intermediate
+  phases. Concurrent phase/future reads are not a cross-field transaction and MUST NOT be used
+  as proof of "certainly running at cancellation" or "the thread was certainly handed over".
+- `cancel()`'s boolean still only means whether that call successfully cancelled the future;
+  it MUST NOT be used to determine before-run cancellation.
+- The library MUST NOT automatically purge the user's executor because a task was cancelled;
+  cancellation MUST NOT be interpreted as physical queue removal.
 
-执行退出和中断投递的权威要求仍分别在提交/生命周期契约与
-[中断契约「取消中断投递不越界」](interruption-contract.md#24-取消中断投递不越界)，此处不复制其协议。
+The authoritative requirements for execution exit and interrupt delivery remain in the
+submission/lifecycle contracts and the
+[interruption contract, "cancel-interrupt delivery stays within bounds"](interruption-contract.md#24-cancel-interrupt-delivery-stays-within-bounds)
+respectively; their protocols are not duplicated here.
 
-## 简化机制与取舍
+## The simplified mechanism and its trade-offs
 
-保留现有 AtomicReference 的执行权仲裁。run、运行前取消和 submission failure 仍从
-SUBMITTED 竞争一次认领。取消清理使用 CAS 推进运行中状态，run 退出发布终态，
-因此删除通知顺序用的两处同步区后不会由迟到取消覆盖终态。
+Keep the existing AtomicReference arbitration of execution rights. run, before-run
+cancellation, and submission failure still race once from SUBMITTED for the claim.
+Cancellation cleanup uses CAS to advance the running state, and run publishes the terminal
+state on exit, so after deleting the two synchronized regions used for notification ordering,
+a late cancellation cannot overwrite the terminal state.
 
-查询读取 phase；RUNNING 同时观察到 future 已取消时返回运行中取消提示。这使取消
-已提交但 interruptTask 尚未返回的时间窗也可查询，不增加通知、轮询或另一份取消状态。
+Queries read the phase; when RUNNING coincides with observing the future cancelled, they
+return the running-cancelled hint. This makes the window — cancellation committed but
+interruptTask not yet returned — queryable, without adding notifications, polling, or a second
+copy of cancellation state.
 
-保留 AbstractFuture 负责结果与 listener；保留 TaskExecutionState/TaskObservation 的执行
-完成屏障；保留 runner 投递握手、inline 隔离、两轮提交失败归因和捕获释放。
+Keep AbstractFuture responsible for results and listeners; keep the
+TaskExecutionState/TaskObservation execution-completion barrier; keep the runner delivery
+handshake, inline isolation, the two-round submission-failure attribution, and capture
+release.
 
-不采用原草案的一位 claimed：它无法提供用户要求的阶段查询。也不在本次替换为
-FutureTask + ExecutionList：该方向能复用标准执行/中断机制，但本次没有验证其提交失败
-先认领后结算、inline 隔离、执行屏障和取消后异常诊断等适配，不能视为已证明的替代。
-现有中断握手已有独立证明与回归；删除通知不改变该协议。
+The original draft's single claimed bit is not adopted: it cannot provide the phase queries
+the user required. Nor is this change a replacement with FutureTask + ExecutionList: that
+direction would reuse standard execution/interruption mechanisms, but this change did not
+verify its adaptation of submission-failure claim-before-settle, inline isolation, the
+execution barrier, or post-cancellation exception diagnostics, so it cannot be regarded as a
+proven alternative. The existing interrupt handshake already has independent proofs and
+regressions; removing notifications does not change that protocol.
 
-A/B/C 取舍中，专用取消 callback 可以保留自动 purge，但会留下估算和维护生命周期；
-周期扫描可以删除取消估算，但引入周期成本和清理延迟。用户选择 A 并明确保留查询，
-因此保留阶段状态、删除通知和维护依赖，不增加新的清理入口。
+Of the A/B/C trade-offs, a dedicated cancellation callback could keep automatic purge but
+would leave estimation and maintenance lifecycles; periodic scanning could remove cancellation
+estimation but introduces periodic cost and cleanup latency. The user chose A and explicitly
+kept the queries, so this keeps the phase state, removes the notification and maintenance
+dependencies, and adds no new cleanup entry.
 
-根 AGENTS.md 对低层并发机制的确认要求已由本次明确实施请求满足：删除的 monitor
-此前用于通知排序，保留的投递协议不变；CAS 继续负责原有执行权仲裁。
+The root AGENTS.md confirmation requirement for low-level concurrency mechanisms is satisfied
+by this explicit implementation request: the removed monitor was previously used for
+notification ordering, the retained delivery protocol is unchanged, and CAS continues to
+arbitrate execution rights as before.
 
-## 验证与对抗性评审
+## Verification and adversarial review
 
-验证范围包括取消时间 × mayInterrupt、延迟/抛异常中断投递、自取消、重复 run、
-提交失败认领与结算之间取消、捕获释放、执行完成、inline 隔离、公开 API 清单和
-应用手动 purge。原 phase callback 阻塞测试改为在测试中暂停 TaskExecutionState 的认领，
-不增加生产回调。
+The verification scope includes cancellation timing × mayInterrupt, delayed/throwing interrupt
+delivery, self-cancellation, duplicate run, cancellation between submission-failure claim and
+settlement, capture release, execution completion, inline isolation, the public API inventory,
+and application manual purge. The original phase-callback blocking test was changed to pause
+TaskExecutionState's claim inside the test, adding no production callback.
 
-Spotless 已应用。修改前相关测试通过；实现后第一轮 89 个相关测试通过。
-独立验证工作树仅应用本次暂存改动，排除了同期滑动窗口优化及其测试；JDK 25 离线
-`mvn test` 全套 740 个测试通过，Java 8 production / Java 11 test release 均由构建检查。
+Spotless applied. Related tests passed before the change; the first round after implementation
+passed 89 related tests. The independent verification worktree applied only this change's
+staged diff, excluding the concurrent sliding-window optimization and its tests; the full
+offline `mvn test` on JDK 25 passed all 740 tests, with Java 8 production / Java 11 test
+releases both checked by the build.
 
-### 独立评审与处置
+### Independent review and dispositions
 
-GPT-6 Astra 在独立上下文中以 15 分钟预算只读评审 interleavings、契约逐项映射、
-listener/执行清理、Java 8、泛型、API 迁移和测试质量；第二轮只读复查修复和新增测试。
-审计与验证工作树保留在 `/tmp/parallel-simplification-review.53RBoO/`。
+GPT-6 Astra reviewed read-only in an independent context with a 15-minute budget, covering
+interleavings, contract item-by-item mapping, listener/execution cleanup, Java 8, generics,
+API migration, and test quality; a second read-only round rechecked the fixes and the new
+tests. The audit and verification worktree is kept at
+`/tmp/parallel-simplification-review.53RBoO/`.
 
-- 保留并修复：把 TERMINAL 放在入口标志恢复之后，若自定义 Thread.interrupt 在恢复时
-  抛异常，完成任务会停在 RUNNING。回归测试先红（RUNNING 而非 TERMINAL），再把发布
-  放进恢复路径的 finally 后转绿。修复保证异常恢复路径也报告终态，成功结果和投递握手不变。
-- 保留测试建议：100 次调度竞态不能保证命中迟到 afterDone。增加测试侧 spy gate，
-  在 runner 发布 TERMINAL 后才放行真实取消清理，检查状态不回退。只暂停真实方法，
-  不伪造 Future 结果或取消行为；没有生产 hook。第二轮评审确认该时序可控。
-- 保留文档建议：清除 demo 当前架构清单和 executor 测试注释里的 purge 引用；
-  带日期的扩展机制历史与 pinned BACKLOG 不改写。
-- 修正文案：旧实现使用一个 monitor 的两处同步区，不是两个 monitor。
+- Kept and fixed: publishing TERMINAL after the entry-flag restore — if a custom
+  Thread.interrupt throws during the restore, a completed task would stay RUNNING. The
+  regression test first went red (RUNNING instead of TERMINAL), then turned green after the
+  publish moved into the restore path's finally. The fix guarantees the exceptional restore
+  path also reports the terminal state; the success result and delivery handshake are
+  unchanged.
+- Kept test suggestion: 100 scheduling races cannot guarantee hitting a late afterDone. Added
+  a test-side spy gate that releases the real cancellation cleanup only after the runner
+  publishes TERMINAL, and checks the state does not regress. Only the real method is paused;
+  no Future results or cancellation behavior is faked; no production hook. The second review
+  round confirmed the timing is controllable.
+- Kept documentation suggestion: purge references removed from the demo's current architecture
+  inventory and executor test comments; dated extension-mechanism history and the pinned
+  BACKLOG are not rewritten.
+- Wording corrected: the old implementation used two synchronized regions on one monitor, not
+  two monitors.
 
-评审逐项确认阶段查询契约、提交 §7.3、扩展 L1–L8 与中断契约投递条款（现「取消中断投递不越界」一节）对应实现；
-修复后无阻塞性发现，没有拒绝的发现。
+The review confirmed item by item that the phase query contract, submission §7.3, extension
+L1–L8, and the interruption contract's delivery clauses (now the "cancel-interrupt delivery
+stays within bounds" section) correspond to the implementation; after the fixes there were no
+blocking findings and no rejected findings.
 
-### 反向验证
+### Reverse verification
 
-暂时去掉 phase 查询的取消补充逻辑、仅返回存储状态，延迟中断投递和投递抛异常两个
-测试都红：期望 CANCEL_REQUESTED_RUNNING，实际 RUNNING。补充逻辑已恢复，全套验证
-在恢复后的代码上通过。恢复异常回归在修复前红、修复后绿；其余新增用例是行为兼容
-与时序覆盖，不声称旧实现必然失败。
+Temporarily removing the phase query's cancellation-supplement logic so it returns only the
+stored state turned both the delayed-interrupt-delivery and delivery-throws tests red:
+expected CANCEL_REQUESTED_RUNNING, actual RUNNING. The supplement logic has been restored, and
+the full verification passed on the restored code. The restore-exception regression was red
+before the fix and green after; the remaining new cases cover behavioral compatibility and
+timing, and do not claim the old implementation necessarily fails.
 
-独立 demo 的 `mvn -o test` 因现有 0.3.0-SNAPSHOT 依赖缺少 ImmediateResult 等源码所需
-接口而编译失败；本次在 demo 只改架构文档，没有改变其源码、pom 或依赖，也未安装依赖。
-这是独立模块的既有版本不匹配，主库验证不受阻。
+The standalone demo's `mvn -o test` fails to compile because the existing 0.3.0-SNAPSHOT
+dependency lacks interfaces its sources need, such as ImmediateResult; this change only
+touches the demo's architecture documentation and did not change its sources, pom, or
+dependencies, nor were dependencies installed. This is a pre-existing version mismatch of a
+standalone module and does not block the main library's verification.
 
-限定 PIT 已按 `ExecutionPhaseHintFuture` 和相关根包测试启动两次；覆盖阶段完成后，
-变异 minion 在 `TaskFutureTest`/滑动窗口的并发等待中分别因超时退出，未生成可分类的
-`mutations.xml`。这是现有长等待测试与 PIT 变异超时的工具限制；740 个正常测试、
-定向回归和两轮独立只读评审已通过，不能把该 PIT 尝试报告为绿色 mutation score。
+Scoped PIT was started twice against `ExecutionPhaseHintFuture` and related root-package
+tests; after the coverage phase, the mutation minions exited on timeout in
+`TaskFutureTest`/sliding-window concurrency waits respectively, producing no classifiable
+`mutations.xml`. This is a tooling limitation of existing long-wait tests interacting with
+PIT's mutation timeout; the 740 normal tests, targeted regressions, and two independent
+read-only review rounds have passed, and this PIT attempt must not be reported as a green
+mutation score.

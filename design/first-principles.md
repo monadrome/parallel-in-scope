@@ -1,72 +1,92 @@
-# 第一性原理
+# First Principles
 
-> 本文是项目的公理层文档：从最少的出发点推导出全部设计决策的判据。
-> 评估新需求、新 API、新机制时先对照本文；`design/` 契约系列是这些原理的具体化，
-> [philosophy.md](../docs/zh/design/philosophy.md) 是它们的叙事复盘。
+> This document is the project's axiom layer: the criteria from which every design decision is
+> derived from the fewest possible starting points. Consult it first when evaluating any new
+> requirement, API, or mechanism; the `design/` contract series concretizes these principles,
+> and [philosophy.md](../docs/zh/design/philosophy.md) is their narrative recap.
 
-## 一、出发点（公理）
+## 1. Starting points (axioms)
 
-1. **结构化并发是本体。** 并发工作的生命周期绑定在显式作用域上：作用域关闭时其内
-   工作结果必然终态，库恢复上下文并尝试有界清理；忽略中断的执行可能仍未退出，
-   结果须显式报告未确认退出的直接任务。终态不等于线程或资源已经释放。
-2. **用户出错的方式是"忘记"。** 忘记等待、忘记取消、忘记恢复 ThreadLocal、忘记处理
-   失败、忘记关闭。库的价值在于把"忘记"变成不可能（结构性保证）或显眼（显式声明）。
-3. **安全性优先于表达力。** 宁可不提供某个能力，也不提供容易被误用的能力；每个新
-   概念必须用"它消除了哪类错误"证明自己的存在。
-4. **贴近 JDK 习语。** 用户的心智模型来自 `ExecutorService`/`ListenableFuture`/
-   `Stream`；库只补齐它们缺失的结构化属性，不另造平行宇宙。
+1. **Structured concurrency is the ontology.** The lifecycle of concurrent work is bound to
+   explicit scopes: when a scope closes, the results of its work are necessarily terminal, the
+   library restores context and attempts bounded cleanup; executions ignoring interruption may
+   still not have exited, and results must explicitly report direct tasks whose exit is
+   unconfirmed. Terminality does not mean threads or resources have been released.
+2. **The user's failure mode is forgetting.** Forgetting to wait, to cancel, to restore a
+   ThreadLocal, to handle failure, to close. The library's value is making "forgetting"
+   impossible (structural guarantees) or conspicuous (explicit declarations).
+3. **Safety beats expressiveness.** Better not to offer a capability than to offer one that is
+   easy to misuse; every new concept must justify its existence with "which class of error it
+   eliminates".
+4. **Stay close to JDK idioms.** The user's mental model comes from
+   `ExecutorService`/`ListenableFuture`/`Stream`; the library only supplies the structured
+   properties they lack, not a parallel universe.
 
-## 二、推导出的核心决策
+## 2. Derived core decisions
 
-### 生命周期
+### Lifecycle
 
-- 单一 submit 边界：任务集合一次冻结、统一 admission，不存在部分注册、部分提交。
-- 作用域可关闭（`Scope` 后缀），数据只是载体（`Context` 后缀）。
-- 资源所有权唯一：`ParRuntime` 拥有 scheduler 与内部服务，业务 executor 所有权归用户。
+- A single submit boundary: a task set is frozen once and admitted uniformly — there is no
+  partial registration or partial submission.
+- Scopes are closeable (`Scope` suffix); data is only a carrier (`Context` suffix).
+- Resource ownership is unique: `ParRuntime` owns its schedulers and internal services;
+  business executors are owned by the user.
 
-### 取消与 deadline
+### Cancellation and deadlines
 
-- 取消是自顶向下的 token 传播树，不是标志位；归因在收敛时读 token 状态，不靠
-  `isCancelled()` 事后猜测。
-- deadline 是端到端预算：`min(自己请求, 父级上限)`，任何嵌套层都不重新获得整段预算。
-- fail-fast 默认开启：一个失败即取消兄弟任务——部分成功的代价通常高于整体重来。
+- Cancellation is a top-down token propagation tree, not a flag; attribution reads token state
+  at convergence rather than guessing from `isCancelled()` after the fact.
+- A deadline is an end-to-end budget: `min(own request, parent cap)`; no nesting level ever
+  regains the full budget.
+- Fail-fast is on by default: one failure cancels siblings — partial success usually costs
+  more than starting over.
 
-### 上下文
+### Context
 
-- 所有线程绑定（TTL、`TaskExecutionContext`、`SubmissionScope`）栈式 install/restore，
-  覆盖正常、异常、取消、拒绝、inline 全部路径。
-- 不引入隐式状态：没有 current-group ThreadLocal，不承诺传播普通 ThreadLocal/MDC。
+- All thread bindings (TTL, `TaskExecutionContext`, `SubmissionScope`) are stack-wise
+  install/restore, covering normal, exceptional, cancelled, rejected, and inline paths.
+- No implicit state: no current-group ThreadLocal, no promise to propagate ordinary
+  ThreadLocal/MDC.
 
-### 结果与观测
+### Results and observation
 
-- 完成即不可变快照；outcome 是数据，不用异常编码组合结果。
-- 观测只记录真实结构化关系：不伪造依赖边、不伪造监听器事件。
-- listener 只调用一次、异常隔离、不在锁内执行。
+- Completion is an immutable snapshot; outcomes are data, and composite results are not encoded
+  as exceptions.
+- Observation records only real structural relationships: no fabricated dependency edges, no
+  fabricated listener events.
+- Listeners are invoked only once, exception-isolated, and never run inside locks.
 
-### 机制复用
+### Mechanism reuse
 
-- 单一执行内核（`TaskSubmissions`/`ScopedCallable`）：新能力通过参数化复用，不复制
-  取消/phase/TTL 实现。
-- 抽象边界清晰：Batch = 同构映射，Group = 异构协调范围。形状不匹配的能力另立概念，
-  不撑大现有概念。
+- A single execution kernel (`TaskSubmissions`/`ScopedCallable`): new capabilities are
+  parameterized reuse, never copies of the cancellation/phase/TTL implementations.
+- Clear abstraction boundaries: Batch = homogeneous mapping, Group = heterogeneous coordination
+  scope. Capabilities that don't fit the shape get their own concept instead of inflating an
+  existing one.
 
-## 三、便利性的来源
+## 3. Where convenience comes from
 
-- 类型安全下沉到显式类型载体（group 成员用 `TaskKey<T>` 绑定声明与结果读取，成员快照由
-  `GroupValues` 按 key 寻址），避免重复指定类型与名称重构风险，也避免成员数量改变递归泛型。
-- 必须显式的选择逼用户思考（timeout 二选一，无默认超时）。
-- executor 注册一次，按名引用；用户保留其生命周期所有权，在 runtime 排空后关闭业务池。
+- Type safety is sunk into explicit type carriers (group members bind declaration and result
+  reads with `TaskKey<T>`; member snapshots are addressed by key through `GroupValues`),
+  avoiding repeated type specification and name-refactoring risk, and avoiding recursive
+  generics as member count changes.
+- Forced explicit choices make users think (timeout is one-of-two, no default timeout).
+- Executors are registered once and referenced by name; users keep their lifecycle ownership
+  and shut business pools down after the runtime drains.
 
-## 四、评估新需求的判据
+## 4. Criteria for evaluating new requirements
 
-按序自问，任一条答案为"否"就需要重新设计或拒绝：
+Ask in order; any "no" means redesign or reject:
 
-1. 它消除了用户哪一类"忘记"？（存在的理由）
-2. 能否用现有机制参数化表达，而不是新增概念？（减法）
-3. 取消、deadline、上下文恢复是否自动继承结构化语义？（安全）
-4. 是否引入隐式状态或第二套执行管道？（一致）
-5. 失败形状能否用现有 outcome 词汇表达？（归因）
-6. 它会撑破抽象边界吗？（Batch / Group / 未来 DAG 的分工）
+1. Which class of user "forgetting" does it eliminate? (the reason to exist)
+2. Can it be expressed by parameterizing existing mechanisms instead of adding a concept?
+   (subtraction)
+3. Do cancellation, deadline, and context restoration automatically inherit the structured
+   semantics? (safety)
+4. Does it introduce implicit state or a second execution pipeline? (consistency)
+5. Can its failure shapes be expressed in the existing outcome vocabulary? (attribution)
+6. Would it burst the abstraction boundaries? (the Batch / Group / future DAG division)
 
-否决记录见 [idea-graveyard](../docs/zh/design/idea-graveyard.md)；历史决策快照见
-[adr/](../adr/)（现行契约以 `design/` 为准）。
+Rejected directions are recorded in [idea-graveyard](../docs/zh/design/idea-graveyard.md);
+historical decision snapshots are in [adr/](../adr/) (current behavior is governed by
+`design/`).

@@ -1,284 +1,369 @@
-# Issue 自动化：triage 与无人值守 agent
+# Issue Automation: Triage and the Unattended Agent
 
-可选机制：给 issue 分诊，把适合的任务交给本机 agent 完成并合入当前 dev 线（`dev/vX.Y.Z`）。
-何时、是否发布到 `main` 始终由维护者决定，本机制不碰 `main`。不运行 runner、不用它的标签，
-仓库流程与原来完全一样。实现在 `scripts/issue_agent/`，入口 `scripts/issue-agent.py`
-（`--help` 列出命令与本地配置方式）。
+An optional mechanism: triage issues, hand suitable tasks to a local agent for completion, and
+merge into the current dev line (`dev/vX.Y.Z`). When and whether to release to `main` is always
+the maintainer's decision; this mechanism never touches `main`. Without running the runner or
+using its labels, the repository process is exactly as before. The implementation is in
+`scripts/issue_agent/`, with `scripts/issue-agent.py` as the entry (`--help` lists commands and
+local configuration).
 
-## 1. 出发点
+## 1. Motivation
 
-瓶颈不在生成代码，而在验证与合入：无人值守的产出只有在没人逐行看也能被信任时才有价值。
-所以本机制只自动化两件事：分诊；把 [AGENTS.md](../AGENTS.md) 已有的验证规程（测试、格式、
-PIT、独立复审）在无人值守下强制执行。它不降低任何既有门槛。
+The bottleneck is not generating code but verifying and merging: unattended output is valuable
+only when it can be trusted without line-by-line human reading. So this mechanism automates
+exactly two things: triage, and enforcing the verification regimen [AGENTS.md](../AGENTS.md)
+already has (tests, formatting, PIT, independent re-review) without a human in the loop. It
+lowers no existing gate.
 
-- MUST NOT 把改动合入 dev 线以外的分支；目标分支取远端最新的 `dev/vX.Y.Z`。
-- MUST NOT 仅凭 triage 判断关闭 issue；只有自己的修复已合入时才关闭，评论 `Landed in <sha>`，
-  与维护者手动关闭的惯例一致。
-- 没有维护者授权、也没有 triage 推荐的 issue，runner 不碰。
+- MUST NOT merge changes into any branch other than the dev line; the target branch is the
+  remote's latest `dev/vX.Y.Z`.
+- MUST NOT close an issue on triage judgment alone; an issue is closed only when its fix has
+  landed, with a `Landed in <sha>` comment, matching the maintainer's manual-closing
+  convention.
+- An issue with neither maintainer authorization nor a triage recommendation is left untouched
+  by the runner.
 
-## 2. 信任边界
+## 2. Trust boundary
 
-公开仓库里任何人都能写 issue，而执行 agent 有本机 shell，issue 文本就是注入载体。
+In a public repository anyone can write an issue, and the execution agent has a local shell —
+issue text is an injection carrier.
 
-- 可信身份：作者关联为 OWNER/MEMBER/COLLABORATOR 且不是 bot。
-- 执行 agent MUST 只看到可信身份写的文本：外部作者的标题与正文被隐去，任务由维护者评论定义；
-  没有维护者评论的外部 issue MUST NOT 被执行。bot 评论（含 CI 摘要）与 runner 自己的标记评论
-  不计入。
-- triage agent 可以读外部文本，但只有只读工具（无 shell、无网络），输出按枚举白名单校验；
-  外部作者的 issue MUST 判给人工，评论里 MUST NOT 回显模型的自由文本。
-- `agent/ready` 只有在打标签的人对仓库有 write 及以上权限时才算授权。
-- triage 对外部 issue 也会调用模型，所以任何人开 issue 都能让 runner 花钱：每次 tick 的 triage
-  总花费有上限，维护者的 issue 先处理，其余顺延到下一次。
-- 残余风险：自动合入的改动进入 dev 线，会触发 snapshot 发布。snapshot workflow 运行测试时，签名
-  私钥已在 keyring 里，所以 agent 写的测试代码运行在有这把私钥的环境中。口令只出现在两步：导入
-  私钥的 setup-java 步骤，以及发布步骤；Central 凭据只出现在发布步骤。跑测试的那一步两者都没有；
-  发布步骤跳过测试，插件由需人工合并的 `pom.xml` 决定。这与维护者直接提交测试代码的风险相同，靠
-  信任边界与门禁约束。
-- MUST NOT 在 GitHub `issues`/`issue_comment` 事件上运行能执行代码的 agent：snapshot 与 release
-  workflow 恢复 maven cache 并持有发布凭据，issue 触发的 job 写入默认分支的缓存作用域，两者
-  组合就是 Clinejection 式的投毒链。runner 只在本机运行。
-- 执行 agent 的环境里 GitHub 凭据被中和（无效 token、清空 credential helper、clone 的 push URL
-  失效），push、gh 与网络类命令被拒绝；推送、开 PR、合并只由 runner 自己做。
+- Trusted identities: author association OWNER/MEMBER/COLLABORATOR, and not a bot.
+- The execution agent MUST only see text written by trusted identities: external authors'
+  titles and bodies are withheld, and the task is defined by a maintainer comment; an external
+  issue with no maintainer comment MUST NOT be executed. Bot comments (including CI summaries)
+  and the runner's own marker comments do not count.
+- The triage agent may read external text, but it has read-only tools (no shell, no network),
+  and its output is validated against an enum whitelist; an external author's issue MUST be
+  assigned to a human, and comments MUST NOT echo the model's free text.
+- `agent/ready` counts as authorization only when the labeler has write or higher permission on
+  the repository.
+- Triage also invokes the model for external issues, so anyone opening an issue can make the
+  runner spend money: total triage spend per tick is capped, maintainer issues are processed
+  first, and the rest defer to the next tick.
+- Residual risk: auto-merged changes entering the dev line trigger snapshot publication. When
+  the snapshot workflow runs tests, the signing private key is already in the keyring, so
+  agent-written test code runs in an environment holding that key. The passphrase appears in
+  only two steps: the setup-java step importing the key, and the deploy step; Central
+  credentials appear only in the deploy step. The step running tests has neither; the deploy
+  step skips tests, and plugins are decided by `pom.xml`, which requires human merging. This is
+  the same risk as a maintainer committing test code directly, constrained by the trust
+  boundary and the gates.
+- MUST NOT run a code-executing agent on GitHub `issues`/`issue_comment` events: the snapshot
+  and release workflows restore the maven cache and hold publishing credentials, and an
+  issue-triggered job would write into the default branch's cache scope — the combination is a
+  Clinejection-style poisoning chain. The runner runs only on the local machine.
+- In the execution agent's environment, GitHub credentials are neutralized (an invalid token,
+  the credential helper emptied, the clone's push URL invalidated), and push, gh, and network
+  commands are denied; pushing, opening PRs, and merging are done by the runner itself.
 
-## 3. 标签状态机
+## 3. The label state machine
 
-| 标签 | 谁打 | 含义 |
+| Label | Applied by | Meaning |
 |---|---|---|
-| `priority/p0`–`p2`，`bug`/`documentation`/`enhancement`/`question` | triage 建议，人可改 | 优先级与类型 |
-| `agent/eligible` | triage | 判定适合无人值守 |
-| `needs-decision` | triage 或人 | 等维护者决定；对 runner 是否决 |
-| `agent/ready` | 维护者 | 授权 runner 处理，直到 issue 关闭 |
-| `agent/working` | runner | 已认领 |
-| `agent/review` | runner | 门禁全过，按规则等人工合并 |
-| `agent/blocked` | runner | 本次停下；人移除即允许重试 |
+| `priority/p0`–`p2`, `bug`/`documentation`/`enhancement`/`question` | triage suggests; humans may change | priority and type |
+| `agent/eligible` | triage | judged suitable for unattended handling |
+| `needs-decision` | triage or humans | awaiting the maintainer's decision; a veto for the runner |
+| `agent/ready` | maintainer | authorizes the runner until the issue closes |
+| `agent/working` | runner | claimed |
+| `agent/review` | runner | all gates passed; awaiting human merge per the rules |
+| `agent/blocked` | runner | stopped this time; a human removing it allows retry |
 
-- 状态只存在于标签和 runner 的两条标记评论（triage、run）里；runner 本身不存状态。
-- `needs-decision`、`agent/blocked`、`agent/working`、`agent/review` 都是否决：带任何一个，runner
-  不选取。
+- State lives only in labels and the runner's two marker comments (triage, run); the runner
+  itself stores no state.
+- `needs-decision`, `agent/blocked`, `agent/working`, and `agent/review` are all vetoes: with
+  any of them present, the runner does not select the issue.
 
-## 4. Triage 契约
+## 4. The triage contract
 
-- 只在 issue 内容（标题、正文、非 runner 评论）的哈希变化时重跑；标记评论原地更新，不刷屏。
-- 每个标签族（类型、优先级、路由）triage 只管自己打过的那一个：人改了族内标签，triage 不再动
-  这个族；人删掉了 triage 打的标签，该标签记为抑制，之后不再加回。
-- 判给人工的理由是固定枚举：方向未定、公开 API 形状未定、敏感、信息不足、已解决、重复、外部
-  作者。"敏感"取 AGENTS.md 要求先问的几类：依赖与插件、删文件、发布与凭据、需要人工确认的
-  底层原语。
-- triage 不关闭 issue，也不打 `duplicate`；疑似重复只在评论里提示。
+- Reruns only when the hash of the issue's content (title, body, non-runner comments) changes;
+  marker comments are updated in place, not spammed.
+- For each label family (type, priority, routing), triage manages only the one it applied: if a
+  human changes a label in the family, triage leaves that family alone; if a human deletes a
+  triage-applied label, that label is recorded as suppressed and never re-added.
+- The reasons for assigning to a human are a fixed enum: direction unsettled, public API shape
+  unsettled, sensitive, insufficient information, already resolved, duplicate, external author.
+  "Sensitive" covers the categories AGENTS.md requires asking first: dependencies and plugins,
+  file deletion, releases and credentials, and low-level primitives needing human confirmation.
+- Triage does not close issues and does not apply `duplicate`; suspected duplicates are only
+  hinted in a comment.
 
-## 5. 选取与认领
+## 5. Selection and claiming
 
-- 候选 = 没有否决标签，且满足其一：有被授权的 `agent/ready`；或 `agent/eligible`、可信作者、
-  优先级在自动集合内（默认 p0、p1）、triage 结论对当前内容仍然有效。
-- 排序：优先级，其次显式授权，再其次 issue 号小者。
-- 背压：等人工合并的 agent PR 达到上限时不开新任务。命令行显式点名的 issue 视为授权，不受此限，
-  但仍受否决标签约束。
-- 每台机器同时只跑一个 runner（文件锁）。跨机器靠认领标签 `issue-agent-claim/issue-<n>` 互斥：
-  它在 GitHub 上原子创建，创建失败即放弃；它指向一个认领提交，记录机器 ID、run 和创建时间。
-  机器 ID 是保存在状态目录里的随机值，不用主机名，因为主机名可能重复；创建时间写在提交消息里，
-  不依赖 GitHub 的日期格式。
-- 删除认领 MUST 先确认标签仍指向本次 run 的认领提交（比较后删除），不删别人的认领。读不出
-  归属或时间的认领不动，只通知维护者一次；创建时间晚于当前时间一小时以上的认领同样按读不出
-  处理。
-- 每次 run 的墙钟时间短于认领时限减去余量；到时限即停。合入前 MUST 确认本次 run 仍持有
-  认领，否则放弃合入。
-- 恢复以认领标签为准。本机的认领一定是遗留的（持锁时本机没有在跑的 run），按 §8 的恢复顺序
-  落定后删除认领。其他机器的认领超过时限才视为失效：run 标记属于该 run 时同样按 §8 恢复，否则
-  转 `agent/blocked`；然后删除。没有认领、却留着本机 `agent/working` 的 issue，按 run 标记同样
-  恢复。
+- Candidates = no veto labels, plus one of: an authorized `agent/ready`; or `agent/eligible`, a
+  trusted author, priority within the automatic set (default p0, p1), and a triage conclusion
+  still valid for the current content.
+- Ordering: priority, then explicit authorization, then smaller issue number.
+- Backpressure: when agent PRs awaiting human merge reach the cap, no new tasks are started. An
+  issue explicitly named on the command line counts as authorization and is exempt from this
+  limit, but still subject to veto labels.
+- Only one runner per machine at a time (a file lock). Across machines, the claim label
+  `issue-agent-claim/issue-<n>` provides mutual exclusion: it is created atomically on GitHub,
+  and a creation failure means giving up; it points at a claim commit recording the machine ID,
+  the run, and the creation time. The machine ID is a random value stored in the state
+  directory — not the hostname, because hostnames can collide; the creation time is written in
+  the commit message, not relying on GitHub's date format.
+- Deleting a claim MUST first confirm the label still points at this run's claim commit
+  (compare-then-delete), never deleting someone else's claim. A claim whose ownership or time
+  is unreadable is left alone, with the maintainer notified once; a claim created more than one
+  hour in the future is treated as unreadable likewise.
+- Each run's wall-clock time is shorter than the claim's time limit minus a margin; it stops at
+  the limit. Before merging, it MUST confirm this run still holds the claim, otherwise abandon
+  the merge.
+- Recovery follows the claim label. A local claim is necessarily stale (while holding the lock,
+  no run is running locally); it is settled per §8's recovery order and then the claim is
+  deleted. Another machine's claim counts as expired only after its time limit: when the run
+  marker belongs to that run, recover per §8 likewise, otherwise transition to
+  `agent/blocked`; then delete. An issue with no claim but a local `agent/working` label is
+  recovered per its run marker likewise.
 
-## 6. 执行与门禁
+## 6. Execution and gates
 
-每次运行用独立 clone 和唯一分支 `auto/issue-<n>-<slug>-<run>`，不碰维护者的工作树（共享工作树
-会被并发会话和 jdtls 改写）。
+Each run uses an independent clone and a unique branch `auto/issue-<n>-<slug>-<run>`, never
+touching the maintainer's working tree (a shared working tree gets rewritten by concurrent
+sessions and jdtls).
 
-1. 实现：agent 按 AGENTS.md 完成并本地提交，返回结构化报告（标题、摘要、契约条目、验证、PIT
-   分类、是否完成 issue、是否破坏兼容）。
-2. 本地门禁由 runner 执行，不信报告：工作树干净；有新提交；路径策略；在 HEAD 的干净导出上跑
-   `spotless:check` 与 `clean verify`，并确认 javac 真的编译了主源码；仓库检查脚本；bug 类
-   issue 做反向验证（只回退主源码，新测试必须变红；改了主源码却没改测试类，结论为不确定，转
-   人工）；改了主源码就必须有晚于最后一次编辑的 PIT 报告，报告按 PIT 原始状态逐项计数
-   （`TIMED_OUT`、`MEMORY_ERROR` 依 PIT 惯例算作检出，但不并入 `KILLED`），有变异体没有测试结论
-   （如 `RUN_ERROR`）或报告没有评估任何变异体时，结论为不确定，转人工；标题是小写的
-   Conventional Commit。失败回给同一会话修复，轮数有上限。
-3. 推送并开 PR，目标 dev 线；同一 issue 的旧 agent PR 关闭。
-4. 独立复审：另一模型和工具（codex，只读沙箱）对照契约审 diff。blocker/major 发现回给 agent
-   复现与处置（保留、降级、驳回，驳回要有证据）再修复；复审轮次有上限，每轮结论贴在 PR 上。
-   复审输出解析不出结论时，以"只回 JSON"的要求重试一次；仍解析不出，转人工。
-5. CI：按提交 SHA 读 check run，检查集合稳定且全部完成才算结束；失败日志回给 agent，修复后
-   重新复审。由 `workflow_run` 串起来、晚于其他检查出现的 workflow 不在等待范围内，本仓库
-   没有这类 workflow。
-6. 合入前 rebase 到 dev 线最新；有变化就重跑门禁（PIT 除外，补丁未变）和 CI。冲突、重跑后门禁
-   失败或结论不确定，都转人工。
+1. Implementation: the agent completes per AGENTS.md and commits locally, returning a
+   structured report (title, summary, contract items, verification, PIT classification,
+   whether the issue is completed, whether compatibility is broken).
+2. Local gates are executed by the runner, not trusting the report: a clean working tree; new
+   commits exist; the path policy; `spotless:check` and `clean verify` on a clean export of
+   HEAD, confirming javac really compiled the main sources; the repository check scripts;
+   reverse verification for bug issues (revert only main sources, and the new tests must go
+   red; main sources changed without test classes changed → inconclusive, to a human); changed
+   main sources require a PIT report newer than the last edit, counted item by item by PIT's
+   raw statuses (`TIMED_OUT`, `MEMORY_ERROR` count as detected per PIT convention but are not
+   merged into `KILLED`); when a mutant has no test conclusion (such as `RUN_ERROR`) or the
+   report evaluated no mutants at all, the conclusion is inconclusive → to a human; the title
+   is a lowercase Conventional Commit. Failures go back to the same session for fixing, with a
+   round cap.
+3. Push and open a PR targeting the dev line; old agent PRs for the same issue are closed.
+4. Independent re-review: another model and tool (codex, read-only sandbox) reviews the diff
+   against the contracts. Blocker/major findings go back to the agent for reproduction and
+   disposition (retain, downgrade, reject — rejection needs evidence) and fixing; re-review
+   rounds are capped, and each round's conclusion is posted on the PR. When the re-review
+   output cannot be parsed into a conclusion, retry once with a "JSON only" requirement; still
+   unparseable → to a human.
+5. CI: read check runs by commit SHA; the run is finished only when the check set is stable and
+   all complete; failure logs go back to the agent, and re-review follows the fix. A workflow
+  chained by `workflow_run` that appears later than other checks is outside the wait scope;
+   this repository has none.
+6. Rebase onto the dev line's latest before merging; on any change, rerun the gates (except
+   PIT, since the patch is unchanged) and CI. Conflicts, post-rerun gate failures, or
+   inconclusive conclusions all go to a human.
 
-路径策略：
+Path policy:
 
-- 禁止（立即停止，不推送）：疑似密钥文件；新增行里疑似凭据；修改已有 ADR。
-- 只留本地（门禁照跑，但 MUST NOT 推送）：`.github/workflows/`、`.github/actions/`。GitHub 在推送
-  时就会运行其中的 workflow 并带上仓库 secrets，等不到人看。这类改动存成 run 目录里的补丁，转
-  `needs-decision`，由维护者自己推送。runner 的 token 也不应有 `workflow` 权限，GitHub 会因此
-  拒绝这类推送，作为兜底。
-- 需人工合并：删除或重命名、`.github/`、`.mvn/`、`pom.xml`、新增 ADR、`scripts/`（runner
-  与门禁脚本）、任何 `AGENTS.md`/`CLAUDE.md`。agent 不能在无人值守下放宽自己的护栏、改写门禁
-  或改写自己的指令。
+- Forbidden (stop immediately, do not push): suspected secret files; suspected credentials in
+  added lines; modifying an existing ADR.
+- Local-only (gates still run, but MUST NOT be pushed): `.github/workflows/`,
+  `.github/actions/`. GitHub would run their workflows on push with repository secrets, before
+  a human ever looks. Such changes are saved as patches in the run directory, transitioned to
+  `needs-decision`, and pushed by the maintainer personally. The runner's token should also
+  lack the `workflow` scope, so GitHub rejects such pushes as a backstop.
+- Human-merge-required: deletions or renames, `.github/`, `.mvn/`, `pom.xml`, new ADRs,
+  `scripts/` (the runner and gate scripts), any `AGENTS.md`/`CLAUDE.md`. An agent must not
+  loosen its own guardrails, rewrite its gates, or rewrite its own instructions unattended.
 
-这些护栏防的是失误和朴素注入，不是沙箱：执行 agent 仍有本机文件系统读权限。信任边界（§2）
-保证喂给它的指令只来自维护者，凭据扫描与 GitHub 的推送保护兜底。
+These guardrails defend against mistakes and naive injection, not a sandbox: the execution
+agent still has local filesystem read access. The trust boundary (§2) guarantees the
+instructions fed to it come only from the maintainer, with credential scanning and GitHub's
+push protection as backstops.
 
-triage 一个维护者开的 issue 时，只把维护者评论交给模型：外部评论不能借维护者 issue 的公开
-评论发声。
+When triaging a maintainer-opened issue, only maintainer comments are given to the model:
+external comments must not speak through a maintainer issue's public comments.
 
-## 7. 合入
+## 7. Merging
 
-- 不需要人工时 squash 合入 dev 线，用 `--match-head-commit` 钉住验证过的头；合入提交带契约
-  条目与 `Closes`/`Refs`。
-- 合入前 MUST 重新读取 PR 的目标分支：PR 可能被改过目标，不是当前 dev 线就拒绝合入。读取与
-  合入之间仍有窗口（GitHub 的合入接口不能以目标分支为条件），所以合入后再读一次；这时目标
-  不是 dev 线，就判失败并通知维护者。
-- 维护者抢先合入了同一个 PR 时，按已合入处理，不判失败。
-- 需要人工时停在 `agent/review`，PR 保持可合并；维护者合并后，下一次 tick 关闭 issue。
-- 报告"未完成 issue"时只合入、不关闭，转 `needs-decision`。
+- When no human is needed, squash-merge into the dev line with `--match-head-commit` pinning
+  the verified head; the merge commit carries contract items and `Closes`/`Refs`.
+- Before merging, MUST re-read the PR's target branch: a PR may have been retargeted, and
+  anything other than the current dev line refuses the merge. A window remains between reading
+  and merging (GitHub's merge API cannot be conditioned on the target branch), so read once
+  more after merging; if the target is not the dev line at that point, judge failure and
+  notify the maintainer.
+- When the maintainer merged the same PR first, treat it as merged, not as a failure.
+- When a human is needed, stop at `agent/review` with the PR kept mergeable; after the
+  maintainer merges, the next tick closes the issue.
+- When the report says "issue not completed", merge without closing, transitioning to
+  `needs-decision`.
 
-## 8. 失败与恢复
+## 8. Failure and recovery
 
-- 每次 agent 调用的费用上限取"单次上限"与"整次运行剩余预算"中的较小者；剩余预算用尽后不再
-  发起调用。复审方（codex）没有费用参数，只受超时约束，不计入运行花费。
-- 收尾：
-  1. 先把终态写进本地 run 目录。
-  2. 确认认领。已被接管时只通知维护者，MUST NOT 改写后继 run 的标记与标签。读认领只有 404
-     表示没有认领；其他失败算"未知"，照常写终态（删除认领是比较后删除，伤不到后继）。
-  3. 写 run 标记，改标签，blocked 的 PR 转草稿。
-  4. 最后删除认领。
+- Each agent call's spend cap is the smaller of "the per-call cap" and "the run's remaining
+  budget"; no further calls once the remaining budget is exhausted. The re-review side (codex)
+  has no spend parameter, is bounded only by timeout, and does not count into run spend.
+- Wrap-up:
+  1. Write the terminal state into the local run directory first.
+  2. Confirm the claim. When taken over, only notify the maintainer; MUST NOT rewrite the
+     successor run's markers and labels. Reading a claim: only 404 means no claim; other
+     failures count as "unknown" and wrap-up proceeds as usual (claim deletion is
+     compare-then-delete and cannot hurt a successor).
+  3. Write the run marker, change labels, convert blocked PRs to drafts.
+  4. Delete the claim last.
 
-  任何一步的 GitHub 失败都只把认领留给下一次 tick，不让 tick 崩溃。
-- 收尾、恢复、超时回收、维护者合入后的清理共用同一个落定步骤：写标记，改标签，blocked 或
-  needs-decision 的 PR 转草稿。PR 状态读不出时不转草稿；PR 已合入或已关闭时，转草稿会被
-  GitHub 拒绝，runner 不当作失败。
-- 恢复本机遗留的 run 时，按以下顺序取终态：
-  1. 本地终态记录。记录必须属于同一 issue 和本机，否则视为没有。
-  2. run 标记上的终态。
-  3. 读 run 标记记下的 PR：
-     - 已合入：转 `needs-decision`，不转 `agent/blocked`，免得重做已落地的工作；
-     - 仍开着：转草稿，转 `agent/blocked`；
-     - 读不出：保留认领下次重试，连续 3 次读不出才转 `agent/blocked`。
-- 清理按 issue 逐个隔离：一个 issue 出错只把它留到下一次 tick，不中断其余 issue。
-- 合入后读不出目标分支时转 `needs-decision`，不按"已合入 dev 线"关闭 issue。
-- 停止时：打 `agent/blocked`（或 `needs-decision`），PR 转草稿，run 评论写明原因，本地日志
-  保留；配置了通知命令时收到一行摘要。
-- 重试 = 维护者移除 `agent/blocked`；`agent/ready` 作为授权保留，不必重打。
-- 定时任务（launchd）只带 `PATH`、`HOME` 这类最小环境：模型凭据从 `~/.claude/settings.json`
-  的 `env` 读取，gh 走钥匙串里的登录，codex 读它自己的配置。
+  A GitHub failure at any step only leaves the claim for the next tick — it never crashes the
+  tick.
+- Wrap-up, recovery, timeout reclamation, and post-maintainer-merge cleanup share one settling
+  step: write the marker, change labels, convert blocked or needs-decision PRs to drafts. When
+  the PR state is unreadable, no draft conversion; when the PR is already merged or closed,
+  draft conversion is rejected by GitHub and the runner does not treat it as a failure.
+- When recovering a locally stale run, take the terminal state in this order:
+  1. The local terminal-state record. The record must belong to the same issue and this
+     machine, or it counts as absent.
+  2. The terminal state on the run marker.
+  3. Read the PR recorded on the run marker:
+     - merged: transition to `needs-decision`, not `agent/blocked`, to avoid redoing landed
+       work;
+     - still open: convert to draft, transition to `agent/blocked`;
+     - unreadable: keep the claim for the next retry; only after 3 consecutive unreadables
+       transition to `agent/blocked`.
+- Cleanup is isolated issue by issue: one issue's error only defers it to the next tick, never
+  interrupting the others.
+- When the target branch is unreadable after merging, transition to `needs-decision` rather
+  than closing the issue as "merged into the dev line".
+- On stop: apply `agent/blocked` (or `needs-decision`), convert the PR to draft, state the
+  reason in the run comment, keep the local log; when a notification command is configured,
+  receive a one-line summary.
+- Retry = the maintainer removes `agent/blocked`; `agent/ready` is kept as authorization and
+  need not be re-applied.
+- Scheduled tasks (launchd) carry only a minimal environment like `PATH` and `HOME`: model
+  credentials are read from `~/.claude/settings.json`'s `env`, gh uses the keychain login, and
+  codex reads its own configuration.
 
-## 9. 已排除的替代方案与原因
+## 9. Rejected alternatives and reasons
 
-- 云端执行（gh-aw、claude-code-action 等）：本仓库的发布 workflow 与 issue 事件共用缓存作用域，
-  独立复审又依赖本机的 codex 配置。云端最多适合只读 triage，目前的 issue 量用不上。
-- 无条件自动合入：构建、CI、依赖和 runner 自身的改动必须有人看。其余改动只进 dev 线，发布到
-  `main` 前还有维护者这一道。
-- 自动关闭（去重、过期）：Claude Code 仓库的教训是，bot 关闭会把真问题打散。本机制不关闭
-  没有修复落地的 issue。
-- 一个长寿命会话循环处理队列：会话可能被 Stop hook 等外因静默打断。改为外部循环，每个任务一次
-  有界的无头会话，用推送、PR 等副作用判断进展。
+- Cloud execution (gh-aw, claude-code-action, etc.): this repository's release workflows share
+  a cache scope with issue events, and the independent re-review depends on the local codex
+  configuration. Cloud suits read-only triage at most, and the current issue volume does not
+  need it.
+- Unconditional auto-merge: builds, CI, dependencies, and the runner's own changes must be seen
+  by a human. Everything else only enters the dev line, with the maintainer as the gate before
+  release to `main`.
+- Auto-closing (dedup, expiry): the lesson from the Claude Code repository is that bot closing
+  scatters real problems. This mechanism closes no issue without a landed fix.
+- One long-lived session looping over the queue: a session can be silently interrupted by
+  external causes such as Stop hooks. Replaced by an external loop, one bounded headless
+  session per task, judging progress by side effects like pushes and PRs.
 
-## 10. 独立评审记录
+## 10. Independent review record
 
-第 1 轮（codex `deepseek-v4-pro`，只读沙箱，审当时 dev 线的快照）：5 major、5 minor。
+Round 1 (codex `deepseek-v4-pro`, read-only sandbox, reviewing a snapshot of the then-dev
+line): 5 major, 5 minor.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 运行费用上限只在修复轮之前检查，单次调用可越过整次预算 | 保留 | 每次调用的上限取单次与剩余预算的较小者；复审方无费用参数，写入 §8 |
-| 跨机器认领不是原子的，可能两台机器同时处理一个 issue | 保留 | 改为在 GitHub 上原子创建认领标签，创建失败即放弃 |
-| 合入只校验配置的目标分支，改过目标的 PR 可能合入 `main` | 保留 | 合入前重新读取 PR 的目标分支 |
-| 收尾先改标签后写标记，中途失败会卡在 `agent/review` | 保留 | 先写终态标记；遗留状态按标记恢复 |
-| 收尾、拒绝、凭据中和、合入护栏没有测试 | 保留 | 补上这些测试；每个护栏都做过反向验证 |
-| CI 等待以"两次轮询稳定"判结束，晚出现的检查会漏 | 降级为已知限制 | 只有 `workflow_run` 串联的检查会晚出现，本仓库没有；改按 check suite 判定又可能卡在永不运行的 suite 上。写入 §6 |
-| 门禁脚本不在人工合并路径里 | 保留 | `scripts/` 整体需人工合并；`mkdocs.yml` 不纳入（加页面必须改它） |
-| bug 修复没改测试时反向验证直接跳过 | 保留 | 改判"不确定"，转人工 |
-| 维护者抢先合入时 runner 误判失败 | 保留 | 按已合入处理 |
-| 标记解析对嵌套载荷缺少测试 | 保留 | 补测试；载荷里的 `--` 已转义，不会提前闭合 |
+| Run spend caps checked only before repair rounds; a single call could exceed the whole run budget | Retained | Each call's cap is the smaller of the per-call cap and the remaining budget; the re-review side has no spend parameter — written into §8 |
+| Cross-machine claiming not atomic; two machines could work one issue simultaneously | Retained | Switched to atomically creating the claim label on GitHub; creation failure means giving up |
+| Merging validated only the configured target branch; a retargeted PR could merge into `main` | Retained | Re-read the PR's target branch before merging |
+| Wrap-up changed labels before writing the marker; a mid failure could stick at `agent/review` | Retained | Terminal-state marker written first; stale states recovered by marker |
+| Wrap-up, rejection, credential neutralization, and merge guardrails had no tests | Retained | Those tests added; every guardrail reverse-verified |
+| CI waiting judged completion by "stable across two polls", missing late-appearing checks | Downgraded to known limitation | Only checks chained by `workflow_run` appear late, and this repository has none; judging by check suite could hang on a suite that never runs. Written into §6 |
+| Gate scripts not in the human-merge path | Retained | `scripts/` as a whole requires human merge; `mkdocs.yml` excluded (adding a page must change it) |
+| A bug fix without test changes skipped reverse verification outright | Retained | Changed to judge "inconclusive" and go to a human |
+| The runner misjudged failure when the maintainer merged first | Retained | Treated as merged |
+| Marker parsing lacked tests for nested payloads | Retained | Tests added; `--` in payloads is escaped and cannot close early |
 
-评审时还发现了一个问题：该自定义 provider 不强制 `--output-schema`，复审输出被包在 markdown 代码块里，
-原解析器会把它当成"没有结论"。改为宽松解析，未知 severity 一律按 major 处理。
+The review also found one problem: that custom provider did not enforce `--output-schema`, so
+re-review output was wrapped in a markdown code block and the original parser treated it as "no
+conclusion". Switched to lenient parsing, with unknown severities treated as major.
 
-第 2 轮（同一模型，新开的会话；以第 1 轮的处置为基线，专审其修复）：4 major、3 minor。
+Round 2 (same model, fresh session; baseline the round-1 dispositions, reviewing their fixes):
+4 major, 3 minor.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 认领与 run 标记之间崩溃，认领标签永久残留 | 保留 | 认领提交记录机器 ID 与 run，恢复以认领为准，本机的认领必定回收 |
-| 收尾删除认领失败后，标签残留，issue 无法重试 | 保留 | 删除认领移到收尾最后、且只在成功时执行；失败的认领由下次 tick 回收 |
-| 以主机名判归属，同名机器会误收别人的认领 | 保留 | 改用状态目录里的随机机器 ID；他机认领要超时才回收 |
-| 预算钳制的调用点没有测试，第 1 轮的反向验证漏了它 | 保留 | 补调用点测试，并对两处调用点和"剩余不足 $1 不再调用"注入缺陷 |
-| 读目标分支与合入之间仍有竞态 | 保留，降为已知限制 | GitHub 接口无法原子化；合入后复查，不符就判失败并通知 |
-| 缺少 `findings` 字段的结论被当作 clean | 保留 | 缺少 `findings` 列表即视为没有结论，转人工 |
-| `design/issue-automation.md` 可被无人值守改写 | 保留 | 该文件纳入人工合并路径；其他 `design/` 文档不纳入（契约与实现须同一提交） |
+| A crash between claiming and the run marker left the claim label forever | Retained | The claim commit records machine ID and run; recovery follows the claim, and a local claim is always reclaimed |
+| After wrap-up's claim deletion failed, labels stayed and the issue could not retry | Retained | Claim deletion moved to the very end of wrap-up, executed only on success; a failed claim is reclaimed by the next tick |
+| Ownership judged by hostname; same-named machines could reclaim others' claims | Retained | Switched to a random machine ID in the state directory; other machines' claims require timeout for reclamation |
+| The budget-clamp call sites had no tests; round 1's reverse verification missed them | Retained | Call-site tests added, with defects injected at both call sites and at "no more calls under $1 remaining" |
+| A race remained between reading the target branch and merging | Retained, downgraded to known limitation | GitHub's API cannot be atomic; re-check after merging, judging failure and notifying on mismatch |
+| A conclusion missing the `findings` field was treated as clean | Retained | A missing `findings` list means no conclusion — to a human |
+| `design/issue-automation.md` could be rewritten unattended | Retained | That file joined the human-merge path; other `design/` documents did not (contract and implementation must be one commit) |
 
-反向验证：对 38 处护栏逐一注入缺陷，每处都被对应的测试抓住。第 1 轮漏掉的预算调用点也在其中。
+Reverse verification: defects injected one by one at 38 guardrails, each caught by its
+corresponding test. The budget call site round 1 missed is among them.
 
-第 3 轮（同一模型，新开的会话；专审第 2 轮修复，并对每个崩溃点逐一推演）：2 major、2 minor。
+Round 3 (same model, fresh session; reviewing round-2 fixes, walking each crash point): 2
+major, 2 minor.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 认领只按年龄过期：慢的 run 被他机回收后，其收尾会删掉后继 run 的认领 | 保留 | 改为比较后删除；合入前确认仍持有认领；run 墙钟时间短于认领时限 |
-| 读不出创建时间的认领永不过期，issue 永久卡住 | 保留 | 创建时间写进提交消息；日期按任意带时区格式解析；读不出的认领通知维护者一次 |
-| 合入后复查目标分支失败，仍按已合入关闭 issue | 保留 | 复查读不出就转 `needs-decision` |
-| 合入与收尾之间崩溃，恢复时误判 blocked，重试会重做 | 保留 | 开 PR 后记下 PR 号；恢复时查 PR，已合入则转 `needs-decision` |
+| Claims expired by age only: after a slow run was reclaimed by another machine, its wrap-up would delete the successor run's claim | Retained | Switched to compare-then-delete; confirm the claim is still held before merging; run wall-clock shorter than the claim limit |
+| A claim with unreadable creation time never expired, sticking the issue forever | Retained | Creation time written into the commit message; dates parsed in any timezone-bearing format; unreadable claims notify the maintainer once |
+| The post-merge target-branch re-check failing still closed the issue as merged | Retained | An unreadable re-check transitions to `needs-decision` |
+| A crash between merging and wrap-up was misjudged blocked at recovery, and a retry would redo | Retained | PR number recorded after opening; recovery checks the PR, transitioning to `needs-decision` when merged |
 
-反向验证：对 46 处护栏逐一注入缺陷，每处都被对应的测试抓住。
+Reverse verification: defects injected one by one at 46 guardrails, each caught by its
+corresponding test.
 
-第 4 轮（同一模型，新开的会话；专审第 3 轮修复）：2 major、2 minor。
+Round 4 (same model, fresh session; reviewing round-3 fixes): 2 major, 2 minor.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 认领已失效的 run 收尾时，仍改写后继 run 的标记与标签 | 保留 | 收尾前确认仍持有认领，否则只通知；读认领时区分 404 与其他失败 |
-| 恢复时读 PR 失败，异常让整次 tick 中止，认领也留着 | 保留 | 读不出就按 blocked 处理；清理按 issue 隔离 |
-| 创建时间在未来的认领，年龄为负，永不过期 | 保留 | 超前一小时以上按读不出处理，通知维护者 |
-| 恢复后 PR 仍可合入，没有转草稿 | 保留 | 恢复为 blocked 时把 PR 转为草稿 |
+| Wrap-up of a run whose claim had expired still rewrote the successor run's markers and labels | Retained | Confirm the claim is still held before wrap-up, otherwise notify only; reading a claim distinguishes 404 from other failures |
+| A PR read failure at recovery aborted the whole tick, leaving the claim too | Retained | Unreadable means treated as blocked; cleanup isolated per issue |
+| A claim with a future creation time had negative age and never expired | Retained | More than one hour ahead is treated as unreadable, notifying the maintainer |
+| After recovery the PR was still mergeable, never converted to draft | Retained | Recovery to blocked converts the PR to draft |
 
-反向验证：对 52 处护栏逐一注入缺陷，每处都被对应的测试抓住。
+Reverse verification: defects injected one by one at 52 guardrails, each caught by its
+corresponding test.
 
-第 5 轮（同一模型，新开的会话；专审第 4 轮修复）：2 major。
+Round 5 (same model, fresh session; reviewing round-4 fixes): 2 major.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 读认领偶发失败时收尾整体中止，下一次 tick 只能从 PR 推断，丢掉 `merged`/`review` 等真实终态 | 保留 | 终态先写进本地 run 目录；读认领"未知"时照常收尾；收尾失败不让 tick 崩溃，下一次 tick 从本地记录完整恢复 |
-| 恢复时 PR 偶发读不出，被当成终态 blocked 写死，PR 还被转草稿 | 保留 | 读不出时保留认领、记次数，下一次 tick 重读，连续 3 次才放弃；只有确认 PR 仍开着才转草稿 |
+| Occasional claim-read failures aborted wrap-up wholesale; the next tick could only infer from the PR, losing real terminal states like `merged`/`review` | Retained | Terminal state written to the local run directory first; wrap-up proceeds as usual when the claim read is "unknown"; wrap-up failures never crash a tick, and the next tick recovers completely from the local record |
+| At recovery an occasionally unreadable PR was written down as terminal blocked, and the PR was converted to draft | Retained | On unreadable: keep the claim, count attempts, re-read next tick, give up only after 3 consecutive; draft conversion only when the PR is confirmed still open |
 
-反向验证：对 60 处护栏逐一注入缺陷，每处都被对应的测试抓住。
+Reverse verification: defects injected one by one at 60 guardrails, each caught by its
+corresponding test.
 
-第 6 轮（同一模型，新开的会话；专审第 5 轮修复）：1 major、1 minor。
+Round 6 (same model, fresh session; reviewing round-5 fixes): 1 major, 1 minor.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 从本地记录恢复 blocked 终态时没有转草稿：第 4 轮的问题经新路径复现 | 保留 | 收尾、恢复、超时回收、合入后清理共用一个落定步骤，转草稿规则只写一处 |
-| 本地记录不校验归属，run id 只精确到秒，可能回放到别的 run 上 | 保留 | 记录写入 issue 号与机器 ID，恢复时不符即视为没有；run id 加随机后缀 |
+| Recovering a blocked terminal state from the local record did not convert to draft: round 4's problem reproduced through the new path | Retained | Wrap-up, recovery, timeout reclamation, and post-merge cleanup share one settling step; the draft-conversion rule is written in one place |
+| Local records did not validate ownership, and run ids were second-precise — replayable onto another run | Retained | Records carry issue number and machine ID, mismatches at recovery count as absent; run ids gained a random suffix |
 
-反向验证：对 64 处护栏逐一注入缺陷，每处都被对应的测试抓住。
+Reverse verification: defects injected one by one at 64 guardrails, each caught by its
+corresponding test.
 
-第 7 轮（同一模型，新开的会话；专审第 6 轮修复）：1 major、2 minor。
+Round 7 (same model, fresh session; reviewing round-6 fixes): 1 major, 2 minor.
 
-| 发现 | 处置 | 修复的实际效果 |
+| Finding | Disposition | The fix's actual effect |
 |---|---|---|
-| 他机认领超时回收时以空数据落定，不转草稿，还冲掉了 run 标记里的 PR 号 | 保留 | run 标记属于该 run 时，走与本机相同的恢复规则（含读 PR、重试、转草稿）；否则才以 blocked 落定 |
-| 回放终态时不先读 PR 状态就转草稿 | 降级，改写契约 | 已合入或已关闭的 PR，转草稿会被 GitHub 拒绝，runner 不当作失败；契约照实写明，不再写"不转" |
-| 第 6 轮记录末尾写着"结果见下"，后面没有结果 | 保留 | 补上结果 |
+| Reclaiming another machine's claim on timeout settled with empty data, never converted to draft, and flushed the PR number from the run marker | Retained | When the run marker belongs to that run, follow the same recovery rules as local (including reading the PR, retries, draft conversion); otherwise settle as blocked |
+| Terminal-state replay converted to draft without reading the PR state first | Downgraded, contract rewritten | For an already merged or closed PR, draft conversion is rejected by GitHub and the runner does not treat it as a failure; the contract now says so honestly instead of "does not convert" |
+| Round 6's record ended with "results below" and no results followed | Retained | Results added |
 
-第 8 轮（同一模型，新开的会话；专审第 7 轮修复）：没有新发现。这一轮复审方回的是纯文字结论，
-没有给 JSON。runner 遇到这种输出会转人工，安全但妨碍自动化，所以加了一次"只回 JSON"的重试。
+Round 8 (same model, fresh session; reviewing round-7 fixes): no new findings. In this round
+the re-review side replied with a plain-text conclusion and no JSON. The runner goes to a human
+on such output — safe but obstructive to automation — so one "JSON only" retry was added.
 
-反向验证：对 66 处护栏逐一注入缺陷，每处都被对应的测试抓住，另加复审重试一处。
+Reverse verification: defects injected one by one at 66 guardrails, each caught by its
+corresponding test, plus one for the re-review retry.
 
-提交这套 runner 时，GitHub 拒绝了推送：runner 的 token 没有 `workflow` 权限。这暴露了路径策略
-的一个缺口：`.github/workflows/` 的改动一推送就会带着 secrets 运行，"需人工合并"拦不住。改为只留
-本地：存补丁，转 `needs-decision`（§6）。这样 runner 也不需要带 `workflow` 权限的 token。
+When this runner was committed, GitHub rejected the push: the runner's token lacked the
+`workflow` scope. This exposed a gap in the path policy: changes to `.github/workflows/` run
+with secrets the moment they are pushed, and "human-merge-required" could not stop that.
+Changed to local-only: save a patch and transition to `needs-decision` (§6). The runner
+therefore needs no token with the `workflow` scope either.
 
-第 9 轮（同一模型，新开的会话；专审这一改动）：结论 clean。复审逐一核对了修复轮、CI 修复后的
-重新推送、rebase 后、重命名、符号链接几条路径，都推不出这类改动。1 处 minor：§2 残余风险一句与
-`snapshot.yml` 不符（口令在 setup-java 步骤也会出现），已改正。
+Round 9 (same model, fresh session; reviewing this change): conclusion clean. The re-review
+checked the repair rounds, the re-push after the CI fix, the post-rebase state, renames, and
+the symlink paths one by one, and none could push such changes through. 1 minor: one residual-risk
+sentence in §2 disagreed with `snapshot.yml` (the passphrase also appears in the setup-java
+step) — corrected.
 
-反向验证：对 70 处护栏逐一注入缺陷，每处都被对应的测试抓住。
+Reverse verification: defects injected one by one at 70 guardrails, each caught by its
+corresponding test.
 
-第 10 轮（`/multi-review`，只读快照；审 PIT 原始状态与 rebase 后不确定门禁两项修复）：
-kimi 读了 diff、改动代码、测试与契约，跑通全部 184 个脚本测试，没有发现。codex 两次都没给出结论：
-第一次模型通道 503，第二次连接反复重连后超时，按 blocked 记录，不算 clean。
+Round 10 (`/multi-review`, read-only snapshot; reviewing the two fixes for PIT raw statuses and
+the post-rebase inconclusive gate): kimi read the diff, the changed code, the tests, and the
+contract, ran all 184 script tests green, and found nothing. codex gave no conclusion twice:
+the first time a 503 from the model channel, the second a timeout after repeated reconnects —
+recorded as blocked, not clean.
 
-反向验证：对 6 处修复逐一注入缺陷，每处都被对应的测试抓住。
+Reverse verification: defects injected one by one at 6 fixes, each caught by its corresponding
+test.

@@ -1,148 +1,229 @@
-# 执行器等待图设计原则与契约
+# Executor Wait Graph Design Principles and Contract
 
-> 本文是运行时级执行器等待图（`ExecutorWaitGraph` / `ExecutorWaitReport`）的活契约：出发点、设计原则、
-> 准入时记录的等待、检测与报告、诊断发布、被排除的替代方案。它取代请求级任务图观测
-> （`TaskGraphObservationScope`、`TaskGraphReport`、`ParRuntimeDeadlockPolicy`），历史来源：`proposal:P0026`。
+> This document is the live contract of the runtime-level executor wait graph
+> (`ExecutorWaitGraph` / `ExecutorWaitReport`): motivation, design principles, waits recorded
+> at admission, detection and reporting, diagnostic publication, and rejected alternatives. It
+> replaces request-level task-graph observation (`TaskGraphObservationScope`,
+> `TaskGraphReport`, `ParRuntimeDeadlockPolicy`). Historical source: `proposal:P0026`.
 
-## 1. 出发点
+## 1. Motivation
 
-等待图只回答一个问题：**某个池线程同步等待的工作，会不会排在同一个（或互相等待的）有界池里、被它自己
-挡住？** 线程 dump 看不到这种死锁——线程停在 `Future.get()` 而不是 `BLOCKED`——所以库在准入时记录真实的
-同步等待关系。
+The wait graph answers exactly one question: **can the work a pool thread synchronously waits
+on end up queued in the same (or a mutually waiting) bounded pool, blocked by itself?** A
+thread dump cannot see this deadlock — the threads sit in `Future.get()` rather than
+`BLOCKED` — so the library records the real synchronous wait relationships at admission.
 
-这种关系是应用执行器拓扑的属性，不是单个请求的属性：请求 1 在 A 上等 B、请求 2 在 B 上等 A，两池有界时负载
-一高就会互相饿死，而每个请求各自的图里都没有环。因此图属于 `ParRuntime`，常开、只增不减，用户不需要打开
-任何作用域。
+These relationships are a property of the application's executor topology, not of a single
+request: request 1 waits from A on B, request 2 waits from B on A, and with both pools bounded
+they starve each other under load — while neither request's own graph has a cycle. The graph
+therefore belongs to the `ParRuntime`: always on, append-only, and the user opens no scope.
 
-图是观测模型，不是执行模型：取消、deadline、收敛屏障与汇总门控仍由执行内核负责；记录与检测 MUST NOT 改变
-任何业务结果、提交、取消或 deadline。
+The graph is an observation model, not an execution model: cancellation, deadlines, the
+convergence barrier, and combine gating remain the execution kernel's responsibility; recording
+and detection MUST NOT change any business result, submission, cancellation, or deadline.
 
-## 2. 设计原则
+## 2. Design principles
 
-**P1 节点是本运行时注册的执行器。** 节点按 `ExecutorIdentity`（被注册对象的引用相等）判等；同一对象以多个
-`ParId` 注册仍是一个节点。`ParId` 只用于展示，MUST NOT 参与判等或检测。
+**P1 Nodes are executors registered with this runtime.** Nodes compare by `ExecutorIdentity`
+(reference equality of the registered object); the same object registered under multiple
+`ParId`s is still one node. `ParId` is display-only and MUST NOT participate in equality or
+detection.
 
-**P2 只有同步等待才成边。** 运行在执行器 A 上的单元的执行在一次准入中同步等待（`Par.map`、
-`Par.mapAndCombine`、组 `runAll()` 都是同步出口）一个运行在执行器 B 上的单元，且 B starvation-prone 时，
-记录边 `A → B`。数据依赖（成员或批次喂给汇总）不是等待，MUST NOT 成边；组 membership 不是边；顶层调用没有
-等待者，MUST NOT 产生边，也 MUST NOT 引入 `root` 哨兵或 `NA` 执行器。
+**P2 Only synchronous waits form edges.** When the execution of a unit running on executor A
+synchronously waits, in one admission (`Par.map`, `Par.mapAndCombine`, and group `runAll()` are
+all synchronous exits), on a unit running on executor B, and B is starvation-prone, record the
+edge `A → B`. Data dependencies (members or batches feeding a combine) are not waits and MUST
+NOT form edges; group membership is not an edge; top-level calls have no waiter and MUST NOT
+produce edges, and no `root` sentinel or `NA` executor MUST be introduced.
 
-**P3 只看被等待端是否 starvation-prone。** 等待者占住一个线程，被等待的工作能否被挡在它后面取决于它进入的池；
-判定规则见 `ExecutorRuntime.starvationProne()` 与[执行器注册](../docs/en/reference/executor-registration.md)。
-看不透的执行器取保守值（不成边）。
+**P3 Only the awaited side's starvation-proneness matters.** The waiter occupies a thread;
+whether the awaited work can be blocked behind it depends on the pool it enters. The
+determination rule is `ExecutorRuntime.starvationProne()` and
+[executor registration](../docs/en/reference/executor-registration.md). Opaque executors take
+the conservative value (no edge).
 
-**P4 两端都必须属于本运行时。** 等待者或被等待者的执行器不是本运行时注册的执行器时 MUST NOT 记录：外部运行时
-的结构父不进入本图，跨运行时的环在任何一张图里都不可见，这是记录的盲区而不是缺陷。
+**P4 Both ends must belong to this runtime.** When the waiter's or the awaited's executor is
+not registered with this runtime, MUST NOT record: an external runtime's structural parent does
+not enter this graph, and a cross-runtime cycle is invisible in any graph — a recording blind
+spot, not a defect.
 
-**P5 一次准入的等待原子安装。** 一次逻辑准入的全部新边一起可见：`map` / 内部 `submit` 至多一条（caller→批次），
-`mapAndCombine` 至多两条（caller→批次、caller→汇总），组 `runAll` 每个不同的成员 / 汇总执行器一条；滑窗补窗与
-延迟提交的汇总不是新的逻辑准入，不产生边。组只在全部成员与汇总准备成功后记录，准备失败不记录。
+**P5 One admission's waits install atomically.** All new edges of one logical admission become
+visible together: `map` / internal `submit` at most one (caller→batch), `mapAndCombine` at most
+two (caller→batch, caller→combine), group `runAll` one per distinct member / combine executor;
+sliding-window refills and late-submitted combines are not new logical admissions and produce
+no edges. A group records only after all members and the combine are prepared successfully; a
+preparation failure records nothing.
 
-**P6 热路径不写。** 已知的边只做一次不可变状态读取与查表，MUST NOT 写入、加锁或分配集合；新边以写时复制的
-不可变状态经 CAS 重试安装，重试从最新状态出发，边只增不减，不会丢失或 ABA。边数以注册执行器数的平方为上界，
-冷路径的复制与分量计算都是多项式的。
+**P6 No writes on the hot path.** A known edge costs one immutable-state read plus a table
+lookup and MUST NOT write, lock, or allocate collections; new edges install through a
+copy-on-write immutable state with CAS retry, retrying from the latest state; edges only grow,
+never lost and never ABA. The edge count is bounded by the square of the registered executor
+count, and the cold path's copies and component computations are polynomial.
 
-**P7 报告是有环强连通分量。** 检测对象是执行器图的有环强连通分量：一组互相可达的执行器，或一个自环的执行器。
-每个分量给出成员（每个执行器以其全部注册别名表示）、一个具体环（等待顺序）与每条环边首次观测到的见证
-（等待单元与被等待单元）。MUST NOT 枚举全部简单环——10 个执行器的完全图就有约 111 万个。
+**P7 Reports are cyclic strongly connected components.** The detection target is cyclic
+strongly connected components of the executor graph: a set of mutually reachable executors, or
+one self-looped executor. Each component gives its members (each executor represented by all
+its registered aliases), one concrete cycle (in wait order), and the first-observed witness of
+each cycle edge (the waiting unit and the awaited unit). MUST NOT enumerate all simple cycles —
+a complete graph of 10 executors has about 1.11 million.
 
-**P8 诊断不在准入线程上。** 准入线程 MUST NOT 调用 JUL 或任何用户可替换的 handler：handler 可能阻塞或重入，
-而记录发生在 bind 之前，阻塞会让 deadline 布防不上。新出现的有环分量（含合并后的新分量）交给运行时自有的
-线程，各发一次 `WARNING`：安装成功的线程比较新旧状态的分量集合，所以每个分量恰好由形成它的那次安装宣布一次；
-handler 失败或服务已关闭时这条日志可能丢失，可靠的记录是报告而不是日志。记录路径自身的 `RuntimeException`
-MUST NOT 让准入失败。
+**P8 Diagnostics do not run on the admission thread.** The admission thread MUST NOT invoke JUL
+or any user-replaceable handler: a handler may block or reenter, and recording happens before
+bind, so blocking would leave the deadline unarmed. Newly appeared cyclic components (including
+new components after merges) are handed to a runtime-owned thread, one `WARNING` each: the
+thread that installed successfully compares the old and new states' component sets, so each
+component is announced exactly once, by the installation that formed it; when a handler fails
+or the service is closed, this log record may be lost — the reliable record is the report, not
+the log. A `RuntimeException` from the recording path itself MUST NOT fail the admission.
 
-**P9 语义是「曾经观测到的结构性风险」。** 边一旦出现就保留到运行时结束：报告非空不代表这些等待曾同时发生或此刻
-正在死锁，池可能留有余量；报告为空不代表无死锁——未声明生产者的外部 future、直接提交、锁与 latch、看不透或
-未注册的执行器、其它运行时都不在图中。边记在单元名义上的执行器上：CallerRuns 等内联执行借用了别的池的线程时，被真正占住的
-物理线程可能属于另一个池，记录不追踪这一点。
+**P9 The semantics are "structural risk once observed".** An edge, once present, is kept until
+the runtime ends: a non-empty report does not mean those waits ever happened simultaneously or
+that a deadlock is in progress — the pools may have headroom; an empty report does not mean no
+deadlock — external futures with undeclared producers, direct submissions, locks and latches,
+opaque or unregistered executors, and other runtimes are all outside the graph. Edges are
+recorded on the executors the units are nominally on: when CallerRuns-style inline execution
+borrows another pool's thread, the physical thread actually occupied may belong to another
+pool, and recording does not track that.
 
-## 3. 模型
+## 3. Model
 
 ```text
-TaskNode             不可变；按 unitId 判等；单元自己的事实（名称、执行器身份、starvation-prone、形状）
-   │  准入时作为等待者 / 被等待者
-ExecutorWaitGraph    运行时所有；AtomicReference<State>
-   │                 State = 边表 (from, to) → 首个见证 + 由它导出的报告与分量键
-   │  纯函数导出
-ExecutorWaitReport   公开：cyclicComponents()，每个 Component 有 members()、cycle()、toString()
+TaskNode             immutable; compared by unitId; the unit's own facts (name, executor identity, starvation-prone, shape)
+   │  waiter / awaited at admission
+ExecutorWaitGraph    runtime-owned; AtomicReference<State>
+   │                 State = edge table (from, to) → first witness + the reports and component keys derived from it
+   │  derived by pure functions
+ExecutorWaitReport   public: cyclicComponents(); each Component has members(), cycle(), toString()
 ```
 
-依赖方向：执行内核（`Par`、`TaskGroup`）在准入点调用 `ExecutorWaitGraph.record(waiter, awaited...)`；图层只
-依赖 Guava、`ExecutorIdentity`、`ParId` 与 `TaskNode`，不依赖内核。`MultiTaskContext` 在解析时创建并持有自己
-的 `TaskNode`；节点从不反向引用它。图不持有 token、future 或结构父链。
+Dependency direction: the execution kernel (`Par`, `TaskGroup`) calls
+`ExecutorWaitGraph.record(waiter, awaited...)` at admission points; the graph layer depends
+only on Guava, `ExecutorIdentity`, `ParId`, and `TaskNode` — never on the kernel.
+`MultiTaskContext` creates and holds its own `TaskNode` at resolution; nodes never reference it
+back. The graph holds no tokens, futures, or structural-parent chains.
 
-## 4. 准入点
+## 4. Admission points
 
-| 准入 | 等待者 | 被等待者 |
+| Admission | Waiter | Awaited |
 |---|---|---|
-| `Par.map` / 内部 `Par.submit` | 结构父单元 | 批次 / 单任务单元 |
-| `Par.mapAndCombine` | 结构父单元 | 批次单元、汇总单元 |
-| 组 `runAll`（含汇总） | 结构父单元 | 每个成员、汇总；成员之间无边 |
-| 组 `runAll` 的收养成员 | 结构父单元 | 声明了生产者 `Par` 的收养成员（用户声明的执行器，见 [task-group-adopted-futures.md](task-group-adopted-futures.md) A7）；未声明则不成边 |
+| `Par.map` / internal `Par.submit` | the structural parent unit | the batch / single-task unit |
+| `Par.mapAndCombine` | the structural parent unit | the batch unit, the combine unit |
+| group `runAll` (with combine) | the structural parent unit | each member, the combine; no edges between members |
+| group `runAll` adopted members | the structural parent unit | adopted members that declared a producer `Par` (a user-declared executor, see [task-group-adopted-futures.md](task-group-adopted-futures.md) A7); no edge without a declaration |
 
-`mapAndCombine` 的汇总在内核里是批次单元的结构子节点（取消与 deadline 从批次继承），但等待它的是调用方线程
-而不是批次的元素：汇总回到调用方自己的饥饿型池时是真正的自环，汇总放在批次自己的池上则不是。等待者来自
-结构父，所以记录只发生在嵌套调用里。
+`mapAndCombine`'s combine is the batch unit's structural child inside the kernel (cancellation
+and deadline inherited from the batch), but its waiter is the calling thread, not the batch's
+elements: a combine returning to the caller's own starvation-prone pool is a real self-loop,
+while a combine on the batch's own pool is not. The waiter comes from the structural parent, so
+recording happens only inside nested calls.
 
-## 5. 公开读取
+## 5. Public reads
 
-`ParRuntime.executorWaitReport()` 返回当前不可变快照，分量按首个成员的注册顺序排列，任何时候（包括关闭之后）
-都可读；没有开关、作用域或单个请求的结论。需要隔离某段代码的结论时，用一个只服务这段代码的独立
-`ParRuntime`（例如测试里）。
+`ParRuntime.executorWaitReport()` returns the current immutable snapshot, with components
+ordered by their first member's registration order; readable at any time (including after
+close); there is no switch, scope, or per-request conclusion. To isolate one piece of code's
+conclusion, use a dedicated `ParRuntime` serving only that code (as in tests).
 
-## 6. 被排除的替代方案
+## 6. Rejected alternatives
 
-- **请求级观测 scope（旧 `TaskGraphObservationScope`）**：用户不开 scope 就什么都不检测；漏掉跨请求的执行器环；
-  TTL 安装 / 恢复与所有权解析贯穿每条准入路径；每个请求累积整张任务图。删除。
-- **静态 `has*()` 查询与策略开关**：查询不看策略，策略关闭时与报告的 `DISABLED` 矛盾；try 块之后读取恒为
-  false；读取不核对所有者。删除；常开的成本可以忽略，日志总量有上界。
-- **改为实例三态查询**：close 之后与报告重复，close 之前要第四态才诚实。拒绝。
-- **列出全部简单环**：数量随执行器数指数增长，报告与日志都会爆炸。改为有环强连通分量 + 一个具体环。
-- **在准入线程上打日志**：handler 阻塞或重入会卡在 bind 之前。改为交给运行时自有线程。
-- **用 deadline 定时器线程发日志**：卡住的 handler 会拖住所有 deadline。日志使用运行时的超时动作线程池，它按需
-  扩容，一个卡住的 handler 只占一个线程。
-- **按时间老化边**：改成近期窗口语义，罕见但真实的拓扑被隐藏，周期性拓扑反复告警。拒绝。
-- **预先声明拓扑**：注册期不知道哪个执行会调用哪个 `Par`，声明会与真实调用漂移。拒绝。
-- **遇环拒绝或 fail-fast**：环是风险不是确定死锁；诊断不改变业务结果。拒绝。
-- **追踪内联执行时的物理线程归属**：需要独立于结构父与 TTL 的新机制，收益只在 CallerRuns 内联这一窄路径。
-  拒绝，作为 P9 的已知近似写明。
-- **任务级图与任务级环检测**：每次准入新建单元，任务图按构造无环，任务级环在生产中恒为假；只有执行器投影
-  承载风险。随请求级图一起删除。
-- **按 `ParId` 标签检测或在身份缺失时回退**：同一池以两个 id 注册会被拆开，不同池同名会被合并。只按身份。
-- **单锁 + 缓存快照**（旧记录器）：常开之后每次嵌套准入都会经过记录点；热路径只读不可变状态、冷路径 CAS，
-  读路径与写路径都不阻塞，并且只在新边出现时计算。改为 CAS。
+- **Request-level observation scopes (the old `TaskGraphObservationScope`)**: nothing is
+  detected when the user opens no scope; cross-request executor cycles are missed; TTL
+  install/restore and ownership resolution run through every admission path; every request
+  accumulates a whole task graph. Deleted.
+- **Static `has*()` queries and policy switches**: the queries ignored the policy, contradicting
+  the report's `DISABLED` when the policy was off; reads after the try block were constantly
+  false; reads did not check the owner. Deleted; the always-on cost is negligible, and total
+  logging is bounded.
+- **Switching to an instance three-state query**: duplicates the report after close, and needs
+  a fourth state to be honest before close. Rejected.
+- **Listing all simple cycles**: exponential in the executor count — reports and logs would
+  explode. Replaced by cyclic strongly connected components + one concrete cycle.
+- **Logging on the admission thread**: a blocking or reentering handler would stall before
+  bind. Handed to a runtime-owned thread instead.
+- **Logging on the deadline timer thread**: a stuck handler would drag down every deadline.
+  Logs use the runtime's timeout-action thread pool, which grows on demand — one stuck handler
+  occupies only one thread.
+- **Aging edges by time**: switching to a recent-window semantics hides rare but real
+  topologies and re-warns about periodic ones. Rejected.
+- **Declaring the topology in advance**: at registration time it is unknown which execution
+  will call which `Par`, and declarations would drift from real calls. Rejected.
+- **Rejecting or fail-fasting on cycles**: a cycle is a risk, not a certain deadlock;
+  diagnostics do not change business results. Rejected.
+- **Tracking physical-thread ownership under inline execution**: needs a new mechanism
+  independent of structural parents and TTL, with payoff only in the narrow CallerRuns-inline
+  path. Rejected; documented as P9's known approximation.
+- **A task-level graph with task-level cycle detection**: each admission creates fresh units,
+  so a task graph is acyclic by construction and task-level cycles are constantly false in
+  production; only the executor projection carries risk. Deleted with the request-level graph.
+- **Detection by `ParId` labels, or fallback when identity is missing**: one pool registered
+  under two ids would be split, and distinct pools with the same name merged. Identity only.
+- **Single lock + cached snapshot (the old recorder)**: once always-on, every nested admission
+  passes the recording point; the hot path only reads immutable state and the cold path CASes,
+  so neither read nor write paths block, and computation happens only when new edges appear.
+  Switched to CAS.
 
-## 7. 验证基线
+## 7. Verification baseline
 
-- `ExecutorWaitGraphTest`：顶层不记录；非饥饿型目标与外部端点不成边；自环与跨准入的跨请求环；多别名执行器是
-  一个成员；一次准入的多条边一起安装；分量合并时重新宣布；12 个执行器的完全图只报告一个分量；宣布被拒绝或
-  handler 抛出都不让准入失败；并发安装同一条边或闭合同一个环既不丢边也不重复宣布；索引读取在已有新边后失败时
-  整个准入不安装，记录失败不影响准入。
-- `ExecutorWaitAdmissionTest`：公开准入的真实等待——同池嵌套 `map` 自环、handoff 池不成边、两次无关调用组成
-  跨请求环、`mapAndCombine` 汇总回到调用方池是自环而批次池不是、嵌套组等待每个成员与汇总、顶层组不记录、
-  外部运行时的调用方不进入本图、一个池两个 id、告警不在准入线程上且阻塞的 handler 不阻塞准入。
-- `ScopedTaskContractTest`：批次与组两条入口在同池嵌套时都报告自环。
-- `ParMapAndCombineTest`：顶层组合批次不记录；批次自己的池上的嵌套汇总不是自环。
+- `ExecutorWaitGraphTest`: top-level calls record nothing; non-starvation-prone targets and
+  external endpoints form no edges; self-loops and cross-admission cross-request cycles; a
+  multi-alias executor is one member; one admission's multiple edges install together;
+  re-announcement when components merge; a complete graph of 12 executors reports one
+  component; neither announcement rejection nor a throwing handler fails the admission;
+  concurrent installation of the same edge or closing of the same cycle neither loses edges nor
+  double-announces; when index reads fail after new edges exist, the whole admission is not
+  installed, and a recording failure does not affect admission.
+- `ExecutorWaitAdmissionTest`: real waits at public admissions — a same-pool nested `map`
+  self-loop, a handoff pool forming no edge, two unrelated calls composing a cross-request
+  cycle, a `mapAndCombine` combine returning to the caller's pool being a self-loop while the
+  batch pool is not, a nested group waiting on every member and the combine, a top-level group
+  recording nothing, an external runtime's caller not entering this graph, one pool with two
+  ids, and warnings not running on the admission thread with a blocking handler not blocking
+  admission.
+- `ScopedTaskContractTest`: both the batch and group entries report self-loops under same-pool
+  nesting.
+- `ParMapAndCombineTest`: a top-level combined batch records nothing; a nested combine on the
+  batch's own pool is not a self-loop.
 
-## 8. 实现评审与处置
+## 8. Implementation review and dispositions
 
-- Claude 对执行器等待图首个实现的只读评审确认：单目标与 `mapAndCombine` 双目标记录点在已知边查表前分配临时集合，
-  违反 P6。保留并修复：两种记录形式先按同一不可变快照完成资格与已知边检查，已知边不分配集合；仅冷路径构造
-  缺失边列表，一次准入仍由同一次 CAS 安装，见证与异常隔离不变。
-- 同一评审发现 BACKLOG A-P2 与交互 demo 仍描述已删除的请求级任务图。保留并修复：A-P2 随旧公开查询面删除而关闭；
-  demo 改为两个执行器节点、真实等待边与带见证的分量渲染，不再伪造 root、任务节点或顶层边。
-- 中文设计哲学与 idea graveyard 中仅作历史机制说明的 token 名称被提议删除；驳回：这些句子既不链接也不教授
-  公开使用方式，不违反取消契约 §5.3。措辞换行与命名风格建议作为无行为影响的噪音丢弃。
-- 后续复审未返回内容，按维护者指示放弃，不计为独立通过；上述处置来自已返回的 Claude 评审与主代理逐条核对。
-- Kimi 对执行器等待图变更的只读评审进一步确认：嵌套组仍在记录前按成员数创建 `awaitedUnits` 列表，属于上一轮未覆盖的
-  P6 残余。修复为从既有 `membersAndTerminal` 按索引读取，计数取自同一列表；仅发现新边后创建缺失边列表，一次 CAS
-  原子安装不变。失去生产调用方的列表重载随之删除，不保留仅供测试的便利入口。
-- DeepSeek 第一轮独立只读评审保留四项：索引 callback 的 `RuntimeException` 可能逃出记录、列表重载已仅剩测试调用、
-  等待计数借用收敛计数器、成员到汇总的数据流说明丢失。均已修复；读取任一单元失败时丢弃整个准入并异步告警，
-  不安装部分边。第二轮保留过期 Javadoc 与只覆盖首元素失败的弱测试：文档明确索引域及 callback 前置条件，回归改为
-  首元素已产生新边、次元素失败，证明不安装部分准入。最终复审无剩余发现；分配性质经实现与 Guava 集合路径核对，
-  未做分配基准测量。
-- 定向 32 项与全量 965 项测试通过。反向验证分别撤掉读取失败保护及 catch 的 `return`，观察到异常逃出与部分自环安装，
-  恢复后通过。最终 `ExecutorWaitGraph` PIT 为 65/65 KILLED，无存活或未覆盖；双类运行的其余 32 SURVIVED、29
-  NO_COVERAGE 与 1 TIMED_OUT 全部位于本次未改的 `TaskGroup` 语句，保留为既有覆盖限制，不计为本次修复未验证。
+- Claude's read-only review of the executor wait graph's first implementation confirmed: the
+  single-target and `mapAndCombine` double-target recording points allocated temporary
+  collections before the known-edge lookup, violating P6. Retained and fixed: both recording
+  forms now run eligibility and known-edge checks against the same immutable snapshot first,
+  allocating no collections for known edges; only the cold path builds the missing-edge list,
+  and one admission is still installed by the same CAS, with witnesses and exception isolation
+  unchanged.
+- The same review found that BACKLOG A-P2 and the interactive demo still described the deleted
+  request-level task graph. Retained and fixed: A-P2 closed with the old public query surface's
+  deletion; the demo now renders two executor nodes, real wait edges, and components with
+  witnesses, no longer fabricating a root, task nodes, or top-level edges.
+- Deleting token names that appear only as historical mechanism notes in the Chinese design
+  philosophy and idea graveyard was proposed; rejected: those sentences neither link to nor
+  teach public usage and do not violate cancellation contract §5.3. Wording, line-break, and
+  naming-style suggestions were dropped as behavior-free noise.
+- A later re-review returned no content and was abandoned per the maintainer's instruction, not
+  counted as an independent pass; the dispositions above come from the Claude review that did
+  return and the main agent's item-by-item verification.
+- Kimi's read-only review of the executor wait graph changes further confirmed: nested groups
+  still built an `awaitedUnits` list by member count before recording — a P6 residual the
+  previous round did not cover. Fixed by reading from the existing `membersAndTerminal` by
+  index, with the count taken from the same list; the missing-edge list is created only after
+  new edges are found, and the one-CAS atomic install is unchanged. The list overload that lost
+  its production callers was deleted with it, keeping no test-only convenience entry.
+- DeepSeek's first independent read-only round retained four items: a `RuntimeException` from
+  an index callback could escape recording; the list overload was down to test-only callers;
+  the wait count borrowed the convergence counter; and the member-to-combine data-flow note was
+  lost. All fixed; when reading any unit fails, the whole admission is discarded and a warning
+  is logged asynchronously, with no partial edges installed. The second round retained stale
+  Javadoc and a weak test covering only first-element failure: the documentation now states the
+  index domain and callback preconditions, and the regression was changed to a first element
+  producing a new edge with a second element failing, proving partial admissions are not
+  installed. The final re-review has no remaining findings; allocation properties were checked
+  against the implementation and Guava collection paths, with no allocation benchmark
+  measured.
+- 32 targeted and 965 full tests pass. Reverse verification reverted the read-failure guard and
+  the catch's `return` separately, observing the exception escaping and partial self-loop
+  installation respectively; passing after restoration. The final `ExecutorWaitGraph` PIT is
+  65/65 KILLED with none surviving or uncovered; the remaining 32 SURVIVED, 29 NO_COVERAGE, and
+  1 TIMED_OUT of the two-class run all sit in `TaskGroup` statements untouched by this change —
+  kept as a pre-existing coverage limit and not counted as this fix's unverified part.

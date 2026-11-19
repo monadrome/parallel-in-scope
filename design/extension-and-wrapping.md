@@ -1,183 +1,220 @@
-# 扩展边界与包装契约
+# Extension Boundary and Wrapping Contract
 
-> 公开执行/结果形状（`runAll()`/`Par.map` 同步返回、`ImmediateResult` 数据与有界清理状态）见
-> [同步出口契约](synchronous-scope-exit.md)；本文约束扩展边界与自助包装守则。
+> The public execution/result shapes (`runAll()`/`Par.map` synchronous returns, `ImmediateResult`
+> data, and bounded-cleanup state) are in the [synchronous exit contract](synchronous-scope-exit.md);
+> this document constrains the extension boundary and the self-wrapping rules.
 
-> 本文定义 parallel-in-scope 的**扩展边界**：用户如何在不破坏结构化并发语义的前提下，给任务代码加上自己的横切能力（MDC、追踪、指标、重试），以及哪些对象归库、哪些归用户。
-> 与 [first-principles.md](first-principles.md) 的关系：本文是判据 2（能否参数化现有机制）与判据 4（是否引入第二套执行管道）在"包装"主题上的具体化。
-> **状态：定稿——不提供任务装饰器 SPI，唯一用户扩展点是任务代码本身（§10 含暂缓理由与重开条件）。** Alibaba TransmittableThreadLocal（TTL）包装器检测与 L8 守卫已落地（见 §6 落地记录）。
+> This document defines parallel-in-scope's **extension boundary**: how users add their own
+> cross-cutting capabilities (MDC, tracing, metrics, retries) to task code without breaking
+> structured-concurrency semantics, and which objects belong to the library versus the user.
+> Relationship to [first-principles.md](first-principles.md): this document concretizes
+> criterion 2 (can existing mechanisms be parameterized) and criterion 4 (does it introduce a
+> second execution pipeline) on the subject of "wrapping".
+> **Status: final — no task decorator SPI; the only user extension point is task code itself
+> (§10 has the deferral rationale and re-entry conditions).** Alibaba TransmittableThreadLocal
+> (TTL) wrapper detection and the L8 guard have landed (see §6's landing record).
 
-## 0. 一句话结论
+## 0. The one-sentence conclusion
 
-**唯一的用户扩展点是任务代码本身**：用户在提交前自助包装自己的 `Callable`（§5）；库的上下文回放由构造保证位于一切用户代码之外，不需要、也不提供装饰器 SPI。
+**The only user extension point is task code itself**: users wrap their own `Callable`s before
+submitting (§5); the library's context replay is guaranteed by construction to sit outside all
+user code, and neither needs nor provides a decorator SPI.
 
-可保证的语义有明确边界：
+The guarantees have explicit boundaries:
 
-- **结构保证**：库的上下文回放位于**所有**用户代码之外；
-- **语义保证**：对任务代码**同步、同线程动态调用范围内**的代码生效。
+- **Structural guarantee**: the library's context replay sits outside **all** user code;
+- **Semantic guarantee**: it takes effect on code inside task code's **synchronous, same-thread
+  dynamic call scope**.
 
-任务代码把代码逃逸到别的线程或别的时刻、依赖普通 `ThreadLocal`（需自助捕获回放，见 §5）、或让 executor 在库之外再包一层，都不在保证内（见 §2 的 I2/I3）。
+Task code escaping to another thread or another moment, relying on ordinary `ThreadLocal`s
+(capture and replay them yourself, see §5), or having the executor wrap another layer outside
+the library are all outside the guarantees (I2/I3 in §2).
 
-## 1. 目标与非目标
+## 1. Goals and non-goals
 
-### 1.1 目标
+### 1.1 Goals
 
-| 编号 | 目标 |
+| # | Goal |
 |---|---|
-| G1 | 用户可给任务代码加横切能力（MDC/普通 ThreadLocal、追踪、指标、重试）；指标走现成的观测快照（§5.4），其余自助包装（§5） |
-| G2 | 上下文回放是任务代码栈的最外层，由**构造**保证，不靠文档约定 |
-| G3 | batch 元素、group 成员、terminal combine 三条路径语义一致 |
-| G4 | 不牺牲任何现有结构化语义：取消、deadline、fail-fast、上下文恢复、outcome 归因 |
+| G1 | Users can add cross-cutting capabilities to task code (MDC/ordinary ThreadLocal, tracing, metrics, retries); metrics go through the ready-made observation snapshots (§5.4), the rest through self-wrapping (§5) |
+| G2 | Context replay is the outermost layer of the task-code stack, guaranteed by **construction**, not by documentation convention |
+| G3 | Batch elements, group members, and terminal combines share consistent semantics |
+| G4 | No existing structured semantics are sacrificed: cancellation, deadlines, fail-fast, context restoration, outcome attribution |
 
-### 1.2 非目标
+### 1.2 Non-goals
 
-- 不提供任务装饰器 SPI（§10：暂缓理由与重开条件）；
-- 不提供 executor 包装 SPI（JDK 的 `ExecutorService` 已经是那个扩展点）；
-- 不提供 future 级包装（需要 future 级能力就扩展库内类型）；
-- **不承诺覆盖任务代码逃逸到其它线程/其它时刻的代码**；
-- **不承诺传播任意 `ThreadLocal`**（传播集合封闭，见 §2）；
-- 不新增 `TaskTermination` 词汇。
+- No task decorator SPI (§10: deferral rationale and re-entry conditions);
+- No executor wrapping SPI (the JDK's `ExecutorService` is already that extension point);
+- No future-level wrapping (extend in-library types for future-level capabilities);
+- **No promise to cover code task code escapes to other threads/other moments**;
+- **No promise to propagate arbitrary `ThreadLocal`s** (the propagation set is closed, see §2);
+- No new `TaskTermination` vocabulary.
 
-## 2. 前提、边界与不变量
+## 2. Premises, boundaries, and invariants
 
-### 2.1 三个前提（不成立则一切保证失效）
+### 2.1 The three premises (if any fails, all guarantees fail)
 
-| 编号 | 前提 |
+| # | Premise |
 |---|---|
-| A1 | **池归用户所有**：库只调用 `Executor.execute()`，不创建、不关闭、不假设实现类 |
-| A2 | **用户 executor 遵守 `Executor` 契约**：恰好一次调用传入对象的 `run()`，不丢弃、不重复、不换线程 |
-| A3 | **传播集合封闭**：上下文 = 库登记的可传播载体（`TransmittableThreadLocal` 注册集合）；Java 8 无法枚举任意 `ThreadLocal` |
+| A1 | **Pools are user-owned**: the library only calls `Executor.execute()` — it creates, closes, and assumes nothing about implementation classes |
+| A2 | **User executors honor the `Executor` contract**: invoke the passed object's `run()` exactly once — no dropping, no duplication, no thread switching |
+| A3 | **The propagation set is closed**: context = the library-registered transmittable carriers (the `TransmittableThreadLocal` registration set); Java 8 cannot enumerate arbitrary `ThreadLocal`s |
 
-### 2.2 两个边界
+### 2.2 The two boundaries
 
-worker 线程上的真实调用栈（现状，已实现）：
+The real call stack on a worker thread (current, implemented):
 
 ```
-executor.execute(future)                    ← 提交线程；SubmissionScope 已 install
-  └─ [worker] future.run()                  ← ExecutionPhaseHintFuture：phase CAS，当前状态由 phase() 查询
-      └─ TtlCallable.call()                 ← 库最后一次包装：replay(captured) … restore(backup)
+executor.execute(future)                    ← submitting thread; SubmissionScope installed
+  └─ [worker] future.run()                  ← ExecutionPhaseHintFuture: phase CAS, current state via phase()
+      └─ TtlCallable.call()                 ← the library's last wrap: replay(captured) … restore(backup)
           └─ ScopedCallable.call()          ← install TaskExecutionContext → checkpoint → delegate
-              └─ 用户 Callable / lambda      ← 唯一用户扩展点：可在此自助包装（§5）
+              └─ user Callable / lambda      ← the only user extension point: self-wrapping goes here (§5)
 ```
 
-- **executor 调度边界**：`executor.execute()` 之前/之后、`run()` 之外。归用户所有，库不控制。
-- **任务代码边界**：`ScopedCallable.call()` 起的一切。归库控制。
+- **The executor scheduling boundary**: before/after `executor.execute()`, outside `run()`.
+  User-owned; the library does not control it.
+- **The task-code boundary**: everything from `ScopedCallable.call()` down. Library-controlled.
 
-### 2.3 三个不变量，强弱完全不同
+### 2.3 Three invariants of very different strengths
 
-| 编号 | 内容 | 能否保证 |
+| # | Content | Guaranteed? |
 |---|---|---|
-| **I1** | 库的上下文回放位于所有用户代码之外（结构） | ✅ 由构造保证 |
-| **I2** | 对任务代码同步、同线程动态调用范围内的代码，回放生效（语义） | ✅ 由契约 + 负例测试保证 |
-| **I3** | 整条执行路径上上下文捕获恰好一次 | ❌ 只能检测/告警 |
+| **I1** | The library's context replay sits outside all user code (structure) | ✅ By construction |
+| **I2** | Replay takes effect on code inside task code's synchronous, same-thread dynamic scope (semantics) | ✅ By contract + negative tests |
+| **I3** | Context capture happens exactly once along the whole execution path | ❌ Detect/warn only |
 
-**I3 无法保证的原因**：池归用户所有（A1），用户可以在 `run()` 之外再包一层（`TtlExecutors.getTtlExecutorService` 给每个 Runnable 套 `TtlRunnable`），或启用 TTL agent。此时 I1/I2 仍成立，但路径上出现第二个捕获点。
+**Why I3 cannot be guaranteed**: pools are user-owned (A1), so the user can wrap another layer
+outside `run()` (`TtlExecutors.getTtlExecutorService` puts a `TtlRunnable` around every
+Runnable), or enable the TTL agent. I1/I2 still hold in that case, but a second capture point
+appears on the path.
 
-**I2 不是 I1 的推论**：任务代码若把部分逻辑交给别的线程（`CompletableFuture.supplyAsync`、新线程、另一个池），或保存起来留到返回后再执行，上下文回放覆盖不到那段代码。**所有"最外层"的设计讨论指的都是 I1；把 I2/I3 当成可保证的不变量是设计错误。**
+**I2 is not a corollary of I1**: if task code hands part of its logic to another thread
+(`CompletableFuture.supplyAsync`, a new thread, another pool), or saves it for execution after
+return, context replay cannot cover that code. **Every "outermost" design discussion refers to
+I1; treating I2/I3 as guaranteed invariants is a design error.**
 
-## 3. 用户能包装的三个对象
+## 3. The three objects a user can wrap
 
-| 候选 | 它是什么 | 谁拥有 | 影响 I1/I2 | 影响 I3 | 库内现状 |
+| Candidate | What it is | Owner | Affects I1/I2 | Affects I3 | In-library status |
 |---|---|---|---|---|---|
-| 线程池 | 决定任务在哪跑的提交机制 | 用户（`register` 之前） | ❌ 不在任务代码栈里 | ✅ 可加外部捕获点 | `ExecutorRuntime` |
-| Callable | 任务代码本身 | 库（构造）/ 用户（内容） | ✅ 决定性 | ✅ 可控制 | `TaskSubmissions.wrapScoped` |
-| FutureTask | 结果与生命周期状态机 | 库 | — | — | `ExecutionPhaseHintFuture` |
+| Thread pool | The submission mechanism deciding where tasks run | User (before `register`) | ❌ Not in the task-code stack | ✅ Can add external capture points | `ExecutorRuntime` |
+| Callable | Task code itself | Library (construction) / user (content) | ✅ Decisive | ✅ Controllable | `TaskSubmissions.wrapScoped` |
+| FutureTask | The result and lifecycle state machine | Library | — | — | `ExecutionPhaseHintFuture` |
 
-**还有一个相关对象**：`ThreadFactory`（线程创建）。线程命名、优先级、inheritable 语义归它管，不属于任务包装。
+**One more related object**: `ThreadFactory` (thread creation). Thread naming, priority, and
+inheritable semantics belong to it — not to task wrapping.
 
-### 3.1 判断一个对象能否安全包装的判据
+### 3.1 Criteria for whether an object can be wrapped safely
 
-1. 捕获点必须**逐任务且由库控制**；
-2. 强制上下文层必须能固定在**所有**用户包装之外；
-3. 不得改变或复制 future 的状态机；
-4. 不得扩张线程池所有权；
-5. 必须支持结果泛型、异常传播与同步重试；
-6. 用户不得取得最终组装对象并重排强制层。
+1. capture points must be **per-task and library-controlled**;
+2. the mandatory context layer must be fixable **outside all** user wrapping;
+3. the future's state machine must not be changed or duplicated;
+4. thread-pool ownership must not expand;
+5. result generics, exception propagation, and synchronous retry must be supported;
+6. the user must not obtain the final assembled object and reorder the mandatory layers.
 
-**结论：线程池与 FutureTask 被排除（见下）；Callable 的内容本来就归用户创作——自助包装就是现有机制，无需新增扩展点（first-principles 判据 2）。**
+**Conclusion: thread pools and FutureTask are excluded (below); a Callable's content belongs to
+the user's authorship anyway — self-wrapping is the existing mechanism, and no new extension
+point is needed (first-principles criterion 2).**
 
-### 3.2 逐个结论
+### 3.2 Per-object conclusions
 
-- **线程池**：可以包，但它决定的是"谁来跑"，不参与任务代码排序。三个副作用：① `TtlExecutors` 会在 `run()` 之外再加一个捕获点（破 I3）；② 会把 future 的内部记账与完成回调也纳入上下文范围；③ 包装器若吞掉 `RejectedExecutionException` 或丢弃任务，future 可能永不完成（破 A2）。它**唯一有用的场景是"库之外的提交"**——库内提交经它会被双重捕获。
-- **FutureTask**：不是排序问题，是被不变量排除。它是一次性状态机与结果对象，代理它会产生两套取消/完成状态，重试也无法复用。需要 future 级能力 → 扩展库内类型。
-- **Callable**：唯一属于用户的对象。精确对应任务代码，不碰池所有权，不改变 future 身份，天然支持多层包装与重试——这些性质对"用户包装自己的任务代码"直接成立，不需要库再开一个 SPI。
+- **Thread pool**: wrappable, but it decides "who runs", not task-code ordering. Three side
+  effects: ① `TtlExecutors` adds another capture point outside `run()` (breaks I3); ② it pulls
+  the future's internal bookkeeping and completion callbacks into the context scope; ③ a
+  wrapper swallowing `RejectedExecutionException` or dropping tasks may leave futures never
+  completing (breaks A2). Its **only useful scenario is "submissions outside the library"** —
+  in-library submissions through it get double capture.
+- **FutureTask**: not an ordering issue — excluded by invariants. It is a one-shot state
+  machine and result object; proxying it produces two sets of cancellation/completion states,
+  and retries cannot reuse it. For future-level capabilities → extend in-library types.
+- **Callable**: the only user-owned object. It corresponds exactly to task code, touches no
+  pool ownership, changes no future identity, and naturally supports multi-layer wrapping and
+  retries — these properties hold directly for "users wrapping their own task code", with no
+  need for the library to open another SPI.
 
-## 4. 必须避免的问题
+## 4. Problems that must be avoided
 
-### A. 顺序与位置
+### A. Ordering and position
 
-| 编号 | 问题 | 触发机制 | 后果 | 封堵 |
+| # | Problem | Trigger | Consequence | Closure |
 |---|---|---|---|---|
-| **P1** | 顺序靠文档约定 | 指望任何外部方"最后包上下文" | 顺序静默错乱 | 库是唯一最后包装者（L1），用户代码由构造固定在最内层 |
-| **P2** | 包错对象 | 用 executor 包装实现任务代码功能 | 拿不到任务身份、不计时、不归因 | §3 判据 + 不提供 executor SPI |
+| **P1** | Ordering by documentation convention | Expecting any external party to "wrap context last" | Ordering silently wrong | The library is the only last wrapper (L1); user code is fixed innermost by construction |
+| **P2** | Wrapping the wrong object | Implementing task-code features through executor wrapping | No task identity, no timing, no attribution | §3 criteria + no executor SPI |
 
-### B. 上下文（自助包装的高发错误）
+### B. Context (self-wrapping's high-frequency errors)
 
-| 编号 | 问题 | 触发机制 | 后果 | 封堵 |
+| # | Problem | Trigger | Consequence | Closure |
 |---|---|---|---|---|
-| **P3** | 在执行内捕获普通 `ThreadLocal` | 误以为上下文会自动传播 | 捕获到 worker 线程的残留值，而非提交线程的值 | 守则 R1（提交线程捕获） |
-| **P4** | 任务代码逃逸 | `CompletableFuture.supplyAsync`、新线程、另一个池，或保存代码到执行返回后再执行 | 回放只覆盖原 worker 的同步动态范围，逃逸段读到脏上下文（破 I2） | 守则 R4 + 负例测试 T3 |
-| **P5** | 恢复时清空而非还原 | 后置逻辑写 `null` 而不是捕获到的原值 | 污染池线程，影响后续无关任务 | 守则 R2 |
-| **P6** | 快照跨任务复用 | 多次提交共享同一捕获对象 | 陈旧值、并发污染、可变对象泄漏 | 守则 R3；库侧 L6：每次 prepare 独立捕获 |
+| **P3** | Capturing ordinary `ThreadLocal`s inside the execution | Believing context propagates automatically | Captures the worker thread's residue, not the submitting thread's value | Rule R1 (capture on the submitting thread) |
+| **P4** | Task-code escape | `CompletableFuture.supplyAsync`, a new thread, another pool, or saving code for after the execution returns | Replay covers only the original worker's synchronous dynamic scope; the escaped segment reads dirty context (breaks I2) | Rule R4 + negative test T3 |
+| **P5** | Clearing instead of restoring | Post logic writes `null` instead of the captured original | Pollutes pool threads, affecting later unrelated tasks | Rule R2 |
+| **P6** | Snapshots reused across tasks | Multiple submissions sharing one capture object | Stale values, concurrent pollution, mutable-object leaks | Rule R3; library-side L6: independent capture per prepare |
 
-### C. 结果与生命周期
+### C. Results and lifecycle
 
-| 编号 | 问题 | 触发机制 | 后果 | 封堵 |
+| # | Problem | Trigger | Consequence | Closure |
 |---|---|---|---|---|
-| **P7** | 包装 future | 自建 `Callable`/`FutureTask` 替换 `ExecutionPhaseHintFuture` | phase 状态机丢失、`cancel(true)` 中断失效、批次的 future 身份被破坏 | 不开放 future 级包装；公开 API 不收已准备对象（L2） |
-| **P8** | 调用 `executor.submit()` 而非 `execute()` | 想复用 JDK 的提交便利 | executor 再包一层 FutureTask → 返回的 future 与实际执行的 future 分裂，取消/结果/监听器不一致 | 库侧 L7：只调用 `execute()` |
+| **P7** | Wrapping futures | Self-built `Callable`/`FutureTask` replacing `ExecutionPhaseHintFuture` | Phase state machine lost, `cancel(true)` interruption broken, batch future identity destroyed | No future-level wrapping; public API accepts no prepared objects (L2) |
+| **P8** | Calling `executor.submit()` instead of `execute()` | Wanting JDK submission convenience | The executor wraps another FutureTask → the returned future and the actually executed future split; cancellation/results/listeners disagree | Library-side L7: only `execute()` is called |
 
-### D. executor 包装
+### D. Executor wrapping
 
-| 编号 | 问题 | 触发机制 | 后果 | 封堵 |
+| # | Problem | Trigger | Consequence | Closure |
 |---|---|---|---|---|
-| **P9** | 注册 TTL 包装器 | `TtlExecutors.getTtlExecutorService(pool)` 传入 `register` | 出现第二个捕获点（破 I3）；包装器隐藏物理池结构 | 运行时检测（§6）+ WARNING；能力探测时 `TtlUnwrap.unwrap` |
-| **P10** | executor 包装吞掉拒绝或违反契约 | 包装器内部消化 `RejectedExecutionException`、丢弃任务、重复执行、换线程执行 | future 永不完成或重复执行（破 A2）；库的 caller-thread 回退策略被绕过 | 契约 U2 + 注册期守卫（`DiscardPolicy` / `DiscardOldestPolicy` 直接拒绝注册，见 L8）+ 提交失败必终结 future（L7）+ 文档 |
-| **P11** | executor 包装扩大上下文范围 | 包装器给每个 Runnable 套上下文层 | 上下文回放覆盖到 future 记账与完成回调，语义超出"任务代码" | 契约 U1：不在 `run()` 之外包上下文 |
+| **P9** | Registering a TTL wrapper | Passing `TtlExecutors.getTtlExecutorService(pool)` to `register` | A second capture point appears (breaks I3); the wrapper hides the physical pool structure | Runtime detection (§6) + WARNING; `TtlUnwrap.unwrap` for capability probing |
+| **P10** | Executor wrapper swallowing rejections or breaching the contract | The wrapper digests `RejectedExecutionException` internally, drops tasks, duplicates execution, or switches threads | Futures never complete or execute twice (breaks A2); the library's caller-thread fallback policy is bypassed | Contract U2 + registration-time guard (`DiscardPolicy` / `DiscardOldestPolicy` refused at registration, see L8) + submission failures must terminate the future (L7) + documentation |
+| **P11** | Executor wrapping expanding the context scope | The wrapper puts a context layer around every Runnable | Context replay extends over the future's bookkeeping and completion callbacks — semantics beyond "task code" | Contract U1: no context wrapping outside `run()` |
 
-### E. 异常、取消与配置
+### E. Exceptions, cancellation, and configuration
 
-| 编号 | 问题 | 触发机制 | 后果 | 封堵 |
+| # | Problem | Trigger | Consequence | Closure |
 |---|---|---|---|---|
-| **P12** | 吞异常或吞中断且不恢复中断标志 | 包装逻辑 `catch` 后返回正常值 | `TaskTermination` 归因失真；`cancel(true)` 失效，scope 无法收敛 | 守则 R6 |
-| **P13** | 忽略 inline 路径 | 包装逻辑假设"捕获线程 ≠ 执行线程" | caller-thread 拒绝回退时行为不一致 | 守则 R7 |
-| **P14** | 提供关闭/替换上下文包装的开关 | 为"我自己处理上下文"加配置 | 直接破 I1，且制造第二条执行管道 | 明确不提供（L4） |
+| **P12** | Swallowing exceptions, or swallowing interruption without restoring the flag | Wrapping logic catches and returns a normal value | `TaskTermination` attribution distorted; `cancel(true)` broken, scopes cannot converge | Rule R6 |
+| **P13** | Ignoring the inline path | Wrapping logic assumes "capture thread ≠ execution thread" | Behavior inconsistent under caller-thread rejection fallback | Rule R7 |
+| **P14** | Offering a switch to disable/replace context wrapping | Adding configuration for "I handle context myself" | Breaks I1 directly and creates a second execution pipeline | Explicitly not provided (L4) |
 
-## 5. 自助包装：四个场景的现成做法
+## 5. Self-wrapping: ready-made recipes for four scenarios
 
-库的构造保证用户执行位于上下文层与生命周期层之内（§2 调用栈）：执行内的代码自动获得 I1/I2，抛出的异常按 `USER_FAILURE` 归因、计入 timing、进观测快照。自助包装不需要库提供任何扩展点。
+The library's construction guarantees user executions sit inside the context and lifecycle
+layers (§2's call stack): code inside the execution automatically gets I1/I2, and exceptions it
+throws are attributed `USER_FAILURE`, timed, and included in observation snapshots.
+Self-wrapping needs no extension point from the library.
 
-### 5.1 守则
+### 5.1 Rules
 
-| 编号 | 守则 |
+| # | Rule |
 |---|---|
-| R1 | **提交线程捕获**：需要传播的 MDC/普通 `ThreadLocal` MUST 在调用 `map`/`runAll` 之前捕获进闭包；在执行内读取拿到的是 worker 残留值（P3） |
-| R2 | **精确恢复**：`finally` 里 MUST 还原为捕获到的原值，而非清空（P5） |
-| R3 | **快照逐提交独立**：MUST NOT 跨提交共享同一捕获对象（P6） |
-| R4 | **不得逃逸**：横切逻辑只覆盖本次执行的同步动态范围；MUST NOT 指望逃逸到其它线程的代码看到回放（P4） |
-| R5 | **重试守则**：只重跑自己的执行；每次重试前 MUST `Checkpoints.checkpoint()` 自查取消。语义推论：一次任务 = 一次计时窗口、一份观测快照、N 次用户尝试 |
-| R6 | **不吞异常/中断**：MUST NOT `catch` 后返回正常值抹掉失败；捕获中断后 MUST 恢复中断标志（P12） |
-| R7 | **不假设跨线程**：inline 路径（caller-thread 拒绝回退）上捕获与执行可能同线程，回放 MUST 幂等无害（P13） |
-| R8 | **线程安全**：共享的包装工具实例会被多任务并发调用，MUST NOT 持有每次调用的可变状态 |
+| R1 | **Capture on the submitting thread**: MDC/ordinary `ThreadLocal`s needing propagation MUST be captured into the closure before calling `map`/`runAll`; reading them inside the execution gets the worker's residue (P3) |
+| R2 | **Restore precisely**: in `finally`, MUST restore the captured original value, not clear it (P5) |
+| R3 | **Snapshots independent per submission**: MUST NOT share one capture object across submissions (P6) |
+| R4 | **No escape**: cross-cutting logic covers only this execution's synchronous dynamic scope; MUST NOT expect code escaped to other threads to see the replay (P4) |
+| R5 | **Retry rules**: rerun only your own execution; MUST call `Checkpoints.checkpoint()` before each retry to self-check cancellation. Semantic corollary: one task = one timing window, one observation snapshot, N user attempts |
+| R6 | **No swallowing exceptions/interruption**: MUST NOT catch and return a normal value to erase a failure; after catching an interruption, MUST restore the interrupt flag (P12) |
+| R7 | **No cross-thread assumptions**: on the inline path (caller-thread rejection fallback), capture and execution may share a thread; replay MUST be idempotent and harmless (P13) |
+| R8 | **Thread safety**: shared wrapper utility instances are invoked concurrently by many tasks and MUST NOT hold per-invocation mutable state |
 
-**可见性**：执行内 `finally` 不保证先于 future 完成通知执行——取消竞态下 future 可能先进入终态；后置逻辑 MUST NOT 依赖"future 已终态 ⇒ 我的 `finally` 已跑完"。
+**Visibility**: an in-execution `finally` is not guaranteed to run before the future's
+completion notification — under a cancellation race the future may go terminal first; post
+logic MUST NOT rely on "future terminal ⇒ my `finally` has run".
 
-### 5.2 MDC / 普通 ThreadLocal
+### 5.2 MDC / ordinary ThreadLocal
 
 ```java
-Map<String, String> mdc = MDC.getCopyOfCurrentContextMap();   // 提交线程上捕获（R1）
+Map<String, String> mdc = MDC.getCopyOfCurrentContextMap();   // captured on the submitting thread (R1)
 par.map(elements, item -> {
-    Map<String, String> prev = MDC.getCopyOfCurrentContextMap();  // 备份 worker 原值
+    Map<String, String> prev = MDC.getCopyOfCurrentContextMap();  // back up the worker's original value
     if (mdc != null) MDC.setContextMap(mdc);
     try {
         return work(item);
     } finally {
-        if (prev != null) MDC.setContextMap(prev); else MDC.clear();  // 还原而非清空（R2）
+        if (prev != null) MDC.setContextMap(prev); else MDC.clear();  // restore, don't clear (R2)
     }
 }, options);
 ```
 
-### 5.3 追踪
+### 5.3 Tracing
 
 ```java
 Context captured = Context.current();
@@ -191,28 +228,32 @@ par.map(elements, item -> {
 }, options);
 ```
 
-group 成员同理：在 `par(...)` 的 `Callable` 内自行包装；terminal combine 则在
-`.combine(key, par, Combiner)` 的 `Combiner.apply(V)` 内自行包装。两者同样处于
-库的上下文层与生命周期层之内。
+Group members likewise: wrap inside the `par(...)` `Callable`; a terminal combine wraps inside
+`.combine(key, par, Combiner)`'s `Combiner.apply(V)`. Both sit equally inside the library's
+context and lifecycle layers.
 
-捕获完整 Context 不等于只设置 span 的父级：执行的 `makeCurrent` 同时回放 baggage 与
-自定义 key，Scope 在原线程关闭以恢复原值，Span.end 只结束拥有的 span。嵌套操作在它
-自己的调用入口捕获当前值；不能固定复用请求根快照扁平化父级。未进入执行的任务不建
-该执行的 span，取消或同步返回也不是未退出执行的 span 结束信号。
-Agent 的 executor advice、手工 Context.taskWrapping 与 TTL 是不同机制；I3 只约束库的
-TTL 捕获集合，不自动覆盖所有外部存储。真实 SDK/agent 接入验证仍见
-OTel 提案 `P0013`（已归档），不据示例宣称普遍 agent 兼容。
+Capturing the full Context is not the same as only setting the span's parent: the execution's
+`makeCurrent` also replays baggage and custom keys, the Scope closes on the original thread to
+restore prior values, and Span.end only ends the span it owns. A nested operation captures the
+current value at its own call entry; it must not fixedly reuse the request-root snapshot and
+flatten parenting. A task that never enters execution gets no span for that execution, and
+cancellation or synchronous return is not a span-end signal for an unexited execution either.
+Agent executor advice, manual Context.taskWrapping, and TTL are different mechanisms; I3
+constrains only the library's TTL capture set and does not automatically cover every external
+store. Real SDK/agent integration verification remains with the OTel proposal `P0013`
+(archived); no general agent compatibility is claimed from examples.
 
-### 5.4 指标：优先用观测快照，不要包执行
+### 5.4 Metrics: prefer observation snapshots over wrapping executions
 
-库已为每个任务计时并归因。同步返回的 `TaskBatchResult.completions()` / `TaskGroupResult.members()`
-直接给出终态快照，不需要再注册 callback；`TaskExitObservation` 暴露 `taskName()`、`unitId()`、
-`taskIndex()`、`outcome()`、`failure()`、`executionTime()`、`waitTime()`、`totalTime()`、
-`enqueued()`：
+The library already times and attributes every task. The synchronously returned
+`TaskBatchResult.completions()` / `TaskGroupResult.members()` give terminal snapshots directly
+— no callback registration needed; `TaskExitObservation` exposes `taskName()`, `unitId()`,
+`taskIndex()`, `outcome()`, `failure()`, `executionTime()`, `waitTime()`, `totalTime()`, and
+`enqueued()`:
 
 ```java
 for (TaskExitObservation<T> event : batch.completions()) {
-    if (event == null) {                 // 最终发布未确认；缺失项省略
+    if (event == null) {                 // final publication unconfirmed; missing entries omitted
         continue;
     }
     metrics.timer("par.task", "par", par.id().value(), "outcome", event.termination().name())
@@ -220,50 +261,65 @@ for (TaskExitObservation<T> event : batch.completions()) {
 }
 ```
 
-指标默认使用注册入口等有限维度；unitId、requestId、taskIndex 等逐运行值留在追踪或诊断，
-不要默认做 metric label。Duration 转成具体后端单位时显式转换；缺失观测不补造成功数据。
+Metrics use bounded dimensions such as the registration entry by default; per-run values like
+unitId, requestId, and taskIndex belong in tracing or diagnostics — do not make them metric
+labels by default. Convert Durations explicitly when adapting to a concrete backend's units;
+missing observations are not backfilled with fabricated success data.
 
-需要跨线程组合时才对 `ImmediateResult.asFuture()` 自行注册 callback；同步出口本身不提供运行中回调。
+Register your own callback on `ImmediateResult.asFuture()` only when cross-thread composition
+is needed; the synchronous exit itself provides no in-flight callbacks.
 
-### 5.4.1 带上下文的直接回调
+### 5.4.1 Direct callbacks with context
 
-Guava 的 `MoreExecutors.directExecutor()` 在调用 `execute` 的线程 inline 执行 listener；对异步 future，
-该线程通常是完成线程。通用的 `ContextExecutors.directContextExecutor()` 在每次 `execute` 调用点捕获当前 TTL，
-适合把调用点上下文带入同步命令：
+Guava's `MoreExecutors.directExecutor()` executes listeners inline on the thread calling
+`execute`; for an asynchronous future, that thread is usually the completing thread. The
+general-purpose `ContextExecutors.directContextExecutor()` captures the current TTL at each
+`execute` call site — suitable for bringing the call-site context into synchronous commands:
 
 ```java
 Executor activeContextExecutor = ContextExecutors.directContextExecutor();
 activeContextExecutor.execute(command);
 ```
 
-该 executor 每次执行前 capture 当前调用线程的 TTL，随后 replay、inline 执行并 restore 进入时的原值。
-它不持有创建 executor 的线程上下文，可以在不同请求之间复用；配置的 copier 也会每次 command 执行一次。
-Capture、Replay、Restore（CRR）只恢复 TTL 绑定，不保证绑定值的深拷贝：可变 `Map`、`List` 或上下文对象在默认 copier 下可能仍由
-多个 listener 共享。需要值级隔离时 MUST 使用不可变/写时复制值，或配置能提供深拷贝的 TTL copier。
-在 `execute` 内调用 `TtlRunnable.get` 被排除，因为这会把 capture 时机推迟到当前 command 已经开始执行之后。
-该 API 只覆盖应用 callback，不替换库内部的框架 direct callbacks，避免把应用上下文扩大到 future 记账和完成通知。
+This executor captures the current calling thread's TTL before each execution, then replays,
+executes inline, and restores the entry-time original. It holds no creating thread's context
+and can be reused across requests; a configured copier also runs once per command execution.
+Capture, Replay, Restore (CRR) only restores TTL bindings and does not guarantee deep copies of
+the bound values: mutable `Map`s, `List`s, or context objects may still be shared by multiple
+listeners under the default copier. When value-level isolation is needed, you MUST use
+immutable/copy-on-write values or configure a TTL copier providing deep copies.
+Calling `TtlRunnable.get` inside `execute` is excluded, as that would defer the capture until
+after the current command has already started executing.
+This API covers application callbacks only and does not replace the library's internal
+framework direct callbacks, avoiding expanding application context over the future's
+bookkeeping and completion notification.
 
-如果异步 Future 的 listener 属于注册者，而不是完成线程，使用显式的注册上下文 executor：
+If an asynchronous future's listener belongs to the registrant rather than the completing
+thread, use the explicit registration-context executor:
 
 ```java
 Executor listenerExecutor = ContextExecutors.registrationContextExecutor();
 future.addListener(listener, listenerExecutor);
 ```
 
-`registrationContextExecutor()` 在创建时 capture 一次，之后每次命令都 replay 这份固定快照，再 restore 完成线程的原值。
-每个请求上下文 MUST 创建独立实例；同一请求的 listener 可以复用实例。不要把它做成持有请求状态的全局单例。
+`registrationContextExecutor()` captures once at creation, then replays that fixed snapshot for
+every command and restores the completing thread's original value. Each request context MUST
+create its own instance; listeners of the same request may share the instance. Do not make it a
+global singleton holding request state.
 
-这两个 executor 的区别是上下文归属，而不是执行速度：`directContextExecutor()` 属于每次 `execute` 调用，
-`registrationContextExecutor()` 属于创建或注册动作。注册时上下文需要保留时，不能用前者替代后者。
+The difference between these two executors is context ownership, not execution speed:
+`directContextExecutor()` belongs to each `execute` call, while
+`registrationContextExecutor()` belongs to the creation or registration act. When registration-time
+context needs preserving, the former cannot substitute for the latter.
 
-### 5.5 重试
+### 5.5 Retries
 
 ```java
 TaskKey<Result> flaky = TaskKey.named("flaky");
 global.group("retry", Duration.ofSeconds(5))
         .par(flaky, httpPar, () -> {
             for (int attempt = 1; ; attempt++) {
-                Checkpoints.checkpoint();        // 协作式取消：已取消则在此抛出（R5）
+                Checkpoints.checkpoint();        // cooperative cancellation: throws here if cancelled (R5)
                 try {
                     return callRemote();
                 } catch (TransientException e) {
@@ -272,132 +328,152 @@ global.group("retry", Duration.ofSeconds(5))
             }
         })
         .runAll()
-        .valuesOrThrow()             // 未声明 combine：读成员快照，而非 terminalValueOrThrow()
+        .valuesOrThrow()             // no combine declared: read the member snapshot, not terminalValueOrThrow()
         .valueOf(flaky);
 ```
 
-## 6. TTL 包装器检测（已落地，见下方落地记录）
+## 6. TTL wrapper detection (landed; see the landing record below)
 
-草案快照（告警位置与文案以落地记录为准）：
+Draft snapshot (the warning's location and wording are governed by the landing record):
 
 ```java
-// ExecutorRuntime 构造期
+// ExecutorRuntime construction
 if (TtlUnwrap.isWrapper(suppliedExecutor)) {
     LOGGER.warning("Registered executor is a TTL wrapper; register the physical pool instead. "
             + "TTL capture will happen twice (executor boundary + prepare), and purge/BlockingRisk "
             + "introspection is disabled.");
 }
-// 能力探测（purge、BlockingRisk）在解包后的对象上进行
+// Capability probing (purge, BlockingRisk) runs on the unwrapped object
 ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
 ```
 
-事实依据（TTL 2.14.5 源码逐条验证）：
+Factual basis (verified line by line against the TTL 2.14.5 source):
 
-- `TtlExecutors.getTtlExecutorService` 在 `TtlAgent.isTtlAgentLoaded() || executor instanceof TtlEnhanced` 时**直接返回原对象**——同一份代码在不同部署下行为不同；
-- `ExecutorServiceTtlWrapper` 是包私有类（`implements ExecutorService, TtlEnhanced`），外部无法 `instanceof`，但 `TtlUnwrap.isWrapper/unwrap` 是公开 API；
-- Guava 的 `WrappingExecutorService` 是包私有且无公开解包入口，因此**只修 TTL 一侧**；
-- **身份不跟着解包**：`ExecutorIdentity` 仍按注册对象（见其 javadoc 的理由），否则同一物理池以两个对象注册会被合并，改变执行器图语义。
+- `TtlExecutors.getTtlExecutorService` **returns the original object directly** when
+  `TtlAgent.isTtlAgentLoaded() || executor instanceof TtlEnhanced` — the same code behaves
+  differently across deployments;
+- `ExecutorServiceTtlWrapper` is a package-private class (`implements ExecutorService,
+  TtlEnhanced`) — no external `instanceof`, but `TtlUnwrap.isWrapper/unwrap` is public API;
+- Guava's `WrappingExecutorService` is package-private with no public unwrap entry, so **only
+  the TTL side is fixed**;
+- **Identity does not follow the unwrap**: `ExecutorIdentity` still follows the registered
+  object (see its Javadoc for the reasons), or the same physical pool registered as two objects
+  would be merged, changing executor-graph semantics.
 
-> **落地记录**：新增
-> `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`，
-> blocking-risk 分类、饥饿判定、`rejectEnqueue` 生效判定、purge 绑定、注册期「看不透」告警
-> 全部改读解包对象；身份仍按注册对象。实测根模块 644/644、demo 54/54 全绿，新增 3 条回归测试。
+> **Landing record**: added
+> `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`;
+> blocking-risk classification, starvation determination, `rejectEnqueue` effectiveness
+> determination, purge binding, and the registration-time "opaque" warning all now read the
+> unwrapped object; identity still follows the registered object. Measured root module 644/644
+> and demo 54/54 all green, with 3 new regression tests.
 >
-> **落地时发现的新缺陷（本文档此前未记载）**：L8 护栏曾被整条绕过。注册期拒绝策略校验用
-> 同一句 `instanceof ThreadPoolExecutor` 判断，而 TTL 包装器不是 `ThreadPoolExecutor`，
-> 于是 `DiscardPolicy` / `DiscardOldestPolicy` 池经 TTL 包装后漏过校验成功注册——任务被
-> 接受后静默丢弃，任务代码从未执行，框架等到 deadline 才以 TIMEOUT 浮现。这正是 L8 要拦的
-> 失败形状。回归用例：
+> **A new defect found at landing (not previously recorded in this document)**: the L8 guard
+> had been bypassed wholesale. The registration-time rejection-policy check used the same
+> `instanceof ThreadPoolExecutor` judgment, and a TTL wrapper is not a `ThreadPoolExecutor` —
+> so `DiscardPolicy` / `DiscardOldestPolicy` pools wrapped in TTL slipped past the check and
+> registered successfully: tasks were accepted and silently discarded, task code never
+> executed, and the framework surfaced only as TIMEOUT at the deadline. This is exactly the
+> failure shape L8 exists to block. Regression case:
 > `ParRuntimePoliciesTest.aTtlWrappedDiscardingPoolIsStillRefusedInsteadOfSlidingPastTheGuard`
-> （修复前实测失败）。
+> (measured failing before the fix).
 >
-> 与草稿的两处有意偏离：
-> 1. **告警位置**：实际放在 `ParRuntime` 注册循环而非 `ExecutorRuntime` 构造期——消息需要
->    点名 Par id（本仓既定消息约定），而 `ExecutorRuntime` 不知道 Par id；顺带让
->    `ExecutorRuntime` 保持无日志副作用。告警每个新 identity 至多一次。
-> 2. **告警文案**：草稿的 *"purge/BlockingRisk introspection is disabled"* 在探测改到解包
->    对象后不再成立，实际只陈述仍成立的代价：TTL 捕获两次（executor 边界 + prepare）。
->    双重捕获来自用户 executor 边界的包装，库管不着，告警是唯一处置。
+> Two intentional deviations from the draft:
+> 1. **Warning location**: actually placed in `ParRuntime`'s registration loop rather than
+>    `ExecutorRuntime`'s construction — the message needs to name the Par id (this repository's
+>    established message convention), and `ExecutorRuntime` does not know the Par id; it also
+>    keeps `ExecutorRuntime` free of logging side effects. The warning fires at most once per
+>    new identity.
+> 2. **Warning wording**: the draft's *"purge/BlockingRisk introspection is disabled"* stopped
+>    being true once probing moved to the unwrapped object; the actual warning states only the
+>    cost that still holds: TTL capture happens twice (executor boundary + prepare). Double
+>    capture comes from wrapping at the user's executor boundary, which the library cannot
+>    control — the warning is the only remedy.
 >
-> TTL agent 已加载时 `getTtlExecutorService` 直接返回原对象：无包装、无双重捕获、无需告警。
+> With the TTL agent loaded, `getTtlExecutorService` returns the original object directly: no
+> wrapper, no double capture, no warning needed.
 
-## 7. 契约
+## 7. Contracts
 
-### 7.1 库侧契约
+### 7.1 Library-side contracts
 
-| 编号 | 契约 |
+| # | Contract |
 |---|---|
-| L1 | **唯一构造点**：全库只有 `TaskSubmissions.wrapScoped` 调用 `TtlCallable.get`；`Par` 的 batch 元素与终端、`TaskGroup` 的成员与终端均直接调用 `TaskSubmissions.prepare`，共用此点 |
-| L2 | **顺序与封装**：`Context( ScopedCallable( user ) )`，用户代码由构造固定在最内层；公开 API 只收 `Callable`/`Function`，不收"已准备对象"，已准备对象的类型与构造入口 package-private（防绕过，P7） |
-| L3 | **单次包装**：每个任务恰好经过库的上下文层与生命周期层各一次 |
-| L4 | **不可配置**：不提供关闭或替换上下文包装的配置项 |
-| L5 | **归因不变**：用户执行（含自助包装）抛出的异常归因 `USER_FAILURE`，不新增 `TaskTermination` 词汇 |
-| L6 | **快照独立**：每次 `prepare` 独立捕获上下文快照，不跨任务复用（P6） |
-| L7 | **只用 `execute()`**：向用户 executor 提交 MUST 调用 `execute(Runnable)`，MUST NOT 调用 `submit()`（P8）；被拒绝时 MUST 终结 future（inline 回退或 `SubmissionException`），不得返回永不完成的对象。提交调用抛出的**任何**失败——含违反契约直接抛出的 `Error`——同样 MUST 以 `SubmissionException` 终结该 prepared future：它没有 worker 持有，抛出后没有任何其他路径能完成它。「任何失败」按字面覆盖 `Throwable`：`execute(Runnable)` 不声明受检异常，但执行器可以借泛型擦除偷渡受检异常，因此各 catch 点统一捕获 `Throwable`（初始窗口与滑动窗口 refill 在 `SlidingWindowSubmitter`，单次提交与 group 成员在共享内核 `ExecutionPhaseHintFuture.submitPrepared`，原 throwable 始终保留为 cause）。handoff `Error` 在记录它的那个 catch 点以 SEVERE 诊断一次，消息携带批次/成员身份与阶段；批次路径不经过 `submitPrepared`，因此同一失败不会被记录两次。普通 rejection 属于控制流，不打日志 |
-| L8 | **注册期拒绝丢弃型拒绝策略**：注册的 `ThreadPoolExecutor` 使用 `DiscardPolicy` / `DiscardOldestPolicy` 时，`ParRuntime.Builder.build()` MUST 以 `IllegalArgumentException` 失败，并在消息中点名 Par id、池类与策略类。这两种策略"接受后丢弃"：既不执行也不抛 `RejectedExecutionException`，而提交内核只把后者当作终态信号，因此 `Par.map` 与 TaskGroup 会永久等待（P10/L7）。`AbortPolicy`（拒绝成为 `SUBMISSION_FAILURE`）与 `CallerRunsPolicy`（任务 inline 执行）不受影响。守卫只在注册期读取一次 supplied 对象：`build()` 之后安装的 handler、自定义丢弃 handler、以及库看不透的包装器都不在覆盖范围内，这些形态仍只能由 U2 约束 |
+| L1 | **Single construction point**: only `TaskSubmissions.wrapScoped` calls `TtlCallable.get` library-wide; `Par`'s batch elements and terminals and `TaskGroup`'s members and terminals all call `TaskSubmissions.prepare` directly, sharing this point |
+| L2 | **Ordering and encapsulation**: `Context( ScopedCallable( user ) )`, with user code fixed innermost by construction; public API accepts only `Callable`/`Function` — no "prepared objects"; prepared objects' types and construction entries are package-private (anti-bypass, P7) |
+| L3 | **Single wrapping**: each task passes through the library's context layer and lifecycle layer exactly once each |
+| L4 | **Not configurable**: no option disables or replaces context wrapping |
+| L5 | **Attribution unchanged**: exceptions thrown by user executions (including self-wrapping) attribute `USER_FAILURE`; no new `TaskTermination` vocabulary |
+| L6 | **Independent snapshots**: each `prepare` captures its context snapshot independently, never reused across tasks (P6) |
+| L7 | **`execute()` only**: submissions to user executors MUST call `execute(Runnable)` and MUST NOT call `submit()` (P8); when rejected, the future MUST be terminated (inline fallback or `SubmissionException`) — never returning a never-completing object. **Any** failure thrown by a submission call — including an `Error` thrown directly in breach of contract — MUST likewise terminate that prepared future with `SubmissionException`: no worker holds it, and after the throw no other path can complete it. "Any failure" covers `Throwable` literally: `execute(Runnable)` declares no checked exceptions, but an executor can smuggle one through generic erasure, so every catch point uniformly catches `Throwable` (initial window and sliding-window refill in `SlidingWindowSubmitter`, single submissions and group members in the shared kernel `ExecutionPhaseHintFuture.submitPrepared`, with the original throwable always kept as cause). A handoff `Error` is diagnosed once at SEVERE at the catch point that records it, the message carrying batch/member identity and phase; the batch path does not go through `submitPrepared`, so the same failure is never recorded twice. Ordinary rejections are control flow and are not logged |
+| L8 | **Refuse discarding rejection policies at registration**: when a registered `ThreadPoolExecutor` uses `DiscardPolicy` / `DiscardOldestPolicy`, `ParRuntime.Builder.build()` MUST fail with `IllegalArgumentException`, naming the Par id, the pool class, and the policy class in the message. These two policies "accept then discard": they neither execute nor throw `RejectedExecutionException`, while the submission kernel treats only the latter as a terminal signal, so `Par.map` and TaskGroup would wait forever (P10/L7). `AbortPolicy` (rejection becomes `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (tasks execute inline) are unaffected. The guard reads the supplied object once at registration: handlers installed after `build()`, custom discarding handlers, and wrappers the library cannot see through are all outside its coverage — those shapes remain constrained only by U2 |
 
-### 7.2 用户侧约束
+### 7.2 User-side constraints
 
-| 编号 | 约束 |
+| # | Constraint |
 |---|---|
-| U1 | MUST NOT 通过 executor 包装把 `run()` 之外的 Runnable 再包一层（尤其 `TtlExecutors`） |
-| U2 | 注册的 executor MUST 遵守 `Executor` 契约：恰好一次调用 `run()`，不丢弃、不重复、不换线程 |
-| U3 | MUST NOT 通过反射等方式依赖 package-private 内核类自建执行管道 |
-| U4 | MUST NOT 期望上下文传播普通 `ThreadLocal` 或 MDC——传播集合封闭（A3）；需要时按 §5 自助捕获回放 |
+| U1 | MUST NOT wrap another layer around Runnables outside `run()` through executor wrapping (especially `TtlExecutors`) |
+| U2 | A registered executor MUST honor the `Executor` contract: invoke `run()` exactly once — no dropping, no duplication, no thread switching |
+| U3 | MUST NOT build private execution pipelines by depending on package-private kernel classes through reflection or similar means |
+| U4 | MUST NOT expect context to propagate ordinary `ThreadLocal`s or MDC — the propagation set is closed (A3); capture and replay yourself per §5 when needed |
 
-## 8. 不变量
+## 8. Invariants
 
-| 编号 | 不变量 | 校验方式 |
+| # | Invariant | Verification |
 |---|---|---|
-| INV-1 | 上下文层位于所有用户代码之外（I1） | 顺序断言 + 执行内上下文可见 |
-| INV-2 | 对任务代码同步同线程动态范围内的代码，回放生效（I2） | 执行内读上下文 == 提交线程值；逃逸负例 |
-| INV-3 | 精确恢复：成功、异常、Error、中断、拒绝、inline 都恢复 worker 原状态 | 单线程池连续执行污染/失败/后继任务；中断与 inline 两项由 `InlineSubmissionLivenessTest` 锁住（含池化路径对照组），见 [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) |
-| INV-4 | 快照独立：每次 prepare 独立捕获，不跨任务复用 | 并发提交不同上下文值 |
-| INV-5 | 传播集合封闭：只传播登记的 `TransmittableThreadLocal` | 登记/未登记对照测试 |
-| INV-6 | prepared future 身份唯一：提交给 executor 的就是 prepare 产出的实例；返回给调用方的视图从创建起就包住该实例，窗口内外一致，无占位符、无 `bind` 桥接 | spy executor 引用相等断言 |
-| INV-7 | 归因不变：执行异常 → `USER_FAILURE`，不新增词汇 | 异常执行 → 批/组 outcome 断言 |
-| INV-8 | 取消/deadline/fail-fast 语义与用户是否自助包装无关 | 带自助包装的取消/fail-fast/timeout 测试 |
-| INV-9 | inline 路径与正常路径顺序相同 | 拒绝回退测试 |
-| INV-10 | 库只用 `execute()`，且拒绝必终结 future | spy executor + 拒绝型 executor |
-| INV-11 | 能力探测不改变身份 | `ExecutorIdentity` 仍 == 注册对象 |
+| INV-1 | The context layer sits outside all user code (I1) | Ordering assertions + context visible inside executions |
+| INV-2 | Replay takes effect inside task code's synchronous same-thread dynamic scope (I2) | In-execution context reads == submitting thread values; escape negative cases |
+| INV-3 | Precise restoration: success, exception, Error, interruption, rejection, and inline all restore the worker's original state | Single-thread pool running polluting/failing/successor tasks in sequence; interruption and inline locked by `InlineSubmissionLivenessTest` (with a pooled-path control), see [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) |
+| INV-4 | Independent snapshots: each prepare captures independently, never reused across tasks | Concurrent submissions with different context values |
+| INV-5 | Closed propagation set: only registered `TransmittableThreadLocal`s propagate | Registered/unregistered control tests |
+| INV-6 | Unique prepared-future identity: what is submitted to the executor is the instance prepare produced; the view returned to the caller wraps that instance from creation, identical inside and outside the window — no placeholders, no `bind` bridge | Spy executor reference-equality assertions |
+| INV-7 | Attribution unchanged: execution exceptions → `USER_FAILURE`, no new vocabulary | Exceptional executions → batch/group outcome assertions |
+| INV-8 | Cancellation/deadline/fail-fast semantics independent of whether the user self-wraps | Cancellation/fail-fast/timeout tests with self-wrapping |
+| INV-9 | Inline path ordered identically to the normal path | Rejection-fallback tests |
+| INV-10 | The library only calls `execute()`, and rejections must terminate futures | Spy executor + rejecting executor |
+| INV-11 | Capability probing does not change identity | `ExecutorIdentity` still == the registered object |
 
-## 9. 验证矩阵
+## 9. Verification matrix
 
-| 编号 | 用例 | 断言 |
+| # | Case | Assertion |
 |---|---|---|
-| T1 | 顺序 | 自助包装执行记录 enter/exit → `[context, scoped, taskCode]`（用户包装在最内层） |
-| T2 | 上下文可见性 | 执行内 TTL 可见、未登记的普通 `ThreadLocal` 不可见 |
-| T3 | 逃逸负例 | 执行把逻辑交给另一线程 → 该段代码看不到快照（证明 I2 边界） |
-| T4 | 快照隔离 | 并发提交不同上下文值 → 各任务看到各自快照 |
-| T5 | 恢复精确性 | worker 预置非 null 值 → 任务结束后仍为该值 |
-| T6 | inline | 拒绝回退路径顺序与正常路径相同 |
-| T7 | executor 契约 | spy 断言调用的是 `execute` 而非 `submit`；拒绝型 executor → future 终态且无悬挂 |
-| T8 | 异常归因 | 执行抛异常 → `USER_FAILURE`；观测快照携带失败记录 |
-| T9 | 取消 | 执行内 `Checkpoints.checkpoint()` 在取消后抛出；带自助包装的取消/fail-fast/timeout 语义不变 |
+| T1 | Ordering | Self-wrapped execution records enter/exit → `[context, scoped, taskCode]` (user wrapping innermost) |
+| T2 | Context visibility | TTL visible inside executions; unregistered ordinary `ThreadLocal` not visible |
+| T3 | Escape negative case | An execution handing logic to another thread → that segment does not see the snapshot (proves I2's boundary) |
+| T4 | Snapshot isolation | Concurrent submissions with different context values → each task sees its own snapshot |
+| T5 | Restoration precision | A worker pre-set with a non-null value → still that value after the task |
+| T6 | Inline | Rejection-fallback path ordered identically to the normal path |
+| T7 | Executor contract | Spy asserts `execute` rather than `submit` is called; a rejecting executor → futures terminal with nothing dangling |
+| T8 | Exception attribution | An execution throwing → `USER_FAILURE`; observation snapshots carry the failure record |
+| T9 | Cancellation | `Checkpoints.checkpoint()` inside the execution throws after cancellation; cancellation/fail-fast/timeout semantics unchanged with self-wrapping |
 
-## 10. 明确不做
+## 10. Explicitly not done
 
-| 方案 | 否决理由 |
+| Approach | Rejection rationale |
 |---|---|
-| 任务装饰器 SPI（`TaskDecorator`、per-Par 注册面） | **暂缓（维护者拍板）**。语义上无新能力：任务代码本来就归用户创作，自助包装与 SPI 同位置、同保证（first-principles 判据 2）；指标已有观测快照（§5.4）；无真实需求信号。重开条件：① 出现跨调用点统一装饰的真实需求，且在调用方平台层包装入口被证明不足；② 库新增用户不创作任务代码的提交路径 |
-| executor 包装 SPI | JDK 的 `ExecutorService` 已是扩展点；再加一层只会让身份、内省与上下文范围问题更隐蔽（P9–P11） |
-| future 级包装 | 破坏 phase/取消/身份（P7）；future 级能力应进库扩展 |
-| 关闭/替换上下文包装的开关 | 直接破 I1（P14） |
-| 承诺覆盖任务代码异步逃逸的代码 | Java 8 无法阻止用户代码换线程；只能靠守则 + 负例测试暴露（P4） |
-| 承诺传播任意 `ThreadLocal`/MDC | 传播集合封闭（A3） |
-| 可选的 Listening 包装 | `ListenableFuture` 是内部实现细节；对外契约是 `TaskBatchResult`/`TaskGroupResult` |
+| Task decorator SPI (`TaskDecorator`, per-Par registration surface) | **Deferred (maintainer's call)**. Semantically no new capability: task code belongs to user authorship anyway, and self-wrapping sits at the same position with the same guarantees as an SPI (first-principles criterion 2); metrics already have observation snapshots (§5.4); no real demand signal. Re-entry conditions: ① real demand for unified decoration across call sites appears, and wrapping at the caller's platform layer proves insufficient; ② the library adds a submission path where users do not author task code |
+| Executor wrapping SPI | The JDK's `ExecutorService` is already the extension point; another layer would only hide identity, introspection, and context-scope problems deeper (P9–P11) |
+| Future-level wrapping | Breaks phase/cancellation/identity (P7); future-level capabilities belong in library extensions |
+| A switch to disable/replace context wrapping | Breaks I1 directly (P14) |
+| Promising to cover code task code escapes asynchronously | Java 8 cannot stop user code from switching threads; only rules + negative tests can expose it (P4) |
+| Promising to propagate arbitrary `ThreadLocal`s/MDC | The propagation set is closed (A3) |
+| Optional Listening wrapping | `ListenableFuture` is an internal implementation detail; the external contract is `TaskBatchResult`/`TaskGroupResult` |
 
-## 11. 落地状态
+## 11. Landing status
 
-1. ~~TTL 包装器检测~~——已落地（见 §6 落地记录）；
-2. 本文档 + `design/AGENTS.md` 索引 + `CHANGELOG.md`——文档定稿（零 SPI 方向）；CHANGELOG 已记上述检测与 L8 两条修复；
-3. 用户文档（中英）：自助包装守则与范例（§5）、观测快照指标接法；`idea-graveyard` 收录 SPI 暂缓记录。
+1. ~~TTL wrapper detection~~ — landed (see §6's landing record);
+2. This document + the `design/AGENTS.md` index + `CHANGELOG.md` — documentation final (the
+   zero-SPI direction); the CHANGELOG records the detection and L8 fixes above;
+3. User documentation (en/zh): self-wrapping rules and examples (§5), wiring metrics from
+   observation snapshots; `idea-graveyard` carries the SPI deferral record.
 
-## 12. 参考
+## 12. References
 
-- [first-principles.md](first-principles.md)：公理与评估判据
-- [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md)：否决记录
-- [task-group-submission.md](task-group-submission.md) §7.3、§9：单任务提交内核的复用边界
-- [task-group-lifecycle.md](task-group-lifecycle.md) §4.8：TTL 边界
-- 根包私有实现：`TaskSubmissions`、`ScopedCallable`、`ExecutionPhaseHintFuture`、`ExecutorRuntime`、`ExecutorIdentity`
-- TTL 2.14.5：`TtlCallable`（`get` 的 idempotent 语义、`releaseTtlValueReferenceAfterCall`）、`TtlExecutors`（agent 短路）、`TtlUnwrap`
+- [first-principles.md](first-principles.md): axioms and evaluation criteria
+- [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md): rejection records
+- [task-group-submission.md](task-group-submission.md) §7.3, §9: the single-task submission
+  kernel's reuse boundary
+- [task-group-lifecycle.md](task-group-lifecycle.md) §4.8: TTL boundaries
+- Root package-private implementations: `TaskSubmissions`, `ScopedCallable`,
+  `ExecutionPhaseHintFuture`, `ExecutorRuntime`, `ExecutorIdentity`
+- TTL 2.14.5: `TtlCallable` (`get`'s idempotent semantics,
+  `releaseTtlValueReferenceAfterCall`), `TtlExecutors` (agent short-circuit), `TtlUnwrap`

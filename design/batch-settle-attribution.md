@@ -1,111 +1,150 @@
-# 批次元素按落定时刻归因
+# Batch Elements Attributed at Settle Time
 
-`Par.map` / `mapAndCombine` 冻结每个元素（含终端汇总）的 outcome 时，取该元素 future
-**落定那一刻**的分类，与组成员在 `TaskGroup.memberCompleted` 里被分类的时刻一致。本文是这条
-契约的权威出处；用户可见的承诺在 `TaskExitObservation.failure()` javadoc 与用户指南
-"Final observations"一节。
+When `Par.map` / `mapAndCombine` freezes each element's (including the terminal combine's)
+outcome, it takes the classification at **the moment that element's future settles** — the same
+moment at which a group member is classified in `TaskGroup.memberCompleted`. This document is
+the authoritative source of that contract; the user-visible promise is in the
+`TaskExitObservation.failure()` Javadoc and the user guide's "Final observations" section.
 
-## 1. 契约
+## 1. Contract
 
-- 批次冻结的元素 outcome MUST 来自该元素落定时的分类；MUST NOT 在冻结时按 token 的当前状态
-  重新分类已落定的元素。
-- 落定分类 MUST 由在 token bind **之前**注册到元素 delegate 上的监听器读取，因而先于该元素
-  自身失败经 bind 聚合监听器提交的 `FAIL_FAST`。
-- 冻结 MUST 等到每个元素的落定分类完成。该分类由落定 future 的监听器 fan-out 在落定线程上
-  执行，排在它前面的只有该元素观测的落定信号（同为框架代码）；它不占用也不受 cleanup budget
-  约束。分类失败或观测快照无法构建都是内核缺陷：冻结 MUST 以 `AssertionError` 报出，MUST NOT
-  挂起。为此观测的落定信号 MUST 在受保护的调用内构建快照，失败时以异常结束该观测，MUST NOT 让
-  失败逃出 fan-out——Guava 的 fan-out 在第一个逃出的 `Error` 处停止，排在后面的钉子将永不运行。
-- 执行自己抛出 `CancellationException` / `InterruptedException`、且落定时 token 未提交任何
-  框架取消：元素 MUST 冻结为 `USER_FAILURE`，`failure()` 为原对象；`valuesOrThrow()` /
-  `terminalValueOrThrow()` 按 [聚合读取规则](synchronous-scope-exit.md) 原样抛出 `CancellationException`，
-  把 `InterruptedException` 包装为 `CompletionException`。该元素自身失败引发的
-  fail-fast 级联 MUST NOT 事后改写它。落定时 token 已提交（检查点观察到级联、deadline
-  backstop 已提交 `TIMEOUT`）则照旧经 token 归因。
+- A batch's frozen element outcome MUST come from the classification at that element's settle
+  time; settled elements MUST NOT be reclassified at freeze time by the token's current state.
+- The settle classification MUST be read by a listener registered on the element's delegate
+  **before** the token bind, so it precedes the `FAIL_FAST` that the element's own failure
+  commits through bind's aggregate listener.
+- Freezing MUST wait for every element's settle classification to complete. That classification
+  runs on the settling thread in the settled future's listener fan-out; the only thing ahead of
+  it is the element observation's settle signal (also framework code). It neither consumes nor
+  is constrained by the cleanup budget. A classification failure or an observation snapshot
+  that cannot be built is a kernel defect: freezing MUST report it as an `AssertionError` and
+  MUST NOT hang. To that end the observation's settle signal MUST build its snapshot inside a
+  guarded call, ending that observation exceptionally on failure, and MUST NOT let the failure
+  escape the fan-out — Guava's fan-out stops at the first escaped `Error`, and the pins queued
+  after it would never run.
+- An execution itself throwing `CancellationException` / `InterruptedException` with no
+  framework cancellation committed on the token at settle time: the element MUST freeze as
+  `USER_FAILURE` with `failure()` being the original object; `valuesOrThrow()` /
+  `terminalValueOrThrow()` throw the `CancellationException` as-is and wrap the
+  `InterruptedException` into `CompletionException`, per the
+  [aggregate read rules](synchronous-scope-exit.md). The fail-fast cascade triggered by the
+  element's own failure MUST NOT rewrite it afterwards. When the token is already committed at
+  settle time (a checkpoint observed the cascade, or the deadline backstop already committed
+  `TIMEOUT`), attribution goes through the token as usual.
 
-## 2. 缺陷形态
+## 2. The defect's shape
 
-批次所有元素共享一个 token。元素失败经 `CancellationToken.bind` 的 `allAsList` 回调提交
-`FAIL_FAST`，这个回调与元素 future 的其他监听器同在一次 fan-out 里；Guava 先唤醒
-`get()` 等待者再跑监听器，调用线程因此可能在提交前或提交后冻结。旧实现在冻结时刻按 token
-分类：
+All elements of a batch share one token. An element failure commits `FAIL_FAST` through
+`CancellationToken.bind`'s `allAsList` callback, and that callback sits in the same fan-out as
+the element future's other listeners; Guava wakes `get()` waiters before running listeners, so
+the calling thread may freeze before or after the commit. The old implementation classified by
+token at freeze time:
 
-- 单元素执行自抛 CE：`USER_FAILURE` / `FAIL_FAST` 随机（实测约各半），`valuesOrThrow()`
-  随之在 `ExecutionException` 与 `CancellationException` 之间切换，当时的 `report().firstException()`
-  为 null（0.3 的批次读取口，0.4 已删除）。
-- 多元素全部自抛 CE：调用线程等完全部元素时级联早已提交，**确定性**全部 `FAIL_FAST`。
-- direct executor：元素在提交期间同步落定，级联必然先于冻结，确定性错归。
-- `mapAndCombine` 的终端汇总自抛 CE 同理。
+- A single element throwing CE itself: `USER_FAILURE` / `FAIL_FAST` randomly (measured at about
+  half each), with `valuesOrThrow()` switching between `ExecutionException` and
+  `CancellationException` accordingly, and the then-current `report().firstException()` null
+  (0.3's batch read entry, deleted in 0.4).
+- Multiple elements all throwing CE themselves: by the time the calling thread has waited for
+  every element, the cascade committed long ago — **deterministically** all `FAIL_FAST`.
+- Direct executor: elements settle synchronously during submission, so the cascade necessarily
+  precedes the freeze — deterministically misattributed.
+- A `mapAndCombine` terminal combine throwing CE itself: same.
 
-组路径在 bind 之前注册 `memberCompleted`，一直是落定时刻分类，不受影响。
+The group path registers `memberCompleted` before bind and has always classified at settle
+time; it was unaffected.
 
-## 3. 机制
+## 3. Mechanism
 
-`Task.attributedOnSettle` 构造批次元素与终端汇总的视图，同时向 delegate 注册一个监听器，
-把落定时的 `outcome()` 钉进 `SettableFuture<TaskTermination>`。视图在 bind 之前创建
-（`SlidingWindowSubmitter.viewsFor`、`Par.executeCombined` 的 terminal 视图），Guava
-`AbstractFuture` 按注册顺序执行已落定 future 的监听器——组的 `memberCompleted` 依赖同一前提。
+`Task.attributedOnSettle` constructs the views of batch elements and the terminal combine,
+registering a listener on the delegate that pins the settle-time `outcome()` into a
+`SettableFuture<TaskTermination>`. Views are created before bind
+(`SlidingWindowSubmitter.viewsFor`, the terminal view of `Par.executeCombined`); Guava
+`AbstractFuture` runs a settled future's listeners in registration order — the group's
+`memberCompleted` relies on the same premise.
 
-观测的落定信号（`TaskObservation.signal`）在受保护的调用内构建快照：快照失败以异常结束该观测并
-记一条 SEVERE 日志，fan-out 继续执行到钉子与 bind 监听器。
+The observation's settle signal (`TaskObservation.signal`) builds its snapshot inside a guarded
+call: a snapshot failure ends that observation exceptionally and logs one SEVERE record, and
+the fan-out continues to the pins and the bind listener.
 
-`TaskBatch` 用"等待落定分类"取代"等待元素 future"，冻结时以 `fromTask(view, 钉住的 outcome)`
-构造结果；观测快照经 `TaskExitObservation.withResult` 取冻结值，三视图一致。批次冻结的每个任务都
-必须带钉子（`Verify`，缺失即内核缺陷）：生产里批次视图只由上述两处产生，空批次不冻结任何元素。
-包私有的活读 `TaskFuture.termination()` / `TaskBatch.report()` 不变。
+`TaskBatch` replaces "waiting for element futures" with "waiting for settle classifications",
+constructing results at freeze time with `fromTask(view, pinned outcome)`; observation
+snapshots take the frozen value through `TaskExitObservation.withResult`, keeping the three
+views consistent. Every task frozen in a batch must carry a pin (`Verify`; a missing pin is a
+kernel defect): in production, batch views are produced only by the two places above, and an
+empty batch freezes no elements. The package-private live reads `TaskFuture.termination()` /
+`TaskBatch.report()` are unchanged.
 
-## 4. 行为差异范围
+## 4. Scope of the behavioral difference
 
-落定分类与冻结时分类只在两种输入形状上不同：
+Settle-time classification and freeze-time classification differ only on two input shapes:
 
-1. 失败 future 的 cause 是 CE/IE，且落定时 token 未提交——即本缺陷，现为 `USER_FAILURE`。
-2. token 仍为 `RUNNING` 时某个元素被直接取消：现冻结为 `MEMBER_CANCELLED`（与直接取消的组
-   成员一致），旧实现读到该取消自己引发的 `FAIL_FAST`；被它级联取消的兄弟仍为 `FAIL_FAST`。
-   库自身的每一次取消都先提交 token（deadline、fail-fast、祖先传播、`TaskBatch.close`），但
-   这一形状对用户可达：注册的 executor 收到的 `Runnable` 就是元素的引擎 future，用户
-   executor 可以取消它（常见形态是 `shutdownNow()` 的调用方取消返回的任务）。
+1. The failed future's cause is a CE/IE and the token is uncommitted at settle time — the
+   defect itself, now `USER_FAILURE`.
+2. An element is directly cancelled while the token is still `RUNNING`: it now freezes as
+   `MEMBER_CANCELLED` (consistent with a directly cancelled group member), where the old
+   implementation read the `FAIL_FAST` that this very cancellation triggered; siblings it
+   cascade-cancels remain `FAIL_FAST`. Every cancellation the library itself initiates commits
+   the token first (deadline, fail-fast, ancestor propagation, `TaskBatch.close`), but this
+   shape is reachable for users: the `Runnable` a registered executor receives is the element's
+   engine future, and the user's executor can cancel it (a common shape is a `shutdownNow()`
+   caller cancelling the returned tasks).
 
-其余形状两者恒等：成功、非取消形状的失败、`SubmissionException`（认领先于落定）、以及 token
-先提交再取消的所有框架取消。
+The two are identical on all other shapes: success, non-cancellation-shaped failures,
+`SubmissionException` (the claim precedes the settle), and every framework cancellation where
+the token commits before the cancel.
 
-**接受的残余**：多个元素几乎同时自抛 CE 时，后一个元素的 `setException` 与它的钉子监听器之间
-若被前一个元素的级联提交插入，它读到 `FAIL_FAST`。这与组成员的残余窗口相同（`memberCompleted`
-同样在 `setException` 之后运行）。触发级联的那个元素恒为 `USER_FAILURE`：它的钉子先于它自己的
-bind 监听器执行，而这种形状下 `FAIL_FAST` 只能由 bind 的聚合回调提交。
+**Accepted residual**: when multiple elements throw CE at nearly the same time, if a previous
+element's cascade commit lands between a later element's `setException` and its pin listener,
+the later one reads `FAIL_FAST`. This is the same residual window as group members'
+(`memberCompleted` likewise runs after `setException`). The element triggering the cascade is
+always `USER_FAILURE`: its pin runs before its own bind listener, and in this shape `FAIL_FAST`
+can only be committed by bind's aggregate callback.
 
-**未提交取消的政策边界**：执行在 deadline 已过、timer 尚未提交时自抛 CE/IE，batch 与 group
-仍保留 USER_FAILURE。真实 checkpoint backstop 提交 TIMEOUT 是已取消路径，其组级上升由
-[组取消契约](task-group-cancellation.md) 约束。仅凭时钟经过增加 RUNNING 后备是
-[P0020](proposal/P0020-deadline-attribution-policy.md) 的未决政策，不在本契约中默默引入。
+**The policy boundary of uncommitted cancellation**: when an execution throws CE/IE itself
+after its deadline has passed but before the timer has committed, batch and group both keep
+USER_FAILURE. A real checkpoint backstop committing TIMEOUT is the already-cancelled path, and
+its group-level escalation is constrained by the [group cancellation contract](task-group-cancellation.md).
+Adding a RUNNING fallback based on clock passage alone is [P0020](proposal/P0020-deadline-attribution-policy.md)'s
+open policy, not silently introduced in this contract.
 
-## 5. 已排除的替代方案
+## 5. Rejected alternatives
 
-- **冻结时排除"自身引发的 FAIL_FAST"**：共享 token 不记录由谁触发，需要新增每元素触发者身份；
-  并发失败时谁是"自身"仍是竞态，还多出状态。
-- **以已发布观测快照的 outcome 冻结**：快照在落定与执行退出两个信号中较晚的一个计算，运行中
-  被取消的元素在执行退出时才读 token；零 closeGrace 下可能尚未发布，回退到冻结时读取，残余同
-  一竞态。正确性还要依赖 `ScopedCallable` 先发布退出再落定的顺序，远不如注册顺序直观。
-- **观测内 volatile 字段 + 冻结时兜底计算**：Guava 先唤醒等待者，调用方可能早于监听器读取，
-  需要二次读取的复杂论证。
-- **无界等待观测发布**：观测还等执行退出，忽略中断的执行会让冻结永久挂起。
+- **Excluding "self-triggered FAIL_FAST" at freeze time**: the shared token does not record who
+  triggered it, requiring new per-element triggerer identity; with concurrent failures, who is
+  "self" is still a race, plus extra state.
+- **Freezing by the published observation snapshot's outcome**: a snapshot is computed at the
+  later of the two signals (settle and execution exit), so an element cancelled while running
+  reads the token at execution exit; with zero closeGrace it may not be published yet, falling
+  back to freeze-time reading with the same residual race. Correctness would also depend on
+  `ScopedCallable` publishing exit before settle — far less direct than registration order.
+- **A volatile field in the observation + a fallback computation at freeze time**: Guava wakes
+  waiters first, so the caller may read before the listener — requiring a complex second-read
+  argument.
+- **Unbounded waiting for observation publication**: the observation also waits for execution
+  exit, so an execution ignoring interruption would hang freezing forever.
 
-## 6. 验证
+## 6. Verification
 
-回归闩锁在 `BatchSettleAttributionTest`：direct executor 下的确定性形状（单元素自抛 CE / IE、
-全部元素自抛 CE、汇总自抛 CE、§4 第 2 种形状），线程池下的跨线程竞态形状，以及钉子本身的
-单元测试。三种只撤修复的变体（冻结改回读当前 token、视图不带钉子、钉子晚于 bind 监听器）
-都使闩锁变红；反向验证、PIT 分类与独立评审的处置记录在实现提交的说明里。
+The regression latch is `BatchSettleAttributionTest`: the deterministic shapes under the direct
+executor (single element throwing CE / IE itself, all elements throwing CE, the combine
+throwing CE, and §4's second shape), the cross-thread race shapes under a thread pool, and unit
+tests of the pin itself. Three revert-only variants (freeze back to reading the current token,
+views without pins, pins later than bind listeners) all turn the latch red; the dispositions of
+reverse verification, PIT classification, and the independent review are recorded in the
+implementation commit's message.
 
-## 7. 独立评审
+## 7. Independent review
 
-由新开上下文的子代理席位只读评审（Codex 席位因本机权限策略未能启动）。结论 ship-with-changes，
-无阻断项；前提「已落定 future 的监听器按注册顺序执行（含落定后注册）」「Guava 先唤醒等待者再跑
-监听器」「以 CE 失败的输入使 `allAsList` 失败而非取消」均经探针确认。处置：
+Reviewed read-only by a fresh-context subagent seat (the Codex seat could not start under the
+local permission policy). Verdict ship-with-changes, no blockers; the premises "a settled
+future's listeners run in registration order (including those registered after settlement)",
+"Guava wakes waiters before running listeners", and "an input failing with CE makes `allAsList`
+fail rather than cancel" were all confirmed by probes. Dispositions:
 
-| 编号 | 级别 | 发现 | 处置 |
+| # | Severity | Finding | Disposition |
 |---|---|---|---|
-| N1-K1 | MINOR | 新的等待由监听器 fan-out 门控：钉子前唯一的监听器（观测落定信号）在 `publish` 的保护之外构建快照，逃出的 `Error` 使钉子永不完成、冻结无限挂起；旧实现等待 delegate 本身不会挂起 | 采纳。快照改在受保护的调用内构建，失败以异常结束观测；回归闩锁 `aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners`（撤掉保护即以 `StackOverflowError` 报错）。评审另指出的第二触发点（用户在包私有观测 Future 上挂阻塞监听器）不可由用户触达：`TaskFuture`/`TaskBatch` 包私有，公开面只有冻结数据 |
-| N1-K2 | MINOR | `docs/en/migration-v0.2.md` 仍称触发级联的直接取消元素记 `FAIL_FAST` | 采纳，改法不同：0.2 迁移指南是 0.1→0.2 的记录，对当时成立，不改写；在 `migration-v0.3.md`（en/zh）补写冻结归因的变化 |
-| N1-K3 | NIT | `TaskBatch.of(List)` 仍接受无钉子视图，冻结时抛出 | 采纳：javadoc 写明只有 `attributedOnSettle` 视图可以冻结 |
-| N1-K4 | NIT | 测试类无 `@Timeout`，新的两个等待都不可中断；`SneakyThrow` 与他处重复 | 采纳前半：类级 `@Timeout`（`SEPARATE_THREAD`，不可中断的等待也能失败而非挂住构建）。驳回后半：本仓测试类各自持有私有辅助类 |
-| 自查 | — | §4 第 2 种形状原写「只有内核测试能构造」，不成立：用户 executor 可以取消它收到的 `Runnable` | 已改正 §4 与 CHANGELOG，并补公开路径闩锁 `anElementItsExecutorCancelsFreezesAsMemberCancelled`（旧实现两元素均为 `FAIL_FAST`） |
+| N1-K1 | MINOR | The new wait is gated by listener fan-out: the only listener before the pin (the observation settle signal) built its snapshot outside `publish`'s guard, so an escaped `Error` would leave the pin never completing and freeze hanging indefinitely; the old implementation waiting on the delegate itself could not hang | Accepted. Snapshots are now built inside a guarded call, with failures ending the observation exceptionally; regression latch `aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners` (removing the guard fails it with `StackOverflowError`). The second trigger the review also noted (a user attaching a blocking listener to the package-private observation future) is not reachable by users: `TaskFuture`/`TaskBatch` are package-private, and the public surface is frozen data only |
+| N1-K2 | MINOR | `docs/en/migration-v0.2.md` still says a directly cancelled element triggering the cascade is recorded `FAIL_FAST` | Accepted, with a different fix: the 0.2 migration guide records 0.1→0.2 and was true at the time — it is not rewritten; the frozen-attribution change is added to `migration-v0.3.md` (en/zh) |
+| N1-K3 | NIT | `TaskBatch.of(List)` still accepted pin-less views, throwing at freeze time | Accepted: the Javadoc now states only `attributedOnSettle` views can be frozen |
+| N1-K4 | NIT | The test class has no `@Timeout`, and both new waits are uninterruptible; `SneakyThrow` duplicated elsewhere | First half accepted: class-level `@Timeout` (`SEPARATE_THREAD`, so even uninterruptible waits fail instead of hanging the build). Second half rejected: this repository's test classes each hold their own private helper classes |
+| Self-check | — | §4's second shape originally claimed "only kernel tests can construct it" — false: a user's executor can cancel the `Runnable` it receives | Corrected §4 and the CHANGELOG, and added the public-path latch `anElementItsExecutorCancelsFreezesAsMemberCancelled` (the old implementation had both elements as `FAIL_FAST`) |

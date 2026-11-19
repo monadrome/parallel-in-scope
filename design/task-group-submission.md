@@ -1,176 +1,249 @@
-# TaskGroup 设计契约：提交与 rejection
+# TaskGroup Design Contract: Submission and Rejection
 
-> 组的声明形状见 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md)；
-> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)。本文约束声明期校验、
-> 冻结与统一提交、executor rejection 与单任务提交内核的复用边界。
+> The group's declaration shape is in [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md);
+> the public execution/result shapes are in the [synchronous exit contract](synchronous-scope-exit.md).
+> This document constrains declaration-phase validation, freezing and unified submission,
+> executor rejection, and the reuse boundary of the single-task submission kernel.
 >
-> 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
-> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
+> This document is part of the TaskGroup design contract series (split by chapter from the
+> original "Independent Parallel Task Group Final Design Contract").
+> Series navigation: [API and options](task-group-api-and-options.md) · [Lifecycle and state machine](task-group-lifecycle.md) · [Submission and rejection](task-group-submission.md) · [Cancellation and attribution](task-group-cancellation.md) · [Observability and acceptance](task-group-observability-and-verification.md); the route index is [design/AGENTS.md](AGENTS.md).
 
-## 7. submit、冻结与统一提交契约
+## 7. submit, freeze, and the unified submission contract
 
-### 7.1 声明期校验
+### 7.1 Declaration-phase validation
 
-链式声明的 `par(...)`/`combine(...)` 应尽早拒绝以下定义错误，且不得产生任何运行状态：
+The chained declaration's `par(...)`/`combine(...)` should reject the following definition
+errors as early as possible, without producing any run state:
 
-- memberName 为 null/空白或重复；
-- 参数为 null；
-- `Par` 不属于 owner `ParRuntime`（foreign Par）。
+- memberName null/blank or duplicate;
+- null arguments;
+- a `Par` not belonging to the owner `ParRuntime` (foreign Par).
 
-至多一个 terminal combine 由链尾类型保证：`combine(...)` 返回的 `CombinedGroupStep`
-不再暴露 `par` 或第二次 `combine`；对保存的过期 step 引用继续调用（含重复 combine）由草稿
-阶段守卫在运行期拒绝（`IllegalStateException`，见 §7.2）。
+At most one terminal combine is guaranteed by the chain-tail type: the `CombinedGroupStep`
+returned by `combine(...)` exposes neither `par` nor a second `combine`; continuing to call a
+saved stale step reference (including a duplicate combine) is rejected at runtime by the draft's
+stage guard (`IllegalStateException`, see §7.2).
 
-成员 `Par` 在声明期解析并保存进草稿（owner-bound），不存在"submit 时才按注册名解析
-executor"的路径；声明期校验先于任何运行状态。`par(...)`/`combine(...)` 不检查或消耗 deadline，
-因为 Group 的逻辑执行时间从提交准备边界的统一 start 开始。
+A member `Par` is resolved and saved into the draft at declaration time (owner-bound); there is
+no "resolve the executor by registered name at submit time" path; declaration-phase validation
+precedes any run state. `par(...)`/`combine(...)` neither check nor consume the deadline,
+because the Group's logical execution time starts at the uniform start on the
+submission-preparation boundary.
 
-executor rejection 只有实际提交时才能知道，因此属于提交后的成员运行结果，不是声明校验失败。被目标 executor 拒绝的成员不运行用户 callable，该成员以 `SUBMISSION_FAILURE` 终态并触发 Group fail-fast（批次侧同一拒绝会使整批 fail-fast）；库自身没有 inline 回退路径，若执行器自身的拒绝策略在提交线程 inline 执行（如 `CallerRunsPolicy`），那是执行器的契约，同样经过统一内核的执行权竞态。
+Executor rejection is knowable only at actual submission, so it belongs to the member's run
+result after submission, not to declaration validation. A member rejected by the target executor
+does not run the user callable; that member terminates as `SUBMISSION_FAILURE` and triggers the
+Group's fail-fast (the same rejection on the batch side fail-fasts the whole batch); the library
+itself has no inline fallback path — if the executor's own rejection policy executes inline on
+the submitting thread (such as `CallerRunsPolicy`), that is the executor's contract and still
+passes through the unified kernel's execution-rights race.
 
-该规则同样覆盖目标 executor 的 `execute()` 抛出的任何失败——含违反契约直接抛出的 `Error` 与借泛型擦除偷渡的受检异常（catch 范围见 [扩展契约 L7](extension-and-wrapping.md)）：它是成员提交结果，必须由成员结果以 `SubmissionException` 终结，不能在 Group 已跨过 admission 边界后从 `runAll()` 抛出；`runAll()` 仍正常返回 `TaskGroupResult`，调用方经成员结果容器观察 `SUBMISSION_FAILURE` 及其原始 cause。Options 不提供把成员 handoff failure 改成同步抛出的开关，因为 Group 的成员提交虽然当前由调用线程发起，统一收敛契约仍必须与 Batch/共享 `TaskSubmissions` 内核一致。
+This rule also covers any failure thrown by the target executor's `execute()` — including an
+`Error` thrown directly in breach of contract and a checked exception smuggled through generic
+erasure (the catch scope is in the [extension contract L7](extension-and-wrapping.md)): it is a
+member submission result and must terminate the member result with `SubmissionException`; it
+must not escape from `runAll()` after the Group has crossed the admission boundary. `runAll()`
+still returns `TaskGroupResult` normally, and the caller observes `SUBMISSION_FAILURE` and its
+original cause through the member result container. Options provide no switch to turn member
+handoff failures into synchronous throws, because even though a Group's member submissions are
+currently initiated by the calling thread, the unified convergence contract must stay consistent
+with the Batch/shared `TaskSubmissions` kernel.
 
-### 7.2 submit 线性化与步骤
+### 7.2 submit linearization and steps
 
-`runAll()`（经包私有 `submitAll()`）必须作为一次整体 admission 与 `ParRuntime.close()` 线性化，不能按成员分别跨越关闭边界。整个启动——准备、全部 bind（组与更紧成员的
-deadline 布防）、以及向目标 executor 的实际提交——处于同一次 `ParRuntime.whileOpen()` 中：
+`runAll()` (via the package-private `submitAll()`) must linearize with `ParRuntime.close()` as
+one integral admission; it must not cross the close boundary member by member. The whole
+start-up — preparation, all binds (arming the deadlines of the group and tighter members), and
+the actual submissions to the target executors — takes place inside the same
+`ParRuntime.whileOpen()`:
 
-- 历史规则曾要求「实际 executor 调用在 admission 外进行」，以防止 executor 行为延长
-  admission。该规则被一个已复现的竞态否决（2026-10-08 时钟域评审第七轮）：start 在
-  admission 外时，close 可在组 bind 与更紧成员 bind 之间退役本
-  runtime 的 deadline 调度器，使成员 bind 抛出 RejectedExecutionException 逃出 runAll。
-  admission 覆盖全部 bind 后，本 runtime 服务在整个启动期间必然存活。
-- 代价与不变量：close() 从不等待 admission（只在 admission 与批次都排空后才关闭服务），
-  因此 CallerRunsPolicy 内联执行在 admission 内运行不会引入死锁——awaitQuiescence 本来就
-  等待执行退出；服务关闭只是与既有的排空等待对齐。
+- A historical rule once required "actual executor calls happen outside the admission" to keep
+  executor behavior from extending the admission. That rule was rejected by a reproduced race
+  (round 7 of the clock-domain review, 2026-10-08): with start outside the admission, close
+  could retire this runtime's deadline scheduler between the group bind and a tighter member's
+  bind, making the member bind throw RejectedExecutionException out of runAll. With the
+  admission covering all binds, this runtime's services are necessarily alive for the whole
+  start-up.
+- Cost and invariants: close() never waits for admissions (it closes services only after
+  admissions and batches have drained), so CallerRunsPolicy inline execution running inside an
+  admission introduces no deadlock — awaitQuiescence already waits for execution exit; service
+  shutdown is merely aligned with the existing drain wait.
 
-本文所称“统一提交”是指所有成员共享一个逻辑 submission boundary：声明期没有任何运行状态或执行，提交时一次性冻结完整集合并使用同一个提交基准时间。它不表示对多个不同 executor 的 `execute()` 做物理原子广播；这些调用必然有先后，但只能在全部成员完成准备和注册后开始。
+"Unified submission" in this document means all members share one logical submission boundary:
+the declaration phase has no run state or execution, and at submission the complete set is
+frozen at once with the same submission baseline time. It does not mean a physically atomic
+broadcast of `execute()` to multiple different executors; those calls necessarily have an
+order, but they may begin only after every member is prepared and registered.
 
-必须满足：
+Required:
 
-1. 校验草稿归属（创建线程、阶段有效），冻结有序成员声明与本次 payload；
-2. 在 `ParRuntime.whileOpen()` 内解析结构父任务/observation（成员 executor 为声明期已解析的
-   `Par`），冻结有序成员定义；
-3. 读取统一的 `startTimeNanos`，解析 Group deadline，并创建 Group token/运行对象；
-4. 为每个声明创建 member Batch、TaskExecutionContext、成员 future 和执行权竞争对象；
-5. 将全部 `MemberState` 注册到 Group，发布完整 members registry；
-6. 空组立即发布 `SUCCESS` 并返回，不创建 timer、不注册请求来源；非空组在全部准备成功后注册声明的
-   请求来源，紧接着完成 group/member bind 与 Group deadline timer；
-7. 按声明顺序向各自目标 executor 提交同一个 prepared future（仍在同一次 admission 内）；
-8. 退出 registry/admission 机制；提交循环结束后进入收敛；若某个成员 inline 执行、失败或触发
-   fail-fast，剩余尚未调用
-   executor 的 prepared future 也必须被取消并达到终态。
+1. validate the draft's ownership (creating thread, stage valid), freeze the ordered member
+   declarations and this run's payload;
+2. resolve the structural parent task/observation inside `ParRuntime.whileOpen()` (member
+   executors are the `Par`s resolved at declaration time), freeze the ordered member
+   definitions;
+3. read the uniform `startTimeNanos`, resolve the Group deadline, and create the Group
+   token/run object;
+4. create each declaration's member Batch, TaskExecutionContext, member future, and
+   execution-rights race object;
+5. register all `MemberState`s with the Group and publish the complete members registry;
+6. an empty group publishes `SUCCESS` immediately and returns, creating no timer and
+   registering no request source; a non-empty group registers the declared request sources
+   after all preparation succeeds, then completes the group/member binds and the Group deadline
+   timer;
+7. submit the same prepared future to each target executor in declaration order (still within
+   the same admission);
+8. exit the registry/admission mechanism; convergence begins after the submission loop ends; if
+   a member executes inline, fails, or triggers fail-fast, the prepared futures that have not
+   yet called their executors must also be cancelled and reach terminal states.
 
-声明校验的异常类型有分界：草稿的生命周期错误（非创建线程调用、在已推进的阶段上继续使用
-旧 step、重复提交）抛 `IllegalStateException`；声明参数错误（名称为 null/空白/重复、`Par`
-为 null 或不属于 owner、执行/options/key 为 null）
-按 JDK 惯例抛 `NullPointerException`/`IllegalArgumentException`。
+Declaration-validation exception types have a boundary: draft lifecycle errors (calls off the
+creating thread, continuing to use an old step on an advanced stage, duplicate submission)
+throw `IllegalStateException`; declaration argument errors (name null/blank/duplicate, `Par`
+null or not belonging to the owner, execution/options/key null) throw
+`NullPointerException`/`IllegalArgumentException` per JDK convention.
 
-不能在全部成员注册前调用任何 `executor.execute()`，否则 direct executor 或 rejection fallback 可能在 Group 看见完整成员集合前执行用户代码。
+No `executor.execute()` may be called before all members are registered, or a direct executor
+or rejection fallback could execute user code before the Group has seen the complete member
+set.
 
-不能为了避免该竞态而在持有 Group lock 时调用 `executor.execute()`；executor 可能 inline 执行任意用户代码，导致清理/取消长时间无法取得锁。
+Nor may `executor.execute()` be called while holding the Group lock to avoid that race; the
+executor may inline arbitrary user code, leaving cleanup/cancellation unable to acquire the
+lock for a long time.
 
-提交循环开始前必须保证完整 members registry 已发布；提交循环按声明顺序对每个仍未因
-fail-fast/timeout/cancel 终结的成员尝试一次目标 executor 提交。由于 direct executor 可以
-inline 执行，执行期间部分甚至全部成员已经终态属于合法行为。
+Before the submission loop starts, the complete members registry must have been published; the
+submission loop attempts one target-executor submission per member not yet terminated by
+fail-fast/timeout/cancel, in declaration order. Because a direct executor can execute inline,
+some or even all members being terminal during the loop is legitimate behavior.
 
-成功跨过全量注册后，单个 executor rejection、executor handoff `Error`、inline 用户异常或 fail-fast 均通过成员结果和 `TaskGroupResult` 表达，`runAll()` SHOULD 仍正常返回结果，而不是因任务运行结果抛异常。只有声明校验失败、ParRuntime 已关闭，或无法建立完整运行对象的框架级准备错误才允许提交路径直接抛出；此时必须终结已创建的 future、释放 retain/timer 等资源，清空已登记的执行，并且不得执行任何用户 callable。
-该要求覆盖准备之后、首次提交之前的启动阶段：调用方 `cancelOn` 信号的准入（例如其 `addListener`
-抛出）与组/成员 bind 失败时，启动路径先终结组 token，再取消全部 prepared future，使执行出口槽位、
-retain 与 adopted 所有权经正常收敛释放，runtime 仍可达到 quiescence；清理中的失败作为 suppressed
-附在调用方看到的启动失败上。
+After successfully crossing full registration, a single executor rejection, executor handoff
+`Error`, inline user exception, or fail-fast is expressed through member results and
+`TaskGroupResult`, and `runAll()` SHOULD still return results normally rather than throw for a
+task run result. Only declaration-validation failures, a closed ParRuntime, or framework-level
+preparation errors that cannot build the complete run object may throw directly from the
+submission path; in that case the created futures must be terminated, retain/timer resources
+released, registered executions cleared, and no user callable executed. This requirement covers
+the start-up phase after preparation and before the first submission: when admission of the
+caller's `cancelOn` signal fails (for example its `addListener` throws) or the group/member
+bind fails, the start-up path first terminates the group token, then cancels all prepared
+futures, so execution-exit slots, retains, and adopted ownership are released through normal
+convergence, and the runtime can still reach quiescence; failures during cleanup are attached
+as suppressed to the start-up failure the caller sees.
 
 ### 7.3 Prepared single-task submission
 
-两阶段单任务提交内核是根包的包私有 `TaskSubmissions`（`prepare` / `submitScoped`）与
-`ExecutionPhaseHintFuture`：`Par.map` 与 Group 共用同一内核，避免两套
-取消/phase/TTL/ScopedCallable 实现：
+The two-phase single-task submission kernel is the root package's package-private
+`TaskSubmissions` (`prepare` / `submitScoped`) and `ExecutionPhaseHintFuture`: `Par.map` and
+Group share the same kernel, avoiding two sets of cancellation/phase/TTL/ScopedCallable
+implementations:
 
 ```java
 ExecutionPhaseHintFuture<Object> prepared = TaskSubmissions.prepare(taskContext, callable);
-// prepared 已存在（成员 future），但尚未交给 executor
+// prepared exists (the member future) but has not been handed to the executor
 
-registerAll(preparedTasks); // 所有 future 同时成为完整冻结集合
+registerAll(preparedTasks); // all futures simultaneously become the complete frozen set
 
 TaskSubmissions.submitScoped(prepared, unit, executor); // executor.execute outside group lock
 ```
 
-必须保证：
+Must guarantee:
 
-- 成员 future 从创建起就是被注册、参与执行权竞争和 phase 观测的同一个逻辑 future，不存在
-  placeholder 或事后 bind；
-- 区分用户直消与 Group 传播取消、fail-fast、timeout 不靠 `isCancelled()` 事后猜测；归因在
-  收敛时读取 member/group token 状态（见 [取消与归因 §8.4](task-group-cancellation.md#84-deadline)）；
-- `cancel()` 在线程取得执行权前成功后，之后的 prepared submission 不得进入用户 callable；
-- prepared submission 被 executor 拒绝或 handoff 抛出 `Error` 时，必须把 future 完成为 submission failure，不能遗留 pending future；
-- 用户 callable 最多执行一次；
-- phase 继续区分 `CANCELLED_BEFORE_RUN` 和 `CANCEL_REQUESTED_RUNNING`；
-- `phase()` MUST 提供非阻塞、无中断副作用的当前阶段提示，MUST NOT 依赖通知到达；
-  阶段含义与竞态限制见 [execution future 契约](execution-future-simplification.md#阶段查询契约)；
-- 取消 MUST NOT 被解释为自动移除物理队列项；执行器所有者负责需要的队列清理；
-- `SubmissionScope` 只包住实际 `executor.execute()`；
-- 库自身不做 rejection 后的 inline 回退（提交期选项 `runOnCallerThread` 已在 0.3.0 发布前删除）；若执行器自身的拒绝策略 inline 执行（`CallerRunsPolicy`、direct executor），inline 也必须遵守已注册和执行权竞态；
-- 每个冻结 future 最终达到终态。
+- from creation, a member future is the same logical future that is registered, races for
+  execution rights, and is phase-observed — no placeholder and no later bind;
+- distinguishing direct user cancellation from Group-propagated cancellation, fail-fast, and
+  timeout is not guessed after the fact from `isCancelled()`; attribution reads the
+  member/group token states at convergence (see
+  [cancellation and attribution §8.4](task-group-cancellation.md#84-deadline));
+- after `cancel()` succeeds before a thread acquires execution rights, a later prepared
+  submission must not enter the user callable;
+- when a prepared submission is rejected by the executor or its handoff throws an `Error`, the
+  future must be completed as a submission failure — no pending future left behind;
+- the user callable executes at most once;
+- phases keep distinguishing `CANCELLED_BEFORE_RUN` and `CANCEL_REQUESTED_RUNNING`;
+- `phase()` MUST provide a non-blocking, interruption-side-effect-free hint of the current
+  phase and MUST NOT depend on notification arrival; phase meanings and race limits are in the
+  [execution future contract](execution-future-simplification.md#the-phase-query-contract);
+- cancellation MUST NOT be interpreted as automatically removing physical queue items; the
+  executor owner is responsible for any needed queue cleanup;
+- `SubmissionScope` wraps only the actual `executor.execute()`;
+- the library itself does no post-rejection inline fallback (the submission-time option
+  `runOnCallerThread` was deleted before the 0.3.0 release); if the executor's own rejection
+  policy executes inline (`CallerRunsPolicy`, direct executor), the inline path must still
+  respect registration and the execution-rights race;
+- every frozen future eventually reaches a terminal state.
 
-该内核同时供 `Par.map()` 和 Group 使用，避免两套取消/phase/TTL/ScopedCallable 实现。Batch 仍在其上保留 `SlidingWindowSubmitter` 的滑动窗口，Group 不使用滑动窗口。
+This kernel serves both `Par.map()` and Group, avoiding two sets of
+cancellation/phase/TTL/ScopedCallable implementations. Batch keeps `SlidingWindowSubmitter`'s
+sliding window on top of it; Group uses no sliding window.
 
-### 7.4 批次调用参数
+### 7.4 Batch call arguments
 
-普通 Par.map MUST 在准备、空输入返回或 executor 提交之前拒绝 null mapping function，
-以带参数名的 NullPointerException 表达 caller violation；MUST NOT 把它包装成 USER_FAILURE。
-校验先 options 再 function，之后才进入 runtime 准入与 inherited-timeout 校验，和
-mapAndCombine 的非空参数处理保持一致。null elements 仍表示空批次。
-历史来源：`proposal:P0010`；其余执行器诊断方向见 [BACKLOG](../BACKLOG.md)（源自 `P0021`）。
+Ordinary Par.map MUST reject a null mapping function before preparation, empty-input return, or
+executor submission, expressed as a NullPointerException carrying the parameter name for a
+caller violation; it MUST NOT be wrapped into USER_FAILURE. Validation checks options first,
+then the function, and only then enters runtime admission and inherited-timeout validation,
+consistent with mapAndCombine's non-null argument handling. Null elements still mean an empty
+batch. Historical source: `proposal:P0010`; the remaining executor-diagnostic directions are in
+[BACKLOG](../BACKLOG.md) (from `P0021`).
 
-## 9. 单任务运行内核的复用边界
+## 9. The single-task run kernel's reuse boundary
 
-### 9.1 必须复用
+### 9.1 Must reuse
 
-| 现有能力 | Group 中的用途 |
+| Existing capability | Use in Group |
 |---|---|
-| `ParRuntime.whileOpen()` | 整体 submit 与 shutdown 的线性化 |
-| `ParRuntime.timeoutScheduler()` | Group/member deadline |
-| `ParRuntime.retainUntilComplete()` | 冻结成员完成前保留内部服务 |
-| `Par`/`ExecutorRuntime` | executor、identity、label、blocking risk |
-| `ScopedCallable` | current task、checkpoint、计时、执行 exit 发布、恢复 |
-| `TaskExecutionContext` | 单成员任务执行身份与 timing |
-| `SubmissionScope` | 一次 executor submission 的队列策略 |
-| `ExecutionPhaseHintFuture` | run/cancel 执行权竞态与当前 phase 查询 |
-| `CancellationToken` | outer→group→member 取消传播和中断 |
-| `TtlCallable` | 已配置 TTL 的提交时快照与恢复 |
+| `ParRuntime.whileOpen()` | Linearization of the integral submit against shutdown |
+| `ParRuntime.timeoutScheduler()` | Group/member deadlines |
+| `ParRuntime.retainUntilComplete()` | Retain internal services until frozen members complete |
+| `Par`/`ExecutorRuntime` | executor, identity, label, blocking risk |
+| `ScopedCallable` | current task, checkpoint, timing, execution-exit publication, restoration |
+| `TaskExecutionContext` | Single-member task execution identity and timing |
+| `SubmissionScope` | Queue policy for one executor submission |
+| `ExecutionPhaseHintFuture` | run/cancel execution-rights race and current-phase query |
+| `CancellationToken` | outer→group→member cancellation propagation and interruption |
+| `TtlCallable` | Submission-time snapshot and restoration of configured TTL |
 
-### 9.2 不得复用
+### 9.2 Must not reuse
 
-- `SlidingWindowSubmitter`：Group 不使用滑动窗口，也不靠 completion queue 驱动提交；
-  （Batch 的窗口外 placeholder 已随
-  [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) 删除，
-  两边现在都是"视图从创建起就包住 prepared future"，这一条不再构成差异）
-- `TaskBatchResult`：Group 是异构成员和固定的具名集合；
-- `Par.map(singletonList, ...)`：会引入错误抽象和不必要包装；
-- 虚构的 Group `MultiTaskContext`：membership 不是 Batch；
-- Group ThreadLocal/TTL：Group 由显式对象持有，不是线程隐式状态。
+- `SlidingWindowSubmitter`: Group uses no sliding window and is not driven by a completion
+  queue either; (Batch's out-of-window placeholder was deleted with
+  [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) — both sides are
+  now "the view wraps the prepared future from creation", so this no longer constitutes a
+  difference)
+- `TaskBatchResult`: Group is heterogeneous members and a fixed named set;
+- `Par.map(singletonList, ...)`: would introduce the wrong abstraction and unnecessary
+  wrapping;
+- a fictitious Group `MultiTaskContext`: membership is not a Batch;
+- Group ThreadLocal/TTL: a Group is held by explicit objects, not implicit thread state.
 
-### 9.3 代码组织
+### 9.3 Code organization
 
 ```text
 io.github.monadrome.parallelinscope/
-  GroupDraft.java                 // 链式草稿，三个公开 step 接口的实现
-  TaskGroup.java                  // 包私有运行对象
-  TaskGroupDefinition.java        // 包私有冻结结构
+  GroupDraft.java                 // the chained draft, implementing the three public step interfaces
+  TaskGroup.java                  // the package-private run object
+  TaskGroupDefinition.java        // the package-private frozen structure
   TaskGroupResult.java
   TaskExitObservation.java
   TaskTermination.java
-  TaskSubmissions.java            // package-private prepare / submitScoped 两阶段内核
+  TaskSubmissions.java            // the package-private prepare / submitScoped two-phase kernel
 ```
 
-`ParName` 已更名为 `ParId` 保留：v0.3 重设计曾提议删除 `ParName`、端点改收裸 `String`，
-评审否决——值类型是执行器查找边界唯一的校验点与查找键（`ParId.of` 构造即校验非 null、非空白），
-删掉它只把同一校验下沉到每个端点，不合并任何功能。组名与成员名从来不是查找键，仍是 `String`。
+`ParName` was renamed `ParId` and kept: the v0.3 redesign once proposed deleting `ParName` and
+having endpoints take bare `String`, and review rejected it — the value type is the only
+validation point and lookup key at the executor lookup boundary (`ParId.of` validates non-null,
+non-blank at construction); deleting it would only sink the same validation into every endpoint
+without merging any functionality. Group names and member names were never lookup keys and stay
+`String`.
 
-`ExecutorRuntime` 与 `TaskSubmissions` 都是根包私有类型。`Par` 与 `TaskGroup` 在完成
-owner、policy、runtime identity 和 executor 的解析后直接调用同包内核；任务准备与
-真实提交目标由同一绑定解析，MUST NOT 为组路径保留第二套准备或包装机制。
+`ExecutorRuntime` and `TaskSubmissions` are both package-private types in the root package.
+After resolving the owner, policy, runtime identity, and executor, `Par` and `TaskGroup` call
+the same-package kernel directly; task preparation and the real submission target are resolved
+by the same binding, and no second preparation or wrapping mechanism MUST be kept for the group
+path.
 
-共享内核至少分离以下阶段：
+The shared kernel separates at least these phases:
 
 ```text
 Par/package-private entry
@@ -183,7 +256,7 @@ Group
   └─ invoke prepared submission outside Group lock
 ```
 
-Batch 路径由 `SlidingWindowSubmitter` 组织滑动窗口，但其 future 创建、phase claim、
-SubmissionScope、rejection/inline 和 scoped callable 包装与 Group 共享同一个
-`TaskSubmissions` 内核。不要为 Group 单独复制 `ScopedCallable`、execution phase future 或
-cancellation token。
+The Batch path is organized by `SlidingWindowSubmitter`'s sliding window, but its future
+creation, phase claim, SubmissionScope, rejection/inline, and scoped-callable wrapping share
+the same `TaskSubmissions` kernel with Group. Do not copy `ScopedCallable`, the execution phase
+future, or the cancellation token separately for Group.

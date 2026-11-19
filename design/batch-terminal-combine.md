@@ -1,48 +1,69 @@
-# 批次终端汇总（Par.mapAndCombine）契约
+# Batch Terminal Combine (Par.mapAndCombine) Contract
 
-`Par.mapAndCombine(elements, function, options, combinePar, combiner)`：有限同构批次携带
-**一个**终端汇总任务。Batch 与 Group 的边界不变——批次侧不是角色枚举化的超集，组契约见
-[task-group-terminal-combine.md](task-group-terminal-combine.md)。本文只约束批次汇总的机制不变量。
+`Par.mapAndCombine(elements, function, options, combinePar, combiner)`: a bounded homogeneous
+batch carrying **one** terminal combine task. The Batch/Group boundary is unchanged — the batch
+side is not a role-enumerated superset; the group contract is in
+[task-group-terminal-combine.md](task-group-terminal-combine.md). This document constrains only
+the batch combine's mechanism invariants.
 
-## 生命周期不变量
+## Lifecycle invariants
 
-- MUST：汇总任务与全部元素在同一次准入中准备（token、TaskExecutionContext、TTL 捕获都在调用
-  线程完成），提交前完成 bind；不允许惰性准备。
-- MUST：汇总视图从创建起包装真实 prepared future，并加入批次 token 的 bind 集合；批次 token
-  MUST NOT 在汇总终态前提交 SUCCESS，fail-fast/deadline 级联 MUST 能到达未提交的汇总。
-- MUST：汇总恰好在全部元素成功后提交一次（一次性门闩 + future 终态检查 + phase claim 三层），
-  只在那一刻提交到 combinePar；任一元素失败、取消或 deadline 先到时，汇总不运行且终态为
-  取消（沿用批次归因），提交被拒为 SUBMISSION_FAILURE。
-- MUST：汇总体是 `Combiner<List<@Nullable E>, C>`，按输入顺序接收元素成功值；成功的
-  null 元素以 null 条目出现，元素级可空必须写在签名上（JSpecify 感知的使用者据此做空值
-  检查）；checked 异常记 USER_FAILURE 并保留原 cause。
-- MUST：汇总有自己的 MultiTaskContext（批次 unit 的结构子节点、取消子 token）。执行器等待按「谁等待谁」
-  一次安装（[task-graph.md](task-graph.md) §4）：caller 等待批次、caller 等待汇总；批次喂给汇总是数据依赖，
-  MUST NOT 记为等待：汇总是全部元素终态后才由收敛线程提交的，没有元素线程阻塞等待它，同池汇总若记为等待
-  会被误报为 executor 自环。caller 对汇总的等待 MUST 记录：调用方同步等待汇总，汇总回到调用方自己的饥饿型
-  池就是真实的 executor 自环。MUST NOT 伪造 group 成员关系或任意 DAG。汇总子 token 不做独立 bind——deadline 与级联由批次 token 承担，
-  与 deadline 相等的组成员跳过 bind 的规则同源。
-- MUST：滑窗上界、closeGrace 有界清理与执行-exit 追踪覆盖元素与汇总（tracker 槽位 N+1）；
-  冻结结果同时保留元素 `TaskBatchResult`、汇总 `ImmediateResult`、汇总终态观测与未完成执行
-  诊断。
-- MUST NOT：空输入（null 或空集合）不允许——零元素没有可汇总的 fan-out，与空组带 combine
-  一致地拒绝；空批次用 `Par.map`。
-- MUST NOT：combinePar 不得属于另一个 ParRuntime（声明期拒绝）；批次现有 `Par.map` 行为不变。
+- MUST: the combine task is prepared in the same admission as all elements (token,
+  TaskExecutionContext, and TTL capture all complete on the calling thread), and bound before
+  submission; no lazy preparation.
+- MUST: the combine view wraps the real prepared future from creation and joins the batch
+  token's bind set; the batch token MUST NOT commit SUCCESS before the combine is terminal, and
+  the fail-fast/deadline cascade MUST be able to reach an unsubmitted combine.
+- MUST: the combine is submitted exactly once after all elements succeed (three layers: a
+  one-shot latch + a future terminality check + a phase claim), and is submitted to combinePar
+  only at that moment; when any element fails, is cancelled, or the deadline expires first, the
+  combine does not run and goes terminal as cancelled (following batch attribution), and a
+  submission rejection is SUBMISSION_FAILURE.
+- MUST: the combiner is a `Combiner<List<@Nullable E>, C>`, receiving element success values in
+  input order; successful null elements appear as null entries, and element-level nullability
+  must be written on the signature (JSpecify-aware users check for null accordingly); checked
+  exceptions record USER_FAILURE with the original cause kept.
+- MUST: the combine has its own MultiTaskContext (a structural child node of the batch unit, a
+  cancellation child token). Executor waits are installed once by "who waits on whom"
+  ([task-graph.md](task-graph.md) §4): the caller waits on the batch, the caller waits on the
+  combine; the batch feeding the combine is a data dependency and MUST NOT be recorded as a
+  wait — the combine is submitted by the converging thread only after all elements are
+  terminal, no element thread blocks waiting for it, and a same-pool combine recorded as a wait
+  would be falsely reported as an executor self-loop. The caller's wait on the combine MUST be
+  recorded: the caller synchronously waits for the combine, and a combine returning to the
+  caller's own starvation-prone pool is a real executor self-loop. MUST NOT fabricate group
+  memberships or arbitrary DAGs. The combine's child token gets no independent bind — its
+  deadline and cascade are carried by the batch token, from the same source as the rule for
+  group members whose deadline equals the group's skipping bind.
+- MUST: the sliding-window cap, closeGrace bounded cleanup, and execution-exit tracking cover
+  both elements and the combine (tracker slots N+1); the frozen result keeps the elements'
+  `TaskBatchResult`, the combine's `ImmediateResult`, the combine's terminal observation, and
+  the unexited-execution diagnostics together.
+- MUST NOT: empty input (null or empty collection) is not allowed — zero elements have no
+  fan-out to combine, rejected consistently with an empty group carrying a combine; use
+  `Par.map` for an empty batch.
+- MUST NOT: combinePar must not belong to another ParRuntime (rejected at declaration); the
+  batch's existing `Par.map` behavior is unchanged.
 
-## 提交与归因
+## Submission and attribution
 
-- 提交线程是收敛线程（最后一个元素的完成回调线程，或 inline 执行下的提交线程）；对
-  ThreadPoolExecutor -backed 的 combinePar 复用组汇总的 inline 防护（饱和 CallerRuns 记
-  SUBMISSION_FAILURE，不在收敛线程运行用户代码）。
-- 汇总业务的 `TimeoutException` 是 USER_FAILURE，不是框架 TIMEOUT（bind 按事件来源分类，见
-  [cancellation-propagation.md](cancellation-propagation.md) §1）。
-- 汇总失败不篡改元素结果：元素 SUCCESS/失败归因与观测原样保留。
-- MUST：`terminalValueOrThrow()`/`orThrow()` 先检查元素失败、再看汇总自身（规则见
-  [synchronous-scope-exit.md](synchronous-scope-exit.md) §3 聚合读取）。元素失败时汇总只是被级联取消，
-  只读汇总会把业务根因报成 FAIL_FAST 取消。
+- The submitting thread is the converging thread (the last element's completion-callback
+  thread, or the submitting thread under inline execution); for a ThreadPoolExecutor-backed
+  combinePar, the group combine's inline guard is reused (saturated CallerRuns records
+  SUBMISSION_FAILURE, and user code does not run on the converging thread).
+- A `TimeoutException` from the combine's business code is USER_FAILURE, not framework TIMEOUT
+  (bind classifies by event source, see [cancellation-propagation.md](cancellation-propagation.md)
+  §1).
+- A combine failure does not tamper with element results: element SUCCESS/failure attribution
+  and observations are kept as-is.
+- MUST: `terminalValueOrThrow()`/`orThrow()` check element failures first, then the combine
+  itself (the rules are in [synchronous-scope-exit.md](synchronous-scope-exit.md) §3 aggregate
+  reads). With an element failure the combine was merely cascade-cancelled, and reading only
+  the combine would report the business root cause as a FAIL_FAST cancellation.
 
-## 验证基线
+## Verification baseline
 
-`ParMapAndCombineTest`：恰好一次、失败/超时/拒绝路径、null 元素、TTL 捕获、嵌套继承预算、
-校验拒绝、50 轮竞态；外部 Java 8 consumer 覆盖公开入口。逆向验证：准入即无条件提交汇总的
-变体使 9/10 测试失败。
+`ParMapAndCombineTest`: exactly-once, failure/timeout/rejection paths, null elements, TTL
+capture, nested inherited budgets, validation rejections, and 50 race rounds; the external Java
+8 consumer covers the public entry. Reverse verification: a variant submitting the combine
+unconditionally at admission fails 9 of 10 tests.

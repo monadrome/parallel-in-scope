@@ -1,15 +1,17 @@
-# TaskGroup 终端汇合设计
+# TaskGroup Terminal Combine Design
 
-> 声明形状以 [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md) 为准；
-> 公开执行/结果形状见 [同步出口契约](synchronous-scope-exit.md)。本文约束 combine 的 join
-> 模型、准备阶段、取消与观测机制。
+> The declaration shape is governed by [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md);
+> the public execution/result shapes are in the [synchronous exit contract](synchronous-scope-exit.md).
+> This document constrains the combine's join model, preparation phase, cancellation, and
+> observation mechanics.
 >
-> 本文是 TaskGroup 设计契约系列之一（由原《独立并行任务组最终设计契约》按章节拆分）。
-> 系列导航：[API 与选项](task-group-api-and-options.md) · [生命周期与状态机](task-group-lifecycle.md) · [提交与 rejection](task-group-submission.md) · [取消与归因](task-group-cancellation.md) · [观测与验收](task-group-observability-and-verification.md)；路由索引见 [design/AGENTS.md](AGENTS.md)。
+> This document is part of the TaskGroup design contract series (split by chapter from the
+> original "Independent Parallel Task Group Final Design Contract").
+> Series navigation: [API and options](task-group-api-and-options.md) · [Lifecycle and state machine](task-group-lifecycle.md) · [Submission and rejection](task-group-submission.md) · [Cancellation and attribution](task-group-cancellation.md) · [Observability and acceptance](task-group-observability-and-verification.md); the route index is [design/AGENTS.md](AGENTS.md).
 
-## 1. 目标
+## 1. Goal
 
-请求常先并行读取数个独立资源，再组装最终值：
+A request often reads several independent resources in parallel, then assembles a final value:
 
 ```text
 load-user ──┐
@@ -17,48 +19,77 @@ load-orders ├── assemble-page ──> AccountPage
 load-stock ─┘
 ```
 
-调用方自行等待 member future 再组装（如 `Futures.whenAllSucceed(...).call(...)`），会泄漏等待、失败处理、执行器选择和取消边界。本设计在 Group 内表达这个 fan-out / join / final-call 形状，同时禁止它演变成任意 DAG。
+Having the caller wait on member futures itself and then assemble (such as
+`Futures.whenAllSucceed(...).call(...)`) leaks waiting, failure handling, executor selection,
+and cancellation boundaries. This design expresses the fan-out / join / final-call shape inside
+the Group while forbidding it from evolving into an arbitrary DAG.
 
-## 2. 范围
+## 2. Scope
 
-一个 Group 有零至多个相互独立的 **member**，以及零或一个 **terminal combine**。
+A Group has zero to many mutually independent **members**, and zero or one **terminal
+combine**.
 
-- member 彼此没有依赖；
-- combine 依赖所有 member，且只在每个 member 成功后才提交执行；
-- 无 combine 时，Group 保持"成员全部终态即完成"的语义，不新增任何 API 表面；
-- 有 combine 时，Group 还要等待 terminal future 终态。
+- members have no dependencies on each other;
+- the combine depends on all members and is submitted for execution only after every member
+  succeeds;
+- without a combine, the Group keeps its "complete when all members are terminal" semantics,
+  with no new API surface;
+- with a combine, the Group also waits for the terminal future to go terminal.
 
-## 3. 核心模型：带 join 前提的 member
+## 3. Core model: a member with a join precondition
 
-combine 不是 completion listener，不是新调度原语，而是一个**全部运行期准备都在提交阶段完成、仅 executor 提交被推迟到 join 条件满足时**的特殊任务：
+The combine is not a completion listener and not a new scheduling primitive, but a special task
+**whose entire runtime preparation completes in the submission phase, with only the executor
+submission deferred until the join condition is met**:
 
-- 提交准备阶段（与 member 同步、在提交线程上、在同一个 `ParRuntime.whileOpen()` 内）完成：combine token（group token 的 child）、`TaskExecutionContext`、TTL 快照、结构 parent、observation、terminal future 的创建与注册；
-- join 时（全部 member 成功收敛之后）只做一件事：对已 prepared 的 terminal future 调用目标 executor 的 `execute()`（包 `SubmissionScope`、在 Group lock 外）；
-- 除提交时机外，combine 复用 member 的全部机制：取消级联、deadline 计算与升级、rejection 处理、`TokenOutcomes` 归因、观测快照（`TaskExitObservation`）、`retainUntilComplete()`。
+- Completed in the submission preparation phase (synchronous with members, on the submitting
+  thread, inside the same `ParRuntime.whileOpen()`): the combine token (a child of the group
+  token), `TaskExecutionContext`, TTL snapshot, structural parent, observation, and the
+  terminal future's creation and registration;
+- At join time (after all members converge successfully) only one thing happens: calling the
+  target executor's `execute()` on the already-prepared terminal future (wrapped in
+  `SubmissionScope`, outside the Group lock);
+- Except for submission timing, the combine reuses all member mechanisms: cancellation
+  cascading, deadline computation and escalation, rejection handling, `TokenOutcomes`
+  attribution, observation snapshots (`TaskExitObservation`), and `retainUntilComplete()`.
 
-直接推论：
+Direct corollaries:
 
-- combine 的用户执行只在 join 后、经目标 executor **执行**；准备阶段不触碰用户执行。
-  线程池的拒绝 inline 与显式 direct executor 的例外见下方线程角色说明；
-- TTL 快照时点与 member 一致（提交准备阶段），不捕获 join 回调线程的上下文；
-- combine 在提交时已完成 ParRuntime admission 与 retain；join 时的提交不再做 `whileOpen()` 检查，因此"提交后 `ParRuntime.close()` 与 join 竞争"不产生新问题——组被完整接纳后 combine 照常提交并终态；
-- combine 在线程池拒绝处理器借用提交线程时不得进入执行，记 `SUBMISSION_FAILURE`。
-  显式 direct executor 按注册者选择的契约允许 inline；不按策略名称拒绝正常未饱和的池；
-- combine 的结构 parent 与 member 相同（提交现场的外层 scoped task 或 null），MUST NOT 把最后完成的 member 当作结构 parent。
+- the combine's user execution runs only after join, **executed** by the target executor; the
+  preparation phase never touches user execution. The exceptions of pool rejection inlining and
+  explicit direct executors are in the thread-role description below;
+- the TTL snapshot timing is the same as members' (the submission preparation phase); it does
+  not capture the join callback thread's context;
+- the combine has completed ParRuntime admission and retain at submission time; the join-time
+  submission does no `whileOpen()` check, so "`ParRuntime.close()` after submission racing the
+  join" produces no new problem — once the group is fully admitted, the combine is submitted
+  and goes terminal as usual;
+- a combine must not enter execution when the pool's rejection handler borrows the submitting
+  thread; it records `SUBMISSION_FAILURE`. An explicit direct executor is allowed to inline per
+  the contract the registrant chose; a normal unsaturated pool is not rejected by policy name;
+- the combine's structural parent is the same as members' (the outer scoped task at the
+  submission site, or null); the last-completing member MUST NOT be treated as the structural
+  parent.
 
-完成计数不变式为 `totalTasks == memberCount + (combine ? 1 : 0)`（收敛屏障的目标计数）：member 非成功导致 combine 不执行时，框架必须把 terminal future 推向终态（按 token 归因取消），不得遗留 pending future。
+The completion-count invariant is `totalTasks == memberCount + (combine ? 1 : 0)` (the
+convergence barrier's target count): when a member's non-success means the combine does not
+execute, the framework must push the terminal future to a terminal state (cancelled with token
+attribution) and must not leave a pending future.
 
 ## 4. API
 
-类型化 key 与 `GroupValues` 的输入选择见
-[组声明契约 §4.1](group-one-shot-api-refactor-codex.md#41-类型化声明键)。`combineValues` 只是把
-按 key 读取意图写入方法名；它与 `combine` 共享同一个 prepared terminal，下面的准备、join、取消、
-TTL 与拒绝规则完全一致。
+The typed keys and the `GroupValues` input choice are in
+[group declaration contract §4.1](group-one-shot-api-refactor-codex.md#41-typed-declaration-keys).
+`combineValues` merely writes the by-key read intent into the method name; it shares the same
+prepared terminal with `combine`, and the preparation, join, cancellation, TTL, and rejection
+rules below are exactly the same.
 
-combine 在链尾声明：`GroupStep.combine(key, par, [options,] taskCode)` 返回
-`CombinedGroupStep`，其上只有 `runAll()`——不能再声明 `par` 或第二个 combine（编译期排除，
-对过期 step 引用的重复调用由草稿阶段守卫在运行期拒绝）。combine 执行是
-`Combiner<GroupValues, R>`，通过声明时的 `TaskKey` 读取普通成员的值：
+The combine is declared at the chain tail: `GroupStep.combine(key, par, [options,] taskCode)`
+returns `CombinedGroupStep`, which exposes only `runAll()` — no further `par` or a second
+combine can be declared (excluded at compile time; duplicate calls on a stale step reference
+are rejected at runtime by the draft's stage guard). A combine execution is a
+`Combiner<GroupValues, R>`, reading ordinary members' values through the declaration-time
+`TaskKey`s:
 
 ```java
 TaskKey<User> user = TaskKey.named("user");
@@ -76,117 +107,170 @@ TaskGroupResult<AccountPage> result =
 AccountPage page = result.terminalValueOrThrow();
 ```
 
-`Combiner` 必须声明 `throws Exception`：member 任务是 `Callable`（受检异常原样收敛为
-`USER_FAILURE`），combine 与 member 并列在同一声明链上，受检异常处理必须对称；JDK
-函数式接口中没有"单参且抛受检异常"的类型，这是新增此接口的唯一理由。注意 Batch
-（`Par.map`）的用户函数是不抛受检异常的 JDK `Function`——这是既有分叉（batch 元素仿
-`Stream.map`，group member 仿 `ExecutorService.submit(Callable)`），combine 跟随 member
-一侧。
+`Combiner` must declare `throws Exception`: member tasks are `Callable`s (checked exceptions
+converge as-is into `USER_FAILURE`), and the combine sits alongside members on the same
+declaration chain, so checked-exception handling must be symmetric; no JDK functional interface
+is "single-argument and throws checked" — that is the sole reason for adding this interface.
+Note that Batch's (`Par.map`) user function is a JDK `Function` that throws no checked
+exception — this is the existing fork (batch elements follow `Stream.map`, group members follow
+`ExecutorService.submit(Callable)`), and the combine follows the member side.
 
-要点：
+Key points:
 
-- combine 的值视图只提供已成功的值，不暴露 future，也不执行等待；成员值的类型由声明与读取
-  共享的 `TaskKey<T>` 在编译期保证（见 group-one-shot 的 `GroupValues` 契约），成功 member
-  的返回值可以为 null；
-- 至多一个 combine、且只能在所有 `par` 之后声明：链尾 `CombinedGroupStep` 只暴露
-  `runAll()`，第二个 combine 与 combine 后再 `par` 都在编译期不可表达；
-- 声明期校验与 member 对称：参数为 null、名称为 null/空白或与任一 member 重复，立即拒绝；
-  executor 在声明期直接收已解析的 `Par`（owner-bound）；选项可省略，等价于
-  `TaskOptions.inheritTimeout()`；
-- terminal 结果经 `TaskGroupResult<R>` 表达：值用 `terminalResult()`/
-  `terminalValueOrThrow()`，观测快照用 `terminal()`（@Nullable，无 combine 时为 null）；
-  `members()` 保持只含普通 member；
-- `combineOptions` 即 `TaskOptions`，与 member 共用同一个单任务选项类型：执行行为使用
-  timeout/rejectEnqueue，与 member 一致；被拒绝即记 `SUBMISSION_FAILURE`，
-  若目标池的拒绝处理器会 inline 执行（`CallerRunsPolicy` 饱和时），执行同样不执行、记
-  `SUBMISSION_FAILURE`（§9 验收项 1）。`rejectEnqueue` 对 combine 仍然有效：
-  默认 `rejectEnqueue=false` 让 `SubmissionAwareBlockingQueue` 正常入队，combine 在队列里
-  等 worker；显式要求拒绝入队才会把它的命运交给拒绝处理器。`taskType` 与 member 一样只是诊断
-  声明（[API 与选项 §3.2.1](task-group-api-and-options.md)），不改变入队。
-  身份取 combine 的声明名。`TaskOptions`
-  不含 name/listeners，因此 combine 不可能通过选项覆盖 Group 名称或取消策略（见
-  [API 与选项 §3.2](task-group-api-and-options.md)）；
-- 没有 combine 的 Group 不创建任何虚假终端任务，也不存在 `Void` 特殊路径。
+- the combine's value view provides only succeeded values — it exposes no futures and performs
+  no waiting; member value types are guaranteed at compile time by the `TaskKey<T>` shared
+  between declaration and read (see group-one-shot's `GroupValues` contract), and a successful
+  member's return value may be null;
+- at most one combine, declared only after all `par`s: the chain-tail `CombinedGroupStep`
+  exposes only `runAll()`, so a second combine and a `par` after a combine are both
+  inexpressible at compile time;
+- declaration-phase validation is symmetric with members: null arguments, a null/blank name, or
+  a name duplicating any member's are rejected immediately; the executor is taken directly as
+  the resolved `Par` at declaration (owner-bound); options may be omitted, equivalent to
+  `TaskOptions.inheritTimeout()`;
+- the terminal result is expressed through `TaskGroupResult<R>`: the value via
+  `terminalResult()`/`terminalValueOrThrow()`, the observation snapshot via `terminal()`
+  (@Nullable, null when there is no combine); `members()` keeps containing only ordinary
+  members;
+- `combineOptions` is `TaskOptions`, the same single-task option type members use: execution
+  behavior uses timeout/rejectEnqueue, consistent with members; a rejection records
+  `SUBMISSION_FAILURE`, and if the target pool's rejection handler would execute inline
+  (`CallerRunsPolicy` when saturated), the execution likewise does not run and records
+  `SUBMISSION_FAILURE` (§9 acceptance item 1). `rejectEnqueue` remains effective for combines:
+  the default `rejectEnqueue=false` lets `SubmissionAwareBlockingQueue` enqueue normally, with
+  the combine waiting in the queue for a worker; only an explicit refusal request hands its
+  fate to the rejection handler. `taskType` is, as with members, only a diagnostic declaration
+  ([API and options §3.2.1](task-group-api-and-options.md)) and does not change enqueueing.
+  Identity is the combine's declaration name. `TaskOptions` contains no name/listeners, so a
+  combine cannot override the Group's name or cancellation policy through options (see
+  [API and options §3.2](task-group-api-and-options.md));
+- a Group without a combine creates no fictitious terminal task and has no `Void` special path.
 
-## 5. 成员值视图契约
+## 5. Member value-view contract
 
-- combine 执行接收按声明顺序保存成员的 `GroupValues`；成功成员值可以为 null，空组不会声明
-  terminal combine；
-- 读取不阻塞：combine 运行时所有 member 已成功；
-- 类型安全由声明与读取共享的 `TaskKey<T>` 承担，不做结果的运行期类型校验；
-  按名/按位置的事后查询返回未类型化结果，原 key 查询返回类型化结果；
-- combine 函数只能依赖 member 值与声明前可达的环境。combine 由框架在最后一个 member 成功时
-  调度，与声明之后、提交之前的其他调用线程代码之间没有同步边。
+- the combine execution receives a `GroupValues` holding members in declaration order;
+  successful member values may be null, and an empty group never declares a terminal combine;
+- reads do not block: when the combine runs, every member has succeeded;
+- type safety is carried by the `TaskKey<T>` shared between declaration and read, with no
+  runtime type check of results; after-the-fact queries by name/position return untyped
+  results, and original-key queries return typed results;
+- the combine function may depend only on member values and the environment reachable before
+  declaration. The combine is scheduled by the framework when the last member succeeds, and
+  there is no synchronization edge between it and other calling-thread code between
+  declaration and submission.
 
-combine 不是用户编写的 future 编排器，而是框架确认 join 条件后的单次业务计算。
+The combine is not a user-written future orchestrator but a single business computation the
+framework runs after confirming the join condition.
 
-## 6. 生命周期与提交时序
+## 6. Lifecycle and submission timing
 
-`runAll()` 的提交分为三步：
+`runAll()`'s submission has three steps:
 
-1. 在一次 `ParRuntime.whileOpen()` 内冻结成员 registry 与 combine 声明，创建 group token、
-   全部 member futures、terminal future 及 combine 的全部运行期管道（token/context/TTL 快照/
-   结构 parent），全量注册并发布 registry，安排 group deadline timer；
-2. 提交 members，按结构化规则处理失败、拒绝、超时和取消；
-3. 所有 members 成功后，对已 prepared 的 terminal future 调用目标 executor 的 `execute()`；
-   combine 终态后 Group 才完成。
+1. Inside one `ParRuntime.whileOpen()`: freeze the member registry and the combine
+   declaration, create the group token, all member futures, the terminal future, and the
+   combine's entire runtime plumbing (token/context/TTL snapshot/structural parent), register
+   everything and publish the registry, and schedule the group deadline timer;
+2. Submit the members, handling failures, rejections, timeouts, and cancellations per the
+   structured rules;
+3. After all members succeed, call the target executor's `execute()` on the already-prepared
+   terminal future; the Group completes only after the combine goes terminal.
 
-零普通成员的组不允许声明 combine（单任务使用单成员组）；空组无 combine 时立即成功、不创建
-timer，规则不变。
+A group with zero ordinary members may not declare a combine (use a single-member group for a
+single task); an empty group without a combine succeeds immediately and creates no timer — the
+rules are unchanged.
 
-### 执行线程与线程角色
+### Execution threads and thread roles
 
-用户 lambda 经 `combine(...)` 指定的 Par 提交。线程池目标只允许 worker；注册者显式选择
-direct executor 时允许其 inline 契约。线程池路径的其余候选被拒绝：
+The user lambda is submitted through the `Par` specified by `combine(...)`. A thread-pool
+target allows only workers; when the registrant explicitly chose a direct executor, its inline
+contract is allowed. The remaining candidates for the thread-pool path are rejected:
 
-- **最后完成 member 的线程（回调内联）**：哪个 member 最后完成是竞态结果，combine 的执行位置随之不确定，重计算可能随机占用 IO 池 worker；收敛回调运行在框架的 future 完成机制中，契约本就禁止在此处执行用户代码。这与 Guava `directExecutor()` 的著名风险（重入、死锁、在 IO 线程跑重活）同源；
-- **调用线程**：join 由成员完成驱动，combine 的调度点收敛在成员完成回调中，调用线程不是可安排的执行位置（direct executor 下 join 甚至可能在提交循环内联触发，早于调用线程进入等待）；让调用线程跑 combine 还会绕过目标 `Par` 的队列与隔离，把业务计算耦合到提交现场；
-- **框架内置隐藏 executor**：违背"Group 不创建新 executor"的约定，所有 Group 的 combine 挤在无业务语义的共享池中，失去按计算性质选池与隔离的能力，而这正是 registered `Par` 体系存在的意义。
+- **The last-completing member's thread (callback inlining)**: which member completes last is a
+  race outcome, so the combine's execution location would be indeterminate, and a heavy
+  recomputation could randomly occupy an IO pool worker; the convergence callback runs inside
+  the framework's future-completion machinery, where contracts already forbid executing user
+  code. This shares its root with Guava `directExecutor()`'s famous risks (reentrancy,
+  deadlock, heavy work on IO threads);
+- **The calling thread**: the join is driven by member completions, and the combine's
+  scheduling point converges inside member completion callbacks; the calling thread is not a
+  schedulable execution position (under a direct executor the join may even fire inline inside
+  the submission loop, before the calling thread enters its wait); having the calling thread
+  run the combine would also bypass the target `Par`'s queue and isolation, coupling business
+  computation to the submission site;
+- **A framework-built hidden executor**: violates the "Group creates no new executor"
+  convention; all Groups' combines would crowd into a shared pool with no business semantics,
+  losing the ability to choose and isolate pools by computation nature — which is exactly why
+  the registered `Par` system exists.
 
-据此区分两个线程角色：
+Two thread roles are therefore distinguished:
 
-1. **收敛回调线程**（最后成功 member 的 worker）：只做框架动作——构造值视图、包
-   `SubmissionScope`、调用 `executor.execute()`，有界且无用户代码；
-2. **目标 `Par` 的 worker 线程**：唯一运行用户 lambda 的线程，`TaskExecutionContext.current()`、TTL 回放、观测快照发布与 member 行为一致。
+1. **The convergence callback thread** (the last successful member's worker): performs only
+   framework actions — building the value view, wrapping `SubmissionScope`, calling
+   `executor.execute()` — bounded and free of user code;
+2. **A worker thread of the target `Par`**: the only thread running the user lambda;
+   `TaskExecutionContext.current()`, TTL replay, and observation-snapshot publication behave
+   identically to members.
 
-## 7. 结果与 outcome
+## 7. Results and outcomes
 
-内部 terminal future 保持普通 Guava 语义，与 member future 一致：成功返回 `R`、失败抛
-`ExecutionException`、取消表现为 cancelled；公开侧经 `terminalResult()`/
-`terminalValueOrThrow()` 读取。`runAll()` 正常返回 `TaskGroupResult`，Group outcome 是结果
-数据，不用异常编码。
+The internal terminal future keeps ordinary Guava semantics, consistent with member futures:
+success returns `R`, failure throws `ExecutionException`, cancellation appears as cancelled;
+the public side reads through `terminalResult()`/`terminalValueOrThrow()`. `runAll()` returns
+`TaskGroupResult` normally, and a Group outcome is result data, not exception-encoded.
 
-| 情况 | combine | terminal 结果 | Group outcome |
+| Situation | combine | terminal result | Group outcome |
 |---|---|---|---|
-| 全部成功 | 执行并成功 | 成功返回 `R` | `SUCCESS` |
-| member 非成功 | 不执行 | 按 group token 归因取消（`FAIL_FAST`/`TIMEOUT`/`GROUP_CANCELLED`） | member 的组级 outcome |
-| combine 用户失败 | 执行 | 失败（原异常） | `USER_FAILURE` |
-| combine 被拒绝 | 提交但被拒（无 inline） | 失败 | `SUBMISSION_FAILURE` |
-| combine 的池会 inline 跑它（`CallerRunsPolicy` 饱和） | 进入 `run()` 后被拦，执行不执行 | 失败 | `SUBMISSION_FAILURE` |
-| combine 自身 deadline 先到 | 升级 `groupToken.timeoutCancel()` | 取消 | `TIMEOUT` |
-| group deadline 先到 | 不执行或中断 | 取消 | `TIMEOUT` |
-| 组取消（祖先取消/直消级联） | 不执行或中断 | 取消 | `GROUP_CANCELLED` |
+| All succeed | Executes and succeeds | Success returning `R` | `SUCCESS` |
+| Member non-success | Does not execute | Cancelled with group-token attribution (`FAIL_FAST`/`TIMEOUT`/`GROUP_CANCELLED`) | The member's group-level outcome |
+| combine user failure | Executes | Failure (original exception) | `USER_FAILURE` |
+| combine rejected | Submitted but rejected (no inline) | Failure | `SUBMISSION_FAILURE` |
+| combine's pool would run it inline (`CallerRunsPolicy` saturated) | Blocked after entering `run()`; execution does not run | Failure | `SUBMISSION_FAILURE` |
+| combine's own deadline expires first | Escalates `groupToken.timeoutCancel()` | Cancelled | `TIMEOUT` |
+| group deadline expires first | Does not execute or is interrupted | Cancelled | `TIMEOUT` |
+| group cancellation (ancestor cancellation/direct-cancel cascade) | Does not execute or is interrupted | Cancelled | `GROUP_CANCELLED` |
 
-`TaskGroupResult.terminal()` 返回 `@Nullable TaskExitObservation<?>`：无 combine 时为 null；注册即
-携带快照，执行前取消时 start/end 为零，与执行前取消的 member 快照惯例一致。`members()`
-保持只含 member。combine 失败或拒绝时 `failedTaskName()` 取 combine 的注册名；
-字段名使用 task 而非 member，避免把 combine failure 伪装成 member failure。
+`TaskGroupResult.terminal()` returns `@Nullable TaskExitObservation<?>`: null when there is no
+combine; registered means carrying a snapshot, and a before-execution cancellation has zero
+start/end, consistent with the before-execution-cancelled member snapshot convention.
+`members()` keeps containing only members. When the combine fails or is rejected,
+`failedTaskName()` takes the combine's registered name; the field is named task rather than
+member to avoid disguising a combine failure as a member failure.
 
-## 8. 取消、deadline 与归因
+## 8. Cancellation, deadlines, and attribution
 
-- combine token 是 group token 的 child，与 member 同层；group 取消经 token 构造期的 parent 监听级联到 combine，未开始的 combine 不得执行，运行中的 combine 接收协作取消和中断请求；
-- member 失败时 combine 不执行，terminal future 由框架终结，归因与 sibling member 相同；
-- combine deadline 是 `min(combine requested deadline, group deadline)`；`inheritTimeout()` 解析为 group deadline；与 member 相同的 bind 跳过策略适用（解析出与组相同的 deadlineNanos 时跳过单独 bind）；
-- combine 自身 deadline 先到时，与 member 规则一致：token 上的 timeout 监听器调用 `groupToken.timeoutCancel()`，Group 固定 `TIMEOUT`；
-- group deadline 从提交准备边界起算，涵盖 fan-out 等待和 combine 运行，combine 不重新获得一整段 group timeout；
-- 归因走包私有 `TokenOutcomes` 同一张映射表，不新增映射；combine 的失败、直消或超时将 Group 固定为相应 outcome，members 已终态，无 sibling 可回撤；
-- combine 永远是最后完成的任务，其失败必须由框架同步提交 `FAIL_FAST`（`groupToken.failFastCancel()`）后再收敛：同步提交保证级联取消观察到已提交的组状态，也使失败记录在收敛时确定可见；member 失败保持既有归因规则不变（组级 outcome 优先沿用已记录失败任务的 outcome，见生命周期契约 §6）；
-- combine 复用 Group 的 token 体系、`ParRuntime.timeoutScheduler()` 和 `TaskSubmissions` 两阶段内核，不创建新 executor 或 timer service。
+- the combine token is a child of the group token, at the same level as members; group
+  cancellation cascades to the combine through the parent listener wired at token construction —
+  an unstarted combine must not execute, and a running combine receives cooperative
+  cancellation and an interrupt request;
+- when a member fails, the combine does not execute; the terminal future is terminated by the
+  framework with the same attribution as sibling members;
+- the combine deadline is `min(combine requested deadline, group deadline)`;
+  `inheritTimeout()` resolves to the group deadline; the same bind-skip policy as members
+  applies (skip the separate bind when the resolved deadlineNanos equals the group's);
+- when the combine's own deadline expires first, the member rule applies: the timeout listener
+  on the token calls `groupToken.timeoutCancel()`, fixing the Group as `TIMEOUT`;
+- the group deadline counts from the submission-preparation boundary and covers both the
+  fan-out wait and the combine run — the combine does not regain a whole fresh group timeout;
+- attribution goes through the same package-private `TokenOutcomes` mapping table, with no new
+  mapping; the combine's failure, direct cancellation, or timeout fixes the Group at the
+  corresponding outcome, and members are already terminal with no siblings to roll back;
+- the combine is always the last task to complete, so its failure must be committed by the
+  framework synchronously as `FAIL_FAST` (`groupToken.failFastCancel()`) before convergence:
+  the synchronous commit guarantees the cascading cancellation observes the committed group
+  state and makes the failure record deterministically visible at convergence; member failures
+  keep the existing attribution rules unchanged (the group-level outcome preferentially keeps
+  the recorded failed task's outcome, see the lifecycle contract §6);
+- the combine reuses the Group's token system, `ParRuntime.timeoutScheduler()`, and the
+  `TaskSubmissions` two-phase kernel, creating no new executor or timer service.
 
-## 9. 观测与执行器等待
+## 9. Observation and executor waits
 
-- combine 正常产生 `TaskExitObservation` 观测快照；执行前取消的快照 start/end 为零，与 member 一致；组结果在 combine 终态后才由 `runAll()` 返回（见观测契约 §10.2）；
-- membership 仍不产生 member-to-member 关系。combine 是真实的 all-to-one 数据依赖：
+- the combine produces a `TaskExitObservation` observation snapshot normally; a
+  before-execution cancellation has zero start/end, consistent with members; the group result
+  is returned by `runAll()` only after the combine goes terminal (see the observability
+  contract §10.2);
+- membership still produces no member-to-member relationships. The combine is a real all-to-one
+  data dependency:
 
 ```text
 member A ──┐
@@ -194,60 +278,115 @@ member B ──┼──> combine
 member C ──┘
 ```
 
-- members→combine 是数据依赖，不是等待，MUST NOT 记入执行器等待图，不参与 deadlock 环检测——没有线程为它阻塞。等待 combine 的是 caller，caller 对成员与 combine 的等待作为一组安装（见 [task-graph.md](task-graph.md) §4）。MUST NOT 伪造单父边或虚构 group batch 节点。
+- members→combine is a data dependency, not a wait; it MUST NOT be recorded in the executor
+  wait graph and does not participate in deadlock cycle detection — no thread blocks on it. The
+  waiter of the combine is the caller, and the caller's waits on members and the combine are
+  installed as one set (see [task-graph.md](task-graph.md) §4). MUST NOT fabricate
+  single-parent edges or a fictitious group batch node.
 
-## 10. 与 idea-graveyard 的关系
+## 10. Relationship to idea-graveyard
 
-`docs/zh/design/idea-graveyard.md` 拒绝的是通用链式编排与任意 DAG：用户自定拓扑、异常恢复策略、结果变换链。本设计不与之冲突，边界在于——依赖形状固定为单个全量 join，无用户拓扑、无 fallback、无中间阶段；combine 的价值在于结构化取消、deadline 与观测，而不是编排表达力。采纳本文时应同步修订 graveyard 条目，把"单一终端全量 join"列为有理由的例外并指向本文，避免未来维护者无法区分有意演进与意外漂移。
+What `docs/zh/design/idea-graveyard.md` rejects is general chained orchestration and arbitrary
+DAGs: user-defined topologies, exception-recovery policies, and result-transformation chains.
+This design does not conflict with it; the boundary is — the dependency shape is fixed as a
+single full join, with no user topology, no fallback, and no intermediate stages; the combine's
+value is structured cancellation, deadlines, and observation, not orchestration
+expressiveness. When adopting this document, revise the graveyard entry in the same change,
+listing "a single terminal full join" as a justified exception pointing here, so future
+maintainers can distinguish intentional evolution from accidental drift.
 
-## 11. 非目标
+## 11. Non-goals
 
-本设计不提供多个 combine、部分依赖、combine 后派生任务、`dependsOn(...)`、拓扑排序、任意 DAG，或将 member failure 转成 fallback 值。它们需要完整处理 ready-set 调度、循环、部分成功、依赖失败、取消传播和图观测，不能伪装成一个 Group 便利方法。
+This design provides no multiple combines, partial dependencies, post-combine derived tasks,
+`dependsOn(...)`, topological sorting, arbitrary DAGs, or turning member failures into fallback
+values. Those require fully handling ready-set scheduling, cycles, partial success, dependency
+failure, cancellation propagation, and graph observation; they cannot masquerade as a Group
+convenience method.
 
-## 12. 优点与缺点
+## 12. Advantages and drawbacks
 
-优点：它直接表达并行获取后的组装；调用方不再编写多 future 等待和执行器切换；终端计算可取消、可观测、受 deadline 约束；声明期类型匹配保留类型安全，组结果泛型随声明链增长而精确化；combine 复用 member 机制，新增表面集中在"提交时机"一点；单一全量 join 控制了 API 的扩张。
+Advantages: it directly expresses assembly after parallel fetching; the caller no longer writes
+multi-future waiting and executor switching; the terminal computation is cancellable,
+observable, and deadline-bound; declaration-time type matching preserves type safety, and the
+group result generic refines as the declaration chain grows; the combine reuses member
+mechanisms, concentrating the new surface at the single point of "submission timing"; the
+single full join controls API expansion.
 
-缺点：
+Drawbacks:
 
-1. **概念增多。** 用户要区分 member、完成观测和 combine；仅做观测或分别消费结果时，combine 没有价值。
-2. **Java 8 泛型不够自然。** 异构成员不能自动推导成多参数 lambda；`GroupValues.valueOf(TaskKey)`
-   把类型绑定到声明 key，动态名称/位置读取则保留为 `Object`。
-3. **失败面扩大。** 组装成为可失败、拒绝、取消、超时的任务，结果、指标、测试和文档都要扩展。
-4. **额外一次调度。** 显式 executor 避免污染最后完成 member 的线程（禁用 inline fallback 后这一点是保证而非选择），但对纯字段拼装带来排队和上下文切换开销。
-5. **端到端预算更紧。** member 用掉大部分 deadline 后，combine 可能尚未开始即超时；这是正确的端到端语义，但需清晰告知用户。
-6. **会引出 DAG 需求。** 用户可能接着要求部分依赖或多个阶段。必须坚守一个全量、末端 combine 的限制。
+1. **More concepts.** Users must distinguish members, completion observation, and the combine;
+   when only observing or consuming results separately, the combine has no value.
+2. **Java 8 generics are not natural.** Heterogeneous members cannot be auto-inferred into a
+   multi-argument lambda; `GroupValues.valueOf(TaskKey)` binds types to declaration keys, while
+   dynamic name/position reads stay `Object`.
+3. **A larger failure surface.** Assembly becomes a task that can fail, be rejected, cancelled,
+   or time out; results, metrics, tests, and documentation all expand.
+4. **One extra scheduling hop.** An explicit executor avoids polluting the last-completing
+   member's thread (with inline fallback forbidden this is a guarantee, not a choice), but pure
+   field assembly pays queueing and context-switch overhead.
+5. **A tighter end-to-end budget.** After members consume most of the deadline, the combine may
+   time out before starting; this is the correct end-to-end semantics but must be clearly
+   communicated to users.
+6. **It invites DAG requests.** Users may next ask for partial dependencies or multiple stages.
+   The single full terminal-combine limit must be firmly held.
 
-## 13. 采用门槛与验收
+## 13. Adoption threshold and acceptance
 
-combine 仅用于需要框架调度与观测的非平凡业务计算。combine 主体应是内存计算（组装、裁剪、聚合、校验、序列化）；如果发现自己在 combine 里做第二次远程调用并关心它的失败语义，需要的是下一个 Group 或另行设计的 DAG——不是更复杂的 combine。只记录指标时用 `TaskGroupResult` 的观测快照；调用方需要逐项消费结果时用 `results`/`resultOf`/`resultAt` 自行读取；需要部分结果、fallback 或多依赖节点时另行设计 workflow/DAG API。
+The combine is only for non-trivial business computation that needs framework scheduling and
+observation. A combine body should be in-memory computation (assembly, trimming, aggregation,
+validation, serialization); if you find yourself making a second remote call inside a combine
+and caring about its failure semantics, what you need is the next Group or a separately
+designed DAG — not a more complex combine. For metrics only, use `TaskGroupResult`'s
+observation snapshots; when the caller needs to consume results item by item, read them itself
+through `results`/`resultOf`/`resultAt`; for partial results, fallbacks, or multi-dependency
+nodes, design a workflow/DAG API separately.
 
-最低验收：
+Minimum acceptance:
 
-1. 所有 members 成功时 combine 恰好执行一次，callable 在指定 executor 线程运行，即使被拒绝也不 inline 到收敛回调线程（拒绝记 `SUBMISSION_FAILURE`）；
-   库自身没有任何 inline 回退路径（`runOnCallerThread` 已删除）；剩下的缺口是用户池的
-   `RejectedExecutionHandler` 在 `execute()` 内部同步跑掉执行时**根本不抛异常**，这条由
-   `forbidInlineExecution()` 在 `run()` 里按线程身份拦下（仅对 `ThreadPoolExecutor` 启用，见下）。
-   没有它时，`CallerRunsPolicy` 池饱和会让 combine 静默跑在收敛回调线程上，group 仍报
-   `SUCCESS`——这正是曾经的实际行为。
+1. when all members succeed, the combine executes exactly once, its callable runs on the
+   specified executor's thread, and even when rejected it does not inline onto the convergence
+   callback thread (rejection records `SUBMISSION_FAILURE`);
+   the library itself has no inline fallback path (`runOnCallerThread` was deleted); the
+   remaining gap is a user pool's `RejectedExecutionHandler` running the execution
+   synchronously inside `execute()` **without throwing at all** — this is caught by
+   `forbidInlineExecution()` checking thread identity inside `run()` (enabled only for
+   `ThreadPoolExecutor`, see below).
+   Without it, a saturated `CallerRunsPolicy` pool would silently run the combine on the
+   convergence callback thread while the group still reports `SUCCESS` — which was once the
+   actual behavior.
 
-   **为什么按执行期线程身份判定，而不是在提交期按拒绝策略拒绝：** `CallerRunsPolicy` 只在池真正饱和时
-   inline，池从不饱和的用户其 combine 从未违反过任何保证。按策略株连会把这批合规用户直接改成必然失败，
-   那是误伤而非"安全优先"（对比 `ParRuntime` 拒绝 Discard 系：Discard 的危害是无条件的，注册即必然丢任务）。
-   判定同时要求执行线程就是正在 execute 的提交线程。其他 worker 可以在 execute 返回前开始
-   正常入队的任务，不属于 inline；提交者 worker 也可在 execute 返回并清除提交线程标记后，
-   正常从队列取出 combine 执行。守卫区分的是当前提交栈上的执行，而非线程曾经承担的角色。
+   **Why judge by execution-time thread identity instead of rejecting by policy at submission
+   time:** `CallerRunsPolicy` inlines only when the pool is actually saturated; for users whose
+   pools never saturate, the combine never violated any guarantee. Punishing by policy
+   association would turn these compliant users into certain failures — collateral damage, not
+   "safety first" (compare `ParRuntime` rejecting the Discard family: Discard's harm is
+   unconditional — registration means certain task loss).
+   The judgment also requires the executing thread to be the very submitting thread inside
+   execute. Other workers may start a normally enqueued task before execute returns — that is
+   not inline; the submitting worker may also, after execute returns and clears the
+   submitting-thread marker, take the combine from the queue and execute it normally. The guard
+   distinguishes executions on the current submission stack, not roles a thread once held.
 
-   **为什么只对 `ThreadPoolExecutor` 启用：** TPE 要么派发给 worker 要么抛异常，唯一能走到调用方栈上的路径
-   就是它的拒绝处理器，所以"执行跑在提交线程上"与"拒绝处理器跑了它"是同一件事。而 `directExecutor()`
-   这类总是 inline 的 executor，inline 不是饱和症状而是它的全部契约，由注册者显式选择，
-   `Combiner` 的 javadoc 明确把它列为已接受的例外，因此放行。
-2. 任一 member 非成功时 combine callable 不执行，terminal future 按 token 归因终态，不留下 pending future；
-3. combine 的 `TaskExecutionContext`、TTL 快照和结构 parent 都在提交准备阶段创建：TTL 捕获时点与 member 一致，结构 parent 是提交现场的外层任务而非最后完成的 member；
-4. combine 在提交时完成 admission/retain：提交后 `ParRuntime.close()` 与 join 竞争时，combine 仍正常提交并终态；
-5. combine 能通过值视图无阻塞取得正确值；名称冲突、null 成功结果和类型不匹配的事后查询符合契约；
-6. combine 自身 deadline 先到时升级为组 `TIMEOUT`；group deadline 涵盖 fan-out 与 combine；
-7. combine 的失败、拒绝、直消与 close 有确定 outcome，`failedTaskName()` 取 combine 注册名，combine failure 不伪装成 member failure；
-8. `totalTasks` 目标含 terminal future；内部 completion 等 terminal future 终态后才完成，组结果在 combine 终态后才返回；
-9. 执行器等待不写 membership 或成员→combine 关系；caller 对每个成员与 combine 的等待作为一组安装；
-10. 所有执行、拒绝和取消路径恢复 ThreadLocal/TTL。
+   **Why enabled only for `ThreadPoolExecutor`:** a TPE either dispatches to a worker or
+   throws, and the only path onto the caller's stack is its rejection handler, so "the
+   execution runs on the submitting thread" and "the rejection handler ran it" are the same
+   fact. For an always-inline executor like `directExecutor()`, inline is not a saturation
+   symptom but its entire contract, explicitly chosen by the registrant and listed in the
+   `Combiner` Javadoc as an accepted exception, so it is allowed through.
+2. when any member is non-successful, the combine callable does not execute, and the terminal
+   future goes terminal with token attribution, leaving no pending future;
+3. the combine's `TaskExecutionContext`, TTL snapshot, and structural parent are all created in
+   the submission preparation phase: the TTL capture timing is the same as members', and the
+   structural parent is the outer task at the submission site, not the last-completing member;
+4. the combine completes admission/retain at submission: when `ParRuntime.close()` after
+   submission races the join, the combine is still submitted and goes terminal normally;
+5. the combine obtains correct values from the value view without blocking; name conflicts,
+   null success results, and after-the-fact queries with type mismatches follow the contract;
+6. when the combine's own deadline expires first, it escalates to group `TIMEOUT`; the group
+   deadline covers fan-out and combine;
+7. the combine's failure, rejection, direct cancellation, and close have determined outcomes;
+   `failedTaskName()` takes the combine's registered name, and a combine failure is not
+   disguised as a member failure;
+8. the `totalTasks` target includes the terminal future; the internal completion completes only
+   after the terminal future is terminal, and the group result returns only after the combine
+   is terminal.

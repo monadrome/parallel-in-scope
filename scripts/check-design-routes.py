@@ -32,7 +32,7 @@ def route_targets(text: str) -> dict[PurePosixPath, str]:
 
 
 def route_tables(text: str) -> dict[str, dict[PurePosixPath, str]]:
-    tables = {"活契约": {}, "在途提案": {}}
+    tables = {"Live contracts": {}, "In-flight proposals": {}}
     section = None
     for _, line in unfenced_lines(text):
         if line.startswith("## "):
@@ -78,7 +78,7 @@ def beta_routed_documents(text: str) -> set[PurePosixPath]:
     for _, line in unfenced_lines(text):
         if line.startswith("## "):
             section = line[3:].strip()
-        elif section == "活契约" and line.startswith("|") and BETA_TAG in line:
+        elif section == "Live contracts" and line.startswith("|") and BETA_TAG in line:
             document_column = INLINE_CODE_RE.sub("", line.split("|", 2)[1])
             documents.update(route_targets(document_column))
     return documents
@@ -137,8 +137,8 @@ def main() -> int:
     for target, raw in sorted(targets.items()):
         if not (ROUTE_DOC.parent / Path(*target.parts)).exists():
             errors.append(f"design/AGENTS.md: missing target: {raw}")
-    for section, documents in (("活契约", live_documents), ("在途提案", proposal_documents)):
-        errors.extend(check_routes(documents, tables[section], section == "在途提案"))
+    for section, documents in (("Live contracts", live_documents), ("In-flight proposals", proposal_documents)):
+        errors.extend(check_routes(documents, tables[section], section == "In-flight proposals"))
     proposals_by_id = {}
     for document in sorted(proposal_documents):
         match = NAME_RE.match(document.name) if len(document.parts) == 2 else None
@@ -154,7 +154,7 @@ def main() -> int:
         if not summary or not summary[1].strip():
             errors.append(f"design/{document}: missing or empty abstract")
     live_documents.update(
-        target for target in tables["活契约"]
+        target for target in tables["Live contracts"]
         if len(target.parts) == 1 and target.suffix == ".md" and target.name != "AGENTS.md"
     )
     errors.extend(check_beta_markers(text, live_documents))

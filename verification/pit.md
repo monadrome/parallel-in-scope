@@ -181,7 +181,7 @@ Include this compact record in the PR, owning design document, or commit message
 - Dispositions, supporting test/proof, and the actual effect of each fix.
 - Overall `pass`, `fail`, `blocked`, `inconclusive`, or `skipped`, with limitations.
 
-The [issue runner](../design/issue-automation.md#6-执行与门禁) checks report
+The [issue runner](../design/issue-automation.md#6-execution-and-gates) checks report
 presence, timestamp freshness, and raw result states; it does not prove scope
 coverage, equivalence, or disposition quality. Its gate may count `TIMED_OUT` and
 `MEMORY_ERROR` as detected according to PIT conventions. That machine gate is not
