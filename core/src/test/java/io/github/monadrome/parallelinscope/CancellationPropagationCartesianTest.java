@@ -83,10 +83,10 @@ public class CancellationPropagationCartesianTest {
         ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
         try {
             PreparedStates.TokenPair tokens = PreparedStates.parentChildWithCancelledParent();
-            PreparedStates.BoundTask<Integer> bound =
+            SettableFuture<Integer> childFuture =
                     PreparedStates.bindSingleton(tokens.child(), Futures.immediateVoidFuture(), timer);
 
-            assertThat(bound.task()).isCancelled();
+            assertThat(childFuture).isCancelled();
             assertThat(tokens.child().state())
                     .as("parent cancellation should have one state regardless of bind timing")
                     .isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);

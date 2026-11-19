@@ -34,12 +34,12 @@ final class PreparedStates {
         return new TokenPair(parent, new CancellationToken(parent));
     }
 
-    /** Binds the token to one never-completing task future and returns both handles. */
-    static <T> BoundTask<T> bindSingleton(
+    /** Binds the token to one never-completing task future and returns it. */
+    static <T> SettableFuture<T> bindSingleton(
             CancellationToken token, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
         SettableFuture<T> task = SettableFuture.create();
-        ListenableFuture<?> aggregate = token.bind(Collections.singletonList(task), submitCanceller, timer);
-        return new BoundTask<>(task, aggregate);
+        token.bind(Collections.singletonList(task), submitCanceller, timer);
+        return task;
     }
 
     /** Window futures whose callables return their own index, as prepared for window submissions. */
@@ -77,27 +77,6 @@ final class PreparedStates {
         /** The token that reports propagated cancellation when the parent commits. */
         CancellationToken child() {
             return child;
-        }
-    }
-
-    /** A token's single bound task future and the completion aggregate the bind returned. */
-    static final class BoundTask<T> {
-        private final SettableFuture<T> task;
-        private final ListenableFuture<?> aggregate;
-
-        private BoundTask(SettableFuture<T> task, ListenableFuture<?> aggregate) {
-            this.task = task;
-            this.aggregate = aggregate;
-        }
-
-        /** The never-completing task future the token cancels with its bound work. */
-        SettableFuture<T> task() {
-            return task;
-        }
-
-        /** The aggregate that completes when the bound futures and the submission canceller are done. */
-        ListenableFuture<?> aggregate() {
-            return aggregate;
         }
     }
 }

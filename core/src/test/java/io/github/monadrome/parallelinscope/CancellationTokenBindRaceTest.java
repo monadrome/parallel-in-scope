@@ -4,9 +4,11 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,10 +47,9 @@ class CancellationTokenBindRaceTest {
         CancellationToken token = CancellationToken.create();
         token.cancel();
 
-        PreparedStates.BoundTask<String> bound =
-                PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
+        SettableFuture<String> task = PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
 
-        assertThat(bound.task()).isCancelled();
+        assertThat(task).isCancelled();
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
@@ -61,18 +62,22 @@ class CancellationTokenBindRaceTest {
     void bindCalledTwice_secondBindingIsIgnored() throws InterruptedException {
         CancellationToken token = CancellationToken.create();
 
-        PreparedStates.BoundTask<String> first =
-                PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
-        first.task().set("ok");
-        Thread.sleep(50);
+        CountDownLatch succeeded = new CountDownLatch(1);
+        token.addStateListener(state -> {
+            if (state == CancellationToken.State.SUCCESS) {
+                succeeded.countDown();
+            }
+        });
+        SettableFuture<String> first = PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
+        first.set("ok");
+        assertThat(succeeded.await(5, TimeUnit.SECONDS)).isTrue();
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
 
-        PreparedStates.BoundTask<String> second =
-                PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
+        SettableFuture<String> second = PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
 
         // The second futures are not tracked; the token stays SUCCESS and the second task is not
         // cancelled by the framework.
-        assertThat(second.task()).isNotCancelled();
+        assertThat(second).isNotCancelled();
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
     }
 
@@ -87,7 +92,7 @@ class CancellationTokenBindRaceTest {
 
         for (int i = 0; i < attempts; i++) {
             CancellationToken token = CancellationToken.create();
-            AtomicReference<PreparedStates.BoundTask<String>> bound = new AtomicReference<>();
+            AtomicReference<SettableFuture<String>> bound = new AtomicReference<>();
 
             CountDownLatch start = new CountDownLatch(1);
 
@@ -106,7 +111,7 @@ class CancellationTokenBindRaceTest {
             canceller.join();
             binder.join();
 
-            if (!verifyNotNull(bound.get()).task().isCancelled()) {
+            if (!verifyNotNull(bound.get()).isCancelled()) {
                 notCancelled++;
             }
         }

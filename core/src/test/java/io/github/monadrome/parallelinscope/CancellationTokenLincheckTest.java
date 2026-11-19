@@ -37,7 +37,7 @@ public class CancellationTokenLincheckTest {
             CancellationToken token = CancellationToken.create();
             SettableFuture<Void> submission = SettableFuture.create();
             AtomicInteger notifications = new AtomicInteger();
-            AtomicReference<PreparedStates.BoundTask<String>> bound = new AtomicReference<>();
+            AtomicReference<SettableFuture<String>> bound = new AtomicReference<>();
             token.addStateListener(state -> notifications.incrementAndGet());
 
             Thread canceller = new Thread(() -> token.cancel());
@@ -47,7 +47,7 @@ public class CancellationTokenLincheckTest {
             join(canceller);
             join(binder);
 
-            assertState("task", verifyNotNull(bound.get()).task().isCancelled());
+            assertState("task", verifyNotNull(bound.get()).isCancelled());
             assertState("submission", submission.isCancelled());
             assertState("token state " + token.state(), token.state() == CancellationToken.State.CANCELLED);
             assertState("listener notifications " + notifications.get(), notifications.get() == 1);
@@ -62,7 +62,7 @@ public class CancellationTokenLincheckTest {
             CancellationToken child = tokens.child();
             SettableFuture<Void> submission = SettableFuture.create();
             AtomicInteger notifications = new AtomicInteger();
-            AtomicReference<PreparedStates.BoundTask<String>> bound = new AtomicReference<>();
+            AtomicReference<SettableFuture<String>> bound = new AtomicReference<>();
             child.addStateListener(state -> notifications.incrementAndGet());
 
             Thread canceller = new Thread(() -> parent.cancel());
@@ -74,7 +74,7 @@ public class CancellationTokenLincheckTest {
 
             assertState("parent state " + parent.state(), parent.state() == CancellationToken.State.CANCELLED);
             assertState("child state " + child.state(), child.state() == CancellationToken.State.PROPAGATED_CANCELLED);
-            assertState("task", verifyNotNull(bound.get()).task().isCancelled());
+            assertState("task", verifyNotNull(bound.get()).isCancelled());
             assertState("submission", submission.isCancelled());
             assertState("child listener notifications " + notifications.get(), notifications.get() == 1);
         });
