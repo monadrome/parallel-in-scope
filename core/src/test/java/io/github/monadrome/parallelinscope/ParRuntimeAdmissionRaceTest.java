@@ -42,6 +42,10 @@ class ParRuntimeAdmissionRaceTest {
             assertThat(admissionEntered.await(5, TimeUnit.SECONDS))
                     .as("the admission is in flight")
                     .isTrue();
+            assertThat(runtime.closed()).isFalse();
+            assertThat(runtime.inFlight())
+                    .as("the open admission counts as in-flight work")
+                    .isOne();
 
             runtime.close();
 
@@ -55,6 +59,7 @@ class ParRuntimeAdmissionRaceTest {
             assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5)))
                     .as("the last admission's exit lets close() retire the services")
                     .isTrue();
+            assertThat(runtime.inFlight()).isZero();
         } finally {
             releaseAdmission.countDown();
             admissionThread.shutdownNow();
