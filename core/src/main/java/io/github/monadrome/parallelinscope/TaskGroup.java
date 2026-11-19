@@ -973,6 +973,13 @@ final class TaskGroup<R> implements AutoCloseable {
         return TokenOutcomes.cancellationReason(groupToken, member.name, whenUncommitted);
     }
 
+    /**
+     * Synthesizes the explicit scope termination for a settled member, or returns {@code null} so
+     * the member's observed termination enters the accumulator unchanged. A direct member
+     * cancellation synthesizes {@code CANCELLED_BY_MEMBER}; a {@code CANCELLED_BY_PARENT_SCOPE}
+     * observed while the group caller has committed a cancellation synthesizes
+     * {@code CANCELLED_BY_CALLER}.
+     */
     private @Nullable ScopeTermination explicitScopeTermination(
             MemberState member, TaskTermination<Object> termination) {
         if (cancelledDirectly(termination)) {
@@ -1114,7 +1121,7 @@ final class TaskGroup<R> implements AutoCloseable {
             snapshots.put(member.name, memberSnapshot(member));
         }
         ScopeTermination primary = scopeTermination.primary();
-        ScopeTermination aggregate = primary == null ? decided : primary;
+        ScopeTermination aggregate = ScopeTermination.primaryOr(primary, decided);
         return new TaskGroupReport(
                 groupId,
                 groupName,

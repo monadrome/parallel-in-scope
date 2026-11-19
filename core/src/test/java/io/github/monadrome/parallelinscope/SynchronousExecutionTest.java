@@ -623,9 +623,7 @@ class SynchronousExecutionTest {
                     .group("rejected", TIMEOUT)
                     .par(TaskKey.<Integer>named("execution"), rejected, () -> 1)
                     .runAll();
-            TerminationAssertions.assertScopeFailed(group.termination());
-            assertThat(Verify.verifyNotNull(group.termination().failureCause()).kind())
-                    .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
+            TerminationAssertions.assertScopeFailed(group.termination(), FailureCause.Kind.SUBMISSION_REJECTED);
             assertThat(Verify.verifyNotNull(group.resultAt(0).failure()).getCause())
                     .isSameAs(original);
             assertThat(group.executionExitConfirmed()).isTrue();

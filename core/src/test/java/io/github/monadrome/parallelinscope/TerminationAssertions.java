@@ -56,6 +56,11 @@ final class TerminationAssertions {
         assertThat(termination.cancellationReason()).isNull();
     }
 
+    static void assertScopeFailed(ScopeTermination termination, FailureCause.Kind kind) {
+        assertScopeFailed(termination);
+        assertThat(Verify.verifyNotNull(termination.failureCause()).kind()).isEqualTo(kind);
+    }
+
     static void assertScopeCancelled(ScopeTermination termination, CancellationReason.Kind kind) {
         assertThat(termination.kind()).isEqualTo(ScopeTermination.Kind.CANCELLED);
         assertThat(termination.successful()).isFalse();

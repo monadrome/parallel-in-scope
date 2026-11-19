@@ -213,10 +213,7 @@ class TaskGroupCombineNestedGuardTest {
 
             TerminationAssertions.assertScopeSucceeded(result.termination());
             ScopeTermination innerScope = com.google.common.base.Verify.verifyNotNull(innerOutcome.get());
-            TerminationAssertions.assertScopeFailed(innerScope);
-            assertThat(com.google.common.base.Verify.verifyNotNull(innerScope.failureCause())
-                            .kind())
-                    .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
+            TerminationAssertions.assertScopeFailed(innerScope, FailureCause.Kind.SUBMISSION_REJECTED);
             assertThat(innerThread.get()).isNull();
         } finally {
             release.countDown();

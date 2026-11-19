@@ -114,11 +114,7 @@ class TaskGroupCombineGuardCancellationTest {
                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
 
                 assertThat(legitimate(result.termination())).isTrue();
-                TerminationAssertions.assertScopeFailed(result.termination());
-                assertThat(com.google.common.base.Verify.verifyNotNull(
-                                        result.termination().failureCause())
-                                .kind())
-                        .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
+                TerminationAssertions.assertScopeFailed(result.termination(), FailureCause.Kind.SUBMISSION_REJECTED);
                 assertThat(executionRan).isFalse();
                 // A stranded slot here would mean the guard's path skipped the exit publish that its
                 // phase claim made it responsible for.

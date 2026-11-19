@@ -37,7 +37,7 @@ public final class ScopeTermination {
             @Nullable FailureCause failureCause,
             @Nullable CancellationReason cancellationReason,
             @Nullable String failedTask) {
-        this.kind = checkNotNull(kind, "kind cannot be null");
+        this.kind = kind;
         this.failureCause = failureCause;
         this.cancellationReason = cancellationReason;
         this.failedTask = failedTask;
@@ -116,12 +116,22 @@ public final class ScopeTermination {
             }
         }
         if (firstFailure != null) {
-            return failed(checkNotNull(firstFailure.failureCause(), "failed result has no failure cause"), source);
+            return failed(
+                    Verify.verifyNotNull(firstFailure.failureCause(), "failed result has no failure cause"), source);
         }
         if (firstCancellation != null) {
-            return cancelled(checkNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason"));
+            return cancelled(
+                    Verify.verifyNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason"));
         }
         return succeeded();
+    }
+
+    /**
+     * Returns {@code primary} when one was recorded, otherwise the fallback derived from member
+     * results.
+     */
+    static ScopeTermination primaryOr(@Nullable ScopeTermination primary, ScopeTermination fallback) {
+        return primary == null ? fallback : primary;
     }
 
     /**

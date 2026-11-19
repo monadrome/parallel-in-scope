@@ -249,7 +249,8 @@ final class TaskBatch<T> implements AutoCloseable {
                 && (primary == null || primary.kind() == ScopeTermination.Kind.CANCELLED)) {
             primary = ScopeTermination.cancelled(CancellationReason.cancelledByCaller(batchName));
         }
-        ScopeTermination aggregate = primary == null ? ScopeTermination.fromResults(batchName, frozen) : primary;
+        ScopeTermination aggregate =
+                ScopeTermination.primaryOr(primary, ScopeTermination.fromResults(batchName, frozen));
         return new TaskBatchResult<>(batchName, frozen, observations, unfinished, aggregate);
     }
 

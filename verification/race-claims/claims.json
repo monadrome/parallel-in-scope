@@ -116,6 +116,22 @@
       "method": "code-proof",
       "proof": "The flag write is a volatile write that precedes executing.interrupt() in program order. JLS 17.4.4: a call to interrupt() synchronizes-with any point where another thread determines it was interrupted, which includes the JDK blocking call that throws InterruptedException; the runner's later volatile read in lateFailureLevel therefore sees true. The write is guarded by the same non-null runner read as the delivery, so a cancellation before runner publication or after run()'s finally withdraws the runner leaves the flag false; AbstractFuture calls interruptTask only for the single winning cancel(true), so there is one writer. The field belongs to the future, which runs at most once (phase CAS SUBMITTED to RUNNING), so a later task reusing the thread reads its own false flag. Writing after interrupt() would let a fast runner read false and log a kernel-caused InterruptedException at WARNING; the window is too narrow for a deterministic mutation test.",
       "note": "LateFailureLoggingTest#rawBlockingCallInterruptedByKernelCancellationIsNotAWarning and #kernelDeliveryDoesNotLeakToTheNextFutureOnTheSameThread fail when the flag write is removed; the write-after-interrupt ordering is not reliably observable, so this stays a code proof."
+    },
+    {
+      "id": "accumulator-fail-fast-replacement",
+      "protocol": "ScopeTerminationAccumulator observe",
+      "claim": "The compare-and-set is the scope termination's linearization point: ordinary terminations are first-writer-wins, while an ABORTED_BY_FAIL_FAST cancellation is provisional and must be replaceable by the failure that triggered it.",
+      "method": "mutation",
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+      "mutations": [
+        {
+          "find": "        return termination.kind() == ScopeTermination.Kind.CANCELLED\n                && Verify.verifyNotNull(termination.cancellationReason()).kind()\n                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST;\n",
+          "replace": "        return false;\n"
+        }
+      ],
+      "tests": "TaskBatchResultTest#scopeTerminationPrefersTheFailureOverAReplayOfFailFastCancellation,ScopeTerminationTest,TaskGroupConvergenceTest",
+      "expect": "failure",
+      "note": "The cited batch test settles a fail-fast-cancelled task before its triggering failure, so the provisional cancellation is observed first and the failure must replace it; with the check removed the failure is refused and the scope stays cancelled."
     }
   ]
 }
