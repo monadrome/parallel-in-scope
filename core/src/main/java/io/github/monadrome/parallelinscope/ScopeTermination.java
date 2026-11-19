@@ -43,7 +43,7 @@ public final class ScopeTermination {
         this.failedTask = failedTask;
     }
 
-    /** Creates a successful scope termination without a failure or cancellation payload. */
+    /** Returns the shared immutable successful scope termination, without a failure or cancellation payload. */
     public static ScopeTermination succeeded() {
         return SuccessHolder.INSTANCE.value;
     }

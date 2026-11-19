@@ -49,7 +49,7 @@ final class ExecutionExitTracker {
         return new ExecutionExitTracker(Validation.requireNonNegative(taskCount, "taskCount"));
     }
 
-    /** Creates a tracker for an empty submission: the signal is already complete. */
+    /** Returns the shared, already-complete tracker for empty submissions; it must not register or release executions. */
     static ExecutionExitTracker empty() {
         return EmptyHolder.INSTANCE.value;
     }
