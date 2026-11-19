@@ -79,7 +79,7 @@ class ThreadPoolStarvationObservationScopeTest {
             assertThat(evidence.stagnantIntervals()).isGreaterThanOrEqualTo(2);
             assertThat(evidence.toString()).contains("stagnantIntervals=");
         });
-        assertThat(report.toString()).contains("samplingInterval=PT0.02S", "failureMessage=null");
+        assertThat(report.toString()).contains("samplingInterval=PT0.02S").doesNotContain("failureMessage");
         assertThat(runtime.snapshot().activeObservations()).isZero();
         release.countDown();
     }
@@ -173,6 +173,21 @@ class ThreadPoolStarvationObservationScopeTest {
         assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
         assertThat(report(observation).failureMessage()).isEqualTo("final sample failed");
         assertThat(report(observation).samples()).isEqualTo(1);
+    }
+
+    @Test
+    void samplingFailureMessageStaysOutOfTheDiagnosticRendering() throws Exception {
+        FailingSizeQueue queue = new FailingSizeQueue(2, new IllegalStateException("credentials=hunter2"));
+        registerPool(queue);
+        ThreadPoolStarvationObservationScope observation = open(Duration.ofSeconds(10));
+        observation.close();
+
+        ThreadPoolStarvationReport report = report(observation);
+        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+        // The accessor keeps the message for explicit inspection; the diagnostic rendering never
+        // carries a user executor's throwable text, which can bear credentials.
+        assertThat(report.failureMessage()).isEqualTo("credentials=hunter2");
+        assertThat(report.toString()).doesNotContain("hunter2").doesNotContain("failureMessage");
     }
 
     @Test
@@ -510,11 +525,18 @@ class ThreadPoolStarvationObservationScopeTest {
         ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(20));
         assertThat(observation.reportFuture().cancel(true)).isFalse();
         assertThat(observation.reportFuture().isDone()).isFalse();
+        // The report view renders its own Guava-style envelope, not the sink's.
+        assertThat(observation.reportFuture().toString())
+                .startsWith("ReadOnlyView@")
+                .contains("status=PENDING");
         observation.close();
         observation.close();
 
         assertThat(observation.reportFuture().cancel(false)).isFalse();
         assertThat(observation.closed()).isTrue();
+        assertThat(observation.reportFuture().toString())
+                .startsWith("ReadOnlyView@")
+                .contains("status=SUCCESS, result=[ThreadPoolStarvationReport@");
     }
 
     @Test

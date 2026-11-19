@@ -76,6 +76,11 @@ class TaskGroupValuesFutureTest {
             assertThatThrownBy(() -> group.valuesFuture().get(2, TimeUnit.SECONDS))
                     .isInstanceOf(ExecutionException.class)
                     .hasCause(boom);
+            // The view renders its own Guava-style envelope; the failure renders as its type only.
+            assertThat(group.valuesFuture().toString())
+                    .startsWith("ReadOnlyView@")
+                    .contains("status=FAILURE, cause=[java.lang.IllegalStateException]")
+                    .doesNotContain("boom");
         } finally {
             global.close();
             executor.shutdownNow();

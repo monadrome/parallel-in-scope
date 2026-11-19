@@ -185,7 +185,9 @@ public final class ThreadPoolStarvationReport {
      * Returns a diagnostic string with the evidence and unsupported-executor counts only; the
      * snapshots and executor labels stay readable through {@link #evidence()} and {@link
      * #unsupportedExecutors()}, and printing them could expose configured labels or be
-     * arbitrarily large. The format is for logs and debuggers, not for parsing.
+     * arbitrarily large. The sampling failure message stays readable through {@link
+     * #failureMessage()} and never joins this rendering: it is a user executor's throwable text
+     * and can carry credentials. The format is for logs and debuggers, not for parsing.
      */
     @Override
     public String toString() {
@@ -194,7 +196,6 @@ public final class ThreadPoolStarvationReport {
                 + ", samplingInterval=" + samplingInterval
                 + ", evidenceCount=" + evidence.size()
                 + ", unsupportedExecutorCount=" + unsupportedExecutors.size()
-                + ", failureMessage=" + failureMessage
                 + '}';
     }
 }

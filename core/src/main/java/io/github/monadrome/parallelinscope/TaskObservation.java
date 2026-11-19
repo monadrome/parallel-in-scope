@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -182,17 +183,67 @@ final class TaskObservation<T> {
 
     /** Wraps a sink in a fixed view that never propagates cancellation to it. */
     static <V> ListenableFuture<V> readOnly(ListenableFuture<V> sink) {
-        return new ForwardingListenableFuture<V>() {
-            @Override
-            protected ListenableFuture<V> delegate() {
-                return sink;
-            }
+        return new ReadOnlyView<>(sink);
+    }
 
-            @Override
-            public boolean cancel(boolean mayInterruptIfRunning) {
-                return false;
+    /**
+     * A fixed read-only view over a sink future: {@code cancel(...)} returns {@code false} and
+     * propagates nowhere. The view owns its diagnostic identity, so rendering it names the view
+     * and its own status rather than the sink it forwards to.
+     */
+    private static final class ReadOnlyView<V> extends ForwardingListenableFuture<V> {
+        private final ListenableFuture<V> sink;
+
+        private ReadOnlyView(ListenableFuture<V> sink) {
+            this.sink = sink;
+        }
+
+        @Override
+        protected ListenableFuture<V> delegate() {
+            return sink;
+        }
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            return false;
+        }
+
+        /**
+         * Returns a diagnostic string in Guava's future envelope: {@code
+         * ReadOnlyView@identityHash[status=...]}. A successful result renders as {@code
+         * SimpleClassName@identityHash} and a failure as its type only, never through user
+         * rendering code or messages. The format is for logs and debuggers, not for parsing.
+         */
+        @Override
+        public String toString() {
+            return "ReadOnlyView@" + Integer.toHexString(System.identityHashCode(this)) + "[status=" + statusBranch()
+                    + ']';
+        }
+
+        /**
+         * The status branch of the envelope, mirroring Guava's {@code AbstractFuture}: {@code
+         * CANCELLED}, {@code PENDING}, {@code SUCCESS} with the value's identity, or {@code
+         * FAILURE} with the cause's type. The branch reads nothing after the done check, so the
+         * pending text cannot contradict a later completion; the outcome read degrades to {@code
+         * UNKNOWN} rather than throwing out of a diagnostic.
+         */
+        private String statusBranch() {
+            if (isCancelled()) {
+                return "CANCELLED";
             }
-        };
+            if (!isDone()) {
+                return "PENDING";
+            }
+            try {
+                return "SUCCESS, result=[" + ResultObjects.render(Futures.getDone(sink), this) + ']';
+            } catch (ExecutionException failure) {
+                return "FAILURE, cause=[" + ResultObjects.renderFailure(failure.getCause(), this) + ']';
+            } catch (CancellationException cancelled) {
+                return "CANCELLED";
+            } catch (Throwable thrownFromGet) {
+                return "UNKNOWN, cause=[" + thrownFromGet.getClass() + " thrown from get()]";
+            }
+        }
     }
 
     /**

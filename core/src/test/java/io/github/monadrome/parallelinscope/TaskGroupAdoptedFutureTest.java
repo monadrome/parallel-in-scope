@@ -647,7 +647,10 @@ class TaskGroupAdoptedFutureTest {
         List<ExecutorWaitReport.Component> cycles = runtime.executorWaitReport().cyclicComponents();
         assertThat(cycles).hasSize(1);
         assertThat(cycles.get(0).cycle()).containsExactly(Collections.singleton(ParId.of("io")));
-        assertThat(cycles.get(0).toString()).contains("outer[").contains("loaded[");
+        assertThat(cycles.get(0).toString()).isEqualTo("Component[members=1, cycle=1, witnesses=1]");
+        assertThat(cycles.get(0).witnesses())
+                .singleElement()
+                .satisfies(witness -> assertThat(witness).contains("outer[").contains("loaded["));
     }
 
     @Test

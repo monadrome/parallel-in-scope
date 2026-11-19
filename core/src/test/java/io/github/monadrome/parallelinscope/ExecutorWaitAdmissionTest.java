@@ -107,7 +107,10 @@ class ExecutorWaitAdmissionTest {
         List<ExecutorWaitReport.Component> cycles = runtime.executorWaitReport().cyclicComponents();
         assertThat(cycles).hasSize(1);
         assertThat(cycles.get(0).cycle()).containsExactlyElementsOf(ids("io"));
-        assertThat(cycles.get(0).toString()).contains("outer[").contains("inner[");
+        assertThat(cycles.get(0).toString()).isEqualTo("Component[members=1, cycle=1, witnesses=1]");
+        assertThat(cycles.get(0).witnesses())
+                .singleElement()
+                .satisfies(witness -> assertThat(witness).contains("outer[").contains("inner["));
     }
 
     @Test
@@ -307,7 +310,10 @@ class ExecutorWaitAdmissionTest {
 
             assertThat(published.await(10, TimeUnit.SECONDS)).isTrue();
             assertThat(warningThread.get()).isNotNull().isNotEqualTo(admittingThread.get());
-            assertThat(message.get()).contains("Potential executor deadlock").contains("[io] -> [io]");
+            assertThat(message.get())
+                    .contains("Potential executor deadlock")
+                    .contains("Component[members=1, cycle=1, witnesses=1]")
+                    .doesNotContain("[io] -> [io]");
         } finally {
             release.countDown();
             logger.removeHandler(blocking);
