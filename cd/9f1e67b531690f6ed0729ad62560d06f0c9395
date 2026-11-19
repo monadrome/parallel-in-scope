@@ -1,0 +1,48 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultToStringTest.java
+  s_2fded2d6fbc67a::t_63eddeedf9173f 7,11,13-14,18-26,39-57
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureTest.java
+  s_2fded2d6fbc67a::t_6d464d74703bf4 523-539
+  s_2fded2d6fbc67a::t_4a825f63a14874 13
+core/src/test/java/io/github/monadrome/parallelinscope/AdoptedSourceTest.java
+  s_2fded2d6fbc67a::t_22fc2c66e53913 34-39
+core/src/main/java/io/github/monadrome/parallelinscope/TaskTermination.java
+  s_2fded2d6fbc67a::t_5a4aa2dd1a49b6 145-149,153-154
+core/src/test/java/io/github/monadrome/parallelinscope/ScopedCallableEntryTest.java
+  s_2fded2d6fbc67a::t_ab65def373318c 98-112
+  s_2fded2d6fbc67a::t_d2078afcc75436 7
+  s_2fded2d6fbc67a::t_04663841a42ab3 56-69
+core/src/test/java/io/github/monadrome/parallelinscope/TaskTerminationTest.java
+  s_2fded2d6fbc67a::t_592b0d937179de 39-55
+core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_2fded2d6fbc67a::t_8d5aa4ed1daf42 115-116,132-137,142-147,152
+core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java
+  s_2fded2d6fbc67a::t_a3c11c66609c24 88-90
+  s_2fded2d6fbc67a::t_466172eaec6ddc 87,91,100
+core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java
+  s_2fded2d6fbc67a::t_a8059264686a89 9
+  s_2fded2d6fbc67a::t_88489cb82259e9 1-8,10-30
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_2fded2d6fbc67a::t_63a46f69b2560b 322-332
+CHANGELOG.md
+  s_2fded2d6fbc67a::t_f29a176d682d77 53-56
+core/src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java
+  s_2fded2d6fbc67a::t_0da88b13d54ddc 165-170
+core/src/test/java/io/github/monadrome/parallelinscope/ResultObjectsTest.java
+  s_2fded2d6fbc67a::t_9c45c862882525 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "cd9f1e67b531690f6ed0729ad62560d06f0c9395",
+  "prompts": {},
+  "sessions": {
+    "s_2fded2d6fbc67a": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3d86bae8-d94a-4e55-ae45-2b593657c15b",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
