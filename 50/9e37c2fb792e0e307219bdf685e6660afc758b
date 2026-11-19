@@ -1,0 +1,27 @@
+core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java
+  s_b8d4cd8e170dbe::t_3bc191784cdf19 7,11
+  s_b8d4cd8e170dbe::t_3b000875a804a3 50,52
+  s_b8d4cd8e170dbe::t_a43ab74f9c360a 65-73,76,80
+  s_b8d4cd8e170dbe::t_99b4bba6441902 95
+  s_b8d4cd8e170dbe::t_da396990886dc6 114
+core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java
+  s_b8d4cd8e170dbe::t_c9babad794202f 37-38,41-42
+core/src/test/java/io/github/monadrome/parallelinscope/CancellationPropagationCartesianTest.java
+  s_b8d4cd8e170dbe::t_11d49aa574412a 86,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "509e37c2fb792e0e307219bdf685e6660afc758b",
+  "prompts": {},
+  "sessions": {
+    "s_b8d4cd8e170dbe": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2feb75ae-05de-4fb7-82d5-301564e15632",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
