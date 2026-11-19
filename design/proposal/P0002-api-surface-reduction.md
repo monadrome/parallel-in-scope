@@ -28,8 +28,8 @@ budgets; the `TaskCompletion` factory supports testing pure-data consumers; `val
 the throwing entries differ in capability; graph static queries and the close report differ in
 timing; the capacity factory trades explicit choice against convenience. These counterpoints do
 not automatically veto every candidate, but they removed the "zero calls means deletable"
-basis: each item still needs an individual decision, and this proposal's archival does not mean
-the reductions are approved. The public surface member inventory is governed by
+basis: each item still needs an individual decision, and this proposal's inclusion in the
+repository does not mean the reductions are approved. The public surface member inventory is governed by
 `PublicApiSurfaceTest` and the current code; this document no longer maintains the inventory
 table.
 

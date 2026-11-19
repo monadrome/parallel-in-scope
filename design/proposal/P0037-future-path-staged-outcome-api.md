@@ -165,7 +165,7 @@ second scope reason through the cancellation stage.
 - Exceptions thrown by handlers follow each terminal's existing semantics: the Future entry
   converts them into the derived Future's failure; the Result entry cannot fabricate an
   asynchronous failure on an already-constructed Result — whether it throws directly or returns
-  a failed Result must be specified explicitly.
+  a failed Result should be specified explicitly.
 
 ## 6. Migration path
 

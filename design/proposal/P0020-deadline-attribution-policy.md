@@ -37,5 +37,5 @@ events versus mere time passage separately, covering failure precedence, indepen
 budgets, inherited budgets, nesting, and unexpired inputs. Historical stress counts or review
 consensus must not substitute for a new policy choice.
 The historical input is PR #56's four revision rounds; its original argumentation was not
-archived. The [batch settle contract](../batch-settle-attribution.md) remains the current
+recorded in the repository. The [batch settle contract](../batch-settle-attribution.md) remains the current
 constraint.
