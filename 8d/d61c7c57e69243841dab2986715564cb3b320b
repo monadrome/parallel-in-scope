@@ -1,0 +1,25 @@
+AGENTS.md
+  s_b8d4cd8e170dbe::t_bb2a963c05fa58 102
+  s_b8d4cd8e170dbe::t_c1197a40631558 667-671
+verification/race-claims/claims.json
+  s_b8d4cd8e170dbe::t_4f31a00fb7538c 54
+verification/race-claims/README.md
+  s_b8d4cd8e170dbe::t_c6f97c47733664 67-69
+  s_b8d4cd8e170dbe::t_ca7ea00e3d1c2c 62-66,70-78,80-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "8dd61c7c57e69243841dab2986715564cb3b320b",
+  "prompts": {},
+  "sessions": {
+    "s_b8d4cd8e170dbe": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2feb75ae-05de-4fb7-82d5-301564e15632",
+        "model": "kimi-k3"
+      },
+      "human_author": null
+    }
+  }
+}
