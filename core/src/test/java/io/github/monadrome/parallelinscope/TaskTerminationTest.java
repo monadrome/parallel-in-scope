@@ -36,6 +36,24 @@ class TaskTerminationTest {
     }
 
     @Test
+    void toStringNamesTheBranchAndRendersASuccessValueByIdentity() {
+        assertThat(TaskTermination.success("value").toString())
+                .isEqualTo("TaskTermination[kind=SUCCESS, disposition=CLAIMED, value=String@"
+                        + Integer.toHexString(System.identityHashCode("value")) + ']');
+        assertThat(TaskTermination.success(null).toString())
+                .isEqualTo("TaskTermination[kind=SUCCESS, disposition=CLAIMED, value=null]");
+        assertThat(TaskTermination.failed(FailureCause.userCodeFailure(new IllegalStateException("boom")))
+                        .toString())
+                .isEqualTo(
+                        "TaskTermination[kind=FAILED, disposition=CLAIMED,"
+                                + " failure=FailureCause[kind=USER_CODE_FAILURE, cause=java.lang.IllegalStateException: boom]]");
+        assertThat(TaskTermination.cancelled(CancellationReason.cancelledByCaller())
+                        .toString())
+                .isEqualTo("TaskTermination[kind=CANCELLED, disposition=CLAIMED,"
+                        + " cancellation=CancellationReason[kind=CANCELLED_BY_CALLER, source=unspecified]]");
+    }
+
+    @Test
     void batchResultExposesSubmissionCauseAndScopeTermination() {
         ExecutorService rejected = Executors.newSingleThreadExecutor();
         rejected.shutdownNow();

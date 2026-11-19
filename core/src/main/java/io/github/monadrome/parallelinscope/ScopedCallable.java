@@ -84,6 +84,11 @@ final class ScopedCallable<V> implements Callable<V> {
         return delegate == null;
     }
 
+    /**
+     * Returns a diagnostic string; the user task code renders as its class and identity hash,
+     * since its own {@code toString} may be expensive, buggy, or leak data, and as "released"
+     * once execution exit has permanently cleared the reference.
+     */
     @Override
     public String toString() {
         Callable<V> taskCode = delegate;
@@ -92,7 +97,7 @@ final class ScopedCallable<V> implements Callable<V> {
                 + taskContext.multiTaskContext().name()
                 + '\''
                 + ", delegate="
-                + (taskCode == null ? "released" : taskCode)
+                + (taskCode == null ? "released" : ResultObjects.render(taskCode, this))
                 + ", taskIndex="
                 + taskContext.taskIndex()
                 + ", submitTime="

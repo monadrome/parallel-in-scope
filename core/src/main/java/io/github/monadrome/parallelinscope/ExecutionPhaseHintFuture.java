@@ -319,6 +319,17 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return Level.WARNING;
     }
 
+    /**
+     * Names the task and its phase hint while the future is pending. Guava's rendering appends
+     * this to the pending branch and redoes the whole string when the future settles mid-call,
+     * so a hint that raced with completion never leaks into the terminal branch. The name and
+     * phase fields are never cleared on completion, so no retained-local copy is needed.
+     */
+    @Override
+    protected @Nullable String pendingToString() {
+        return "task='" + taskLabel() + "', phase=" + phase();
+    }
+
     @Override
     protected void interruptTask() {
         interruptDeliveryInProgress = true;

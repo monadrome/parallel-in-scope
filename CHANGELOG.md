@@ -65,6 +65,10 @@
 - Replace recursive TaskGroup `Tuple2` member values with keyed `GroupValues`; `TaskGroupResult<V,R>` becomes `TaskGroupResult<R>`, and `typedValues()` plus tuple-input combines are removed. Read members with `GroupValues.valueOf(TaskKey)` for compile-time type safety, or `valueAt(int)`/`valueOf(String)` for dynamic access; terminal combines use `combineValues`.
 - Replace the `TaskId<K>` phantom kind tags with a closed `TaskId` hierarchy: `TaskId<TaskUnit>` becomes `TaskId.Unit`, `TaskId<TaskGroupRun>` becomes `TaskId.GroupRun`, and the `TaskUnit` and `TaskGroupRun` marker interfaces are removed. The runtime class now carries the identity kind; factory calls, equality semantics (kind plus label), and the `unit-7` / `group-3` rendering are unchanged.
 
+### Changed
+
+- Align the library's diagnostic strings with Guava's `ListenableFuture` rendering philosophy. `ImmediateResult.toString()` and a successful `TaskTermination.toString()` now render a success value as `SimpleClassName@identityHash` ("null" when null) instead of calling the value's own `toString`, so logging a result can neither leak value contents nor run user rendering code; `ImmediateResult.asFuture()` renders the same diagnostic as its result instead of the Guava delegate's full value. The internal execution and adopted-member futures now name their task or member and phase hint while pending (Guava's `pendingToString()` hook), and `ScopedCallable` renders the user task code by identity. These formats remain diagnostic and are not a parsing contract.
+
 
 ## [0.4.1] - 2026-11-07
 

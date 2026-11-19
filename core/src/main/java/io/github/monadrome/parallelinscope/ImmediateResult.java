@@ -112,6 +112,8 @@ public final class ImmediateResult<T> {
      * Both {@code get} methods read immediately and preserve the calling thread's interrupt flag.
      * The adapter represents result transport only; it does not wait for execution exit or runtime
      * quiescence. Listeners run through the consumer's executor, outside the completed business scope.
+     * Its {@code toString()} renders the same diagnostic string as this result, value identity
+     * rendering included.
      */
     public ListenableFuture<@Nullable T> asFuture() {
         ListenableFuture<@Nullable T> delegate =
@@ -127,19 +129,27 @@ public final class ImmediateResult<T> {
                 checkNotNull(unit, "unit cannot be null");
                 return get();
             }
+
+            /** Renders the diagnostic of the transported result, not the delegate's full value. */
+            @Override
+            public String toString() {
+                return ImmediateResult.this.toString();
+            }
         };
     }
 
     /**
-     * Returns a diagnostic string naming the termination branch and either the value or the
-     * failure, for example {@code ImmediateResult[kind=FAILED, failure=java.lang.IllegalStateException:
-     * boom]}. The format is for logs and debuggers, not for parsing. Identity stays reference
-     * identity: results with equal contents are distinct objects.
+     * Returns a diagnostic string naming the termination branch and either the value's identity or
+     * the failure, for example {@code ImmediateResult[kind=FAILED, failure=java.lang.IllegalStateException:
+     * boom]}. A success value renders as {@code SimpleClassName@identityHash} ("null" when null);
+     * its own {@code toString} is never called, so logging a result neither leaks value contents
+     * nor runs user rendering code. The format is for logs and debuggers, not for parsing.
+     * Identity stays reference identity: results with equal contents are distinct objects.
      */
     @Override
     public String toString() {
         return failure == null
-                ? "ImmediateResult[kind=" + termination.kind() + ", value=" + value + ']'
+                ? "ImmediateResult[kind=" + termination.kind() + ", value=" + ResultObjects.render(value, this) + ']'
                 : "ImmediateResult[kind=" + termination.kind() + ", failure=" + failure + ']';
     }
 

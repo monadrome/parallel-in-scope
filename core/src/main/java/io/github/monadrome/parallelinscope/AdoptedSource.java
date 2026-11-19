@@ -162,6 +162,12 @@ final class AdoptedSource {
             }
         }
 
+        /** Names the adopted member while the mirror still waits on its source. */
+        @Override
+        protected @Nullable String pendingToString() {
+            return "member='" + name + "'";
+        }
+
         @Override
         protected void afterDone() {
             if (isCancelled()) {
