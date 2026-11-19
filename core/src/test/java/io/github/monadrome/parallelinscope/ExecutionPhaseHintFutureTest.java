@@ -10,6 +10,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -518,5 +519,22 @@ public class ExecutionPhaseHintFutureTest {
                 .isInstanceOf(RejectedExecutionException.class)
                 .hasMessage("rejected");
         assertThat(completions.poll()).isNull();
+    }
+
+    /** A pending rendering names the task and its phase hint through Guava's pendingToString hook. */
+    @Test
+    public void aPendingRenderingNamesTheTaskAndPhaseHint() {
+        ExecutionPhaseHintFuture<Integer> untracked = ExecutionPhaseHintFuture.create(() -> 1);
+        assertThat(untracked.toString())
+                .contains(ExecutionPhaseHintFuture.class.getName() + "@")
+                .contains("status=PENDING", "task='<untracked>'", "phase=SUBMITTED");
+        assertThat(untracked.cancel(false)).isTrue();
+
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("orders", Duration.ofSeconds(30)).spec(), 1));
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        ExecutionPhaseHintFuture<Integer> named = ExecutionPhaseHintFuture.create(() -> 1, tracker.register(unit));
+        assertThat(named.toString()).contains("status=PENDING", "task='orders'", "phase=SUBMITTED");
+        assertThat(named.cancel(false)).isTrue();
     }
 }

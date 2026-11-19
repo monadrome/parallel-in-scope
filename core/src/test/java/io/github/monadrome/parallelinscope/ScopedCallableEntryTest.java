@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,21 @@ class ScopedCallableEntryTest {
     }
 
     @Test
+    void toStringRendersTheDelegateByIdentityAndMarksItReleased() throws Exception {
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
+        ScopedCallable<String> scoped =
+                new ScopedCallable<>(new TaskExecutionContext(unit, 0, System.nanoTime()), new MarkedCallable());
+
+        assertThat(scoped.toString())
+                .contains("taskName='task'", "delegate=MarkedCallable@")
+                .doesNotContain(MarkedCallable.MARKER);
+
+        assertThat(scoped.call()).isEqualTo("value");
+        assertThat(scoped.toString()).contains("delegate=released");
+    }
+
+    @Test
     void theExecutionExitIsPublishedBeforeTheFutureSettles() throws Exception {
         // The tracker's signal completes inside the scoped wrapper's finally, before the future's
         // own settlement listeners can run: a listener that observes settlement already observes a
@@ -78,5 +94,20 @@ class ScopedCallableEntryTest {
         assertThat(exitPublishedAtSettlement.get())
                 .as("the execution slot is released before settlement listeners observe the future")
                 .isTrue();
+    }
+
+    /** A callable whose own {@code toString} must never run inside the wrapper's diagnostic rendering. */
+    private static final class MarkedCallable implements Callable<String> {
+        static final String MARKER = "marked-must-not-appear";
+
+        @Override
+        public String call() {
+            return "value";
+        }
+
+        @Override
+        public String toString() {
+            return MARKER;
+        }
     }
 }

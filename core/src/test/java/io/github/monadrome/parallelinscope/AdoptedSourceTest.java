@@ -31,6 +31,13 @@ class AdoptedSourceTest {
     }
 
     @Test
+    void aPendingMirrorNamesItsAdoptedMember() {
+        AdoptedSource adopted = new AdoptedSource("adopted", SettableFuture.create());
+
+        assertThat(adopted.mirror().toString()).contains("status=PENDING", "member='adopted'");
+    }
+
+    @Test
     void abandoningAConnectedSourceLeavesItToTheGroup() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         SettableFuture<String> source = SettableFuture.create();

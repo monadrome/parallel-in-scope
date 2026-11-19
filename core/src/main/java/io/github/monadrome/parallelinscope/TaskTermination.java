@@ -142,10 +142,16 @@ public final class TaskTermination<T> {
         }
     }
 
+    /**
+     * Returns a diagnostic string naming the branch, the disposition, and the payload; a success
+     * value renders as {@code SimpleClassName@identityHash} ("null" when null), never through its
+     * own {@code toString}. The format is for logs and debuggers, not for parsing.
+     */
     @Override
     public String toString() {
         if (kind == Kind.SUCCESS) {
-            return "TaskTermination[kind=" + kind + ", disposition=" + disposition + ", value=" + value + ']';
+            return "TaskTermination[kind=" + kind + ", disposition=" + disposition + ", value="
+                    + ResultObjects.render(value, this) + ']';
         }
         if (kind == Kind.FAILED) {
             return "TaskTermination[kind=" + kind + ", disposition=" + disposition + ", failure=" + failureCause + ']';
