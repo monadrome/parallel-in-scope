@@ -37,9 +37,11 @@ file back to in-flight.
   back-reference or the decision log, or the next intake cannot see it.
 - A proposal MUST have one summary row in the in-flight table of [AGENTS.md](AGENTS.md); that
   table lists unlanded directions and MUST NOT be read as an approved implementation list.
-- Every proposal MUST contain a non-empty `## 摘要` or `## Abstract` section with
+- Every proposal MUST contain a non-empty abstract section with
   the core motivation, the invariants and proposed MUST/MUST NOT items, and the rejected
-  directions with reasons (or a statement that there are none). The summary evolves with the
+  directions with reasons (or a statement that there are none). The checker accepts the
+  `## Abstract` heading and, for proposals predating the English translation, the legacy
+  Chinese heading. The summary evolves with the
   argument; it is not a one-shot template. The section MUST be a real section: a template heading
   inside a code fence or HTML comment does not satisfy it.
 - A public API or contract proposal MUST show the best user code before, the same code after, and

@@ -33,6 +33,7 @@ class CheckEnglishDocsTest(unittest.TestCase):
 
     def write(self, relative, text):
         path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         return path
 
@@ -60,6 +61,21 @@ class CheckEnglishDocsTest(unittest.TestCase):
     def test_build_output_is_ignored(self):
         (self.root / "target" / "en").mkdir(parents=True)
         self.write("target/en/page.html", "<html lang=\"en\"><p>演示</p></html>")
+        self.assertEqual(docs.violations(self.root), [])
+
+    def test_han_in_agent_facing_areas_is_a_violation(self):
+        self.write("design/contract.md", "# Contract\n交互\n")
+        self.write("adr/0001-example.md", "# ADR\n交互\n")
+        self.write("verification/pit.md", "# PIT\n交互\n")
+        self.write("refactoring-review/AGENTS.md", "# Rules\n交互\n")
+        self.write(".agents/skills/example/SKILL.md", "# Skill\n交互\n")
+        violations = docs.violations(self.root)
+        self.assertEqual(len(violations), 5)
+
+    def test_han_in_exempt_subtrees_is_allowed(self):
+        self.write("design/archive/proposal/P0001-x.md", "# 提案\n")
+        self.write("design/analysis/notes.md", "# 分析\n")
+        self.write("verification/pit-audit/2026-10-31/dispositions.md", "# 处置\n")
         self.assertEqual(docs.violations(self.root), [])
 
 

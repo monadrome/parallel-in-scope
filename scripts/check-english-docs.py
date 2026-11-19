@@ -5,6 +5,12 @@ Markdown under an English location must be English. An HTML page under an Englis
 English too, unless its root element declares another language (``<html lang="zh-CN">``): a page
 that states its own language honestly is a deliberate translation, not a stray one, and the
 navigation that links it must say so.
+
+English locations are paths with an ``en`` component, ``.en.md``/``_en.md`` files, and the
+agent-facing documentation areas (``design/``, ``adr/``, ``verification/``,
+``refactoring-review/``, ``.agents/skills/``). Frozen or input subtrees are exempt:
+``design/archive/`` (frozen archived proposals), ``design/analysis/`` (analysis inputs, not live
+documents), and ``verification/pit-audit/`` (dated audit records).
 """
 
 from pathlib import Path
@@ -15,13 +21,25 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 HAN = re.compile(r"[㐀-鿿]")
 HTML_LANG = re.compile(r"<html\b[^>]*\blang\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
+AGENT_FACING_DOCS = ("design", "adr", "verification", "refactoring-review")
+EXEMPT_SUBTREES = (
+    ("design", "archive"),
+    ("design", "analysis"),
+    ("verification", "pit-audit"),
+)
 
 
 def is_english_location(root: Path, path: Path) -> bool:
     relative = path.relative_to(root)
     parts = tuple(part.lower() for part in relative.parts)
     name = path.name.lower()
-    return "en" in parts or name.endswith(".en.md") or name.endswith("_en.md")
+    if "en" in parts or name.endswith(".en.md") or name.endswith("_en.md"):
+        return True
+    if parts[:2] in EXEMPT_SUBTREES:
+        return False
+    if parts and parts[0] in AGENT_FACING_DOCS:
+        return True
+    return parts[:2] == (".agents", "skills")
 
 
 def declares_other_language(text: str) -> bool:
