@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-zh-docs-typed-vocabulary",
+  "date": "2026-11-19",
+  "topic": "zh-docs-typed-vocabulary",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: align the user-facing pages with the typed termination vocabulary"
+    ],
+    "files": 8,
+    "insertions": 28,
+    "deletions": 29
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "User-facing docs typed-vocabulary alignment (zh reference pages, interactive-demo.html, 5 demo articles). Lightweight review round 1 found interactive-demo blocker; round 2 APPROVED, 0 findings (gpt-5.6-terra)."
+}
