@@ -1,0 +1,19 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationTest.java
+  s_9148f7f2994852::t_e6fd6930e5d4f7 147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "db360072ba160bdf1fdd3898060c5c3a0400009e",
+  "prompts": {},
+  "sessions": {
+    "s_9148f7f2994852": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a0ed30b1-f77c-4cf7-b2bf-9b2321326465",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
