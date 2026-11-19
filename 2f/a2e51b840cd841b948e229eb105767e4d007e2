@@ -1,0 +1,27 @@
+scripts/check-race-claims.py
+  s_4730cd68820ed7::t_205be53214469b 250-252,255-256
+  s_4730cd68820ed7::t_71d067cceae4db 47
+  s_4730cd68820ed7::t_260fac74670c1e 151-160,171-175,180-191
+scripts/tests/test_check_race_claims.py
+  s_4730cd68820ed7::t_812344a1587fa5 180
+  s_4730cd68820ed7::t_f84e82c14fafc8 99-151
+verification/race-claims/README.md
+  s_4730cd68820ed7::t_68cd4ad22cfc9d 93-96
+  s_4730cd68820ed7::t_c7b02f32d9a370 50-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2fa2e51b840cd841b948e229eb105767e4d007e2",
+  "prompts": {},
+  "sessions": {
+    "s_4730cd68820ed7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_42934f9a-fcbd-41f9-ae4e-88b54c46f585",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
