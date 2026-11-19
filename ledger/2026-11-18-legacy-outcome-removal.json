@@ -1,0 +1,339 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-18-legacy-outcome-removal",
+  "date": "2026-11-18",
+  "topic": "legacy-outcome-removal",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "unknown (kiro harness)"
+  },
+  "change": {
+    "commits": [
+      "feat: make the typed termination model the kernel's only outcome vocabulary",
+      "docs: retire the legacy outcome vocabulary from user documentation",
+      "fix: use Guava checkNotNull in the batch report constructor",
+      "fix: rewrap the batch report constructor per spotless",
+      "test: prove the fail-fast commit precedes the cascade cancel",
+      "refactor: extract group value freezing and cancellation-reason predicates",
+      "refactor: land accepted refactoring-review findings for the termination change",
+      "fix: attribute frozen group values to the recorded failure",
+      "docs: correct the batch fail-fast trigger attribution in report() javadoc",
+      "test: retire the legacy outcome vocabulary from the demo suite",
+      "fix: read the recorded failure from the settle-time pin, not the live token",
+      "docs: describe the combine's termination in the typed vocabulary",
+      "fix: assert the recorded-failure invariant in freezeValues",
+      "docs: retire the legacy outcome vocabulary from remaining docs and diagnostics"
+    ],
+    "files": 97,
+    "insertions": 1803,
+    "deletions": 1728
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "legacy-outcome-removal-a11df2cf-20261119-033655-6fad9f",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 5796,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 743782,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "legacy-outcome-removal-5c798deb-20261119-040626-fe55ca",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 1062761,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "legacy-outcome-removal-bf5cc0bc-20261119-054346-88a3e3",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 862819,
+            "findings": {
+              "total": 5,
+              "adjudicated": 5,
+              "confirmed": 5,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 5,
+          "adjudicated": 5,
+          "confirmed": 5,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-legacy-outcome-removal-2026-11-18",
+        "head": "b9a06483",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M01"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "T05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R8",
+            "rules": [
+              "T05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1,
+      "check-race-claims": 1,
+      "pit": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-audit-20261119/batch-A/mutations.xml",
+      "statuses": {
+        "KILLED": 212,
+        "SURVIVED": 5
+      },
+      "total": 217,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "tmp/pit-audit-20261119/batch-B/mutations.xml",
+      "statuses": {
+        "KILLED": 251,
+        "NO_COVERAGE": 3,
+        "SURVIVED": 15,
+        "TIMED_OUT": 4
+      },
+      "total": 273,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0147
+    },
+    {
+      "source": "tmp/pit-audit-20261119/batch-C/mutations.xml",
+      "statuses": {
+        "KILLED": 623,
+        "NO_COVERAGE": 13,
+        "SURVIVED": 39,
+        "TIMED_OUT": 5
+      },
+      "total": 680,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0074
+    },
+    {
+      "source": "tmp/pit-audit-20261119/batch-D/mutations.xml",
+      "statuses": {
+        "KILLED": 253,
+        "NO_COVERAGE": 3,
+        "SURVIVED": 19,
+        "TIMED_OUT": 19
+      },
+      "total": 294,
+      "inconclusive": 19,
+      "inconclusiveRate": 0.0646
+    },
+    {
+      "source": "tmp/pit-audit-20261119/batch-E/mutations.xml",
+      "statuses": {
+        "KILLED": 313,
+        "NO_COVERAGE": 9,
+        "RUN_ERROR": 11,
+        "SURVIVED": 5,
+        "TIMED_OUT": 6
+      },
+      "total": 344,
+      "inconclusive": 17,
+      "inconclusiveRate": 0.0494
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "codex reviewer seat blocked environmentally (hook block + websocket), kiro seats used; both gate failures were missing-JAVA_HOME environment slips; pit=2 are a batch C minion stall and a batch D coverage flake, each retried once"
+}
