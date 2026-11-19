@@ -1,0 +1,52 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
+  s_fb919d1505cdd5::t_c0df727b61b8e5 66
+  s_3c1eb1c2dace59::t_950b0335bc5324 89-102
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_3c1eb1c2dace59::t_2d9a0ddf6a2e88 151
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_fb919d1505cdd5::t_6d87cd68aa54e0 36,45,96-97,100-101,111,126-127,129,131-132,134,137,146,152-153,170
+  s_3c1eb1c2dace59::t_e220bc6704e674 176
+  s_3c1eb1c2dace59::t_dce6abb48bd8ed 121
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultToStringTest.java
+  s_3c1eb1c2dace59::t_80061b3018152b 18
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_fb919d1505cdd5::t_dd81cbb92b6b51 187-188
+  s_fb919d1505cdd5::t_323dda479a0093 307-309
+  s_fb919d1505cdd5::t_9046c6b25e1e8f 850-851,853,855,860-861,864,871,874-875,910-912,914
+  s_3c1eb1c2dace59::t_4fa1df576c8d29 880-881,304-305,907-908,885-887,889-893,896-897
+  s_fb919d1505cdd5::t_d2b34d7fe67145 925-927,930-939,946-955,958-964,966,968,280,283,291,898,901,884,888,894
+  s_fb919d1505cdd5::t_12fe5182635458 928-929
+  s_fb919d1505cdd5::t_2f4025757a786b 971-973,977,984,988,1014-1016,1018-1019,1041-1043,1046-1055,1062-1068,1070-1072,1090
+  s_fb919d1505cdd5::t_a0436600b00c8c 1107,1113,1128-1131,1139,1143,292,297,302,895
+  s_fb919d1505cdd5::t_a4251ca72e81f9 1170
+  s_3c1eb1c2dace59::t_f0b56c6e308e29 872
+  s_3c1eb1c2dace59::t_508e1d6898bf5f 921-923
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_fb919d1505cdd5::t_a085ea590d5776 284,294
+  s_fb919d1505cdd5::t_03624f18c839f9 311-313,317-318
+  s_3c1eb1c2dace59::t_9004c573167dbd 295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "8d1fb4a8e08d4f255a3a80504ff42a386e90f77c",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_fb919d1505cdd5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e397421-9674-4c99-be5b-223576f4effd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

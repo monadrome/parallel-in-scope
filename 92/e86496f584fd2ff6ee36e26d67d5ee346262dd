@@ -1,0 +1,26 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_fb919d1505cdd5::t_ff534c06d2cc1c 19
+  s_fb919d1505cdd5::t_7254fd329fd911 159
+  s_fb919d1505cdd5::t_3e27afae906af4 200
+  s_fb919d1505cdd5::t_1e5598606a2870 206-207,211
+  s_fb919d1505cdd5::t_1f65228205261a 209,222-223,231
+  s_fb919d1505cdd5::t_ac22adfa26b640 218-220
+  s_fb919d1505cdd5::t_b1f07484a26817 335-338
+  s_fb919d1505cdd5::t_b3ab51c996b873 455-456,459,463-466,469,473,476-485,491,497,504-510,519-520,526-527,530-531,534,539-548,550,552-553,567-568
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "92e86496f584fd2ff6ee36e26d67d5ee346262dd",
+  "prompts": {},
+  "sessions": {
+    "s_fb919d1505cdd5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e397421-9674-4c99-be5b-223576f4effd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

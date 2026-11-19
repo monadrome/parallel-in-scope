@@ -1,0 +1,37 @@
+core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_3c1eb1c2dace59::t_d11ea0ba7de7fd 198-221
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_3c1eb1c2dace59::t_2d9a0ddf6a2e88 151
+  s_3c1eb1c2dace59::t_9bc3b631f12f43 226-228
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_fb919d1505cdd5::t_11b7e122fb7c36 53-55,62-65
+  s_fb919d1505cdd5::t_0ba70958b9990b 74,86,116-131,133,135-137,140,142-152,166-167,170,185-186,205,237,245,282
+  s_fb919d1505cdd5::t_373c27d2768290 196,203-204
+  s_fb919d1505cdd5::t_57336442388a0f 317-319,183
+  s_3c1eb1c2dace59::t_ca516465c03253 168-169
+  s_3c1eb1c2dace59::t_e8163e2d44b841 177,180-182,184,187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "d5e5c4232d89a39b53d17f688704bc641a0258b3",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_fb919d1505cdd5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e397421-9674-4c99-be5b-223576f4effd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

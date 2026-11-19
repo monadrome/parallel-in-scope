@@ -1,0 +1,34 @@
+demo/src/test/java/demo/article/G2_BatchResultReportTest.java
+  s_3c1eb1c2dace59::t_f9807fa6d442e6 92-93,95-101
+demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java
+  s_3c1eb1c2dace59::t_271b6dcbddf01c 181-189
+demo/src/test/java/demo/article/G3_CheckpointsCooperativeCancelTest.java
+  s_3c1eb1c2dace59::t_e85222cc28fa19 178,180-186
+  s_3c1eb1c2dace59::t_c754e472139b1b 228,230-236
+docs/zh/testing/task-batch-result-report-test-design.md
+  s_3c1eb1c2dace59::t_d02b873d44ec96 57
+  s_3c1eb1c2dace59::t_4203baed47a101 67
+demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java
+  s_3c1eb1c2dace59::t_06545ab4867ee5 127
+demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java
+  s_3c1eb1c2dace59::t_1c7bff644c0215 232
+demo/src/test/java/demo/article/BatchBestPracticesTest.java
+  s_3c1eb1c2dace59::t_540c9d7bbc239a 108-116
+  s_3c1eb1c2dace59::t_905d05808a8456 239-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a20bba08b2870a25c36f16ed1c80c937a89dd1fe",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

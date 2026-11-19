@@ -1,0 +1,35 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+  s_fb919d1505cdd5::t_ff534c06d2cc1c 19
+  s_fb919d1505cdd5::t_7254fd329fd911 159
+  s_fb919d1505cdd5::t_3e27afae906af4 200
+  s_fb919d1505cdd5::t_1e5598606a2870 206-207,211
+  s_fb919d1505cdd5::t_1f65228205261a 209,222-223,231
+  s_fb919d1505cdd5::t_ac22adfa26b640 218-220
+  s_fb919d1505cdd5::t_b1f07484a26817 335-338
+  s_fb919d1505cdd5::t_b3ab51c996b873 455-456,459,463-466,469,474,477-486,492,498,505-511,520-521,527-528,531-532,535,540-549,551,553-554,568-569
+  s_3c1eb1c2dace59::t_80d8bdfcb32cb2 470-472
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "cc5cb44ca96e9785659c6b817914f5a346c2fcfd",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_fb919d1505cdd5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e397421-9674-4c99-be5b-223576f4effd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

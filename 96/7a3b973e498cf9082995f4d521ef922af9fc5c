@@ -1,0 +1,42 @@
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_fb919d1505cdd5::t_6d87cd68aa54e0 36,45,96-97,100-101,111,126-127,129,131-132,134,137,146,152-153,170
+  s_3c1eb1c2dace59::t_e220bc6704e674 176,177-183
+  s_3c1eb1c2dace59::t_dce6abb48bd8ed 121
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_fb919d1505cdd5::t_dd81cbb92b6b51 187-188
+  s_fb919d1505cdd5::t_323dda479a0093 311-313
+  s_fb919d1505cdd5::t_9046c6b25e1e8f 854-855,857,859,864-865,868,875,878-879,914-916,918
+  s_3c1eb1c2dace59::t_4fa1df576c8d29 884-885,308-309,911-912,889-891,893-897,900-901
+  s_fb919d1505cdd5::t_d2b34d7fe67145 929-931,934-943,950-959,962-968,970,972,280,286,294,902,905,888,892,898
+  s_fb919d1505cdd5::t_12fe5182635458 932-933
+  s_fb919d1505cdd5::t_2f4025757a786b 975-977,981,988,992,1018-1020,1022-1023,1045-1047,1050-1059,1066-1072,1074-1076,1094
+  s_fb919d1505cdd5::t_a0436600b00c8c 1111,1117,1132-1135,1143,1147,295,304,899,299
+  s_fb919d1505cdd5::t_a4251ca72e81f9 1174
+  s_3c1eb1c2dace59::t_f0b56c6e308e29 876
+  s_3c1eb1c2dace59::t_508e1d6898bf5f 925-927
+  s_3c1eb1c2dace59::t_353640ab729083 282-285,296,298,306-307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "967a3b973e498cf9082995f4d521ef922af9fc5c",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    },
+    "s_fb919d1505cdd5": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_3e397421-9674-4c99-be5b-223576f4effd",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
