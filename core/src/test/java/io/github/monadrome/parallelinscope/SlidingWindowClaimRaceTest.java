@@ -4,14 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import java.time.Duration;
 import java.util.AbstractList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -38,13 +34,8 @@ class SlidingWindowClaimRaceTest {
         ListeningExecutorService workers = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(4));
         try {
             for (int round = 0; round < ROUNDS; round++) {
-                IndexRecordingList tasks = new IndexRecordingList(futures(SIZE));
-                MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
-                        BatchOptions.timeout("batch", Duration.ofSeconds(30))
-                                .parallelism(1)
-                                .taskType(TaskType.BLOCKING)
-                                .spec(),
-                        SIZE));
+                IndexRecordingList tasks = new IndexRecordingList(PreparedStates.indexFutures(SIZE));
+                MultiTaskContext unit = PreparedStates.windowUnit("batch", 1, SIZE);
                 SlidingWindowSubmitter<Integer> submitter = new SlidingWindowSubmitter<>(workers, unit);
                 TaskBatch<Integer> batch = submitter.submitAll(tasks, submitter.viewsFor(tasks));
 
@@ -57,12 +48,6 @@ class SlidingWindowClaimRaceTest {
         } finally {
             workers.shutdownNow();
         }
-    }
-
-    private static List<ExecutionPhaseHintFuture<Integer>> futures(int size) {
-        Callable<Integer>[] callables = new Callable[size];
-        Arrays.setAll(callables, index -> () -> index);
-        return Arrays.stream(callables).map(ExecutionPhaseHintFuture::create).collect(Collectors.toList());
     }
 
     /** Records the largest index asked for, so an out-of-range read cannot hide in a listener. */

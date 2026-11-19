@@ -1,15 +1,13 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,12 +45,10 @@ class CancellationTokenBindRaceTest {
         CancellationToken token = CancellationToken.create();
         token.cancel();
 
-        SettableFuture<String> task = SettableFuture.create();
-        List<ListenableFuture<String>> futures = Collections.singletonList(task);
+        PreparedStates.BoundTask<String> bound =
+                PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
 
-        token.bind(futures, Futures.immediateVoidFuture(), timer);
-
-        assertThat(task).isCancelled();
+        assertThat(bound.task()).isCancelled();
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
     }
 
@@ -65,19 +61,18 @@ class CancellationTokenBindRaceTest {
     void bindCalledTwice_secondBindingIsIgnored() throws InterruptedException {
         CancellationToken token = CancellationToken.create();
 
-        SettableFuture<String> firstTask = SettableFuture.create();
-        SettableFuture<String> secondTask = SettableFuture.create();
-
-        token.bind(Collections.singletonList(firstTask), Futures.immediateVoidFuture(), timer);
-        firstTask.set("ok");
+        PreparedStates.BoundTask<String> first =
+                PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
+        first.task().set("ok");
         Thread.sleep(50);
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
 
-        token.bind(Collections.singletonList(secondTask), Futures.immediateVoidFuture(), timer);
+        PreparedStates.BoundTask<String> second =
+                PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer);
 
         // The second futures are not tracked; the token stays SUCCESS and the second task is not
         // cancelled by the framework.
-        assertThat(secondTask).isNotCancelled();
+        assertThat(second.task()).isNotCancelled();
         assertThat(token.state()).isEqualTo(CancellationToken.State.SUCCESS);
     }
 
@@ -92,8 +87,7 @@ class CancellationTokenBindRaceTest {
 
         for (int i = 0; i < attempts; i++) {
             CancellationToken token = CancellationToken.create();
-            SettableFuture<String> task = SettableFuture.create();
-            List<ListenableFuture<String>> futures = Collections.singletonList(task);
+            AtomicReference<PreparedStates.BoundTask<String>> bound = new AtomicReference<>();
 
             CountDownLatch start = new CountDownLatch(1);
 
@@ -103,7 +97,7 @@ class CancellationTokenBindRaceTest {
             });
             Thread binder = new Thread(() -> {
                 await(start);
-                token.bind(futures, Futures.immediateVoidFuture(), timer);
+                bound.set(PreparedStates.bindSingleton(token, Futures.immediateVoidFuture(), timer));
             });
 
             canceller.start();
@@ -112,7 +106,7 @@ class CancellationTokenBindRaceTest {
             canceller.join();
             binder.join();
 
-            if (!task.isCancelled()) {
+            if (!verifyNotNull(bound.get()).task().isCancelled()) {
                 notCancelled++;
             }
         }

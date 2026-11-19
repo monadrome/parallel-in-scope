@@ -166,8 +166,8 @@ class ParentChildResultRetentionTest {
      */
     @Test
     void terminalChildSeversTheParentLinkDeterministically() throws Exception {
-        CancellationToken parent = CancellationToken.create();
-        CancellationToken child = new CancellationToken(parent);
+        PreparedStates.TokenPair tokens = PreparedStates.parentChild();
+        CancellationToken child = tokens.child();
 
         child.cancel();
 
@@ -183,10 +183,8 @@ class ParentChildResultRetentionTest {
      */
     @Test
     void childCreatedFromAlreadyCancelledParentSeversLinkDuringConstruction() throws Exception {
-        CancellationToken parent = CancellationToken.create();
-        parent.cancel();
-
-        CancellationToken child = new CancellationToken(parent);
+        PreparedStates.TokenPair tokens = PreparedStates.parentChildWithCancelledParent();
+        CancellationToken child = tokens.child();
 
         assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
         assertThat(linkedChild(child))
