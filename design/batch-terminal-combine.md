@@ -18,11 +18,11 @@ the batch combine's mechanism invariants.
   one-shot latch + a future terminality check + a phase claim), and is submitted to combinePar
   only at that moment; when any element fails, is cancelled, or the deadline expires first, the
   combine does not run and goes terminal as cancelled (following batch attribution), and a
-  submission rejection is SUBMISSION_FAILURE.
+  submission rejection is FAILED(SUBMISSION_REJECTED).
 - MUST: the combiner is a `Combiner<List<@Nullable E>, C>`, receiving element success values in
   input order; successful null elements appear as null entries, and element-level nullability
   must be written on the signature (JSpecify-aware users check for null accordingly); checked
-  exceptions record USER_FAILURE with the original cause kept.
+  exceptions record FAILED(USER_CODE_FAILURE) with the original cause kept.
 - MUST: the combine has its own MultiTaskContext (a structural child node of the batch unit, a
   cancellation child token). Executor waits are installed once by "who waits on whom"
   ([task-graph.md](task-graph.md) §4): the caller waits on the batch, the caller waits on the
@@ -50,10 +50,10 @@ the batch combine's mechanism invariants.
 - The submitting thread is the converging thread (the last element's completion-callback
   thread, or the submitting thread under inline execution); for a ThreadPoolExecutor-backed
   combinePar, the group combine's inline guard is reused (saturated CallerRuns records
-  SUBMISSION_FAILURE, and user code does not run on the converging thread).
-- A `TimeoutException` from the combine's business code is USER_FAILURE, not framework TIMEOUT
-  (bind classifies by event source, see [cancellation-propagation.md](cancellation-propagation.md)
-  §1).
+  FAILED(SUBMISSION_REJECTED), and user code does not run on the converging thread).
+- A `TimeoutException` from the combine's business code is FAILED(USER_CODE_FAILURE), not a
+  framework deadline (bind classifies by event source, see
+  [cancellation-propagation.md](cancellation-propagation.md) §1).
 - A combine failure does not tamper with element results: element SUCCESS/failure attribution
   and observations are kept as-is.
 - MUST: `terminalValueOrThrow()`/`orThrow()` check element failures first, then the combine

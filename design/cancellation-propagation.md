@@ -295,8 +295,8 @@ runtime state or register listeners.
   execution token, running futures, or results. MUST NOT use `WeakReference` in place of
   explicit severing. When one source is reused across multiple executions, each admission has
   its own holder and lifecycle.
-- When the source wins, the `CANCELLED -> GROUP_CANCELLED` attribution applies; races with
-  ancestors, deadlines, and fail-fast continue first-wins.
+- When the source wins, the `CANCELLED -> CANCELLED_BY_PARENT_SCOPE` attribution applies; races
+  with ancestors, deadlines, and fail-fast continue first-wins.
 - Empty batches and empty groups register no source and remain immediately `SUCCESS` as usual;
   `mapAndCombine`'s empty-input rejection is unchanged. The synchronous exit, bounded cleanup,
   and execution-exit confirmation are unchanged; interruption is a cooperative signal and MUST
@@ -324,7 +324,7 @@ distinction lost its object with §5.1's intent removal and is not reopened. The
 rejected "the combine timeout regression must assert token attribution": the review's fault
 injection wrote the batch decision directly as `TIMEOUT`, which the production path cannot
 reach (only the timer can commit `TIMEOUT`), while a business `TimeoutException` is always
-`USER_FAILURE` by contract, independent of token state.
+FAILED(USER_CODE_FAILURE) by contract, independent of token state.
 
 ## 6. Cheat sheet
 

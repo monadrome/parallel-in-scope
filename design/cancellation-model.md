@@ -45,7 +45,7 @@ Not cancellation sources: the calling thread being interrupted
 ([interruption contract](interruption-contract.md) §2.2), and `ParRuntime.close()` (which
 rejects new work while already-admitted work drains as usual). A `TimeoutException`,
 `CancellationException`, or `InterruptedException` thrown by business code is not a source
-either: with no framework cancellation committed, they are `USER_FAILURE`.
+either: with no framework cancellation committed, they are FAILED(USER_CODE_FAILURE).
 
 ## 3. The path of one cancellation
 
