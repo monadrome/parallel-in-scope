@@ -73,7 +73,7 @@ BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskT
 ```java
 // 一行看全貌
 String report = result.reportString();
-// "SUCCESS:8,USER_FAILURE:1,FAIL_FAST:1 | firstException=..."
+// "SUCCESS:8,FAILED:1,CANCELLED:1 | firstException=..."
 
 // 结构化访问
 Map<TaskTermination.Kind, Integer> counts = result.terminationKindCounts();

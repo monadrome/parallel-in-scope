@@ -97,7 +97,7 @@ TaskBatchResult<Integer> result = par.map(numbers, n -> n * n, options);
 
 // 方式一：快速概览——一行代码看全貌
 String report = result.reportString();
-// 输出示例："SUCCESS:3" 或 "SUCCESS:2,USER_FAILURE:1 | firstException=xxx"
+// 输出示例："SUCCESS:3" 或 "SUCCESS:2,FAILED:1 | firstException=xxx"
 
 // 方式二：逐个获取结果值
 for (ImmediateResult<Integer> element : result.results()) {

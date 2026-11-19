@@ -46,7 +46,7 @@ for (int i = 0; i < 10; i++) {
 ## 解决方法
 
 `TaskBatchResult` 封装了所有任务的终态 `ImmediateResult`，一行调用 `reportString()` 即可拿到状态概览。
-报告冻结在 `Par.map()` 返回时，包括 `SUCCESS`、`USER_FAILURE`、`FAIL_FAST`、`TIMEOUT` 等归因；读取不等待。
+报告冻结在 `Par.map()` 返回时，包括 `SUCCESS` / `FAILED` / `CANCELLED` 三类终止及 `USER_CODE_FAILURE`、`ABORTED_BY_FAIL_FAST`、`DEADLINE_EXCEEDED` 等原因归因；读取不等待。
 
 ```
 SUCCESS:6
@@ -87,7 +87,7 @@ System.out.println("首个失败: " + result.failedTaskResult());
 
 ### Fail-fast 场景
 
-如果任务函数抛出异常，`Par.map()` 会触发 fail-fast，取消尚未完成的 sibling。因此输入中有 4 个“理论上会失败”的任务，并不保证最终报告有 4 个 `USER_FAILURE`：其中一些任务可能在执行到抛异常之前就已经被取消。
+如果任务函数抛出异常，`Par.map()` 会触发 fail-fast，取消尚未完成的 sibling。因此输入中有 4 个“理论上会失败”的任务，并不保证最终报告有 4 个 `FAILED`：其中一些任务可能在执行到抛异常之前就已经被取消。
 
 这类场景应验证稳定不变量，而不是固定状态数量：
 
@@ -100,7 +100,7 @@ assert total == items.size();
 assert result.failedTaskResult().isPresent();
 ```
 
-报告示例可能是 `USER_FAILURE:1,FAIL_FAST:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
+报告示例可能是 `FAILED:1,CANCELLED:5`，也可能包含已经完成的 `SUCCESS`；具体数量取决于任务完成与 fail-fast 取消之间的竞态。
 
 对比两种方式：
 
