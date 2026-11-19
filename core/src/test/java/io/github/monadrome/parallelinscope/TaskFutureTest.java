@@ -848,6 +848,39 @@ class TaskFutureTest {
     }
 
     @Test
+    void toStringRendersCancelledWhenOnlyTheOutcomeReadSeesTheCancellation() {
+        SettableFuture<String> cancelled = SettableFuture.create();
+        cancelled.cancel(false);
+        ListenableFuture<String> cancellationVisibleOnlyToGet = new ForwardingListenableFuture<String>() {
+            @Override
+            protected ListenableFuture<String> delegate() {
+                return cancelled;
+            }
+
+            @Override
+            public boolean isCancelled() {
+                // The shape of a cancellation landing after the envelope's isCancelled() check:
+                // the read-only checks report a plain done future and only the outcome read meets
+                // the CancellationException. The terminal branch renders CANCELLED, not UNKNOWN.
+                return false;
+            }
+        };
+
+        assertThat(ordersTask(cancellationVisibleOnlyToGet).toString()).contains("status=CANCELLED");
+    }
+
+    @Test
+    void readOnlyViewRendersCancelledWhenItsSinkIsCancelled() {
+        SettableFuture<String> sink = SettableFuture.create();
+        ListenableFuture<String> view = TaskObservation.readOnly(sink);
+
+        sink.cancel(false);
+
+        assertThat(view.toString())
+                .isEqualTo("ReadOnlyView@" + Integer.toHexString(System.identityHashCode(view)) + "[status=CANCELLED]");
+    }
+
+    @Test
     void terminationReadsSuccessEvenWhenTheCallingThreadIsInterrupted() {
         Task<String> succeeded = ordersTask(Futures.immediateFuture("done"));
 
