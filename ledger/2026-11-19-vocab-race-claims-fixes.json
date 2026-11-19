@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-vocab-race-claims-fixes",
+  "date": "2026-11-19",
+  "topic": "vocab-race-claims-fixes",
+  "routes": [
+    "defect",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "fix: require failing-test evidence before PROVEN or BROKEN in check-race-claims",
+      "docs: align live contracts with the typed termination vocabulary"
+    ],
+    "files": 7,
+    "insertions": 173,
+    "deletions": 38
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Two commits: check-race-claims BUILD_FAILURE classifier (defect) + live-contract typed-vocabulary alignment (docs). Lightweight review round 1 NEEDS_CHANGES (2 blockers, 2 minors), all addressed; round 2 APPROVED (gpt-5.6-terra). mvn test BUILD SUCCESS; 26 pytest green."
+}
