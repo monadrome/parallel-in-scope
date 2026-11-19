@@ -1,0 +1,28 @@
+design/cancellation-model.md
+  s_4730cd68820ed7::t_f47ce0baff189d 48
+design/cancellation-propagation.md
+  s_4730cd68820ed7::t_15ed07be8e9e5b 327
+  s_4730cd68820ed7::t_be1636fbfa9762 298-299
+design/batch-terminal-combine.md
+  s_4730cd68820ed7::t_11bc00989b9c1b 53
+  s_4730cd68820ed7::t_710f2b77b094b1 25
+  s_4730cd68820ed7::t_de77bbff9179ff 54-56
+design/AGENTS.md
+  s_4730cd68820ed7::t_7e17d3e2d963b6 160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ccc8b03d8d753eea7333be80128ad034ef9fb5f3",
+  "prompts": {},
+  "sessions": {
+    "s_4730cd68820ed7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_42934f9a-fcbd-41f9-ae4e-88b54c46f585",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
