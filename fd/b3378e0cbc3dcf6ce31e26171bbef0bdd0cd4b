@@ -1,0 +1,23 @@
+design/proposal/P0037-future-path-staged-outcome-api.md
+  s_137e4e93a1c0b7::t_29c86b9787270d 168
+design/proposal/P0020-deadline-attribution-policy.md
+  s_137e4e93a1c0b7::t_dc00bad12b3918 40
+design/proposal/P0002-api-surface-reduction.md
+  s_137e4e93a1c0b7::t_178e0c0bf70ea1 31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "fdb3378e0cbc3dcf6ce31e26171bbef0bdd0cd4b",
+  "prompts": {},
+  "sessions": {
+    "s_137e4e93a1c0b7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_cdf03130-babe-45a2-8af6-4cbcb386bf4f",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
