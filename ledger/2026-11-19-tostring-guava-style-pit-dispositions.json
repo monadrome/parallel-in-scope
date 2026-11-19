@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-tostring-guava-style-pit-dispositions",
+  "date": "2026-11-19",
+  "topic": "tostring-guava-style-pit-dispositions",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: close the cheap contract gaps the broad PIT rerun exposed"
+    ],
+    "files": 5,
+    "insertions": 24,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "mvn pitest": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-tostring-guava-style-2026-11-19/mutations-broad-tests.xml",
+      "statuses": {
+        "KILLED": 452,
+        "NO_COVERAGE": 12,
+        "SURVIVED": 21,
+        "TIMED_OUT": 4
+      },
+      "total": 489,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0082
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "round-4 V1 fix: broad rerun converted 95 of 128 off-diff entries, five new assertions killed 10 (verified in the verification partition), 7 proven equivalent, 16 residual NEEDS MAINTAINER DISPOSITION; all 8 timeouts attributed via focused runs; one broad-run attempt failed the JDK-25 enforcer before rerunning green"
+}
