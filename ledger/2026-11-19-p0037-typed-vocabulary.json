@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-p0037-typed-vocabulary",
+  "date": "2026-11-19",
+  "topic": "p0037-typed-vocabulary",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "kimi-k3"
+  },
+  "change": {
+    "commits": [
+      "docs: align P0037 with the typed termination vocabulary"
+    ],
+    "files": 2,
+    "insertions": 31,
+    "deletions": 30
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Docs-only proposal vocabulary alignment; lightweight review approved by semantic_reviewer on gpt-5.6-terra, 0 findings. race-claims first-wins-cancellation BROKEN was a JAVA_HOME environment artifact; fresh JDK 25 run proves all 9 registered claims."
+}
