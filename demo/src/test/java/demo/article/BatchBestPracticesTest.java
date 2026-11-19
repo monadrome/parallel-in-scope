@@ -110,8 +110,8 @@ public class BatchBestPracticesTest {
         // reportString 按终止归类，兄弟任务的 fail-fast 归因在各自 termination 的取消原因里
         long failFastSiblings = result.results().stream()
                 .filter(r -> r.termination().kind() == TaskTermination.Kind.CANCELLED)
-                .filter(r -> r.termination().cancellationReason().kind()
-                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
+                .filter(r ->
+                        r.termination().cancellationReason().kind() == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
                 .count();
         assertThat(failFastSiblings).as("siblings aborted by fail-fast").isEqualTo(9);
     }
@@ -241,8 +241,8 @@ public class BatchBestPracticesTest {
         // reportString 按终止归类，兄弟任务的 fail-fast 归因在各自 termination 的取消原因里
         long failFastSiblings = result.results().stream()
                 .filter(r -> r.termination().kind() == TaskTermination.Kind.CANCELLED)
-                .filter(r -> r.termination().cancellationReason().kind()
-                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
+                .filter(r ->
+                        r.termination().cancellationReason().kind() == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
                 .count();
         assertThat(failFastSiblings).as("siblings aborted by fail-fast").isEqualTo(4);
     }
