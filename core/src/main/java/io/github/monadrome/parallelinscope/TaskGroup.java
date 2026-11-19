@@ -279,7 +279,10 @@ final class TaskGroup<R> implements AutoCloseable {
 
     /**
      * Maps the group's scope termination onto the aggregated member values: the values on success,
-     * the recorded failure, or the cancellation reason with a recorded-or-synthesized throwable.
+     * the recorded failure, or the cancellation reason with a synthesized throwable. The failure
+     * comes from the recorded failed task, which the values future, {@code failedTaskResult}, and
+     * {@code orThrow} all follow; the accumulator's primary cause can name a different member when
+     * two failures race, so it is only the scope termination's authority, not the values'.
      */
     private ImmediateResult<GroupValues> freezeValues(TaskGroupReport report) {
         ScopeTermination scope = report.termination();
@@ -290,17 +293,18 @@ final class TaskGroup<R> implements AutoCloseable {
                 throw new AssertionError("successful group values cannot fail", impossible);
             }
         }
+        TaskTermination<?> recorded = report.failedTaskTermination();
+        if (recorded != null && recorded.kind() == TaskTermination.Kind.FAILED) {
+            return ImmediateResult.failed(com.google.common.base.Verify.verifyNotNull(recorded.failureCause()));
+        }
         ScopeTerminationCause cause = com.google.common.base.Verify.verifyNotNull(
                 scope.cause(), "a non-successful group scope carries no cause");
         if (cause.kind() == ScopeTerminationCause.Kind.FAILURE) {
             return ImmediateResult.failed(com.google.common.base.Verify.verifyNotNull(cause.failureCause()));
         }
         CancellationReason reason = com.google.common.base.Verify.verifyNotNull(cause.cancellationReason());
-        Throwable failure = report.recordedFailure();
-        if (failure == null) {
-            failure = new LeanCancellationException("task group '" + groupName + "' ended with " + reason.kind());
-        }
-        return ImmediateResult.cancelled(reason, failure);
+        return ImmediateResult.cancelled(
+                reason, new LeanCancellationException("task group '" + groupName + "' ended with " + reason.kind()));
     }
 
     private ImmediateResult<Object> freezeResult(MemberState member) {
