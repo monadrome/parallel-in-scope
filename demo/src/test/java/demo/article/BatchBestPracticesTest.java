@@ -3,10 +3,12 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.CancellationReason;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -103,8 +105,15 @@ public class BatchBestPracticesTest {
 
         // 验证：report 区分根失败和由 fail-fast 级联取消的兄弟任务
         String report = result.reportString();
-        assertThat(report).as("report 应包含 payment 的 FAILED 状态").contains("USER_FAILURE");
-        assertThat(report).as("report 应包含被 fail-fast 取消的任务").contains("FAIL_FAST");
+        assertThat(report).as("report 应包含 payment 的 FAILED 状态").contains("FAILED:1");
+        assertThat(report).as("report 应包含被 fail-fast 取消的任务").contains("CANCELLED:");
+        // reportString 按终止归类，兄弟任务的 fail-fast 归因在各自 termination 的取消原因里
+        long failFastSiblings = result.results().stream()
+                .filter(r -> r.termination().kind() == TaskTermination.Kind.CANCELLED)
+                .filter(r -> r.termination().cancellationReason().kind()
+                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
+                .count();
+        assertThat(failFastSiblings).as("siblings aborted by fail-fast").isEqualTo(9);
     }
 
     // ==================== 场景二：数据库分片查询 ====================
@@ -227,7 +236,14 @@ public class BatchBestPracticesTest {
 
         // 验证 report 区分根失败和 fail-fast 级联取消
         String report = result.reportString();
-        assertThat(report).as("report 应包含 HTTP 调用的 FAILED 状态").contains("USER_FAILURE");
-        assertThat(report).as("report 应包含被取消的任务").contains("FAIL_FAST");
+        assertThat(report).as("report 应包含 HTTP 调用的 FAILED 状态").contains("FAILED:1");
+        assertThat(report).as("report 应包含被取消的任务").contains("CANCELLED:");
+        // reportString 按终止归类，兄弟任务的 fail-fast 归因在各自 termination 的取消原因里
+        long failFastSiblings = result.results().stream()
+                .filter(r -> r.termination().kind() == TaskTermination.Kind.CANCELLED)
+                .filter(r -> r.termination().cancellationReason().kind()
+                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
+                .count();
+        assertThat(failFastSiblings).as("siblings aborted by fail-fast").isEqualTo(4);
     }
 }

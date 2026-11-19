@@ -3,11 +3,13 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.CancellationReason;
 import io.github.monadrome.parallelinscope.Checkpoints;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -173,9 +175,15 @@ public class G3_CheckpointsCooperativeCancelTest {
         }
         assertThat(anyFailedOrCancelled).as("至少有一个任务因超时取消而失败").isTrue();
 
-        // reportString() 将 deadline 取消精确归因为 TIMEOUT
+        // reportString() 按终止归类，deadline 的精确归因在每个元素 termination 的取消原因里
         String report = result.reportString();
-        assertThat(report).as("报告中应包含超时状态").contains("TIMEOUT");
+        assertThat(report).as("报告中应包含取消状态").contains("CANCELLED");
+        for (io.github.monadrome.parallelinscope.ImmediateResult<String> element : result.results()) {
+            assertThat(element.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
+            assertThat(element.termination().cancellationReason().kind())
+                    .as("deadline 取消被精确归因")
+                    .isEqualTo(CancellationReason.Kind.DEADLINE_EXCEEDED);
+        }
     }
 
     /**
@@ -217,8 +225,14 @@ public class G3_CheckpointsCooperativeCancelTest {
                 .as("Checkpoints.checkpoint(...) 在 500ms 超时后立即停止 CPU 循环")
                 .isLessThan(5000);
 
-        // 验证 deadline 取消被精确归因为 TIMEOUT
+        // 验证 deadline 取消被精确归因为 DEADLINE_EXCEEDED
         String report = result.reportString();
-        assertThat(report).as("报告中应包含超时状态").contains("TIMEOUT");
+        assertThat(report).as("报告中应包含取消状态").contains("CANCELLED");
+        for (io.github.monadrome.parallelinscope.ImmediateResult<Integer> element : result.results()) {
+            assertThat(element.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
+            assertThat(element.termination().cancellationReason().kind())
+                    .as("deadline 取消被精确归因")
+                    .isEqualTo(CancellationReason.Kind.DEADLINE_EXCEEDED);
+        }
     }
 }
