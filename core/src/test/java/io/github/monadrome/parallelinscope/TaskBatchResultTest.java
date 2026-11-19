@@ -267,6 +267,8 @@ public class TaskBatchResultTest {
         assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
         assertThat(result.termination().failure()).isSameAs(boom);
         assertThat(result.termination().failedTask()).isNull();
+        // The scope-level alias exposes the same termination.
+        assertThat(result.scopeTermination()).isSameAs(result.termination());
     }
 
     @Test

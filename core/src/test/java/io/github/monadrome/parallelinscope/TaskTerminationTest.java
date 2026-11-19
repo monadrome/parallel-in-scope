@@ -33,6 +33,19 @@ class TaskTerminationTest {
         assertThat(submission.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
         assertThat(Verify.verifyNotNull(submission.failureCause()).submissionRejected())
                 .isTrue();
+        assertThat(Verify.verifyNotNull(submission.failureCause()).userCodeFailure())
+                .isFalse();
+        assertThat(submission.successful()).isFalse();
+        assertThat(submission.value()).isNull();
+
+        TaskTermination<Object> userFailure =
+                TaskTermination.failed(FailureCause.userCodeFailure(new IllegalStateException("boom")));
+        assertThat(Verify.verifyNotNull(userFailure.failureCause()).userCodeFailure())
+                .isTrue();
+
+        TaskTermination<String> success = TaskTermination.success("value");
+        assertThat(success.successful()).isTrue();
+        assertThat(success.value()).isEqualTo("value");
     }
 
     @Test
