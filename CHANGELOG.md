@@ -23,7 +23,9 @@
   `TaskBatch.report()` now counts termination branches (`terminationCounts()` plus `pending()`).
   All removed members were package-private. Diagnostic strings (`reportString()`, `toString()`)
   spell the same facts in the new vocabulary (`SUCCESS`/`FAILED`/`CANCELLED`, `termination=...`),
-  and a member's exit observation now carries the same termination as its frozen result.
+  the DiscardPolicy registration diagnostic names `SUBMISSION_REJECTED` instead of
+  `SUBMISSION_FAILURE`, and a member's exit observation now carries the same termination as its
+  frozen result.
 - Rename the live execution view to match the state/status naming principle (`State` names a
   stage in a process, `Status` names the outcome of an operation): public `TaskStatus` becomes
   `TaskState`, and `TaskFuture.status()` / `Task.status()` become `state()`. The four values

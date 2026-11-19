@@ -132,7 +132,7 @@ final class SlidingWindowSubmitter<V> {
     /**
      * Records a shared submission failure for every unsubmitted element from {@code fromIndex}.
      *
-     * <p>Every affected element retains {@code SUBMISSION_FAILURE} with the original handoff cause,
+     * <p>Every affected element retains {@code SUBMISSION_REJECTED} with the original handoff cause,
      * even if fail-fast cancellation races settlement. Already handed-off elements are cancelled by
      * the ordinary fail-fast cascade.
      */

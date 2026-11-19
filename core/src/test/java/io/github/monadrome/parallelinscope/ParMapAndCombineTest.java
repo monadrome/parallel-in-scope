@@ -398,7 +398,7 @@ class ParMapAndCombineTest {
                             });
 
             // The saturated CallerRuns pool would hand the combine to the converging thread; the
-            // inline guard records SUBMISSION_FAILURE instead of running user code there.
+            // inline guard records SUBMISSION_REJECTED instead of running user code there.
             assertThat(combineRuns).hasValue(0);
             TerminationAssertions.assertSubmissionFailure(
                     result.terminalResult().termination());

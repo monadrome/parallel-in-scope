@@ -65,7 +65,7 @@ class ParRuntimePoliciesTest {
     @Test
     void terminatingRejectionPoliciesStillBuild() {
         // AbortPolicy surfaces RejectedExecutionException (which the kernel already turns into
-        // SUBMISSION_FAILURE) and CallerRunsPolicy runs the task inline, so both keep the "every
+        // SUBMISSION_REJECTED) and CallerRunsPolicy runs the task inline, so both keep the "every
         // prepared future reaches a terminal state" guarantee and stay registrable.
         ExecutorService abort = poolWith(new ThreadPoolExecutor.AbortPolicy());
         ExecutorService callerRuns = poolWith(new ThreadPoolExecutor.CallerRunsPolicy());

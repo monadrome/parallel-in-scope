@@ -285,7 +285,7 @@ class ParSubmitTest {
 
     /**
      * A single submit whose executor handoff throws an {@code Error} still returns its future: the
-     * task never reached a worker, so the future terminates as {@code SUBMISSION_FAILURE} with the
+     * task never reached a worker, so the future terminates as {@code SUBMISSION_REJECTED} with the
      * original {@code Error} behind the {@code SubmissionException}, and {@code submit} itself does
      * not rethrow.
      */

@@ -24,7 +24,8 @@ the authoritative source of that contract; the user-visible promise is in the
   after it would never run.
 - An execution itself throwing `CancellationException` / `InterruptedException` with no
   framework cancellation committed on the token at settle time: the element MUST freeze as
-  `USER_FAILURE` with `failure()` being the original object; `valuesOrThrow()` /
+  `FAILED` with a `USER_CODE_FAILURE` cause and `failure()` being the original object;
+  `valuesOrThrow()` /
   `terminalValueOrThrow()` throw the `CancellationException` as-is and wrap the
   `InterruptedException` into `CompletionException`, per the
   [aggregate read rules](synchronous-scope-exit.md). The fail-fast cascade triggered by the
@@ -39,6 +40,10 @@ All elements of a batch share one token. An element failure commits `FAIL_FAST` 
 the element future's other listeners; Guava wakes `get()` waiters before running listeners, so
 the calling thread may freeze before or after the commit. The old implementation classified by
 token at freeze time:
+
+This section names the old outcome vocabulary for historical accuracy: `USER_FAILURE` is now
+`FAILED` with a `USER_CODE_FAILURE` cause, and a `FAIL_FAST` attribution is now `CANCELLED` with
+an `ABORTED_BY_FAIL_FAST` reason.
 
 - A single element throwing CE itself: `USER_FAILURE` / `FAIL_FAST` randomly (measured at about
   half each), with `valuesOrThrow()` switching between `ExecutionException` and
@@ -55,7 +60,7 @@ time; it was unaffected.
 
 ## 3. Mechanism
 
-`Task.attributedOnSettle` constructs the views of batch elements and the terminal combine,
+`Task.of` constructs the views of batch elements and the terminal combine,
 registering a listener on the delegate that pins the settle-time `termination()` into a
 `SettableFuture<TaskTermination>`. Views are created before bind
 (`SlidingWindowSubmitter.viewsFor`, the terminal view of `Par.executeCombined`); Guava
@@ -67,7 +72,7 @@ call: a snapshot failure ends that observation exceptionally and logs one SEVERE
 the fan-out continues to the pins and the bind listener.
 
 `TaskBatch` replaces "waiting for element futures" with "waiting for settle classifications",
-constructing results at freeze time with `fromTask(view, pinned outcome)`; observation
+constructing results at freeze time with `fromTask(view, pinned termination)`; observation
 snapshots take the frozen value through `TaskExitObservation.withResult`, keeping the three
 views consistent. Every task frozen in a batch must carry a pin (`Verify`; a missing pin is a
 kernel defect): in production, batch views are produced only by the two places above, and an
@@ -79,11 +84,12 @@ empty batch freezes no elements. The package-private live reads `TaskFuture.term
 Settle-time classification and freeze-time classification differ only on two input shapes:
 
 1. The failed future's cause is a CE/IE and the token is uncommitted at settle time — the
-   defect itself, now `USER_FAILURE`.
+   defect itself, now `FAILED` with a `USER_CODE_FAILURE` cause.
 2. An element is directly cancelled while the token is still `RUNNING`: it now freezes as
-   `MEMBER_CANCELLED` (consistent with a directly cancelled group member), where the old
-   implementation read the `FAIL_FAST` that this very cancellation triggered; siblings it
-   cascade-cancels remain `FAIL_FAST`. Every cancellation the library itself initiates commits
+   `CANCELLED` with a `CANCELLED_BY_CALLER` reason (consistent with a directly cancelled group
+   member), where the old implementation read the `FAIL_FAST` that this very cancellation
+   triggered; siblings it cascade-cancels read `ABORTED_BY_FAIL_FAST`. Every cancellation the
+   library itself initiates commits
    the token first (deadline, fail-fast, ancestor propagation, `TaskBatch.close`), but this
    shape is reachable for users: the `Runnable` a registered executor receives is the element's
    engine future, and the user's executor can cancel it (a common shape is a `shutdownNow()`
@@ -95,14 +101,15 @@ the token commits before the cancel.
 
 **Accepted residual**: when multiple elements throw CE at nearly the same time, if a previous
 element's cascade commit lands between a later element's `setException` and its pin listener,
-the later one reads `FAIL_FAST`. This is the same residual window as group members'
+the later one reads `ABORTED_BY_FAIL_FAST`. This is the same residual window as group members'
 (`memberCompleted` likewise runs after `setException`). The element triggering the cascade is
-always `USER_FAILURE`: its pin runs before its own bind listener, and in this shape `FAIL_FAST`
+always a user failure: its pin runs before its own bind listener, and in this shape `FAIL_FAST`
 can only be committed by bind's aggregate callback.
 
 **The policy boundary of uncommitted cancellation**: when an execution throws CE/IE itself
 after its deadline has passed but before the timer has committed, batch and group both keep
-USER_FAILURE. A real checkpoint backstop committing TIMEOUT is the already-cancelled path, and
+the user failure attribution. A real checkpoint backstop committing TIMEOUT is the
+already-cancelled path, and
 its group-level escalation is constrained by the [group cancellation contract](task-group-cancellation.md).
 Adding a RUNNING fallback based on clock passage alone is [P0020](proposal/P0020-deadline-attribution-policy.md)'s
 open policy, not silently introduced in this contract.
