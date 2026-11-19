@@ -529,8 +529,8 @@ final class TaskBatch<T> implements AutoCloseable {
          */
         BatchReport(
                 Map<TaskTermination.Kind, Integer> terminationCounts, int pending, @Nullable Throwable firstException) {
-            this.terminationCounts = Maps.immutableEnumMap(
-                    checkNotNull(terminationCounts, "terminationCounts cannot be null"));
+            this.terminationCounts =
+                    Maps.immutableEnumMap(checkNotNull(terminationCounts, "terminationCounts cannot be null"));
             this.pending = pending;
             this.firstException = firstException;
         }
