@@ -59,10 +59,28 @@ the log before treating a mutation as evidence.
 
 ## Policy
 
+Every registered race or ordering claim must have a test case in the test
+suite: its method is `mutation` or `existing-test`, and the cited tests are the
+case. `code-proof` and `needs-jcstress` are recorded test gaps, not settled
+states: the claim must justify concretely why no deterministic test can exist —
+the window that cannot be gated and what was tried — and the gap closes as soon
+as a deterministic gate becomes available. Kernel code is not modified solely
+for testability, so a window whose only gate would be a test seam stays a
+recorded gap with that seam named as the rejected route. A claim whose subject no longer lives
+in this repository is removed from the registry and re-registered in the owning
+repository; it does not stay here as an untestable record.
+
+Race-condition tests build their prepared state through the shared fixture
+functions in `PreparedStates` (in the core test package), not through inline
+ad-hoc construction: one topology has one construction, so a fix reaches every
+consumer. When a second test needs a prepared state, or a registered claim names
+a topology, that state moves into the fixture class first.
+
 A local proof comment may be justified by `PROVEN`, `PROVEN_TIMEOUT`,
-`PROVEN_BY_TEST` with a relevant assertion, or `PROVEN_BY_REASONING` with a
-concrete interleaving/JMM argument. `UNPROVEN` and `NEEDS_JCSTRESS` record test
-gaps: add a deterministic test or a jcstress experiment, or do not claim dynamic
+`PROVEN_BY_TEST` with a relevant assertion, or `PROVEN_BY_REASONING` whose
+concrete interleaving/JMM argument doubles as the gap justification above.
+`UNPROVEN` and `NEEDS_JCSTRESS` record test gaps: add a deterministic test or a
+jcstress experiment, or do not claim dynamic
 proof. Do not add a comment because several reviewers believe the race is real.
 
 The registry is the review record: when a comment is added or moved, add or

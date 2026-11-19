@@ -99,7 +99,7 @@ largest scope it could grow into.
 | Mechanical, non-behavioral edit in one file: typo, comment, local rename, link | Make the edit, run the narrowest relevant check, commit, obtain a lightweight independent review | Write a proposal or run the full adversarial review |
 | Reproducible behavior defect | Reproduce the failure first; fix the root cause; add a regression test and reverse-verify it | Fix by inspection, or claim completion without a failing case |
 | Public API, documented contract, or new mechanism | Read `design/first-principles.md` and the owning contract; write or update the `design/proposal/` entry; stop for the maintainer's direction | Implement before the direction is settled |
-| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State the invariants and interleavings first; add targeted tests; run `python3 scripts/check-race-claims.py` for registered ordering claims; run the full suite and adversarial review | Treat compilation, one green test, or a timeout-free run as proof |
+| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State the invariants and interleavings first; add targeted tests — every race condition gets a test case, with prepared states built from the shared fixtures (`verification/race-claims/README.md`); run `python3 scripts/check-race-claims.py` for registered ordering claims; run the full suite and adversarial review | Treat compilation, one green test, or a timeout-free run as proof |
 | Documentation or site change only | Check the diff, referenced paths, and cited commands; run `python3 scripts/check-doc-refs.py`; obtain a lightweight independent review | Run Java tests or `spotless` |
 | Dependency or build change | Patch/minor upgrade: run the `dependency-audit` skill, `mvn test`, and the `runtime-consumer` matrix locally; ask before adding a dependency or taking a major upgrade | Skip the audit or the runtime compatibility check |
 | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action per Current Development Line, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |
@@ -664,6 +664,11 @@ Load documents when their subject affects the task:
   under `docs/`.
 - `verification/lincheck.md` - Interleaving research for narrow cancellation
   windows; read before adding or changing a `*LincheckTest`.
+- `verification/race-claims/README.md` - Registry and policy for race/ordering
+  claims: every race condition has a test case, race tests build prepared
+  states from the shared fixtures, and untested claims are recorded gaps with a
+  mandatory justification; read before adding a race test or editing
+  `claims.json`.
 - `verification/delivery-ledger.md` - Per-delivery process record: when to
   write it, field meanings, the report, and its limitations; read before
   delivering a change or changing `scripts/process-metrics.py`.

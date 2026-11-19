@@ -51,15 +51,7 @@
       "claim": "The cancellation getAndSet(size) can land between the drain loop's range check and getAndIncrement, so the increment observes the phantom index size; handoff's index >= size guard is what prevents tasks.get(size).",
       "method": "code-proof",
       "proof": "The single drain holder reads nextIndex == size-1, so the loop condition passes. Cancellation wins settled and executes nextIndex.getAndSet(size). The holder's getAndIncrement() returns size and stores size+1. Without handoff's index >= size guard, tasks.get(size) is out of bounds. draining admits one claimant, normal claims stop at size, and only the winning cancellation performs getAndSet, so the phantom index is exactly size.",
-      "note": "The 3000-round stress test did not kill the range-check mutation because the handoff guard is the actual guard; the test is insensitive. A deterministic seam is still needed for dynamic proof."
-    },
-    {
-      "id": "queue-count-before-head-next",
-      "protocol": "DrainingBlockingQueue peek/poll",
-      "claim": "Reading count before head.next provides the happens-before edge to a concurrent enqueue; reversing the reads can produce a spurious null on a non-empty queue.",
-      "method": "code-proof",
-      "proof": "Enqueue performs the plain linked-node write last = last.next = node before the volatile read-modify-write on count. A consumer that reads a positive count participates in the volatile write/read pair, so the node link and node initialization happen before its subsequent plain head.next read. Head advancement requires takeMonitor, which peek/poll hold, so a positive count cannot legitimately yield a null first node. Reversing the reads permits: consumer reads head.next == null, producer links the node and increments count, consumer reads the positive count but uses its earlier null.",
-      "note": "jcstress would be optional dynamic corroboration of a JMM proof, not a prerequisite."
+      "note": "Gap justification: the window sits between the drain loop's range check and its getAndIncrement(), adjacent in-thread field reads with no external gate; the 3000-round stress test samples the window but is insensitive because the handoff guard is the actual protection. A deterministic gate would require injecting the claim counter into the kernel, and kernel code is not modified solely for testability (see the policy in README.md)."
     },
     {
       "id": "runtime-admission-vs-close",
