@@ -1,0 +1,24 @@
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_3c1eb1c2dace59::t_ca516465c03253 168-169
+  s_3c1eb1c2dace59::t_e8163e2d44b841 177,180-184,187
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_3c1eb1c2dace59::t_9bc3b631f12f43 226-228
+core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_3c1eb1c2dace59::t_d11ea0ba7de7fd 198-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f929bd82869a7311bf9d419789dac86994220f97",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
