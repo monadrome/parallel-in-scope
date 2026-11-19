@@ -117,9 +117,10 @@ public final class BatchCombinedResult<E, C> {
     /**
      * Returns this result when every element and the combine succeeded; otherwise throws the
      * selected failure. Elements are checked first, exactly as {@link TaskBatchResult#orThrow()};
-     * then the combine's own {@code USER_FAILURE} or {@code SUBMISSION_FAILURE} is rethrown as-is
-     * when unchecked and wrapped in {@link CompletionException} when checked. A combine that ended
-     * otherwise throws its {@link CancellationException}.
+     * then the combine's own recorded failure ({@code USER_CODE_FAILURE} or {@code
+     * SUBMISSION_REJECTED}) is rethrown as-is when unchecked and wrapped in {@link
+     * CompletionException} when checked. A combine that ended otherwise throws its {@link
+     * CancellationException}.
      *
      * @return this result
      * @throws CompletionException wrapping the recorded failure when it is checked

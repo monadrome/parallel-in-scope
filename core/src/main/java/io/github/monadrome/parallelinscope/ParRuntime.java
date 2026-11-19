@@ -172,7 +172,7 @@ public final class ParRuntime implements AutoCloseable {
                         + ", which discards rejected tasks silently: submission of an"
                         + " overflowing task would never complete and the batch would hang. Register a"
                         + " pool with AbortPolicy instead, which fails such a submission as"
-                        + " SUBMISSION_FAILURE.");
+                        + " SUBMISSION_REJECTED.");
             }
         }
         if (TtlUnwrap.isWrapper(executor)) {

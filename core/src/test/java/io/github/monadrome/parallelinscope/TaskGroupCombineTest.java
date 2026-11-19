@@ -178,7 +178,7 @@ class TaskGroupCombineTest {
     void combineFailsSubmissionOnRejectionWithoutRunningTheExecution() throws Exception {
         // The terminal combine never runs on the submitting thread — its submission thread is the
         // join-time convergence callback, and forbidInlineExecution refuses an inline handoff — so
-        // a rejection stays SUBMISSION_FAILURE and the combiner never runs.
+        // a rejection stays SUBMISSION_REJECTED and the combiner never runs.
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ExecutorService rejecting = alwaysRejectingExecutor();
         ParRuntime global = ParRuntime.builder()

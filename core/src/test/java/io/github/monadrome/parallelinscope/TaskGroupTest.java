@@ -207,7 +207,7 @@ class TaskGroupTest {
 
     /**
      * The group outcome must not depend on completion order: a failure that completes last (so the
-     * group token is still RUNNING when the group converges) reads the same USER_FAILURE as one
+     * group token is still RUNNING when the group converges) reads the same user failure as one
      * that completes first.
      */
     @Test
@@ -677,7 +677,7 @@ class TaskGroupTest {
             // (both inherit the same instant). If the group timer wins, the group converges as
             // TIMEOUT; if the nested timer wins, the member surfaces the nested cancellation as a
             // failure while the group token is still RUNNING, and the group adopts the recorded
-            // member failure as USER_FAILURE. Either way the deadline reached every level
+            // member failure as a user failure. Either way the deadline reached every level
             // (asserted below).
             assertThat(result.termination().kind()).isIn(ScopeTermination.Kind.CANCELLED, ScopeTermination.Kind.FAILED);
             // The member token is never bound, so only constructor-listener propagation from the

@@ -139,7 +139,8 @@ public final class Par {
      * shares the batch's deadline and cancellation lifecycle and is submitted to {@code combinePar}
      * exactly once, only after every element succeeded. When any element fails, is cancelled, or
      * the deadline expires first, the combine never runs and its result is terminal: cancelled with
-     * the batch's attribution, or {@code SUBMISSION_FAILURE} when its own executor rejected it. The
+     * the batch's attribution, or failed with {@code SUBMISSION_REJECTED} when its own executor
+     * rejected it. The
      * combiner receives the element values in input order; successful null elements appear as
      * null entries. One execution budget covers both the elements and the combine, and the call
      * returns only after their results settle and bounded cleanup has been attempted.
@@ -147,7 +148,7 @@ public final class Par {
      * <p>Everything {@link #map} documents about synchronous waiting, interruption, close grace,
      * and borrowed executors applies to this method as well; the combine is submitted from the
      * converging thread, so a {@code combinePar} backed by a saturating {@code CallerRunsPolicy}
-     * pool never runs the execution there — that handoff is recorded as {@code SUBMISSION_FAILURE}
+     * pool never runs the execution there — that handoff is recorded as {@code SUBMISSION_REJECTED}
      * instead. A direct executor retains its normal inline behavior; see {@link Combiner}.
      *
      * @param elements input elements; must contain at least one element — a combine over an empty
@@ -158,7 +159,7 @@ public final class Par {
      * @param combinePar the entry whose executor runs the terminal combine; must belong to the same
      *     {@link ParRuntime}
      * @param combiner the terminal combiner; it may throw any checked exception, recorded as
-     *     {@code USER_FAILURE} with the original cause
+     *     {@code USER_CODE_FAILURE} with the original cause
      * @return the frozen element results plus the terminal combine's result and observation
      * @throws NullPointerException if {@code options}, {@code function}, {@code combinePar}, or
      *     {@code combiner} is null, or the input contains a null element

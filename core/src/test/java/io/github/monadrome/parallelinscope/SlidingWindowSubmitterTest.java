@@ -762,7 +762,7 @@ class SlidingWindowSubmitterTest {
      * races the cancellation callback (abandoning the elements still unsubmitted). The claimed
      * element must stay consistent: once handed to the executor it can only be cancelled through
      * its own future, so its callable runs and the caller sees the real result — never
-     * SUBMISSION_FAILURE for a task that ran. Only genuinely unsubmitted elements are abandoned.
+     * SUBMISSION_REJECTED for a task that ran. Only genuinely unsubmitted elements are abandoned.
      */
     @Test
     void cancelDuringHandoffKeepsClaimedElementConsistent() throws Exception {
