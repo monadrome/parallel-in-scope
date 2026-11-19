@@ -54,7 +54,7 @@ fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING�
 
 ```text
 所有状态计数之和 == 输入任务数
-至少存在一个 USER_FAILURE
+至少存在一个 FAILED
 failedTaskResult().failure() == 触发 fail-fast 的根异常
 ```
 
@@ -64,7 +64,7 @@ failedTaskResult().failure() == 触发 fail-fast 的根异常
 
 ### 固定普通并发任务的成功/失败数量
 
-例如输入中有 4 个函数会抛异常，并不意味着 fail-fast 批次最终必有 4 个 `USER_FAILURE`。后续任务可能在执行到异常之前已经被取消。
+例如输入中有 4 个函数会抛异常，并不意味着 fail-fast 批次最终必有 4 个 `FAILED`。后续任务可能在执行到异常之前已经被取消。
 
 ### 使用 sleep 排列线程时序
 

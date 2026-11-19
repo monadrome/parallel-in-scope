@@ -124,7 +124,7 @@ public class DeadlockDetectionDemo {
                 },
                 optionsB);
 
-        // 嵌套 map 返回时结果已冻结；等待风险场景下 task-B 可能以 TIMEOUT/FAIL_FAST 归因结束
+        // 嵌套 map 返回时结果已冻结；等待风险场景下 task-B 可能以 CANCELLED(DEADLINE_EXCEEDED/ABORTED_BY_FAIL_FAST) 归因结束
         System.out.println("  [task-B-" + parentItem + "] 结果分布: " + resultB.reportString());
     }
 }

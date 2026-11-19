@@ -229,7 +229,7 @@ public class G1_CompletionFutureMonitoringTest {
         // 验证：report 确认结果
         String report = result.reportString();
         assertThat(report).contains("SUCCESS:1");
-        assertThat(report).contains("USER_FAILURE:1");
+        assertThat(report).contains("FAILED:1");
         config.close();
     }
 }

@@ -3,11 +3,13 @@ package demo.article;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.CancellationReason;
 import io.github.monadrome.parallelinscope.ImmediateResult;
 import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
+import io.github.monadrome.parallelinscope.TaskTermination;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -87,9 +89,16 @@ class G2_BatchResultReportTest {
         assertThat(totalStateCount(result)).isEqualTo(taskCount);
         assertThat(result.failedTaskResult().map(ImmediateResult::failure)).containsSame(rootFailure);
         assertThat(reportString)
-                .contains("USER_FAILURE:")
-                .contains("FAIL_FAST:")
+                .contains("FAILED:1")
+                .contains("CANCELLED:5")
                 .contains("firstException=root failure");
+        // reportString 按终止归类，兄弟任务的 fail-fast 归因在各自 termination 的取消原因里
+        long failFastSiblings = result.results().stream()
+                .filter(r -> r.termination().kind() == TaskTermination.Kind.CANCELLED)
+                .filter(r -> r.termination().cancellationReason().kind()
+                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST)
+                .count();
+        assertThat(failFastSiblings).isEqualTo(5);
     }
 
     private static BatchOptions options(String taskName, int parallelism) {
