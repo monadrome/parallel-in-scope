@@ -294,13 +294,16 @@ final class TaskGroup<R> implements AutoCloseable {
             }
         }
         TaskTermination<?> recorded = report.failedTaskTermination();
-        if (recorded != null && recorded.kind() == TaskTermination.Kind.FAILED) {
+        if (recorded != null) {
             return ImmediateResult.failed(com.google.common.base.Verify.verifyNotNull(recorded.failureCause()));
         }
         ScopeTerminationCause cause = com.google.common.base.Verify.verifyNotNull(
                 scope.cause(), "a non-successful group scope carries no cause");
         if (cause.kind() == ScopeTerminationCause.Kind.FAILURE) {
-            return ImmediateResult.failed(com.google.common.base.Verify.verifyNotNull(cause.failureCause()));
+            /* A failed scope only ever comes from an observed failed member or combine, and that
+             * observation records the failed task before convergence, so the recorded branch above
+             * always wins first. */
+            throw new AssertionError("a failed group scope always records the failed task's termination");
         }
         CancellationReason reason = com.google.common.base.Verify.verifyNotNull(cause.cancellationReason());
         return ImmediateResult.cancelled(
