@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -23,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -797,6 +799,53 @@ class TaskFutureTest {
         assertThat(unrenderable.toString())
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(unrenderable))
                         + "[status=UNKNOWN, cause=[class java.lang.AssertionError thrown from get()], task='orders']");
+    }
+
+    @Test
+    void toStringRedoesTheTerminalBranchWhenCompletionLandsDuringRendering() {
+        SettableFuture<String> sink = SettableFuture.create();
+        AtomicInteger isDoneReads = new AtomicInteger();
+        ListenableFuture<String> settlingMidRender = new ForwardingListenableFuture<String>() {
+            @Override
+            protected ListenableFuture<String> delegate() {
+                return sink;
+            }
+
+            @Override
+            public boolean isDone() {
+                // The second read is the pending branch's task-state hint: settle inside the
+                // window between the done check and the hint read. Without Guava's
+                // truncate-and-redo the envelope renders the contradictory status=PENDING,
+                // taskState=EXITED.
+                if (isDoneReads.incrementAndGet() == 2) {
+                    sink.set("done");
+                }
+                return super.isDone();
+            }
+        };
+        Task<String> task = Task.of("orders", new CancellationToken(), settlingMidRender);
+
+        assertThat(task.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(task))
+                        + "[status=SUCCESS, result=[String@"
+                        + Integer.toHexString(System.identityHashCode("done")) + "], task='orders']");
+    }
+
+    @Test
+    void completionFutureRendersItsOwnReadOnlyEnvelope() {
+        Task<String> pending = Task.of("orders", new CancellationToken(), SettableFuture.<String>create());
+        ListenableFuture<TaskExitObservation<String>> pendingView = pending.completionFuture();
+        assertThat(pendingView.toString())
+                .isEqualTo("ReadOnlyView@" + Integer.toHexString(System.identityHashCode(pendingView))
+                        + "[status=PENDING]");
+        assertThat(pendingView.cancel(true)).isFalse();
+
+        Task<String> settled = Task.of("orders", new CancellationToken(), Futures.immediateFuture("done"));
+        ListenableFuture<TaskExitObservation<String>> settledView = settled.completionFuture();
+        assertThat(settledView.toString())
+                .isEqualTo("ReadOnlyView@" + Integer.toHexString(System.identityHashCode(settledView))
+                        + "[status=SUCCESS, result=[TaskExitObservation@"
+                        + Integer.toHexString(System.identityHashCode(Futures.getUnchecked(settledView))) + "]]");
     }
 
     @Test

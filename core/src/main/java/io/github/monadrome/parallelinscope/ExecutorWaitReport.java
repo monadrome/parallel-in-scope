@@ -5,7 +5,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -124,25 +123,26 @@ public final class ExecutorWaitReport {
         }
 
         /**
-         * Renders the cycle with, for each wait, the first observed pair of task units behind it: the
-         * waiting unit and the unit it waited for.
+         * The first observed pair of task units behind each wait of the cycle, in wait order.
+         * Package-private: the diagnostic rendering is count-only, so the kernel's tests read the
+         * witness selection through here.
+         */
+        ImmutableList<String> witnesses() {
+            return witnesses;
+        }
+
+        /**
+         * Returns a diagnostic string with the member, cycle, and witness counts only; the
+         * executors and observed units stay readable through {@link #members()} and {@link
+         * #cycle()}, and printing them could expose configured labels or be arbitrarily large.
+         * The format is for logs and debuggers, not for parsing.
          */
         @Override
         public String toString() {
-            List<String> waits = new ArrayList<>(cycle.size());
-            for (int index = 0; index < cycle.size(); index++) {
-                waits.add(render(cycle.get(index)) + " -> " + render(cycle.get((index + 1) % cycle.size())) + " ("
-                        + witnesses.get(index) + ")");
-            }
-            return String.join(", ", waits);
-        }
-
-        private static String render(Set<ParId> executor) {
-            List<String> ids = new ArrayList<>(executor.size());
-            for (ParId id : executor) {
-                ids.add(id.value());
-            }
-            return "[" + String.join("/", ids) + "]";
+            return "Component[members=" + members.size()
+                    + ", cycle=" + cycle.size()
+                    + ", witnesses=" + witnesses.size()
+                    + ']';
         }
     }
 }

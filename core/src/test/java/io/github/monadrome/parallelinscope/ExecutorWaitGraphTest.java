@@ -108,10 +108,10 @@ class ExecutorWaitGraphTest {
         ExecutorWaitReport.Component component = first.cyclicComponents().get(0);
         assertThat(component.members()).containsExactly(ImmutableSet.of(ParId.of("a")));
         assertThat(component.cycle()).containsExactly(ImmutableSet.of(ParId.of("a")));
-        assertThat(component.toString())
-                .contains("[a] -> [a]")
-                .contains("outer[")
-                .contains("inner[");
+        assertThat(component.toString()).isEqualTo("Component[members=1, cycle=1, witnesses=1]");
+        assertThat(component.witnesses())
+                .singleElement()
+                .satisfies(witness -> assertThat(witness).contains("outer[").contains("inner["));
         assertThat(announcements).hasSize(1);
     }
 
@@ -154,7 +154,9 @@ class ExecutorWaitGraphTest {
                 graph.report().cyclicComponents().get(0);
         assertThat(component.members()).containsExactlyElementsOf(ids("a", "b"));
         assertThat(component.cycle()).containsExactlyElementsOf(ids("a", "b"));
-        assertThat(component.toString()).contains("[a] -> [b] (request-1[").contains("[b] -> [a] (request-2[");
+        assertThat(component.toString()).isEqualTo("Component[members=2, cycle=2, witnesses=2]");
+        assertThat(component.witnesses().get(0)).contains("request-1[");
+        assertThat(component.witnesses().get(1)).contains("request-2[");
         assertThat(announcements).hasSize(1);
     }
 
@@ -214,7 +216,7 @@ class ExecutorWaitGraphTest {
         ExecutorWaitReport.Component component =
                 graph.report().cyclicComponents().get(0);
         assertThat(component.members()).containsExactly(ImmutableSet.of(ParId.of("orders"), ParId.of("billing")));
-        assertThat(component.toString()).contains("[orders/billing] -> [orders/billing]");
+        assertThat(component.toString()).isEqualTo("Component[members=1, cycle=1, witnesses=1]");
     }
 
     @Test
@@ -262,7 +264,9 @@ class ExecutorWaitGraphTest {
                 graph.report().cyclicComponents().get(0);
         assertThat(component.members()).containsExactlyElementsOf(ids("a", "c"));
         assertThat(component.cycle()).containsExactlyElementsOf(ids("a", "c"));
-        assertThat(component.toString()).contains("new-child[").contains("back-from-c[");
+        assertThat(component.toString()).isEqualTo("Component[members=2, cycle=2, witnesses=2]");
+        assertThat(component.witnesses().get(0)).contains("new-child[");
+        assertThat(component.witnesses().get(1)).contains("back-from-c[");
         assertThat(announcements).hasSize(1);
     }
 
@@ -282,7 +286,9 @@ class ExecutorWaitGraphTest {
                 graph.report().cyclicComponents().get(0);
         assertThat(component.members()).containsExactlyElementsOf(ids("a", "b"));
         assertThat(component.cycle()).containsExactlyElementsOf(ids("a", "b"));
-        assertThat(component.toString()).contains("new-child[").contains("back-from-b[");
+        assertThat(component.toString()).isEqualTo("Component[members=2, cycle=2, witnesses=2]");
+        assertThat(component.witnesses().get(0)).contains("new-child[");
+        assertThat(component.witnesses().get(1)).contains("back-from-b[");
         assertThat(announcements).hasSize(1);
     }
 
@@ -317,7 +323,11 @@ class ExecutorWaitGraphTest {
                 graph.report().cyclicComponents().get(0);
         assertThat(component.members()).containsExactlyElementsOf(ids("a"));
         assertThat(component.cycle()).containsExactlyElementsOf(ids("a"));
-        assertThat(component.toString()).contains("first-child[").doesNotContain("second-child[");
+        assertThat(component.toString()).isEqualTo("Component[members=1, cycle=1, witnesses=1]");
+        assertThat(component.witnesses())
+                .singleElement()
+                .satisfies(
+                        witness -> assertThat(witness).contains("first-child[").doesNotContain("second-child["));
         assertThat(announcements).hasSize(1);
     }
 

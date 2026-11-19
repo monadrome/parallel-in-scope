@@ -39,7 +39,7 @@ service.handleRequest();
 assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 ```
 
-`cyclicComponents()` lists each cyclic strongly connected component: its `members()`, one concrete `cycle()` in wait order, and in `toString()` the first pair of task units observed behind each wait. Each executor appears as the set of every `ParId` it is registered under — two ids naming one pool are one executor, and a name alone never makes a cycle.
+`cyclicComponents()` lists each cyclic strongly connected component: its `members()` and one concrete `cycle()` in wait order. A component's `toString()` is count-only — member, cycle, and witness counts — so logging a report never expands configured labels; the task units observed behind each wait stay internal to the library. Each executor appears as the set of every `ParId` it is registered under — two ids naming one pool are one executor, and a name alone never makes a cycle.
 
 The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures not adopted with a producer `Par`, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs an execution inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging handler may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
 

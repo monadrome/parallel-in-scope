@@ -650,7 +650,7 @@ function s4Cycle(){
   });
   s4Log('[graph] + 边 [database] → [http] · '+S4W.reverse+'  ⚠ 新边安装','warn');
   s4Log('[graph] 只有安装新边的线程重算有环分量，已知边不回访','warn');
-  s4Log('cyclicComponents() = [http] -> [database] ('+S4W.forward+'), [database] -> [http] ('+S4W.reverse+')','warn');
+  s4Log('cyclicComponents() = [Component[members=2, cycle=2, witnesses=2]] · 分量只打印计数，标签与见证单元留在 members()/cycle() 访问器','warn');
   document.getElementById('s4banner').classList.remove('hidden');
   s4Stat('检测到环 · 潜在死锁风险信号');
 }

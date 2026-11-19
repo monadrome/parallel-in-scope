@@ -311,43 +311,68 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /**
      * Returns a diagnostic string in Guava's future envelope: {@code Task@identityHash[status=...,
-     * task='name']}. The pending branch adds the task state hint, which may lag completion. A
-     * successful result renders as {@code SimpleClassName@identityHash} and a failure as its type
-     * only, never through user rendering code or messages; a clock-dependent value such as the
-     * remaining budget is never rendered. The format is for logs and debuggers, not for parsing.
-     * Task identity stays reference identity, so this is the only non-forwarded {@link Object}
-     * method.
+     * task='name']}. The pending branch adds the task state hint. A successful result renders as
+     * {@code SimpleClassName@identityHash} and a failure as its type only, never through user
+     * rendering code or messages; a clock-dependent value such as the remaining budget is never
+     * rendered. The format is for logs and debuggers, not for parsing. Task identity stays
+     * reference identity, so this is the only non-forwarded {@link Object} method.
      */
     @Override
     public String toString() {
-        return "Task@" + Integer.toHexString(System.identityHashCode(this)) + "[status=" + statusBranch() + ", task='"
-                + taskName + "']";
+        StringBuilder builder = new StringBuilder();
+        builder.append("Task@")
+                .append(Integer.toHexString(System.identityHashCode(this)))
+                .append("[status=");
+        appendStatusBranch(builder);
+        return builder.append(", task='").append(taskName).append("']").toString();
     }
 
     /**
      * The status branch of the envelope, mirroring Guava's {@code AbstractFuture}: {@code
      * CANCELLED}, {@code PENDING} with the task state hint, {@code SUCCESS} with the value's
-     * identity, or {@code FAILURE} with the cause's type. A cancellation landing between the done
+     * identity, or {@code FAILURE} with the cause's type. The hint is read after the done check,
+     * so a completion landing in between could render a finished task as {@code PENDING} with an
+     * exited hint; like Guava, the branch rechecks completion after taking the hint, truncates
+     * the pending text, and redoes the terminal branch. A cancellation landing between the done
      * check and the read renders as {@code CANCELLED}. Reading the outcome wraps a failure in an
      * {@link ExecutionException}, whose construction renders the cause, so a cause whose own
      * {@code toString} throws degrades the branch to Guava's {@code UNKNOWN} instead of throwing
      * out of a diagnostic.
      */
-    private String statusBranch() {
+    private void appendStatusBranch(StringBuilder builder) {
         if (isCancelled()) {
-            return "CANCELLED";
+            builder.append("CANCELLED");
+            return;
         }
-        if (!isDone()) {
-            return "PENDING, taskState=" + state();
+        if (isDone()) {
+            appendDoneBranch(builder);
+            return;
         }
+        int pendingStart = builder.length();
+        builder.append("PENDING, taskState=").append(state());
+        if (isDone()) {
+            builder.delete(pendingStart, builder.length());
+            appendDoneBranch(builder);
+        }
+    }
+
+    /**
+     * The terminal branch of the envelope: {@code SUCCESS} with the value's identity, {@code
+     * FAILURE} with the cause's type, {@code CANCELLED}, or the guarded {@code UNKNOWN}. The
+     * outcome read completes before anything is appended, so a throwing read cannot leave a
+     * half-written success prefix in front of the failure branch.
+     */
+    private void appendDoneBranch(StringBuilder builder) {
         try {
-            return "SUCCESS, result=[" + ResultObjects.render(Futures.getDone(delegate), this) + ']';
+            String result = ResultObjects.render(Futures.getDone(delegate), this);
+            builder.append("SUCCESS, result=[").append(result).append(']');
         } catch (ExecutionException failure) {
-            return "FAILURE, cause=[" + ResultObjects.renderFailure(failure.getCause(), this) + ']';
+            String cause = ResultObjects.renderFailure(failure.getCause(), this);
+            builder.append("FAILURE, cause=[").append(cause).append(']');
         } catch (CancellationException cancelled) {
-            return "CANCELLED";
+            builder.append("CANCELLED");
         } catch (Throwable thrownFromGet) {
-            return "UNKNOWN, cause=[" + thrownFromGet.getClass() + " thrown from get()]";
+            builder.append("UNKNOWN, cause=[").append(thrownFromGet.getClass()).append(" thrown from get()]");
         }
     }
 }
