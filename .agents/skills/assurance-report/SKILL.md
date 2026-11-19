@@ -1,22 +1,28 @@
 ---
 name: assurance-report
-description: 独立验证报告：汇总契约、测试、反向验证和实现改进建议。仅由 contract-first-assurance 主入口或用户显式调用。
+description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
 version: "1.2.0"
 disable-model-invocation: true
 ---
 # Assurance Report
 
-本阶段只由 `contract-first-assurance` 调度。使用父流程传入的
-`SKILL_ROOT` 和 `RUN_DIR`，不自行创建第二个 run 目录，也不读取其他 run 的
-中间工件。
+This phase is dispatched only by `contract-first-assurance`. Use the
+`SKILL_ROOT` and `RUN_DIR` passed in by the parent flow; do not create a second run directory
+or read other runs' intermediate artifacts.
 
-读取本轮冻结 contract、候选状态、真实实现验证、反向验证和契约缺口，生成 `${RUN_DIR}/report.md`。如果某阶段没有运行，报告必须保留 `SKIPPED`、`BLOCKED` 或 `INCONCLUSIVE` 及原因。
+Read this round's frozen contract, candidate statuses, real-implementation verification,
+reverse verification, and contract gaps, and produce `${RUN_DIR}/report.md`. If a phase did not
+run, the report must keep the `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status and the reason.
 
-报告必须区分：
+The report must distinguish:
 
-- 实现缺陷；
-- 测试错误假设；
-- 契约缺失或 oracle 不足；
-- 环境、时序和验证阻塞。
+- implementation defects;
+- wrong test assumptions;
+- missing contracts or insufficient oracles;
+- environment, timing, and verification blockers.
 
-分别报告行为测试、全量测试、反向验证、PIT 和独立审查的状态。PIT 必须同时报告 raw status、disposition 和最终 gate；未接受或证据不完整的超时仍为 `INCONCLUSIVE`，证据充分且获批准的 mutation exception 可以使 PIT gate 为 `PASS`，但不得改写原始状态。
+Report the statuses of behavior tests, full tests, reverse verification, PIT, and independent
+review separately. PIT must report raw status, disposition, and the final gate together; an
+unaccepted or incompletely evidenced timeout remains `INCONCLUSIVE`; a well-evidenced,
+approved mutation exception may make the PIT gate `PASS`, but the raw status must not be
+rewritten.

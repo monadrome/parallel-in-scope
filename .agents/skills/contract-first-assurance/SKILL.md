@@ -1,317 +1,381 @@
 ---
 name: contract-first-assurance
-description: 契约优先的独立验证工作流。用户要求独立验证 PR、从契约生成测试、检查实现与需求的行为缺口、复核取消/并发/生命周期语义或生成可审计验证报告时使用；也可通过 /contract-first-assurance 手动调用。先冻结契约，再在隔离上下文中生成候选测试，并在真实实现上分类验证结果。
+description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
 compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
 version: "1.2.0"
 ---
 
 # Contract-First Independent Assurance
 
-## 包和宿主解析
+## Package and host resolution
 
-入口和四个阶段 skill 属于同一个版本化包。先读取本文件所在目录的
-`package.yaml`，把该目录记为 `SKILL_ROOT`，再按以下顺序解析宿主配置：
+The entry point and the four phase skills belong to one versioned package. First read
+`package.yaml` in the directory containing this file, record that directory as `SKILL_ROOT`,
+then resolve the host configuration in this order:
 
-1. 调用方传入的 run-specific adapter；
-2. 仓库内的 assurance 配置；
-3. 适用的 `AGENTS.md`、design/ADR 和 verification 文档；
-4. `SKILL_ROOT/references/host-adapter.md` 中的通用规则。
+1. the run-specific adapter passed by the caller;
+2. the in-repository assurance configuration;
+3. the applicable `AGENTS.md`, design/ADR, and verification documents;
+4. the generic rules in `SKILL_ROOT/references/host-adapter.md`.
 
-宿主 adapter 负责工作区、变更范围、基线、构建命令、格式检查、mutation
-策略和输出目录；本 skill 不假定 Java、Maven、Gradle、npm 或 PIT。缺少必需
-的 adapter 输入时，保留 `BLOCKED` 或 `INCONCLUSIVE` 证据，不用猜测命令。
-mutation 的原始状态与验证结论必须分开记录。读取
-[references/mutation-dispositions.md](references/mutation-dispositions.md) 了解
-如何在保留 `TIMED_OUT` 原始状态的同时接受证据充分的变异诱导活性失败。
+The host adapter supplies the workspace, change scope, baseline, build commands, format checks,
+mutation policy, and output directories; this skill assumes nothing about Java, Maven, Gradle,
+npm, or PIT. When a required adapter input is missing, keep `BLOCKED` or `INCONCLUSIVE`
+evidence instead of guessing commands. Mutation raw statuses and verification conclusions must
+be recorded separately. Read
+[references/mutation-dispositions.md](references/mutation-dispositions.md) for how to accept
+well-evidenced mutation-induced liveness failures while preserving the `TIMED_OUT` raw status.
 
-本轮的 `RUN_DIR` 是 adapter 解析出的 run 目录，默认是仓库根目录下的
-`.contract-first-assurance/<run-id>`。所有阶段必须使用同一个 `RUN_DIR`，并在
-`run-manifest.json` 和 `verification-summary.md` 中记录解析后的 adapter 值，使
-独立 worktree 可以复现。运行清单和哈希规则见
-[references/reproducible-runs.md](references/reproducible-runs.md)。
+This round's `RUN_DIR` is the run directory resolved by the adapter, defaulting to
+`.contract-first-assurance/<run-id>` under the repository root. All phases must use the same
+`RUN_DIR`, and record the resolved adapter values in `run-manifest.json` and
+`verification-summary.md` so an independent worktree can reproduce the run. The run-manifest
+and hashing rules are in
+[references/reproducible-runs.md](references/reproducible-runs.md).
 
-开始第一阶段前必须：
+Before starting phase one:
 
-1. 解析并冻结 package、adapter、base/head commit 和 dirty 状态；
-2. 将 contract 来源、脱敏 API、adapter 配置和 dirty worktree patch（如果有）复制到 `${RUN_DIR}/inputs/`；
-3. 创建 `${RUN_DIR}/logs/`，所有命令保存精确 argv、退出码、stdout 和 stderr 路径；
-4. 写入 `run-manifest.json`，为输入和最终工件计算 SHA-256。
+1. resolve and freeze the package, adapter, base/head commits, and dirty state;
+2. copy the contract sources, the sanitized API, the adapter configuration, and the dirty
+   worktree patch (if any) into `${RUN_DIR}/inputs/`;
+3. create `${RUN_DIR}/logs/`, saving every command's exact argv, exit code, and stdout/stderr
+   paths;
+4. write `run-manifest.json`, computing SHA-256 for the inputs and final artifacts.
 
-## 目标
+## Goal
 
-把一次 PR 的实现改动转换成可审计的契约验证流程：
+Turn one PR's implementation changes into an auditable contract-verification flow:
 
 ```text
-PR/工作区改动
+PR/worktree changes
   ↓
-契约提取与缺口标记
+contract extraction and gap marking
   ↓
-独立测试 agent 根据契约生成测试
+an independent test agent generates tests from the contract
   ↓
-真实实现编译和执行
+compile and execute on the real implementation
   ↓
-行为级去重与失败分类
+behavior-level deduplication and failure classification
   ↓
-反向验证
+reverse verification
   ↓
-契约修订建议和代码改进建议
+contract revision suggestions and code improvement suggestions
 ```
 
-调用本 skill 后，自动推进整个流程。除非遇到无法消除的外部阻塞或 AGENTS.md 明确要求人工决策，不重复向用户确认每一步。
+Once invoked, this skill advances the whole flow automatically. Do not repeatedly confirm each
+step with the user unless an irremovable external blocker appears or AGENTS.md explicitly
+requires a human decision.
 
-## 调用模式
+## Invocation modes
 
-本入口允许两种调用方式：
+This entry allows two invocation modes:
 
-- **自主调用**：当用户要求检查 PR 质量、独立验证实现、从需求或契约生成测试、发现实现与需求的行为缺口时，模型可以根据 `description` 自动调用。普通的“写测试”“修 bug”或“做 code review”只有在明确出现独立验证、契约缺口或隔离测试意图时才触发。
-- **手动调用**：用户输入 `/contract-first-assurance`，无论当前请求措辞如何，都直接运行完整流程。
+- **Autonomous invocation**: when the user asks to check PR quality, independently verify an
+  implementation, generate tests from requirements or contracts, or find behavioral gaps
+  between implementation and requirements, the model may invoke automatically based on the
+  `description`. Plain "write tests", "fix a bug", or "do code review" triggers only when an
+  independent-verification, contract-gap, or isolated-testing intent is explicitly present.
+- **Manual invocation**: the user types `/contract-first-assurance`; the full flow runs
+  regardless of the current request's wording.
 
-本 skill 的子流程 skill 默认关闭自主调用，只能由本入口显式调度或由用户直接输入其命令调用。
+This skill's sub-flow skills have autonomous invocation off by default; they can only be
+dispatched explicitly by this entry or invoked by the user typing their commands directly.
 
-## 输入范围
+## Input scope
 
-优先顺序：
+Priority order:
 
-1. 用户给出的 PR URL、PR 编号或 commit 范围；
-2. 当前分支相对目标开发线的 diff；
-3. 当前工作区未提交改动。
+1. a PR URL, PR number, or commit range given by the user;
+2. the current branch's diff against the target development line;
+3. uncommitted changes in the current worktree.
 
-开始前确认仓库根目录、当前分支、目标基线和 PR 改动范围。不要把无关模块、历史改动或整个仓库默认纳入 contract。
+Before starting, confirm the repository root, the current branch, the target baseline, and the
+PR change scope. Do not include unrelated modules, historical changes, or the whole repository
+in the contract by default.
 
-如果 PR 只涉及文档，仍可提取 contract，但跳过 Java 测试和 mutation testing，并说明跳过原因。
+If the PR is documentation-only, still extract the contract, but skip Java tests and mutation
+testing, stating the skip reason.
 
-调用模式的跨平台开关见 [references/invocation-modes.md](references/invocation-modes.md)；
-宿主配置和可复现边界见 [references/host-adapter.md](references/host-adapter.md)。
+The cross-platform switches for invocation modes are in
+[references/invocation-modes.md](references/invocation-modes.md); host configuration and
+reproducibility boundaries are in [references/host-adapter.md](references/host-adapter.md).
 
-## 子流程调度
+## Sub-flow dispatch
 
-按阶段显式读取并执行对应子流程；不要让子流程依靠自然语言自行竞争触发：
+Read and execute the corresponding sub-flow explicitly per phase; do not let sub-flows compete
+to trigger themselves through natural language:
 
-- 提取契约：读取 `${SKILL_ROOT}/../contract-extract/SKILL.md`；
-- 隔离测试生成：读取 `${SKILL_ROOT}/../isolated-test-generation/SKILL.md`；
-- 结果归并和契约差异：读取 `${SKILL_ROOT}/../contract-diff/SKILL.md`；
-- 最终报告：读取 `${SKILL_ROOT}/../assurance-report/SKILL.md`。
+- Contract extraction: read `${SKILL_ROOT}/../contract-extract/SKILL.md`;
+- Isolated test generation: read `${SKILL_ROOT}/../isolated-test-generation/SKILL.md`;
+- Result merging and contract diff: read `${SKILL_ROOT}/../contract-diff/SKILL.md`;
+- Final report: read `${SKILL_ROOT}/../assurance-report/SKILL.md`.
 
-子流程必须继承本入口的 run-id、工件路径和隔离约束，但不继承主 agent 的对话历史。
+Sub-flows must inherit this entry's run-id, artifact paths, and isolation constraints, but not
+the main agent's conversation history.
 
-## 阶段一：提取 contract
+## Phase one: extract the contract
 
-先读取适用的 `AGENTS.md`、目标模块契约、相关 design/ADR 和 PR diff。输出一份冻结的 contract 文档到：
+First read the applicable `AGENTS.md`, the target module's contracts, relevant design/ADRs, and
+the PR diff. Output a frozen contract document to:
 
 ```text
 ${RUN_DIR}/contract.md
 ```
 
-每条 contract 至少包含：
+Each contract contains at least:
 
-- `C-<number>` 稳定 ID；
-- 触发条件和前置状态；
-- 正常结果；
-- 异常、错误码或 outcome；
-- 生命周期和资源所有权；
-- 取消、deadline、上下文、executor 或队列语义；
-- 可观察断言；
-- 当前证据来源（PR、Javadoc、design、现有测试）；
-- 明确的不确定点。
+- a stable `C-<number>` ID;
+- trigger conditions and precondition state;
+- normal results;
+- exceptions, error codes, or outcomes;
+- lifecycle and resource ownership;
+- cancellation, deadline, context, executor, or queue semantics;
+- observable assertions;
+- the current evidence source (PR, Javadoc, design, existing tests);
+- explicit uncertainties.
 
-用 MUST、MUST NOT、SHOULD 和 MAY 表达强度。不要把实现细节自动写成用户契约。
+Express strength with MUST, MUST NOT, SHOULD, and MAY. Do not automatically write
+implementation details into user contracts.
 
-同时生成：
+Also produce:
 
 ```text
 ${RUN_DIR}/contract-gaps.md
 ```
 
-把信息缺失分为：
+Classifying missing information into:
 
-- 缺少异常类型或校验顺序；
-- 缺少生命周期边界；
-- 缺少并发交错或可见性保证；
-- 缺少取消/失败归因；
-- 缺少输入边界和 nullability；
-- 缺少最终结果与实时观察的区别；
-- 缺少失败处理和资源清理要求。
+- missing exception types or validation order;
+- missing lifecycle boundaries;
+- missing concurrency interleavings or visibility guarantees;
+- missing cancellation/failure attribution;
+- missing input boundaries and nullability;
+- missing distinction between final results and live observation;
+- missing failure-handling and resource-cleanup requirements.
 
-## 阶段二：建立独立测试环境
+## Phase two: set up the isolated test environment
 
-必须使用真正隔离的 worktree 或等价沙箱。
+A genuinely isolated worktree or equivalent sandbox is mandatory.
 
-### 上下文隔离是硬约束
+### Context isolation is a hard constraint
 
-测试 subagent 必须使用 fresh context 启动。调用时不得继承主 agent 的完整会话历史、实现 agent 的对话、实现 agent 的分析草稿、已有测试生成过程或之前的失败解释。使用协作工具时应使用等价于 `fork_turns: none` 的新上下文；不要使用会复制父会话历史的默认启动方式。
+The test subagent must start with a fresh context. Invocation must not inherit the main agent's
+full session history, the implementation agent's conversation, the implementation agent's
+analysis drafts, any prior test-generation process, or previous failure explanations. When
+using collaboration tools, use a fresh context equivalent to `fork_turns: none`; do not use a
+default launch mode that copies the parent session's history.
 
-主 agent 只向测试 subagent 传递一个最小、冻结、可审计的输入包：
+The main agent passes the test subagent exactly one minimal, frozen, auditable input package:
 
 ```text
 contract.md
-允许读取的脱敏 API/类型视图
-必要的构建和测试命令
-测试输出格式与候选 ID 规则
+the sanitized API/type views it may read
+the necessary build and test commands
+the test output format and candidate ID rules
 ```
 
-不得把以下内容放入输入包，也不得让 subagent 通过路径或工具自行发现：
+None of the following may enter the input package, nor may the subagent discover them through
+paths or tools:
 
-- 主 agent 的分析、判断和对话历史；
-- 实现 agent 的提示词、推理、代码草稿或修复记录；
-- 真实生产源码的方法体和私有字段；
-- 现有测试、测试报告、PIT 报告和之前的失败分类；
-- 其他 agent 的候选测试、假设或 `candidate-status.csv`；
-- Git 历史、父 worktree、主 checkout 或隐藏目录中的未冻结材料。
+- the main agent's analysis, judgments, and conversation history;
+- the implementation agent's prompts, reasoning, code drafts, or fix records;
+- method bodies and private fields of the real production source;
+- existing tests, test reports, PIT reports, and previous failure classifications;
+- other agents' candidate tests, assumptions, or `candidate-status.csv`;
+- Git history, the parent worktree, the main checkout, or unfrozen material in hidden
+  directories.
 
-如果平台无法保证 fresh context，必须把本轮验证标记为 `BLOCKED` 或 `INCONCLUSIVE`，不得把同一会话中的测试生成称为独立验证。
+If the platform cannot guarantee a fresh context, this verification round must be marked
+`BLOCKED` or `INCONCLUSIVE`; test generation within the same session must not be called
+independent verification.
 
-测试 agent：
+The test agent:
 
-- 只接收冻结后的 `contract.md`、允许的 API/类型视图和必要构建信息；
-- 不读取实现 agent 的推理、测试草稿、已有测试或父目录源码；
-- 不读取 Git 历史来恢复隐藏实现；
-- 不修改生产代码；
-- 每个候选测试分配稳定 ID，如 `CONTRACT-TDD-001`；
-- 写出前置状态、操作序列、观察点、断言和不确定性说明。
+- receives only the frozen `contract.md`, the allowed API/type views, and necessary build
+  information;
+- does not read the implementation agent's reasoning, test drafts, existing tests, or the
+  parent directory's source;
+- does not read Git history to recover hidden implementations;
+- does not modify production code;
+- assigns each candidate test a stable ID such as `CONTRACT-TDD-001`;
+- writes out the precondition state, operation sequence, observation points, assertions, and
+  uncertainty notes.
 
-当需要隐藏实现细节时，使用 Java AST 或目标语言的语法树生成脱敏源码。保留类型、签名、泛型、注解、Javadoc 和公开常量，隐藏方法体、私有字段和内部调度细节。不要使用正则替换作为主要脱敏方法。
+When implementation details need hiding, use a Java AST or the target language's syntax tree to
+generate sanitized sources. Keep types, signatures, generics, annotations, Javadoc, and public
+constants; hide method bodies, private fields, and internal dispatch details. Do not use regex
+replacement as the primary sanitization method.
 
-使用 subagent 时优先选择与实现 agent 不同的上下文。模型不同是可选项，上下文和工件隔离是硬要求。
+When using subagents, prefer a context different from the implementation agent's. A different
+model is optional; context and artifact isolation is the hard requirement.
 
-启动 subagent 前先检查其工作目录中不存在真实生产源码、已有测试和其他 agent 的输出。测试 agent 完成后，再将候选测试作为单向工件复制到独立验证 worktree；不要把验证过程中的生产实现、失败日志或修正后的断言回传给测试 agent 继续“修正独立测试”。
+Before launching a subagent, check that its working directory contains no real production
+source, existing tests, or other agents' output. Only after the test agent finishes are the
+candidate tests copied as one-way artifacts into the independent verification worktree; do not
+pass the production implementation, failure logs, or corrected assertions from verification
+back to the test agent to keep "fixing the independent tests".
 
-## 阶段三：生成测试
+## Phase three: generate tests
 
-根据 contract 生成与改动相关的最小测试集合，优先覆盖：
+Generate the minimal test set relevant to the change from the contract, prioritizing:
 
-- 正常路径；
-- 输入边界和组合非法输入；
-- 生命周期转换；
-- 失败和异常归因；
-- cancellation、deadline、context、executor 绑定；
-- 队列容量、FIFO、阻塞和唤醒；
-- 并发交错和状态机；
-- 可观察副作用、资源释放和 execution exit。
+- normal paths;
+- input boundaries and combined illegal inputs;
+- lifecycle transitions;
+- failure and exception attribution;
+- cancellation, deadline, context, executor binding;
+- queue capacity, FIFO, blocking, and wakeup;
+- concurrency interleavings and state machines;
+- observable side effects, resource release, and execution exit.
 
-测试 agent 不要复制实现内部结构。断言应面向公共行为和契约，不依赖私有字段、调用次数或当前算法，除非这些本身属于契约。
+The test agent must not copy the implementation's internal structure. Assertions should target
+public behavior and the contract, not private fields, invocation counts, or the current
+algorithm — unless those are themselves part of the contract.
 
-候选测试、计划和假设保存到：
+Candidate tests, plans, and assumptions go to:
 
 ```text
 ${RUN_DIR}/candidates/
 ```
 
-## 阶段四：真实实现验证
+## Phase four: verify on the real implementation
 
-将候选测试复制到独立验证 worktree，在真实 PR 实现上运行：
+Copy the candidate tests into the independent verification worktree and run them against the
+real PR implementation:
 
-1. 先运行候选测试的编译检查；
-2. 记录每个编译失败；
-3. 修正测试适配问题时不得修改生产代码；
-4. 运行目标测试；
-5. 对失败逐项判断是生产缺陷、测试错误假设、时序不稳定、环境问题还是 contract 不完整；
-6. 运行相关现有测试，避免把新增测试与已有证据混为一谈；
-7. 最后运行项目要求的完整测试和格式检查。
+1. run the candidate tests' compilation check first;
+2. record every compilation failure;
+3. when fixing test adaptation problems, never modify production code;
+4. run the target tests;
+5. judge each failure as a production defect, a wrong test assumption, timing instability, an
+   environment problem, or an incomplete contract;
+6. run the relevant existing tests, avoiding mixing the new tests with existing evidence;
+7. finally run the full tests and format checks the project requires.
 
-真实实现验证必须发生在测试 agent 已经结束并封存候选之后。不得让测试 agent 在看到真实实现的失败输出后继续修改候选测试；如需适配，主 agent 或单独的适配阶段负责，并保留初始候选和适配差异。
+Real-implementation verification must happen after the test agent has finished and sealed its
+candidates. The test agent must not keep modifying candidate tests after seeing the real
+implementation's failure output; when adaptation is needed, the main agent or a separate
+adaptation phase handles it, keeping the initial candidates and the adaptation diff.
 
-每个候选测试必须写入：
+Every candidate test must be written into:
 
 ```text
 ${RUN_DIR}/candidate-status.csv
 ```
 
-状态只能使用以下值：
+Status may only use these values:
 
-- `新增覆盖`：现有测试没有提供相同的行为证据；
-- `重复覆盖`：行为、前置条件和观察窗口与现有测试等价；
-- `错误假设`：测试推导合理，但不符合当前明确契约；
-- `编译失败`：API、泛型、异常或测试环境假设不成立；
-- `运行失败`：已编译，但前置条件、时序或断言不成立；
-- `不稳定`：依赖未定义调度或时间窗口；
-- `oracle不足`：契约无法推出可判定的预期。
+- `new coverage`: no existing test provides the same behavioral evidence;
+- `duplicate coverage`: behavior, preconditions, and observation window equivalent to an
+  existing test;
+- `wrong assumption`: the test's derivation was reasonable, but does not match the current
+  explicit contract;
+- `compilation failure`: the API, generics, exceptions, or test-environment assumption does
+  not hold;
+- `run failure`: compiled, but a precondition, timing, or assertion does not hold;
+- `unstable`: depends on undefined scheduling or time windows;
+- `insufficient oracle`: the contract cannot derive a decidable expectation.
 
-失败分类必须保留初始状态和修正后的最终状态，不得只报告最终绿色结果。
+Failure classification must keep the initial state and the corrected final state; never report
+only the final green result.
 
-## 阶段五：行为级去重
+## Phase five: behavior-level deduplication
 
-禁止只按测试名称、文件名或覆盖率去重。比较以下内容：
+Never deduplicate by test names, file names, or coverage alone. Compare:
 
-- 输入和前置状态；
-- 操作序列；
-- 观察点；
-- 断言和异常分类；
-- 并发交错；
-- 生命周期阶段；
-- 是否检测副作用、清理或资源释放。
+- inputs and precondition states;
+- operation sequences;
+- observation points;
+- assertions and exception classification;
+- concurrency interleavings;
+- lifecycle phases;
+- whether side effects, cleanup, or resource release are checked.
 
-如果候选测试只是把现有测试换成另一种写法，标记为 `重复覆盖`。如果它暴露了文档中未定义的行为分歧，标记为 `错误假设` 或 `oracle不足`，并回写到 `contract-gaps.md`。
+If a candidate test merely rewrites an existing test in another form, mark it `duplicate
+coverage`. If it exposes a behavioral divergence undefined in the documentation, mark it
+`wrong assumption` or `insufficient oracle`, and write it back to `contract-gaps.md`.
 
-## 阶段六：反向验证
+## Phase six: reverse verification
 
-对每条 `新增覆盖` 测试至少选择一个对应生产行为做临时反向验证：
+For every `new coverage` test, pick at least one corresponding production behavior for
+temporary reverse verification:
 
-- 临时注入一个与 contract 相反的行为；或
-- 使用 PIT、故障注入、状态扰动或等价的可控突变；
-- 运行目标测试，确认它按预期失败；
-- 精确恢复生产文件；
-- 保存命令、退出状态和日志。
+- temporarily inject a behavior contrary to the contract; or
+- use PIT, fault injection, state perturbation, or an equivalent controllable mutation;
+- run the target test and confirm it fails as expected;
+- restore the production files exactly;
+- save the commands, exit statuses, and logs.
 
-反向验证结果保存到：
+Reverse verification results go to:
 
 ```text
 ${RUN_DIR}/reverse-verification/
 ```
 
-不要把临时突变留在工作树。突变测试必须遵守已解析 adapter 的 `mutation_policy` 及其 instructions，并保留原始 mutation 状态；如果 adapter 未提供适用策略，将该阶段标记为 `BLOCKED` 或 `INCONCLUSIVE`。超时、内存错误、无 XML 或部分运行不得直接报告为通过；只有满足 disposition 规则且被明确接受的例外，才能在 gate 层进入 `PASS`，同时保留原始状态和例外记录。
+Leave no temporary mutation in the worktree. Mutation testing must follow the resolved
+adapter's `mutation_policy` and its instructions, preserving raw mutation statuses; if the
+adapter provides no applicable policy, mark that phase `BLOCKED` or `INCONCLUSIVE`. Timeouts,
+memory errors, missing XML, or partial runs must not be reported as passing; only exceptions
+satisfying the disposition rules and explicitly accepted may enter `PASS` at the gate layer,
+with the raw status and exception record preserved.
 
-## 阶段七：输出改进建议
+## Phase seven: output improvement suggestions
 
-最终生成：
+Finally produce:
 
 ```text
 ${RUN_DIR}/report.md
 ```
 
-报告必须回答：
+The report must answer:
 
-1. PR 实际承诺了哪些 contract；
-2. 哪些 contract 缺少异常、边界、生命周期或并发细节；
-3. 哪些候选测试提供了新增证据；
-4. 哪些测试重复、错误或不稳定；
-5. 哪些失败是实现缺陷，哪些是测试或文档问题；
-6. 代码需要修复什么；
-7. 文档/contract 需要补充什么；
-8. 哪些验证通过、失败、阻塞或不适用；
-9. 仍然存在什么不确定性。
+1. which contracts the PR actually commits to;
+2. which contracts lack exception, boundary, lifecycle, or concurrency details;
+3. which candidate tests provided new evidence;
+4. which tests are duplicate, wrong, or unstable;
+5. which failures are implementation defects and which are test or documentation problems;
+6. what the code needs fixed;
+7. what the documentation/contract needs added;
+8. which verifications passed, failed, blocked, or were inapplicable;
+9. what uncertainty remains.
 
-建议按以下顺序给出改进：
+Give improvements in this order:
 
 ```text
-先修复明确的生产缺陷
-再补充缺失的 contract
-再加强新增行为的测试和反向验证
-最后删除重复测试或合并重复契约
+first fix confirmed production defects
+then fill in missing contracts
+then strengthen tests and reverse verification for new behavior
+finally delete duplicate tests or merge duplicate contracts
 ```
 
-不要因为测试数量增加或覆盖率提高就自动建议保留所有候选测试。
+Do not automatically suggest keeping every candidate test just because test counts or coverage
+grew.
 
-## 自动推进规则
+## Auto-advance rules
 
-调用 skill 后：
+Once the skill is invoked:
 
-- 自动创建输出目录和隔离 worktree；
-- 自动启动独立测试 subagent；
-- 自动执行编译、目标测试、全量测试、适用的 PIT 和反向验证；
-- 自动保存中间工件和失败日志；
-- 长任务每 1–2 分钟检查进程、日志和输出；
-- 发现无 CPU、无输出或明显停滞时报告并按一次重试规则处理；
-- 最终一次性汇报结果和未决项。
+- automatically create the output directory and the isolated worktree;
+- automatically launch the independent test subagent;
+- automatically run compilation, target tests, full tests, applicable PIT, and reverse
+  verification;
+- automatically save intermediate artifacts and failure logs;
+- check processes, logs, and output every 1–2 minutes during long tasks;
+- report and handle per the one-retry rule when finding no CPU, no output, or obvious stalls;
+- report results and open items once at the end.
 
-不得因为常规实现选择、测试修正、格式化、日志归档或失败分类反复向用户确认。只有以下事项可以暂停并请求决定：
+Do not repeatedly confirm with the user over routine implementation choices, test corrections,
+formatting, log archiving, or failure classification. Only these may pause for a decision:
 
-- 公共 API 形状或 contract 语义有多个合理方向；
-- 需要新增依赖、修改构建基线、发布、合并 main 或发送外部消息；
-- 外部环境在规定重试后仍阻塞，且无法继续产生有意义证据。
+- multiple reasonable directions for a public API shape or contract semantics;
+- adding a dependency, changing the build baseline, releasing, merging main, or sending
+  external messages;
+- an external environment still blocked after the prescribed retries, with no meaningful
+  evidence producible.
 
-## 最终工件
+## Final artifacts
 
-一个成功运行至少应包含：
+A successful run contains at least:
 
 ```text
 ${RUN_DIR}/
@@ -327,19 +391,24 @@ ${RUN_DIR}/
 └── report.md
 ```
 
-如果某一步未执行，必须保留对应的 `SKIPPED`、`BLOCKED` 或 `INCONCLUSIVE` 状态和原因。报告应分别列出 raw status、disposition、例外是否已接受和最终 gate 状态；`PASS` 可以包含已接受例外，但不得把原始 `TIMED_OUT` 改写成 `KILLED`。
-最终报告前运行：
+If a step was not executed, the corresponding `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status
+and reason must be kept. The report lists raw status, disposition, whether the exception was
+accepted, and the final gate status separately; `PASS` may include accepted exceptions, but a
+raw `TIMED_OUT` must not be rewritten as `KILLED`.
+Before the final report, run:
 
 ```bash
 python3 ${SKILL_ROOT}/scripts/verify_run.py --run-dir ${RUN_DIR}
 ```
 
-校验失败时，不能把本轮报告标为可复现或通过。
+When verification fails, this round's report must not be marked reproducible or passing.
 
-## 示例调用
+## Example invocation
 
 ```text
 /contract-first-assurance
 ```
 
-执行后，skill 根据当前 PR diff 提取 contract，启动隔离测试 agent，验证真实实现，完成去重和反向验证，并输出契约缺口与代码改进建议。
+Once executed, the skill extracts the contract from the current PR diff, launches the isolated
+test agent, verifies against the real implementation, completes deduplication and reverse
+verification, and outputs contract gaps and code improvement suggestions.

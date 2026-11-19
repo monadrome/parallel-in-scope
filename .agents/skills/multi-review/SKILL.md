@@ -1,50 +1,60 @@
 ---
 name: multi-review
-description: 项目内并行多 agent 代码审查与可复算评测。用于 multi-review、par-review、并行 review、交叉审查、审查当前工作区或某个 commit。默认通过 tools/llm-review-bench 的 TypeScript CLI 运行 reviewer、保存原始 findings、显式判定并生成可复算报告；不要使用旧的 Python multi_review.py 或三方投票脚本。
+description: In-project parallel multi-agent code review with recomputable evaluation. Use for multi-review, par-review, parallel review, cross review, reviewing the current worktree or a commit. Runs reviewers through the tools/llm-review-bench TypeScript CLI by default, keeps raw findings, applies explicit judgments, and produces recomputable reports; do not use the old Python multi_review.py or three-way vote scripts.
 ---
 
 # /multi-review
 
-本文件是项目级入口，只负责编排与判定，不定义评测算法。存储协议、finding 规范化与指标口径以
-[tools/llm-review-bench/docs/protocol.md](../../../tools/llm-review-bench/docs/protocol.md) 为准，
-聚簇与 verdict 规则以
-[tools/llm-review-bench/docs/clusters.md](../../../tools/llm-review-bench/docs/clusters.md) 为准；
-活契约见 [design/llm-review-benchmark.md](../../../design/llm-review-benchmark.md)。用户级同名
-skill 仍存在于本机，但项目内日常 `/multi-review` 以本文件为准。
+This file is the project-level entry: it handles orchestration and judgment only, and defines no
+evaluation algorithm. The storage protocol, finding normalization, and metric definitions are
+governed by
+[tools/llm-review-bench/docs/protocol.md](../../../tools/llm-review-bench/docs/protocol.md);
+the clustering and verdict rules by
+[tools/llm-review-bench/docs/clusters.md](../../../tools/llm-review-bench/docs/clusters.md);
+the live contract is [design/llm-review-benchmark.md](../../../design/llm-review-benchmark.md).
+A user-level skill of the same name still exists on this machine, but in-project daily
+`/multi-review` follows this file.
 
-## 硬约束
+## Hard constraints
 
-- 唯一执行路径是 `tools/llm-review-bench/dist/cli.js`。MUST NOT 调用
-  `~/.agents/skills/multi-review/scripts/multi_review.py`、`vote`/`tally` 或任何自建 Python 编排。
-- 不改 `tools/llm-review-bench` 内实现；只通过 CLI 使用它。需要新能力时向用户报告，不要就地改工具。
-- reviewer 的 severity 只是参考；主 agent 必须亲自读代码核实后再写 verdict。
-- timeout / failed 的 reviewer 不是 0 findings，不得当作空结果计入分母；按 status 记录并说明。
-- setup 失败、空输出、解析失败都不是“没有发现问题”；按实际错误报告并停止或重试。
-- open-world run MUST NOT 伪造 recall；没有 gold 时报告 `n/a`，不得为了数字补写 gold。
-- 同一 run 的自我修复是 remediation，MUST NOT 作为该 run 的独立 gold 回填。
+- The only execution path is `tools/llm-review-bench/dist/cli.js`. MUST NOT call
+  `~/.agents/skills/multi-review/scripts/multi_review.py`, `vote`/`tally`, or any self-built
+  Python orchestration.
+- Do not modify the implementation inside `tools/llm-review-bench`; use it only through the
+  CLI. Report needed new capabilities to the user instead of changing the tool in place.
+- A reviewer's severity is only a reference; the main agent must read the code and verify
+  personally before writing a verdict.
+- A timed-out / failed reviewer is not 0 findings and must not be counted into the denominator
+  as an empty result; record and explain by status.
+- Setup failure, empty output, and parse failure are not "no problems found"; report the actual
+  error and stop or retry.
+- An open-world run MUST NOT fabricate recall; report `n/a` without gold and never write gold
+  for the sake of a number.
+- A same-run self-fix is remediation and MUST NOT be backfilled as that run's independent gold.
 
-## 1. 构建
+## 1. Build
 
-从仓库根执行；`dist/` 不存在时先构建：
+Run from the repository root; build first when `dist/` is missing:
 
 ```bash
 test -f tools/llm-review-bench/dist/cli.js || npm --prefix tools/llm-review-bench run build
 ```
 
-需要固定 reviewer provenance 时用 `--systems <file>`；只跑部分 reviewer 用 `--agents`。
-默认会自动选择 `PATH` 上可用的真实 CLI，不会使用 fixture。
+Use `--systems <file>` to pin reviewer provenance; use `--agents` to run a subset of reviewers.
+By default, available real CLIs on `PATH` are auto-selected; fixtures are never used.
 
-### 当前可用 reviewer 组合
+### Currently available reviewer combination
 
-按当前机器上的可用性固定模型与 effort；Claude 系列暂不可用，不要把 `claude` 放进 systems 文件。
+Pin models and efforts by availability on the current machine; the Claude family is unavailable
+for now — do not put `claude` in a systems file.
 
-| adapter | model | effort | 备注 |
+| adapter | model | effort | Notes |
 |---|---|---|---|
-| `codex` | `gpt-6.1-terra` | `medium` | Codex 的 reasoning effort 会传给 CLI。 |
-| `kiro` | `gpt-5.6-terra` 或 `kimi-k3` | `max` | 每个 run 选择一个 Kiro 模型；通过 `extraArgs: ["--effort", "max"]` 传递 Kiro effort。 |
-| `zcode` | `glm-5.3` | `max` | 当前 `llm-review-bench` adapter registry 尚未包含 `zcode`；不得把它伪装成已计入 benchmark 的 reviewer，需先补 adapter 或单独记录外部审查。 |
+| `codex` | `gpt-6.1-terra` | `medium` | Codex's reasoning effort is passed to the CLI. |
+| `kiro` | `gpt-5.6-terra` or `kimi-k3` | `max` | Choose one Kiro model per run; pass the Kiro effort via `extraArgs: ["--effort", "max"]`. |
+| `zcode` | `glm-5.3` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
 
-示例 systems 文件：
+Example systems file:
 
 ```json
 {
@@ -55,130 +65,148 @@ test -f tools/llm-review-bench/dist/cli.js || npm --prefix tools/llm-review-benc
 }
 ```
 
-如果要比较 Kiro 的两个模型，分别启动两个 run；不要在同一个 systems 文件中重复 `kiro`，因为协议要求
-每个 adapter 名称唯一。Kimi K3 的可用性属于 Kiro 模型矩阵，不等同于旧的 `kimi` adapter；只有在独立
-确认 Kimi CLI 凭据可用时才启用 `kimi` adapter。
+To compare Kiro's two models, start two separate runs; do not repeat `kiro` in one systems
+file, because the protocol requires each adapter name to be unique. Kimi K3 availability
+belongs to the Kiro model matrix and is not equivalent to the old `kimi` adapter; enable the
+`kimi` adapter only after independently confirming the Kimi CLI credentials work.
 
-## 2. 选择 case 并运行
+## 2. Choose a case and run
 
-按用户目标选一个，不要混用：
+Pick one per the user's goal; do not mix:
 
 ```bash
-# 未提交改动（默认首选；工作区干净时改用 --commit）
+# Uncommitted changes (default first choice; use --commit when the worktree is clean)
 node tools/llm-review-bench/dist/cli.js review --working --json
 
-# 单个 commit；根 commit 需要显式 --base
+# A single commit; a root commit needs an explicit --base
 node tools/llm-review-bench/dist/cli.js review --commit <sha> --json
 node tools/llm-review-bench/dist/cli.js review --base <base> --commit <sha> --json
 
-# 显式 fix benchmark：审 buggy = fix^，fix 只生成 candidate gold
+# Explicit fix benchmark: reviews buggy = fix^, with fix producing only candidate gold
 node tools/llm-review-bench/dist/cli.js run --fix <fix-sha> --json
 
-# 只重试失败/超时的 reviewer（不是新 case）
+# Retry only failed/timed-out reviewers (not a new case)
 node tools/llm-review-bench/dist/cli.js resume <run-id> --json
 ```
 
-`run --fix` 不接受 `--working`/`--commit`/`--base`；`review --working` 不能与 `--commit` 组合。
-默认输出根是 `<repo>/.review-benchmark`，可用 `--output` 指定。
+`run --fix` does not accept `--working`/`--commit`/`--base`; `review --working` cannot combine
+with `--commit`. The default output root is `<repo>/.review-benchmark`, overridable with
+`--output`.
 
-启动前 CLI 会对选中的 reviewer 做探活：缺失、非零退出和探活超时都会在 run 创建前报告，
-不会等到长时间 review 后才暴露。运行时每个 reviewer 都有硬超时和 SIGTERM→SIGKILL 收尾；
-可按任务缩短或放宽：
+Before starting, the CLI probes the selected reviewers: missing binaries, non-zero exits, and
+probe timeouts are all reported before the run is created instead of surfacing after a long
+review. At runtime each reviewer has a hard timeout and a SIGTERM→SIGKILL wind-down; shorten or
+relax per task:
 
 ```bash
 node tools/llm-review-bench/dist/cli.js review --commit <sha> \
   --review-timeout 900 --timeout 1200 --kill-grace 10 --json
 ```
 
-运行中可查询状态和进度：
+Status and progress are queryable during a run:
 
 ```bash
 node tools/llm-review-bench/dist/cli.js status <run-id> --json
 node tools/llm-review-bench/dist/cli.js status <run-id> --watch --interval 5
 ```
 
-状态会列出每个 reviewer 的 attempt、状态、日志字节数、最近活动时间和 `stale` 标记。
-运行目录的 `events.jsonl` 会周期写入 `review.progress`，因此即使 reviewer 尚未结束，仍能
-判断它是在输出、停滞还是已被超时终止。`stale` 只表示超过进度观察窗口没有心跳，不等于
-审查失败；最终以 attempt 的 `completed`/`failed`/`timed_out` 为准。
+The status lists each reviewer's attempt, state, log bytes, last activity time, and `stale`
+flag. The run directory's `events.jsonl` periodically writes `review.progress`, so even before
+a reviewer finishes you can tell whether it is producing output, stalled, or already
+timeout-terminated. `stale` only means no heartbeat within the progress observation window —
+not a review failure; the attempt's `completed`/`failed`/`timed_out` is authoritative.
 
-## 3. 读取 run 与原始 findings
+## 3. Read the run and raw findings
 
-从 JSON stdout 读取 `runId`、`runDir`、`systems`、`gold`、`reports`；没有 `--json` 时也会打印 run id。
+Read `runId`, `runDir`, `systems`, `gold`, `reports` from the JSON stdout; the run id is also
+printed without `--json`.
 
-- 原始 finding 在 `<runDir>/reviews/<agent>/attempt-N.json`。
-- `status` 不是 `completed` 时 `findings` 为 `null`；这不是空评审。先看
-  `<runDir>/logs/<agent>-attempt-N.*.log`，必要时 `resume`。
-- 不要读 `derived/` 猜结论；判定输入是原始 findings 加代码，不是上一版 verdict。
-- 报告 `notes` 里的 pending、stale adjudication、unclustered、incomplete reviewer 必须保留并说明。
+- Raw findings are at `<runDir>/reviews/<agent>/attempt-N.json`.
+- When `status` is not `completed`, `findings` is `null`; this is not an empty review. Read
+  `<runDir>/logs/<agent>-attempt-N.*.log` first, and `resume` when needed.
+- Do not read `derived/` to guess conclusions; judgment input is raw findings plus code, not
+  the previous verdict version.
+- Pending, stale adjudication, unclustered, and incomplete reviewers in the report `notes` must
+  be kept and explained.
 
-## 4. 亲自核实并生成版本化判定
+## 4. Verify personally and produce versioned judgments
 
-先读并遵守 [docs/clusters.md](../../../tools/llm-review-bench/docs/clusters.md)。逐条 finding 回到
-`<runDir>/snapshot/`、调用方和测试核实；能写失败测试就写，不能证实就标 `uncertain`，不要为了凑
-`confirmed` 降低标准。
+Read and follow [docs/clusters.md](../../../tools/llm-review-bench/docs/clusters.md) first.
+Verify each finding back against `<runDir>/snapshot/`, callers, and tests; write a failing test
+when you can, mark `uncertain` when you cannot prove — never lower the bar to fill `confirmed`.
 
-生成三个显式 JSON（形状见 [docs/protocol.md](../../../tools/llm-review-bench/docs/protocol.md) 第 7–8 节）：
+Produce three explicit JSONs (shapes in [docs/protocol.md](../../../tools/llm-review-bench/docs/protocol.md)
+sections 7–8):
 
-- `clusters.json`：对每个 completed reviewer 的每个 finding 恰好分区一次；漏项、重复、编造 ID 都会被拒绝。
-- `verdicts.json`：每个簇 `confirmed` / `rejected` / `neutral` / `uncertain` 四选一；不写的簇是
-  `pending`，不计入分母。
-- `gold.json`：只用于 historical case；顶层字段包括 `status`/`confirmedBy`/`note`/`labels`/
-  `excludedFixScope`（`provenance` 是工具写出的记录字段，不是输入字段）；每个 label 必须显式给
-  `introducedByBuggyCommit`，confirmed gold 还要 `confirmedBy`。open-world/live run 没有可确认的
-  gold label（工具只记录 open-world 状态）。
+- `clusters.json`: partition every finding of every completed reviewer exactly once; omissions,
+  duplicates, and fabricated IDs are all rejected.
+- `verdicts.json`: one of `confirmed` / `rejected` / `neutral` / `uncertain` per cluster;
+  unwritten clusters are `pending` and excluded from denominators.
+- `gold.json`: for historical cases only; top-level fields include
+  `status`/`confirmedBy`/`note`/`labels`/`excludedFixScope` (`provenance` is a record field the
+  tool writes, not an input field); each label must give `introducedByBuggyCommit` explicitly,
+  and confirmed gold also needs `confirmedBy`. An open-world/live run has no confirmable gold
+  labels (the tool only records the open-world state).
 
 ```bash
 node tools/llm-review-bench/dist/cli.js apply-judgment <run-id> \
   --clusters clusters.json --verdicts verdicts.json \
   --judge-kind agent --judge-name <name> --judge-model <model> --json
 
-# historical case 才加 --gold；confirmed gold 需要 confirmedBy（JSON 内或 flag）
+# add --gold only for historical cases; confirmed gold needs confirmedBy (in JSON or via flag)
 node tools/llm-review-bench/dist/cli.js apply-judgment <run-id> \
   --clusters clusters.json --verdicts verdicts.json --gold gold.json \
   --confirmed-by <name> \
   --judge-kind agent --judge-name <name> --judge-model <model> --json
 ```
 
-`apply-judgment` 默认重新评测并渲染报告；只导入不评测用 `--no-rescore`。需要重新计算时：
+`apply-judgment` re-evaluates and renders reports by default; use `--no-rescore` to import
+without evaluating. To recompute:
 
 ```bash
 node tools/llm-review-bench/dist/cli.js rescore <run-id> --json
 node tools/llm-review-bench/dist/cli.js report <run-id> --json
 ```
 
-新判定必须形成新的 `vN`；不要手改 `derived/` 或 `gold/` 下的已有版本。
+A new judgment must form a new `vN`; never hand-edit existing versions under `derived/` or
+`gold/`.
 
-## 5. 修复与报告
+## 5. Fixes and reporting
 
-- 保留正常 code review 的修复职责：confirmed 的 P0/明显缺陷，按项目规则最小修复、补测试、
-  跑该项目的格式与测试命令，并提交。修复不了的项在报告中列出。
-- 同一 run 的自我修复只作为 remediation，不写回该 run 的 confirmed gold，也不把它当作独立
-  gold；`link` 只用于独立于该 run 的后续 fix（见第 6 节）。
-- 报告给用户：run id、每个 reviewer 的 status/findings、confirmed/rejected/neutral/uncertain/
-  pending 计数、recall（有 gold 且可计算时）或 `n/a` 及原因、报告路径、未修复项。
-- 收尾：`node tools/llm-review-bench/dist/cli.js cleanup <run-id>` 删除 worktree 与临时 agent 输出，
-  保留证据。
+- Keep normal code review's fixing duties: confirmed P0/obvious defects get minimal fixes,
+  tests added, the project's format and test commands run, and commits made per project rules.
+  List unfixable items in the report.
+- A same-run self-fix serves only as remediation — never written back into that run's confirmed
+  gold and never treated as independent gold; `link` is only for later fixes independent of
+  that run (see section 6).
+- Report to the user: run id, each reviewer's status/findings,
+  confirmed/rejected/neutral/uncertain/pending counts, recall (when gold exists and is
+  computable) or `n/a` with the reason, report paths, and unfixed items.
+- Wrap up: `node tools/llm-review-bench/dist/cli.js cleanup <run-id>` deletes worktrees and
+  temporary agent output, keeping the evidence.
 
-## 6. 后续 fix 与复算
+## 6. Later fixes and rescoring
 
-后续出现独立 fix 时，不重跑 reviewer：
+When an independent fix appears later, do not rerun reviewers:
 
 ```bash
 node tools/llm-review-bench/dist/cli.js link --run <run-id> --fix <fix-sha> --json
-# 读取 linked gold（默认 candidate）；确认后用 apply-judgment --gold 导入 confirmed gold，
-# 并在 gold.json 的 note 写明独立性依据（会记录到 provenance.note）
+# Read the linked gold (candidate by default); after confirmation, import confirmed gold with
+# apply-judgment --gold, and write the independence basis into gold.json's note
+# (recorded as provenance.note)
 node tools/llm-review-bench/dist/cli.js rescore <run-id> --json
 node tools/llm-review-bench/dist/cli.js report <run-id> --json
 ```
 
-`link` 要求 fix 从 run head 下降；它只写新的 gold/evaluation 版本，不调用模型。`rerun <run-id>`
-是新 run（新 run id、同一不可变输入、重新跑 reviewer、不继承旧判定），不是 `resume`。
+`link` requires the fix to descend from the run head; it only writes new gold/evaluation
+versions and calls no models. `rerun <run-id>` is a new run (new run id, same immutable inputs,
+reviewers rerun, old judgments not inherited) — not `resume`.
 
-## 7. 结果判读
+## 7. Reading results
 
-- 分母为零的 rate 是 `n/a`/`null`，不是 0。
-- candidate/open-world gold 的 recall 是 `null`；不要在报告里写成 0 或百分比。
-- 一个 case 只说明一个 measured system，不是模型排名；比较用 `leaderboard`，并保留
-  agent/model/revision/effort provenance。
-- failed/timeout 与 completed 的 reviewer 不能混为一个分母；报告分别列出。
+- A rate with a zero denominator is `n/a`/`null`, not 0.
+- Candidate/open-world gold recall is `null`; never write it as 0 or a percentage in reports.
+- One case says something about one measured system, not a model ranking; compare with
+  `leaderboard`, keeping agent/model/revision/effort provenance.
+- Failed/timeout and completed reviewers must not mix into one denominator; reports list them
+  separately.

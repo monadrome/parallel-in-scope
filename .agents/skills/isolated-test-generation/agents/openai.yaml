@@ -1,6 +1,6 @@
 interface:
   display_name: "Isolated Test Generation"
-  short_description: "隔离测试生成"
+  short_description: "Isolated test generation"
   default_prompt: "Use $isolated-test-generation as part of the contract-first assurance workflow."
 policy:
   allow_implicit_invocation: false

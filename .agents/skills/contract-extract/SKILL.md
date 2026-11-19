@@ -1,20 +1,25 @@
 ---
 name: contract-extract
-description: 契约提取：从 PR 或工作区改动整理冻结、可执行的行为契约。仅由 contract-first-assurance 主入口或用户显式调用。
+description: Contract extraction: organizes frozen, executable behavioral contracts from a PR or worktree changes. Invoked only by the contract-first-assurance main entry or explicitly by the user.
 version: "1.2.0"
 disable-model-invocation: true
 ---
 # Contract Extract
 
-本阶段只由 `contract-first-assurance` 调度。使用父流程传入的
-`SKILL_ROOT` 和 `RUN_DIR`，不要通过固定的仓库路径寻找入口或输出目录。
+This phase is dispatched only by `contract-first-assurance`. Use the
+`SKILL_ROOT` and `RUN_DIR` passed in by the parent flow; do not locate the entry or output
+directories through fixed repository paths.
 
-从主入口提供的 PR/工作区范围、适用规则和证据中提取冻结 contract。
+Extract the frozen contract from the PR/worktree scope, applicable rules, and evidence provided
+by the main entry.
 
-只读取：
+Read only:
 
-- 指定 diff、相关设计契约和公共 API；
-- 适用的 `AGENTS.md`；
-- 主入口指定的现有行为证据。
+- the specified diff, relevant design contracts, and public APIs;
+- the applicable `AGENTS.md`;
+- the existing behavioral evidence designated by the main entry.
 
-输出 `${RUN_DIR}/contract.md` 和 `${RUN_DIR}/contract-gaps.md`。每条契约使用稳定 ID，并写清前置状态、操作、可观察结果、异常或 outcome、生命周期、并发/取消语义、证据来源和不确定点。不要把实现细节自动提升为契约。
+Output `${RUN_DIR}/contract.md` and `${RUN_DIR}/contract-gaps.md`. Each contract uses a stable
+ID and states the precondition state, operations, observable results, exceptions or outcomes,
+lifecycle, concurrency/cancellation semantics, evidence source, and uncertainties. Do not
+automatically promote implementation details into contracts.

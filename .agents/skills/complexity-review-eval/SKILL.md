@@ -1,29 +1,35 @@
 ---
 name: complexity-review-eval
-description: 项目内的复杂度灰度评测与重构注意力路由。凡是代码改动涉及方法变长、分支/嵌套增长、结构性重构、开发者只能做浅层 review、担心仅靠 agent review 不足，或提到 P0036、复杂度评测、灰度评测、重构候选时，都主动使用本 skill。它生成可审计的 complexity metrics，并把候选接入 refactoring-review 的 S lens；它不把复杂度当质量分，也不替代测试、契约检查或独立 code review。
+description: In-project complexity gray evaluation and refactoring attention routing. Use proactively whenever a code change involves longer methods, growing branches/nesting, structural refactoring, when the developer could only do a shallow review, when relying on agent review alone feels insufficient, or when P0036, complexity evaluation, gray evaluation, or refactoring candidates are mentioned. It produces auditable complexity metrics and routes candidates into refactoring-review's S lens; it does not treat complexity as a quality score, and it does not replace tests, contract checks, or independent code review.
 ---
 
 # Complexity review evaluation
 
-把复杂度机制当作评测体系中的灰度信号：它负责把有限的 reviewer 注意力导向本次 change
-中值得阅读的方法，确定性构建和测试负责质量底线，语义 review 负责决定是否真的需要重构。
+Treat the complexity mechanism as a gray signal in the evaluation system: it routes limited
+reviewer attention to the methods worth reading in this change; deterministic builds and tests
+hold the quality floor; semantic review decides whether refactoring is actually needed.
 
-## 何时主动调用
+## When to invoke proactively
 
-主动调用本 skill 的典型情况：
+Typical situations for proactive invocation:
 
-- 代码 change 新增或显著修改了长方法、深嵌套、分支密集的方法；
-- 开发者明确表示只做了简单 review，想依靠 agent review 补足检查；
-- 要运行 `/refactoring-review`，且 change 包含核心生产 Java；
-- 讨论 P0036、复杂度候选、重构热点、评测灰度或 review 注意力分配；
-- change 触及并发、取消、deadline、executor、队列或公共契约，需要确认是否应升级 review 强度。
+- a code change adds or significantly modifies long methods, deep nesting, or branch-dense
+  methods;
+- the developer says they only did a simple review and wants agent review to fill the gap;
+- `/refactoring-review` is about to run and the change includes core production Java;
+- the discussion is about P0036, complexity candidates, refactoring hotspots, evaluation gray
+  periods, or review attention allocation;
+- the change touches concurrency, cancellation, deadlines, executors, queues, or public
+  contracts, and review intensity may need escalating.
 
-纯文档、纯配置、没有核心生产 Java 变化的 change 可以调用本 skill 做记录，但应预期候选为零。
+A change that is pure documentation, pure configuration, or has no core production Java changes
+may invoke this skill for the record, but should expect zero candidates.
 
-## 执行步骤
+## Execution steps
 
-1. 先确认行为 change 已提交。正式评测比较提交的 base/head；未提交的生产代码不会进入 metrics。
-2. 在仓库根目录运行：
+1. Confirm the behavior change is committed first. A formal evaluation compares the commit's
+   base/head; uncommitted production code does not enter metrics.
+2. Run in the repository root:
 
    ```bash
    python3 scripts/refactoring-review.py plan \
@@ -33,25 +39,28 @@ description: 项目内的复杂度灰度评测与重构注意力路由。凡是�
      --force
    ```
 
-   `--base` 可省略，因为项目配置默认使用 `origin/dev/v0.5.0`。如果只是调试未提交状态，
-   可以使用 `--allow-dirty`，但必须说明结果不包含未提交代码，不能把它当正式评测证据。
+   `--base` may be omitted because the project configuration defaults to `origin/dev/v0.5.0`.
+   When only debugging an uncommitted state, `--allow-dirty` may be used, but you must state
+   that the result does not include uncommitted code and cannot serve as formal evaluation
+   evidence.
 
-3. 读取以下产物：
+3. Read these artifacts:
 
    - `.agents/reviews/<topic>-complexity/metrics.json`
    - `.agents/reviews/<topic>-complexity/plan.json`
-   - 结构 lens 的 `agents/S/brief.md`（或对应 S shard 的 brief）
+   - the structure lens's `agents/S/brief.md` (or the corresponding S shard's brief)
 
-4. 确认 `metrics.json` 包含：
+4. Confirm `metrics.json` contains:
 
    ```text
    stage = gray-evaluation
    purpose = attention-routing evidence; not a quality score or CI gate
    ```
 
-   如果 stage 缺失、采集失败或输出无法解析，报告为 `blocked/inconclusive`，不能当作“没有复杂度候选”。
+   If the stage is missing, collection failed, or the output is unparseable, report
+   `blocked/inconclusive` — never treat it as "no complexity candidates".
 
-5. 如果需要运行 agent detector，继续执行现有 refactoring-review 流程：
+5. If agent detectors are needed, continue with the existing refactoring-review flow:
 
    ```bash
    python3 scripts/refactoring-review.py detect \
@@ -62,47 +71,54 @@ description: 项目内的复杂度灰度评测与重构注意力路由。凡是�
      .agents/reviews/<topic>-complexity
    ```
 
-   detector 输出无法解析、超时或没有读到 changed files 时，状态是 blocked，不是 clean。
+   When a detector's output is unparseable, times out, or it did not read the changed files,
+   its status is blocked, not clean.
 
-## 如何解释候选
+## How to interpret candidates
 
-复杂度候选只是评审提示。对每个候选先回答：
+A complexity candidate is only a review hint. For each candidate, answer first:
 
-- 复杂度由哪些职责、分支或协议步骤组成；
-- 是否存在可独立变化的职责边界；
-- 具体的行为保持型重构 move 是什么；
-- 哪些测试、顺序、取消、deadline、interrupt、executor 绑定和资源生命周期必须保持。
+- which responsibilities, branches, or protocol steps compose the complexity;
+- whether there is an independently changeable responsibility boundary;
+- what the concrete behavior-preserving refactoring move is;
+- which tests, ordering, cancellation, deadline, interrupt, executor binding, and resource
+  lifecycles must be preserved.
 
-以下情况可以拒绝候选：算法本身需要复杂控制流、穷举分派是完整性要求、代码属于并发协议，
-或者拆分只会增加参数传递和隐藏状态。不要为了降低 CC、代码行数或嵌套深度而改动行为。
+A candidate may be rejected when: the algorithm itself needs complex control flow, exhaustive
+dispatch is a completeness requirement, the code is a concurrency protocol, or splitting would
+only add parameter passing and hidden state. Never change behavior to lower CC, line counts, or
+nesting depth.
 
-## 质量底线
+## Quality floor
 
-本 skill 不能替代这些检查；它们仍按任务路由执行：
+This skill does not replace these checks; they still run per task routes:
 
-- 编译、格式和完整测试；
-- 公共 API surface 检查；
-- race claim、并发专项测试和适用的 PIT；
-- 独立 `/multi-review`；
-- 文档和迁移说明。
+- compilation, formatting, and the full test suite;
+- public API surface checks;
+- race claims, concurrency-specific tests, and applicable PIT;
+- independent `/multi-review`;
+- documentation and migration notes.
 
-复杂度候选为零、detector 返回空 findings 或指标较低，都不等于 change 通过。只有适用的
-确定性门禁和独立评审证据都有效时，才可以报告交付。
+Zero complexity candidates, empty detector findings, or low metrics do not mean the change
+passes. Delivery may be reported only when the applicable deterministic gates and independent
+review evidence are all valid.
 
-## 灰度阶段边界
+## Gray-stage boundaries
 
-- 当前 stage 固定为 `gray-evaluation`；
-- 当前范围是核心生产 Java，排除 `queue`；
-- 当前实现是无依赖的保守扫描器，属于评测输入，不是质量分数；
-- 不新增 CI 失败条件，不自动修复，不要求复杂度下降；
-- 后续是否升级为 AST 采集器或增加风险信号，要根据真实 change 的有效发现率和误报成本决定。
+- The current stage is fixed as `gray-evaluation`;
+- The current scope is core production Java, excluding `queue`;
+- The current implementation is a dependency-free conservative scanner — an evaluation input,
+  not a quality score;
+- No new CI failure conditions, no automatic fixes, no complexity-reduction requirements;
+- Whether to upgrade to an AST collector or add risk signals later depends on the
+  effective-finding rate and false-positive cost on real changes.
 
-## 结果报告
+## Result reporting
 
-向用户报告时，至少说明：
+When reporting to the user, state at least:
 
-1. 评测是否运行以及 stage；
-2. 候选数和是否注入 S lens；
-3. 确定性门禁与独立 review 的状态；
-4. 复杂度机制仍处于灰度验证阶段，不是 CI 质量门禁；
-5. 任何 blocked/inconclusive 的原因。
+1. whether the evaluation ran and its stage;
+2. the candidate count and whether they entered the S lens;
+3. the status of deterministic gates and independent review;
+4. that the complexity mechanism is still in gray evaluation, not a CI quality gate;
+5. the reason for any blocked/inconclusive.

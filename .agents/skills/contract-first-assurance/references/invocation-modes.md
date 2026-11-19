@@ -1,32 +1,39 @@
 # Invocation modes
 
-`contract-first-assurance` 是工作流入口。默认允许自主调用；其子流程默认只允许显式调用。
+`contract-first-assurance` is the workflow entry. Autonomous invocation is allowed by default;
+its sub-flows allow only explicit invocation by default.
 
-## 自主调用入口
+## The autonomously invocable entry
 
-`SKILL.md` 不设置 `disable-model-invocation: true`，并在 `agents/openai.yaml` 中保留：
+`SKILL.md` does not set `disable-model-invocation: true`, and keeps this in
+`agents/openai.yaml`:
 
 ```yaml
 policy:
   allow_implicit_invocation: true
 ```
 
-这样模型可以根据 description 判断是否进入工作流，用户仍可使用 `/contract-first-assurance`。
+This lets the model decide from the description whether to enter the workflow, while the user
+can still use `/contract-first-assurance`.
 
-## 仅手动调用入口
+## The manual-only entry
 
-如果某个仓库希望把入口改成用户手动调用，同时修改两处：
+If a repository wants the entry to be user-manual, change both places together:
 
-1. 在入口 `SKILL.md` frontmatter 增加 `disable-model-invocation: true`；
-2. 把入口 `agents/openai.yaml` 改为：
+1. add `disable-model-invocation: true` to the entry `SKILL.md`'s frontmatter;
+2. change the entry `agents/openai.yaml` to:
 
 ```yaml
 policy:
   allow_implicit_invocation: false
 ```
 
-两种配置必须保持一致。只改一处会导致 Claude Code 和 Codex 的调用行为不同。
+The two configurations must stay consistent. Changing only one makes Claude Code and Codex
+behave differently on invocation.
 
-## 子流程
+## Sub-flows
 
-`contract-extract`、`isolated-test-generation`、`contract-diff` 和 `assurance-report` 同时关闭两种平台的自主调用。它们由入口按阶段显式读取，也可以由用户直接输入对应的 slash 或 `$skill` 命令进行调试。
+`contract-extract`, `isolated-test-generation`, `contract-diff`, and `assurance-report` have
+autonomous invocation off on both platforms. They are read explicitly by the entry per phase,
+and can also be debugged by the user typing the corresponding slash or `$skill` commands
+directly.

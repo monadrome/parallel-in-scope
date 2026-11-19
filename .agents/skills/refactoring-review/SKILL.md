@@ -1,109 +1,135 @@
 ---
 name: refactoring-review
-description: 代码改动的重构审查：行为提交之后、code review（/multi-review）之前的必经步骤。脚本按 diff 决定是否需要、派几个只读 detector、各看哪个视角；主 agent 核实后以独立 refactor 提交落地行为不变的重构。用于 refactoring-review、重构审查、review 前重构、提交后整理结构。只有代码改动才运行；纯文档改动由脚本判定跳过。
+description: Refactoring review of code changes: the required step after the behavior commit and before code review (/multi-review). The script decides by diff whether it is needed, how many read-only detectors to dispatch, and which lens each takes; after the main agent verifies, behavior-preserving refactors land as separate refactor commits. Use for refactoring-review, refactor review, pre-review refactoring, post-commit structure cleanup. Runs only for code changes; documentation-only changes are skipped by the script's judgment.
 ---
 
 # /refactoring-review
 
-本文件只负责编排。规则路由、原则、视角与阈值以 [refactoring-review/AGENTS.md](../../../refactoring-review/AGENTS.md)
-为准；确定性部分（门禁、规划、合并、校验）只能通过 `scripts/refactoring-review.py` 完成，不要手工替代。
+This file handles orchestration only. Rule routing, principles, lenses, and thresholds are
+governed by [refactoring-review/AGENTS.md](../../../refactoring-review/AGENTS.md);
+the deterministic parts (gates, planning, merging, verification) are done only through
+`scripts/refactoring-review.py` — never substituted by hand.
 
-## 硬约束
+## Hard constraints
 
-- detector 只读：不改文件、不跑构建、不提交、不调用 skill、不派生 agent。brief 已写明，派发时不得删改这些条款。
-- 每个改动只跑一轮（原则 R7）；refactor 提交不再做 refactoring-review。
-- 只落地 T0/T1；T2 一律只记录去向。分诊只能把 tier 调严，不能调松。
-- refactor 提交与行为提交分开，提交信息用 `refactor:`，不夹带行为变化。
-- detector 超时、失败、输出无法解析都不是“没有发现”；重跑一次，仍失败记为 blocked。
-- 不修改 `tools/llm-review-bench`；移交 code review 时按 `/multi-review` 原流程使用它。
+- Detectors are read-only: they edit no files, run no builds, commit nothing, invoke no skills,
+  and spawn no agents. The brief states this; do not delete or alter these clauses when
+  dispatching.
+- One round per change (principle R7); refactor commits get no refactoring-review.
+- Only T0/T1 land; T2 is only recorded with its destination. Triage can only tighten a tier,
+  never loosen it.
+- Refactor commits are separate from behavior commits, use `refactor:` in the message, and
+  carry no behavior changes.
+- A detector timeout, failure, or unparseable output is not "no findings"; rerun once, and if
+  it still fails, record blocked.
+- Do not modify `tools/llm-review-bench`; when handing over to code review, use it per the
+  original `/multi-review` process.
 
-## 0. 前置
+## 0. Prerequisites
 
-行为改动已经通过本地验证并提交，代码路径没有未提交修改（脚本会检查）。审查基准默认是 `config.json` 的
-`defaultBase` 与 HEAD 的 merge-base；先 `git fetch`。
+The behavior change has passed local verification and is committed, with no uncommitted
+modifications in code paths (the script checks). The review baseline defaults to the merge-base
+of `config.json`'s `defaultBase` and HEAD; run `git fetch` first.
 
-## 1. 门禁与规划
+## 1. Gate and plan
 
 ```bash
 python3 scripts/refactoring-review.py plan [--base <ref>] [--reviewers <a,b,c>]
 ```
 
-- `required: false`：在交付报告里写一行 reason，直接进入第 8 步。
-- `required: true`：读 `<runDir>/plan.json`。`mode`、每个 detector 的 lens、文件、budget、routes、
-  reviewer 都由脚本决定；`uncovered` 非空时在报告里如实列出并建议拆分改动。
-- `--reviewers` 给出可用的模型或 harness 名单，脚本按 base/head 确定性轮换；不给时由主 agent 选择，
-  但仍须记录每个 detector 实际用的 reviewer。
+- `required: false`: write one reason line in the delivery report and go straight to step 8.
+- `required: true`: read `<runDir>/plan.json`. `mode`, each detector's lens, files, budget,
+  routes, and reviewer are all decided by the script; when `uncovered` is non-empty, list it
+  honestly in the report and suggest splitting the change.
+- `--reviewers` gives the available model or harness roster, and the script rotates
+  deterministically by base/head; when not given, the main agent chooses, but must still record
+  which reviewer each detector actually used.
 
-## 2. 发现（并行）
+## 2. Detection (parallel)
 
-默认用脚本派发：
+Dispatch with the script by default:
 
 ```bash
 python3 scripts/refactoring-review.py detect <runDir> [--reviewer kimi|codex|claude] [--concurrency 3] [--only <ids>]
 ```
 
-- 工作树必须处于 plan head 且代码路径干净（脚本检查）；每个 detector 的提示词是
-  `<runDir>/agents/<id>/brief.md` 全文，reviewer 取 plan 中的分配，未分配时用 `--reviewer`。
-- 只读参数与 `tools/llm-review-bench/docs/adapters.md` 一致；运行前后比较 `git status`，
-  工作树被改动时所有 detector 记为 `snapshot-modified`。
-- 退出码 1 表示有 detector 未完成：用 `--only <id>` 重跑一次，仍失败记为 blocked。
-- 也可以用本 harness 的子 agent 手动派发：提示词同样是 brief 全文，把最终 JSON 原样保存为
-  `<runDir>/agents/<id>/findings.json`。
+- The worktree must be at the plan head with code paths clean (the script checks); each
+  detector's prompt is the full text of `<runDir>/agents/<id>/brief.md`; the reviewer comes
+  from the plan's assignment, or `--reviewer` when unassigned.
+- Read-only parameters match `tools/llm-review-bench/docs/adapters.md`; `git status` is
+  compared before and after the run, and when the worktree was modified, all detectors are
+  recorded `snapshot-modified`.
+- Exit code 1 means a detector did not finish: rerun once with `--only <id>`; if it still
+  fails, record blocked.
+- You can also dispatch manually with this harness's subagents: the prompt is likewise the full
+  brief text, and the final JSON is saved verbatim as
+  `<runDir>/agents/<id>/findings.json`.
 
-## 3. 合并
+## 3. Merge
 
 ```bash
 python3 scripts/refactoring-review.py merge <runDir>
 ```
 
-退出码 1 表示有 detector missing/invalid：按硬约束重跑一次后再合并；仍失败则该 detector 记为 blocked
-继续。`merged.json` 给出去重后的发现（tier 取最严）、`flags`（`unknown-rule`、`outside-agent-files`）
-与 `conflicts`（同一符号不同手法）。
+Exit code 1 means a detector is missing/invalid: rerun once per the hard constraints, then
+merge; if it still fails, record that detector blocked and continue. `merged.json` gives the
+deduplicated findings (strictest tier wins), `flags` (`unknown-rule`,
+`outside-agent-files`), and `conflicts` (different approaches for the same symbol).
 
-## 4. 分诊（主 agent 亲自核实）
+## 4. Triage (the main agent verifies personally)
 
-对每条合并发现，按顺序：
+For each merged finding, in order:
 
-1. 回到工作树读该符号，确认引用的代码存在且描述准确；带 flag 的发现先核实 flag。
-2. 对照 R1（行为不变）与 R10 复核 tier，只能调严。
-3. 在 `design/decision-log.md`、`docs/zh/design/idea-graveyard.md`、`adr/` 查同一方向是否已被否决；
-   否决过即 rejected 并引用。
-4. `out-of-diff` 的发现查 `BACKLOG.md` 是否已登记；只记录，不修。
-5. 只对拟接受的 T0/T1 读其 `guardingTests`，确认覆盖了要保持的行为；没有覆盖则降为 T2 或先补测试。
-6. `conflicts` 不投票：按 R9 优先删除与内联，并记下两边理由。
-7. 接受数超过 `limits.maxAcceptedFindings` 时停止接受，其余 deferred。
+1. Go back to the worktree and read the symbol; confirm the referenced code exists and the
+   description is accurate; verify the flag first for flagged findings.
+2. Recheck the tier against R1 (behavior-preserving) and R10 — tighten only.
+3. Check `design/decision-log.md`, `docs/zh/design/idea-graveyard.md`, and `adr/` for whether
+   the same direction was already rejected; if rejected, mark rejected with a citation.
+4. For `out-of-diff` findings, check whether `BACKLOG.md` already registers them; record only,
+   never fix.
+5. Only for T0/T1 candidates to accept: read their `guardingTests` and confirm they cover the
+   behavior to preserve; without coverage, downgrade to T2 or add tests first.
+6. `conflicts` are not voted: prefer deletion and inlining per R9, and record both sides'
+   reasons.
+7. When acceptances exceed `limits.maxAcceptedFindings`, stop accepting; the rest are deferred.
 
-## 5. 落地
+## 5. Landing
 
-逐项实现已接受的 T0/T1，放进一个或少量 `refactor:` 提交；提交信息列出合并 id（`R3`、`R5`）并写明
-behavior-preserving 及守护测试。然后：
+Implement each accepted T0/T1 item into one or a few `refactor:` commits; the commit message
+lists the merged ids (`R3`, `R5`) and states behavior-preserving plus the guarding tests.
+Then:
 
-- `mvn spotless:apply`，针对性测试，再全量 `mvn test`；
-- T1 且涉及并发路由的项：`python3 scripts/check-race-claims.py`；
-- 改了生产代码：按 `verification/pit.md` 判断 PIT 适用性与范围。
+- `mvn spotless:apply`, targeted tests, then full `mvn test`;
+- For T1 items touching concurrency routes: `python3 scripts/check-race-claims.py`;
+- Production code changed: judge PIT applicability and scope per `verification/pit.md`.
 
-## 6. 校验
+## 6. Verify
 
 ```bash
 python3 scripts/refactoring-review.py verify <runDir>
 ```
 
-- `growthExceeded`：撤回超出部分，转为独立任务。
-- `oracleEdits`：逐条确认只是跟随改名的机械编辑；否则撤销对应重构并记为 reverted、T2（R8）。
-  全部确认为改名时，在报告里写明“reviewed: rename-only”。
-- `nonRefactorCommits`：把行为改动移出 refactor 区间。
+- `growthExceeded`: withdraw the excess, turning it into a standalone task.
+- `oracleEdits`: confirm item by item that they are only mechanical edits following a rename;
+  otherwise revert the corresponding refactor and record it reverted, T2 (R8).
+  When all are confirmed as renames, write "reviewed: rename-only" in the report.
+- `nonRefactorCommits`: move behavior changes out of the refactor range.
 
-## 7. 报告
+## 7. Report
 
-按 [refactoring-review/report-template.md](../../../refactoring-review/report-template.md) 写
-`<runDir>/report.md`：每个 detector 的状态、每条发现的处置与理由（包括驳回）、每项检查的状态、
-可机械化规则对应的拟议检查、T2 的去向（`BACKLOG.md`、`design/proposal/` 或未决项）。
-运行目录保留为审计记录。
+Write `<runDir>/report.md` per [refactoring-review/report-template.md](../../../refactoring-review/report-template.md):
+each detector's status, each finding's disposition with reasons (including rejections), each
+check's status, proposed checks for mechanizable rules, and T2 destinations (`BACKLOG.md`,
+`design/proposal/`, or open items).
+Keep the run directory as the audit record.
 
-## 8. 移交 code review
+## 8. Hand over to code review
 
-按 `/multi-review` 审查 base..HEAD（包含 refactor 提交），例如
-`node tools/llm-review-bench/dist/cli.js review --base <base> --commit HEAD --json`。判定阶段：
+Review base..HEAD (including refactor commits) per `/multi-review`, for example
+`node tools/llm-review-bench/dist/cli.js review --base <base> --commit HEAD --json`. In the
+judgment phase:
 
-- 报告里已定论的发现作为基线，reviewer 重复提出时沿用原处置；
-- 额外核查攻击面：每个 refactor 提交是否真的保持行为，以及每个已落地的 T1 项。
+- Findings already settled in the report serve as the baseline; when a reviewer repeats them,
+  follow the original disposition;
+- Additionally check the attack surfaces: whether each refactor commit truly preserves
+  behavior, and each landed T1 item.
