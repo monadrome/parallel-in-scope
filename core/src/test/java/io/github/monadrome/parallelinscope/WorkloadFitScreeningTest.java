@@ -477,7 +477,9 @@ class WorkloadFitScreeningTest {
                 .extracting(UnitMeasurement::unit, UnitMeasurement::taskType)
                 .containsExactly(
                         tuple("a", TaskType.COMPUTE), tuple("a", TaskType.UNKNOWN), tuple("b", TaskType.UNKNOWN));
-        assertThat(runtime.workloadFitReport().toString()).contains("par='cpu'", "unit='a'");
+        // Aggregates print counts only: the report counts its entries, an entry counts its units.
+        assertThat(runtime.workloadFitReport().toString()).isEqualTo("WorkloadFitReport{parCount=1}");
+        assertThat(measurement(CPU).toString()).contains("par='cpu'", "unitCount=3");
     }
 
     /**

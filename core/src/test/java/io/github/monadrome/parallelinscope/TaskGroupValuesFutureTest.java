@@ -43,9 +43,9 @@ class TaskGroupValuesFutureTest {
             assertThat(values.size()).isEqualTo(2);
             assertThat(values.valueAt(0)).isEqualTo("alice");
             assertThat(values.valueOf("count")).isEqualTo(41);
-            // The values view names its slots in declaration order when printed, which is what a
-            // caller logging a group result sees.
-            assertThat(values).hasToString("GroupValues[user, count]");
+            // The values view prints only the member count; member names and values stay readable
+            // through the accessors.
+            assertThat(values).hasToString("GroupValues[size=2]");
             TerminationAssertions.assertScopeSucceeded(
                     group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
             // The documented ordering invariant: a done completion future implies a done values

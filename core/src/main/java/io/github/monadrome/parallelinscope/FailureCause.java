@@ -56,8 +56,13 @@ public final class FailureCause {
         return kind == Kind.SUBMISSION_REJECTED;
     }
 
+    /**
+     * Returns a diagnostic string naming the category and the cause's type only; the throwable's
+     * {@code toString} and message never run, so logging a failure can neither throw nor copy a
+     * message that may carry credentials. The format is for logs and debuggers, not for parsing.
+     */
     @Override
     public String toString() {
-        return "FailureCause[kind=" + kind + ", cause=" + cause + ']';
+        return "FailureCause[kind=" + kind + ", cause=" + ResultObjects.renderFailure(cause, this) + ']';
     }
 }

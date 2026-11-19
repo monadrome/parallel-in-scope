@@ -58,16 +58,17 @@ public final class ExecutorWaitReport {
         return cyclicComponents;
     }
 
+    /**
+     * Returns a diagnostic string with the component count only; per-component cycle details stay
+     * readable through {@link #cyclicComponents()}, and printing them could expose configured
+     * labels or be arbitrarily large. The format is for logs and debuggers, not for parsing.
+     */
     @Override
     public String toString() {
         if (cyclicComponents.isEmpty()) {
             return "no executor wait cycle observed";
         }
-        List<String> rendered = new ArrayList<>(cyclicComponents.size());
-        for (Component component : cyclicComponents) {
-            rendered.add(component.toString());
-        }
-        return String.join("; ", rendered);
+        return "ExecutorWaitReport[cyclicComponents=" + cyclicComponents.size() + ']';
     }
 
     /**

@@ -52,9 +52,14 @@ public final class WorkloadFitReport {
         return false;
     }
 
+    /**
+     * Returns a diagnostic string with the measurement count only; per-entry measurements stay
+     * readable through {@link #pars()}, and printing them could be arbitrarily large. The format
+     * is for logs and debuggers, not for parsing.
+     */
     @Override
     public String toString() {
-        return "WorkloadFitReport{pars=" + pars + '}';
+        return "WorkloadFitReport{parCount=" + pars.size() + '}';
     }
 
     /**
@@ -158,6 +163,12 @@ public final class WorkloadFitReport {
             return units;
         }
 
+        /**
+         * Returns a diagnostic string naming the entry and its totals, with the unit count only;
+         * per-unit measurements stay readable through {@link #units()}, and printing them could
+         * expose configured labels or be arbitrarily large. The format is for logs and debuggers,
+         * not for parsing.
+         */
         @Override
         public String toString() {
             return "ParMeasurement{par='" + par
@@ -169,7 +180,7 @@ public final class WorkloadFitReport {
                     + ", unattributedExecutions=" + unattributedExecutions
                     + ", unmeasuredExecutions=" + unmeasuredExecutions
                     + ", issue=" + issue
-                    + ", units=" + units
+                    + ", unitCount=" + units.size()
                     + '}';
         }
     }

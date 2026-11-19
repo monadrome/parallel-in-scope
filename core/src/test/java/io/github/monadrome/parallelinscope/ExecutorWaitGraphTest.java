@@ -177,7 +177,7 @@ class ExecutorWaitGraphTest {
     }
 
     @Test
-    void theReportRendersEveryComponentOrSaysNoneWasObserved() {
+    void theReportCountsItsComponentsOrSaysNoneWasObserved() {
         ExecutorIdentity a = executor();
         ExecutorIdentity b = executor();
         ExecutorWaitGraph graph = graph(a, "a", b, "b");
@@ -186,7 +186,9 @@ class ExecutorWaitGraphTest {
         graph.record(unit("a-self", a), unit("a-child", a));
         graph.record(unit("b-self", b), unit("b-child", b));
 
-        assertThat(graph.report().toString()).startsWith("[a] -> [a] (a-self[").contains("; [b] -> [b] (b-self[");
+        // The report prints only the component count; the cycles stay readable through the
+        // component accessor.
+        assertThat(graph.report().toString()).isEqualTo("ExecutorWaitReport[cyclicComponents=2]");
     }
 
     @Test

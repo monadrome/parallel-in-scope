@@ -181,13 +181,19 @@ public final class ThreadPoolStarvationReport {
         return failureMessage;
     }
 
+    /**
+     * Returns a diagnostic string with the evidence and unsupported-executor counts only; the
+     * snapshots and executor labels stay readable through {@link #evidence()} and {@link
+     * #unsupportedExecutors()}, and printing them could expose configured labels or be
+     * arbitrarily large. The format is for logs and debuggers, not for parsing.
+     */
     @Override
     public String toString() {
         return "ThreadPoolStarvationReport{status=" + status
                 + ", samples=" + samples
                 + ", samplingInterval=" + samplingInterval
-                + ", evidence=" + evidence
-                + ", unsupportedExecutors=" + unsupportedExecutors
+                + ", evidenceCount=" + evidence.size()
+                + ", unsupportedExecutorCount=" + unsupportedExecutors.size()
                 + ", failureMessage=" + failureMessage
                 + '}';
     }
