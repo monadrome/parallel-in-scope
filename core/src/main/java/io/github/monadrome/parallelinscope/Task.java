@@ -165,8 +165,8 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /**
      * Returns the failure behind a {@link FailureCause.Kind#USER_CODE_FAILURE} or {@code
-     * SUBMISSION_REJECTED} termination, computed from the delegate without consulting the pinned
-     * termination; null while running and for success or cancellation-attributed endings.
+     * SUBMISSION_REJECTED} termination, read from the same settle-time attribution as {@link
+     * #termination()}; null while running and for success or cancellation-attributed endings.
      */
     @Override
     public @Nullable Throwable failure() {
@@ -174,23 +174,17 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         if (recorded != null) {
             return recorded;
         }
-        if (!delegate.isDone() || delegate.isCancelled()) {
+        if (!delegate.isDone()) {
             return null;
         }
-        try {
-            Futures.getDone(delegate);
+        /* Reads the same settle-time attribution as termination(): a failure that merely signals
+         * observed cancellation but settles before the token commits stays a recorded user-code
+         * failure, so report counts and firstException never disagree about one element. */
+        TaskTermination<T> termination = termination();
+        if (termination == null || termination.kind() != TaskTermination.Kind.FAILED) {
             return null;
-        } catch (ExecutionException failure) {
-            Throwable cause = failure.getCause();
-            if (cause instanceof SubmissionException) {
-                return cause;
-            }
-            if (TokenOutcomes.causedByCancellation(cause)
-                    && TokenOutcomes.cancellationReason(token, taskName, null) != null) {
-                return null;
-            }
-            return cause;
         }
+        return Verify.verifyNotNull(termination.failureCause()).cause();
     }
 
     @Override
