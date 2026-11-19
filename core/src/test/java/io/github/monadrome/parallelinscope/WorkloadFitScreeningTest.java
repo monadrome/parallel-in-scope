@@ -101,6 +101,11 @@ class WorkloadFitScreeningTest {
         assertThat(unit.cpuTime()).isEqualTo(Duration.ofSeconds(1));
         assertThat(unit.executionTime()).isEqualTo(Duration.ofSeconds(10));
         assertThat(unit.cpuToExecutionRatio()).isEqualTo(0.1);
+        // The per-unit measurement keeps its own diagnostic rendering now that the report and the
+        // par measurement print counts only.
+        assertThat(unit.toString())
+                .startsWith("UnitMeasurement{unit='work'")
+                .contains("taskType=UNKNOWN", "executions=10");
         assertThat(records).hasSize(1);
         assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
         assertThat(records.get(0).getMessage())

@@ -43,6 +43,9 @@ class TaskGroupValuesFutureTest {
             assertThat(values.size()).isEqualTo(2);
             assertThat(values.valueAt(0)).isEqualTo("alice");
             assertThat(values.valueOf("count")).isEqualTo(41);
+            assertThatThrownBy(() -> values.valueAt(values.size()))
+                    .isInstanceOf(IndexOutOfBoundsException.class)
+                    .hasMessageContaining("out of bounds for a group");
             // The values view prints only the member count; member names and values stay readable
             // through the accessors.
             assertThat(values).hasToString("GroupValues[size=2]");

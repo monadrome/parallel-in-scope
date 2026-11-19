@@ -184,6 +184,7 @@ class ExecutorWaitGraphTest {
         ExecutorIdentity b = executor();
         ExecutorWaitGraph graph = graph(a, "a", b, "b");
         assertThat(graph.report()).hasToString("no executor wait cycle observed");
+        assertThat(ExecutorWaitReport.empty()).hasToString("no executor wait cycle observed");
 
         graph.record(unit("a-self", a), unit("a-child", a));
         graph.record(unit("b-self", b), unit("b-child", b));
