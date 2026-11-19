@@ -15,7 +15,7 @@ class ImmediateResultToStringTest {
     }
 
     @Test
-    void aFailureNamesItsOutcomeAndThrowable() {
+    void aFailureNamesItsKindAndThrowable() {
         IllegalStateException boom = new IllegalStateException("boom");
 
         assertThat(ImmediateResult.failed(FailureCause.userCodeFailure(boom)).toString())
