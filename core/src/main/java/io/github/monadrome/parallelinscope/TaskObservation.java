@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -234,15 +233,7 @@ final class TaskObservation<T> {
             if (!isDone()) {
                 return "PENDING";
             }
-            try {
-                return "SUCCESS, result=[" + ResultObjects.render(Futures.getDone(sink), this) + ']';
-            } catch (ExecutionException failure) {
-                return "FAILURE, cause=[" + ResultObjects.renderFailure(failure.getCause(), this) + ']';
-            } catch (CancellationException cancelled) {
-                return "CANCELLED";
-            } catch (Throwable thrownFromGet) {
-                return "UNKNOWN, cause=[" + thrownFromGet.getClass() + " thrown from get()]";
-            }
+            return ResultObjects.doneBranch(sink, this);
         }
     }
 
