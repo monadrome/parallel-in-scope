@@ -1,0 +1,21 @@
+scripts/tests/test_check_english_docs.py
+  s_137e4e93a1c0b7::t_f81c84b2cfcaa5 81-87
+scripts/check-english-docs.py
+  s_137e4e93a1c0b7::t_6b6c150dae7ada 38-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "bbd72709704b01b7c514223dcf927650291cdcf6",
+  "prompts": {},
+  "sessions": {
+    "s_137e4e93a1c0b7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_cdf03130-babe-45a2-8af6-4cbcb386bf4f",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
