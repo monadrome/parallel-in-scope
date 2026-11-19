@@ -19,7 +19,6 @@ final class TaskGroupReport {
     private final long startTimeNanos;
     private final long endTimeNanos;
     private final long deadlineNanos;
-    private final TaskClassification outcome;
     private final @Nullable String failedTaskName;
     private final Map<String, TaskExitObservation<?>> members;
     private final @Nullable TaskExitObservation<?> terminal;
@@ -31,31 +30,19 @@ final class TaskGroupReport {
             long startTimeNanos,
             long endTimeNanos,
             long deadlineNanos,
-            TaskClassification outcome,
             @Nullable String failedTaskName,
             Map<String, TaskExitObservation<?>> members,
             @Nullable TaskExitObservation<?> terminal,
-            @Nullable ScopeTermination scopeTermination) {
+            ScopeTermination termination) {
         this.groupId = checkNotNull(groupId, "groupId cannot be null");
         this.groupName = checkNotNull(groupName, "groupName cannot be null");
         this.startTimeNanos = startTimeNanos;
         this.endTimeNanos = endTimeNanos;
         this.deadlineNanos = deadlineNanos;
-        this.outcome = checkNotNull(outcome, "outcome cannot be null");
         this.failedTaskName = failedTaskName;
         this.members = ImmutableMap.copyOf(members);
         this.terminal = terminal;
-        TaskExitObservation<?> failed = failedTaskName == null ? null : this.members.get(failedTaskName);
-        if (failed == null && terminal != null && terminal.taskName().equals(failedTaskName)) {
-            failed = terminal;
-        }
-        this.termination = scopeTermination == null
-                ? ScopeTermination.fromLegacy(
-                        outcome,
-                        failedTaskName,
-                        failed == null ? null : failed.termination().failureCause(),
-                        groupName)
-                : scopeTermination;
+        this.termination = checkNotNull(termination, "termination cannot be null");
     }
 
     TaskId.GroupRun groupId() {
@@ -76,11 +63,6 @@ final class TaskGroupReport {
 
     long deadlineNanos() {
         return deadlineNanos;
-    }
-
-    /** Returns the terminal outcome of the group as a whole. */
-    TaskClassification outcome() {
-        return outcome;
     }
 
     /** Returns the shared three-state scope termination and its single primary cause. */
@@ -111,12 +93,12 @@ final class TaskGroupReport {
 
     /**
      * Returns this result when the group succeeded; otherwise throws so a caller cannot forget the
-     * failure. The outcome stays available as data through {@link #outcome()}; this is the loud
-     * terminal accessor for call sites that have no use for a failed group's snapshot.
+     * failure. The termination stays available as data through {@link #termination()}; this is the
+     * loud terminal accessor for call sites that have no use for a failed group's snapshot.
      *
      * <p>A recorded member or combine failure rethrows as-is when unchecked (checked failures are
-     * wrapped in {@link CompletionException}); a cancellation-shaped outcome with no recorded
-     * failure surfaces as {@link CancellationException} naming the outcome and the triggering task.
+     * wrapped in {@link CompletionException}); a cancellation with no recorded failure surfaces as
+     * {@link CancellationException} naming the termination and the triggering task.
      *
      * @return this result, when the group succeeded
      * @throws CancellationException if the group was cancelled, timed out, or lost a member to
@@ -126,7 +108,7 @@ final class TaskGroupReport {
      */
     @CanIgnoreReturnValue
     TaskGroupReport orThrow() {
-        if (outcome == TaskClassification.SUCCESS) {
+        if (termination.kind() == ScopeTermination.Kind.SUCCEEDED) {
             return this;
         }
         TaskExitObservation<?> failed = failedTaskSnapshot();
@@ -136,23 +118,37 @@ final class TaskGroupReport {
         if (failure != null) {
             throw new CompletionException("task group '" + groupName + "' failed in '" + failedTaskName + "'", failure);
         }
-        throw new CancellationException("task group '" + groupName + "' ended with " + outcome
+        throw new CancellationException("task group '" + groupName + "' ended with " + describe(termination)
                 + (failedTaskName == null ? "" : " (triggered by '" + failedTaskName + "')"));
     }
 
     /**
-     * Counts member outcomes — including the terminal combine when declared — like {@link
-     * TaskBatchResult#outcomeCounts()}.
-     *
-     * @return the immutable outcome count map, empty for an empty group
+     * Names a non-successful scope termination for exception messages: the cancellation reason
+     * kind for a cancellation, the termination kind otherwise.
      */
-    Map<TaskClassification, Integer> outcomeCounts() {
-        EnumMap<TaskClassification, Integer> counts = new EnumMap<>(TaskClassification.class);
+    static String describe(ScopeTermination termination) {
+        if (termination.kind() == ScopeTermination.Kind.CANCELLED) {
+            ScopeTerminationCause cause = termination.cause();
+            if (cause != null && cause.cancellationReason() != null) {
+                return cause.cancellationReason().kind().name();
+            }
+        }
+        return termination.kind().name();
+    }
+
+    /**
+     * Counts member termination branches — including the terminal combine when declared — like
+     * {@link TaskBatchResult#terminationKindCounts()}.
+     *
+     * @return the immutable termination count map, empty for an empty group
+     */
+    Map<TaskTermination.Kind, Integer> terminationKindCounts() {
+        EnumMap<TaskTermination.Kind, Integer> counts = new EnumMap<>(TaskTermination.Kind.class);
         for (TaskExitObservation<?> member : members.values()) {
-            counts.merge(member.outcome(), 1, Integer::sum);
+            counts.merge(member.termination().kind(), 1, Integer::sum);
         }
         if (terminal != null) {
-            counts.merge(terminal.outcome(), 1, Integer::sum);
+            counts.merge(terminal.termination().kind(), 1, Integer::sum);
         }
         return Maps.immutableEnumMap(counts);
     }
@@ -161,14 +157,14 @@ final class TaskGroupReport {
      * Returns a human-readable one-line summary, symmetric with {@link
      * TaskBatchResult#reportString()}.
      *
-     * <p>Format: {@code STATE1:count,STATE2:count | outcome=OUTCOME, failedTask=name}
+     * <p>Format: {@code KIND1:count,KIND2:count | termination=KIND, failedTask=name}
      *
      * @return formatted report string
      */
     String reportString() {
         StringBuilder sb =
-                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
-        sb.append(" | outcome=").append(outcome);
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(terminationKindCounts()));
+        sb.append(" | termination=").append(termination.kind());
         if (failedTaskName != null) {
             sb.append(", failedTask=").append(failedTaskName);
         }
@@ -185,7 +181,7 @@ final class TaskGroupReport {
 
     /**
      * Returns the failure recorded for the first failed member or terminal combine, or null when
-     * the group succeeded or ended with a cancellation-shaped outcome that recorded no failure.
+     * the group succeeded or ended with a cancellation that recorded no failure.
      */
     @Nullable
     Throwable recordedFailure() {

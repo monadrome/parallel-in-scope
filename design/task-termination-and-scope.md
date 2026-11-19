@@ -36,12 +36,11 @@ Public construction goes through restricted factories only:
 caller, parent scope, deadline, fail-fast, and member, and carries a diagnostic source
 identity.
 
-`ImmediateResult<T>` is the compatibility container for synchronous results and exposes the
-same logical-termination projection: `termination()`, `disposition()`, `failureCause()`, and
-`cancellationReason()`. It no longer provides the old flat result-adapter reads, but new code
-must rely on `TaskTermination`'s kind, cause, and disposition. The old `TaskTermination.RUNNING`
-exists only in migration projections and internal live reads; it is not a terminal state of
-`TaskTermination` or frozen results.
+`ImmediateResult<T>` is the frozen container for synchronous results and holds the task's
+`TaskTermination` directly: `termination()`, `disposition()`, `failureCause()`, and
+`cancellationReason()`. New code must rely on `TaskTermination`'s kind, cause, and disposition.
+A task's live state is expressed only by `TaskState`; `TaskTermination` has no in-progress
+branch.
 
 ## 2. The execution claim and live state
 
@@ -145,23 +144,13 @@ The stable categories of task-level reasons are:
 | `CANCELLED_BY_MEMBER` | A scope cancellation caused by direct member cancellation |
 
 Reason objects carry a source identity, used especially for diagnosing multi-level parents and
-multiple members. Enum names cannot substitute for source identity. The old `GROUP_CANCELLED`,
-`MEMBER_CANCELLED`, and `FAIL_FAST` serve only as `TaskTermination` compatibility projections —
-they are not new stable task reasons.
+multiple members. Enum names cannot substitute for source identity. A task's cancellation reason
+is expressed only by `CancellationReason`; the kernel keeps no second attribution vocabulary
+(see §6).
 
-## 6. Migration and user code
+## 6. The single source of attribution
 
-Before, the user had to understand the live `TaskTermination`, token propagation, and scope
-convergence all at once:
-
-```java
-if (task.termination() == TaskTermination.GROUP_CANCELLED
-        || task.termination() == TaskTermination.FAIL_FAST) {
-    // and still had to guess whether the scope had converged
-}
-```
-
-After, read one frozen termination value and query live state separately:
+Read one frozen termination value and query live state separately:
 
 ```java
 ImmediateResult<Value> result = ...;
@@ -180,15 +169,27 @@ switch (termination.kind()) {
 }
 ```
 
-The old `TaskTermination` adapts as follows: `SUCCESS` → `Success`, `USER_FAILURE` →
-`Failed(UserCodeFailure)`, `SUBMISSION_FAILURE` → `Failed(SubmissionRejected)`, `TIMEOUT` →
-`Cancelled(DeadlineExceeded)`, `FAIL_FAST` → `Cancelled(AbortedByFailFast)`. `GROUP_CANCELLED`
-and `MEMBER_CANCELLED` must be mapped only after reading the source identity, parent chain, and
-scope cause; the adaptation layer must not claim a one-to-one correspondence.
+Every task has exactly one attribution, published by its owning scope's authority: a batch
+element pins its termination when its future settles (the settle-time pin, so the fail-fast its
+own failure commits cannot rewrite its own attribution), and a group member is classified in
+`memberCompleted` from the group token and the member deadline; the observation snapshot and the
+frozen result share the same `TaskTermination`. The token-state-to-cancellation-reason mapping
+(`TokenOutcomes`) reads only committed token state at settle or classification time; there is no
+second recording channel.
 
-P0037's staged path consumes `TaskTermination`'s three branches and `CancellationReason`; it no
-longer treats the old enum values as the new public reason set. Java 8 has no sealed unions, so
-all public result types use final classes, private constructors, and restricted factories.
+The development line previously kept an internal outcome enum as the old vocabulary and
+projected `TaskTermination` from it. That projection is deleted: the dual model was lossy —
+reason categories drifted through the round trip (`CANCELLED_BY_MEMBER` and `DEADLINE_EXCEEDED`
+were flattened and then rebuilt as `CANCELLED_BY_CALLER`), one fact was stored twice per task in
+the termination and the outcome, and the observation snapshot and the frozen result could be
+attributed independently. The rejected alternative was to keep the legacy enum as the internal
+vocabulary with the new model as a projection only: it demotes the documented model to a derived
+view, and the four attribution fixes recorded in §8 all stemmed from such after-the-fact
+classification.
+
+P0037's staged path consumes `TaskTermination`'s three branches and `CancellationReason`. Java 8
+has no sealed unions, so all public result types use final classes, private constructors, and
+restricted factories.
 
 ## 7. Acceptance invariants
 

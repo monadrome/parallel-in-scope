@@ -11,8 +11,15 @@ class TaskExitObservationTest {
     @Test
     void completionExposesTimingMetadataAndFailure() {
         IllegalStateException failure = new IllegalStateException("failed");
-        TaskExitObservation<String> completion =
-                failed("task", TaskId.unit("1"), 2, 10, 30, 80, TaskClassification.USER_FAILURE, failure);
+        TaskExitObservation<String> completion = failed(
+                "task",
+                TaskId.unit("1"),
+                2,
+                10,
+                30,
+                80,
+                TaskTermination.failed(FailureCause.userCodeFailure(failure)),
+                failure);
 
         assertThat(completion.taskName()).isEqualTo("task");
         assertThat(completion.unitId()).isEqualTo(TaskId.unit("1"));
@@ -20,7 +27,7 @@ class TaskExitObservationTest {
         assertThat(completion.submitTimeNanos()).isEqualTo(10);
         assertThat(completion.startTimeNanos()).isEqualTo(30);
         assertThat(completion.endTimeNanos()).isEqualTo(80);
-        assertThat(completion.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(completion.termination());
         assertThat(completion.enqueued()).isFalse();
         assertThat(completion.successful()).isFalse();
         assertThat(completion.result()).isNull();
@@ -50,7 +57,7 @@ class TaskExitObservationTest {
         TaskExitObservation<String> completion = succeeded("task", TaskId.unit("1"), 0, 10, 30, 80, "value");
         assertThat(completion.enqueued()).isFalse();
         assertThat(completion.successful()).isTrue();
-        assertThat(completion.outcome()).isEqualTo(TaskClassification.SUCCESS);
+        TerminationAssertions.assertSuccess(completion.termination());
         assertThat(completion.result()).isEqualTo("value");
         assertThat(completion.failure()).isNull();
     }
@@ -71,6 +78,7 @@ class TaskExitObservationTest {
 
     @Test
     void neverStartedSnapshotOnNegativeClockReportsZeroDurationsAndNotEnqueued() {
+        IllegalStateException rejected = new IllegalStateException("not submitted");
         TaskExitObservation<String> completion = failed(
                 "task",
                 TaskId.unit("1"),
@@ -78,8 +86,8 @@ class TaskExitObservationTest {
                 -10_000_000L,
                 0L,
                 0L,
-                TaskClassification.SUBMISSION_FAILURE,
-                new IllegalStateException("not submitted"));
+                TaskTermination.failed(FailureCause.submissionRejected(rejected), ExecutionDisposition.NOT_CLAIMED),
+                rejected);
 
         assertThat(completion.waitTime()).isEqualTo(Duration.ZERO);
         assertThat(completion.executionTime()).isEqualTo(Duration.ZERO);
@@ -141,13 +149,19 @@ class TaskExitObservationTest {
     @Test
     void memberSnapshotUsesMemberNameAndReportsZeroDurationsWhenNeverStarted() {
         TaskExitObservation<Object> snapshot = TaskExitObservation.memberSnapshot(
-                "member", TaskId.unit("1"), TaskClassification.MEMBER_CANCELLED, null, 100, 0, 0);
+                "member",
+                TaskId.unit("1"),
+                TaskTermination.cancelled(CancellationReason.cancelledByCaller("member")),
+                null,
+                100,
+                0,
+                0);
 
         assertThat(snapshot.taskName()).isEqualTo("member");
         assertThat(snapshot.unitId()).isEqualTo(TaskId.unit("1"));
         assertThat(snapshot.taskIndex()).isZero();
         assertThat(snapshot.result()).isNull();
-        assertThat(snapshot.outcome()).isEqualTo(TaskClassification.MEMBER_CANCELLED);
+        TerminationAssertions.assertCancelled(snapshot.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
         assertThat(snapshot.waitTime()).isEqualTo(Duration.ZERO);
         assertThat(snapshot.executionTime()).isEqualTo(Duration.ZERO);
         assertThat(snapshot.totalTime()).isEqualTo(Duration.ZERO);
@@ -157,7 +171,7 @@ class TaskExitObservationTest {
     private static <T> TaskExitObservation<T> succeeded(
             String name, TaskId.Unit unitId, int index, long submit, long start, long end, @Nullable T result) {
         return TaskExitObservation.snapshot(
-                name, unitId, index, submit, start, end, TaskClassification.SUCCESS, result, null);
+                name, unitId, index, submit, start, end, TaskTermination.success(result), result, null);
     }
 
     private static <T> TaskExitObservation<T> failed(
@@ -167,8 +181,8 @@ class TaskExitObservationTest {
             long submit,
             long start,
             long end,
-            TaskClassification outcome,
+            TaskTermination<T> termination,
             Throwable failure) {
-        return TaskExitObservation.snapshot(name, unitId, index, submit, start, end, outcome, null, failure);
+        return TaskExitObservation.snapshot(name, unitId, index, submit, start, end, termination, null, failure);
     }
 }

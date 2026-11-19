@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Maps.toImmutableEnumMap;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Supplier;
@@ -17,6 +16,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -156,7 +156,7 @@ final class TaskBatch<T> implements AutoCloseable {
         ExecutionExitTracker.awaitSettledUninterruptibly(
                 terminal.observationView(), budget, start, "terminal observation signal");
         TaskBatchResult<T> frozen = freezeResults();
-        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, attributionAtSettle(terminal));
+        ImmediateResult<C> terminalResult = ImmediateResult.fromTask(terminal, terminationAtSettle(terminal));
         TaskExitObservation<C> terminalObservation = null;
         ListenableFuture<TaskExitObservation<C>> observation = terminal.observationView();
         if (observation.isDone()) {
@@ -197,33 +197,30 @@ final class TaskBatch<T> implements AutoCloseable {
     @SuppressWarnings("EmptyCatch")
     private static void awaitAttribution(TaskFuture<?> task) {
         try {
-            Uninterruptibles.getUninterruptibly(settledAttributionOf(task));
+            Uninterruptibles.getUninterruptibly(settledTerminationOf(task));
         } catch (ExecutionException ignored) {
         }
     }
 
     /**
-     * The outcome a batch freezes for a settled task: the attribution pinned when it settled, so a
-     * fail-fast cascade committed by the task's own failure cannot reattribute it.
+     * The termination a batch freezes for a settled task: the attribution pinned when it settled,
+     * so a fail-fast cascade committed by the task's own failure cannot reattribute it.
      */
-    private static TaskClassification attributionAtSettle(TaskFuture<?> task) {
+    private static <T> TaskTermination<T> terminationAtSettle(TaskFuture<T> task) {
         try {
-            return Verify.verifyNotNull(Futures.getDone(settledAttributionOf(task)));
+            return Verify.verifyNotNull(Futures.getDone(settledTerminationOf(task)));
         } catch (ExecutionException failure) {
             throw new AssertionError("settled task attribution cannot fail", failure.getCause());
         }
     }
 
     /**
-     * The settle attribution of a batch task. Every task this class freezes is a view built by
-     * {@link Task#attributedOnSettle}: the constructor and both factories are package-private, and
-     * the batch submission paths are their only producers.
+     * The settle termination of a batch task. Every task this class freezes is a pinned view built
+     * by {@link Task#of(String, CancellationToken, ListenableFuture)}: the constructor and both
+     * factories are package-private, and the batch submission paths are their only producers.
      */
-    private static ListenableFuture<TaskClassification> settledAttributionOf(TaskFuture<?> task) {
-        return Verify.verifyNotNull(
-                ((Task<?>) task).settledAttribution(),
-                "batch task '%s' carries no settle attribution",
-                task.taskName());
+    private static <T> ListenableFuture<TaskTermination<T>> settledTerminationOf(TaskFuture<T> task) {
+        return ((Task<T>) task).terminationFuture();
     }
 
     /** Freezes per-element results and observations; every future is terminal by here. */
@@ -231,7 +228,7 @@ final class TaskBatch<T> implements AutoCloseable {
         List<ImmediateResult<T>> frozen = new ArrayList<>(results.size());
         List<@Nullable TaskExitObservation<T>> observations = new ArrayList<>(results.size());
         for (TaskFuture<T> result : results) {
-            ImmediateResult<T> immediate = ImmediateResult.fromTask(result, attributionAtSettle(result));
+            ImmediateResult<T> immediate = ImmediateResult.fromTask(result, terminationAtSettle(result));
             frozen.add(immediate);
             ListenableFuture<TaskExitObservation<T>> observation = result.completionFuture();
             try {
@@ -335,9 +332,10 @@ final class TaskBatch<T> implements AutoCloseable {
     /**
      * Creates a result for a fully submitted batch.
      *
-     * <p>Freezing a batch ({@link #finish()}) reads every element's settle attribution, which only
-     * views built by {@link Task#attributedOnSettle} carry; a batch of other views can be read live
-     * and closed, but not frozen. The library's own use is the empty batch.
+     * <p>Freezing a batch ({@link #finish()}) reads every element's settle termination, which only
+     * pinned views built by {@link Task#of(String, CancellationToken, ListenableFuture)} carry; a
+     * batch of other views can be read live and closed, but not frozen. The library's own use is
+     * the empty batch.
      *
      * @param <T> the element result type
      * @param results the individual result futures
@@ -454,47 +452,62 @@ final class TaskBatch<T> implements AutoCloseable {
     }
 
     /**
-     * Generates execution report: counts tasks by outcome and extracts first failure exception.
+     * Generates execution report: counts tasks by termination branch and extracts first failure
+     * exception.
      *
      * <p>Counts reflect the futures' states at call time: an element whose execution has exited but
-     * whose future has not settled yet still reads {@code RUNNING}. For a terminal snapshot, call
+     * whose future has not settled yet still counts as pending. For a terminal snapshot, call
      * this after {@link #awaitExecutionExit(Duration)} returned {@code true} or after {@link
      * #close()} returned — both guarantee every element future is terminal.
      *
-     * <p>Each element is classified by {@link TaskFuture#outcome()} from its own token, which is
-     * the batch's single token: {@code TIMEOUT} for deadline expiry, {@code FAIL_FAST} for the
-     * cascade after a sibling failure, {@code GROUP_CANCELLED} for batch-level or propagated
-     * cancellation, and {@code MEMBER_CANCELLED} when no framework path committed (a direct
+     * <p>Each element is attributed from its own token, which is the batch's single token: {@code
+     * DEADLINE_EXCEEDED} for deadline expiry, {@code ABORTED_BY_FAIL_FAST} for the cascade after a
+     * sibling failure, {@code CANCELLED_BY_PARENT_SCOPE} for batch-level or propagated
+     * cancellation, and {@code CANCELLED_BY_CALLER} when no framework path committed (a direct
      * cancellation). A failure that merely signals observed cancellation (a cooperative checkpoint
      * or an interrupt racing the cascade cancel) is attributed the same way instead of reading
-     * {@code USER_FAILURE}. The batch shares one token across all elements, so an element whose
-     * direct cancellation <em>triggered</em> the fail-fast cascade also reads {@code FAIL_FAST};
-     * distinguishing the initiator per element requires a {@code TaskGroup}.
+     * {@code USER_CODE_FAILURE}. The batch shares one token across all elements, so an element
+     * whose direct cancellation <em>triggered</em> the fail-fast cascade also reads {@code
+     * ABORTED_BY_FAIL_FAST}; distinguishing the initiator per element requires a {@code TaskGroup}.
      *
-     * @return a BatchReport containing outcome counts and the first exception (if any)
+     * @return a BatchReport containing termination counts and the first exception (if any)
      */
     public BatchReport report() {
-        Map<TaskClassification, Integer> outcomeMap =
-                results.stream().collect(toImmutableEnumMap(TaskFuture::outcome, x -> 1, Integer::sum));
+        EnumMap<TaskTermination.Kind, Integer> counts = new EnumMap<>(TaskTermination.Kind.class);
+        int pending = 0;
+        for (TaskFuture<T> result : results) {
+            TaskTermination<T> termination = result.termination();
+            if (termination == null) {
+                pending++;
+            } else {
+                counts.merge(termination.kind(), 1, Integer::sum);
+            }
+        }
         Throwable firstException = results.stream()
                 .map(TaskFuture::failure)
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
-        return new BatchReport(outcomeMap, firstException);
+        return new BatchReport(Maps.immutableEnumMap(counts), pending, firstException);
     }
 
     /**
      * Returns a human-readable summary string of the execution report.
      *
-     * <p>Format: {@code STATE1:count,STATE2:count | firstException=message}
+     * <p>Format: {@code KIND1:count,KIND2:count[,PENDING:count] | firstException=message}
      *
      * @return formatted report string
      */
     public String reportString() {
         BatchReport r = report();
         StringBuilder sb =
-                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(r.stateCounts()));
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(r.terminationCounts()));
+        if (r.pending() != 0) {
+            if (sb.length() != 0) {
+                sb.append(',');
+            }
+            sb.append("PENDING:").append(r.pending());
+        }
         if (r.firstException() != null) {
             sb.append(" | firstException=").append(r.firstException().getMessage());
         }
@@ -503,27 +516,41 @@ final class TaskBatch<T> implements AutoCloseable {
 
     /** Immutable report of batch task execution state. */
     static final class BatchReport {
-        private final Map<TaskClassification, Integer> stateCounts;
+        private final Map<TaskTermination.Kind, Integer> terminationCounts;
+        private final int pending;
         private final @Nullable Throwable firstException;
 
         /**
          * Creates a batch report.
          *
-         * @param stateCounts counts keyed by terminal or current future state
+         * @param terminationCounts counts keyed by termination branch
+         * @param pending elements without a terminal termination at report time
          * @param firstException the first observed failure, or {@code null}
          */
-        BatchReport(Map<TaskClassification, Integer> stateCounts, @Nullable Throwable firstException) {
-            this.stateCounts = Maps.immutableEnumMap(Objects.requireNonNull(stateCounts, "stateCounts cannot be null"));
+        BatchReport(
+                Map<TaskTermination.Kind, Integer> terminationCounts, int pending, @Nullable Throwable firstException) {
+            this.terminationCounts = Maps.immutableEnumMap(
+                    Objects.requireNonNull(terminationCounts, "terminationCounts cannot be null"));
+            this.pending = pending;
             this.firstException = firstException;
         }
 
         /**
-         * Provides counts by outcome, for example {@code SUCCESS=3, USER_FAILURE=1}.
+         * Provides counts by termination branch, for example {@code SUCCESS=3, FAILED=1}.
          *
-         * @return the immutable state count map, empty when the batch had no elements
+         * @return the immutable termination count map, empty when the batch had no elements
          */
-        public Map<TaskClassification, Integer> stateCounts() {
-            return stateCounts;
+        public Map<TaskTermination.Kind, Integer> terminationCounts() {
+            return terminationCounts;
+        }
+
+        /**
+         * Returns how many elements had no terminal termination when the report was taken.
+         *
+         * @return the pending element count
+         */
+        public int pending() {
+            return pending;
         }
 
         /**
@@ -537,7 +564,8 @@ final class TaskBatch<T> implements AutoCloseable {
 
         @Override
         public String toString() {
-            return "BatchReport{stateCounts=" + stateCounts + ", firstException=" + firstException + '}';
+            return "BatchReport{terminationCounts=" + terminationCounts + ", pending=" + pending + ", firstException="
+                    + firstException + '}';
         }
     }
 }

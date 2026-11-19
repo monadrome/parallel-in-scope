@@ -253,7 +253,7 @@ public final class Par {
         if (combinePar.executorRuntime().threadPoolBacked()) {
             terminalFuture.forbidInlineExecution();
         }
-        Task<C> terminalView = Task.attributedOnSettle(unit.name(), unit.cancellationToken(), terminalFuture);
+        Task<C> terminalView = Task.of(unit.name(), unit.cancellationToken(), terminalFuture);
         SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
                 executorRuntime.submissionExecutor(),
                 unit,

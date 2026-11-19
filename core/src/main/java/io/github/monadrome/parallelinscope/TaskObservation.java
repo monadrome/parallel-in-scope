@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * replace the recorded handoff failure with a cancellation.
  *
  * <p>User task failure, cancellation, and rejection all complete the observation future
- * <em>successfully</em> with the real outcome data; a publication failure is an implementation
+ * <em>successfully</em> with the real termination data; a publication failure is an implementation
  * defect and must never leave the sink pending. Callers receive a fixed read-only view whose {@code
  * cancel(...)} returns {@code false} and propagates nowhere.
  *
@@ -112,10 +112,10 @@ final class TaskObservation<T> {
      * Publishes the final snapshot of a task prevented from starting. Start and end times are zero.
      * First writer wins: a concurrent publication keeps whichever snapshot was published first.
      */
-    void publishSkipped(TaskClassification outcome, @Nullable Throwable failure) {
+    void publishSkipped(TaskTermination<T> termination, @Nullable Throwable failure) {
         Verify.verify(unitId != null, "an observation with no unit cannot publish a skipped snapshot");
         publish(TaskExitObservation.snapshot(
-                Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, outcome, null, failure));
+                Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, termination, null, failure));
     }
 
     /** The read-only observation view handed to callers; {@code cancel(...)} returns {@code false}. */
@@ -197,11 +197,12 @@ final class TaskObservation<T> {
 
     /**
      * Builds the final snapshot of a settled task from its execution context: identity, timings,
-     * outcome, and — on success — result read straight from the terminal future. Cancellation is
-     * attributed through the token chain, never guessed from {@code isCancelled()} alone; the
+     * termination, and — on success — result read straight from the terminal future. Cancellation
+     * is attributed through the token chain, never guessed from {@code isCancelled()} alone; the
      * token's committed state is read only after the future is terminal. A batch or group result
-     * replaces this outcome with the frozen attribution through {@code TaskExitObservation.withResult};
-     * only package-private observation futures (a task's own and the batch aggregate) publish it unchanged.
+     * replaces this termination with the frozen attribution through {@code
+     * TaskExitObservation.withResult}; only package-private observation futures (a task's own and
+     * the batch aggregate) publish it unchanged.
      */
     private static <T> TaskExitObservation<T> settledSnapshot(
             TaskExecutionContext context, ListenableFuture<T> settle) {
@@ -226,6 +227,7 @@ final class TaskObservation<T> {
             long endTimeNanos,
             CancellationToken token,
             ListenableFuture<T> settle) {
+        TaskTermination<T> termination = Task.settleTermination(taskName, token, settle);
         if (settle.isCancelled()) {
             return TaskExitObservation.snapshot(
                     taskName,
@@ -234,7 +236,7 @@ final class TaskObservation<T> {
                     submitTimeNanos,
                     startTimeNanos,
                     endTimeNanos,
-                    TokenOutcomes.forCancelled(token, TaskClassification.MEMBER_CANCELLED),
+                    termination,
                     null,
                     null);
         }
@@ -246,11 +248,10 @@ final class TaskObservation<T> {
                     submitTimeNanos,
                     startTimeNanos,
                     endTimeNanos,
-                    TaskClassification.SUCCESS,
+                    termination,
                     Futures.getDone(settle),
                     null);
         } catch (ExecutionException failure) {
-            Throwable cause = failure.getCause();
             return TaskExitObservation.snapshot(
                     taskName,
                     unitId,
@@ -258,9 +259,9 @@ final class TaskObservation<T> {
                     submitTimeNanos,
                     startTimeNanos,
                     endTimeNanos,
-                    Task.classifyFailure(token, cause),
+                    termination,
                     null,
-                    cause);
+                    failure.getCause());
         }
     }
 }

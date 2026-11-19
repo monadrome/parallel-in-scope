@@ -62,7 +62,7 @@ and its limits are listed separately in §2.3; it does not grant other wrappers 
 clear arbitrary new interruptions.
 
 **P4. Do not turn interruption into failure in "read-only" methods.** Methods that report state
-(`outcome()`, `failure()`, the various `isXxx`) must not change their answer or throw merely
+(`termination()`, `failure()`, the various `isXxx`) must not change their answer or throw merely
 because the calling thread happens to carry the interrupt flag. The reason is in §5.3: these
 methods are called precisely, and often, from cleanup paths, where the flag is inevitably set.
 

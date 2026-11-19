@@ -199,7 +199,9 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         submissionFailure = wrapped;
         TaskObservation<V> published = observation;
         if (published != null) {
-            published.publishSkipped(TaskClassification.SUBMISSION_FAILURE, wrapped);
+            published.publishSkipped(
+                    TaskTermination.failed(FailureCause.submissionRejected(wrapped), ExecutionDisposition.NOT_CLAIMED),
+                    wrapped);
         }
         return true;
     }

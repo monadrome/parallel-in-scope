@@ -219,7 +219,7 @@ class GroupDraftLifecycleTest {
 
             release.countDown();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
 
             // The entered members released theirs through run()'s finally.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -248,7 +248,7 @@ class GroupDraftLifecycleTest {
                     .submitAll();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
 
-            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
             assertThat(group.callableReleased("one")).isTrue();
             assertThat(group.callableReleased("two")).isTrue();
         } finally {
@@ -280,8 +280,8 @@ class GroupDraftLifecycleTest {
             assertThat(group.callableReleased("user")).isFalse();
 
             release.countDown();
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
             // The execution exits after the future settles, so the release is awaited rather than assumed.
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(group.callableReleasedAt(0)).isTrue();
@@ -309,8 +309,8 @@ class GroupDraftLifecycleTest {
                     .submitAll();
 
             assertThat(executionOrder).containsExactly("a", "b", "c");
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
         } finally {
             global.close();
             direct.shutdownNow();

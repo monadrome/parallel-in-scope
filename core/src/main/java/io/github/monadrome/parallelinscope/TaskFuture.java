@@ -14,21 +14,18 @@ import org.jspecify.annotations.Nullable;
  * data instead. Control handles that do not represent a task execution, such as a batch's
  * submission canceller, stay plain futures.
  *
- * <p>Attribution is per future. {@link #outcome()} reads the cancellation token that owns this one
- * task, so it is available while the enclosing group is still converging. The enclosing scope's
- * frozen classification — {@link TaskGroupResult#outcome()}, each member's {@link TaskExitObservation},
- * a batch element's {@link ImmediateResult} — is the authority; it can carry a finer cause than the
- * token chain of a single future reveals, and a batch element's is pinned when the element settled.
+ * <p>Attribution is per future. {@link #termination()} is pinned when this future settles, from
+ * the cancellation token that owns this one task, and the batch freeze consumes that pin; a read
+ * that wins the race against the pin's publication recomputes the same attribution from the
+ * settled future and the token. The enclosing scope's frozen attribution — each member's {@link
+ * TaskExitObservation}, a batch element's {@link ImmediateResult} — is the authority; it can carry
+ * a finer cause than the token chain of a single future reveals at settle time.
  *
- * <p>The metadata queries {@link #taskName()}, {@link #outcome()}, {@link #deadlineNanos()}, {@link
- * #remaining()}, and {@link #failure()} are safe on any thread: they do not block, throw, or change
- * the future. Inherited future operations retain their ordinary blocking and cancellation
- * semantics. {@link #outcome()} and {@link #failure()} report a terminal value once the future is
- * done and never fall back to {@link TaskClassification#RUNNING} afterward. A terminal value can still be
- * refined while the enclosing scope settles: a group member learns about its group's cancellation
- * through the token chain, which may commit just after the member future was already cancelled, so
- * a direct cancellation can read {@link TaskClassification#MEMBER_CANCELLED} and then {@link
- * TaskClassification#GROUP_CANCELLED} for the same future. Reads taken once the enclosing scope has
+ * <p>The metadata queries {@link #taskName()}, {@link #termination()}, {@link #deadlineNanos()},
+ * {@link #remaining()}, and {@link #failure()} are safe on any thread: they do not block, throw, or
+ * change the future. Inherited future operations retain their ordinary blocking and cancellation
+ * semantics. {@link #termination()} and {@link #failure()} report a terminal value once the future
+ * is done and never fall back to pending afterward. Reads taken once the enclosing scope has
  * converged agree with each other.
  *
  * @param <T> the task result type
@@ -37,20 +34,6 @@ interface TaskFuture<T> extends ListenableFuture<T> {
 
     /** Returns the task name: the batch name, the declared member or combine name, or the group name. */
     String taskName();
-
-    /**
-     * Returns how this task ended, or {@link TaskClassification#RUNNING} while it is still pending.
-     *
-     * <p>A failed task distinguishes {@link TaskClassification#SUBMISSION_FAILURE} (it was rejected, or
-     * otherwise failed before user code ran) from {@link TaskClassification#USER_FAILURE}. A cancelled
-     * task is attributed from its token chain, which yields {@link TaskClassification#TIMEOUT}, {@link
-     * TaskClassification#FAIL_FAST}, {@link TaskClassification#GROUP_CANCELLED}, or — when no framework
-     * cancellation path committed, meaning the caller cancelled the future directly — {@link
-     * TaskClassification#MEMBER_CANCELLED}. A failure that merely reports observed cancellation (a
-     * cooperative checkpoint, or an interrupt racing the cascade cancel) is attributed the same way
-     * rather than as a user failure.
-     */
-    TaskClassification outcome();
 
     /**
      * Returns the absolute deadline in {@link System#nanoTime()} units, or {@link Long#MAX_VALUE}
@@ -62,8 +45,8 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     Duration remaining();
 
     /**
-     * Returns the failure behind a {@link TaskClassification#USER_FAILURE} or {@code SUBMISSION_FAILURE};
-     * null otherwise.
+     * Returns the failure behind a {@link FailureCause.Kind#USER_CODE_FAILURE} or {@code
+     * SUBMISSION_REJECTED} termination; null otherwise.
      */
     @Nullable
     Throwable failure();
@@ -82,19 +65,19 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     /**
      * Returns the observation future of this task: a {@code ListenableFuture} of the task's final
      * immutable {@link TaskExitObservation} snapshot — identity, submit/start/end times, queue wait,
-     * outcome, failure, and on success the result.
+     * termination, failure, and on success the result.
      *
      * <p>The snapshot is published only after this future is terminal <em>and</em> the task execution
      * has exited (or was determined to never run), so the recorded end time is always final: a
      * callback consuming it never hits the window in which the future settled before the user
      * {@code finally}. A task that never started reports zero start/end times and durations with
-     * its real outcome — submission failure and pre-execution cancellation included. Once the
+     * its real termination — submission failure and pre-execution cancellation included. Once the
      * enclosing scope has completed (every future terminal and every task execution exited), this future
      * is guaranteed to be done; {@link TaskBatch#awaitExecutionExit(Duration)} returning {@code
      * true} implies the data is already available.
      *
      * <p>User task failure, cancellation, and rejection all complete this future successfully with
-     * the real outcome data. The future never returns {@code null}, never requires polling, and
+     * the real termination data. The future never returns {@code null}, never requires polling, and
      * ignores cancellation ({@code cancel(...)} returns {@code false} and propagates nowhere).
      * Compose it with {@code Futures.addCallback} on an executor of the caller's choice for
      * immediate reaction; the attribution here is the task's own direct one — a group member's

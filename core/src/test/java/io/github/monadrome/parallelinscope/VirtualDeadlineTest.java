@@ -122,8 +122,9 @@ class VirtualDeadlineTest {
             caller.join(TimeUnit.SECONDS.toMillis(10));
             assertThat(caller.isAlive()).isFalse();
             TaskGroupResult<Void> result = Objects.requireNonNull(outcome.get());
-            assertThat(result.outcome()).isEqualTo(TaskClassification.TIMEOUT);
-            assertThat(result.resultOf("m").outcome()).isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+            TerminationAssertions.assertCancelled(
+                    result.resultOf("m").termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
         } finally {
             runtime.close();
             executor.shutdownNow();
@@ -196,7 +197,7 @@ class VirtualDeadlineTest {
                             },
                             BatchOptions.timeout("batch", Duration.ofMinutes(1)));
 
-            assertThat(result.outcomeCounts().get(TaskClassification.USER_FAILURE))
+            assertThat(result.terminationKindCounts().get(TaskTermination.Kind.FAILED))
                     .isEqualTo(1);
             assertThat(result.executionExitConfirmed())
                     .as("the derived cleanup budget must cover the slow execution's real exit")
@@ -258,9 +259,12 @@ class VirtualDeadlineTest {
             assertThat(caller.isAlive())
                     .as("the nested deadline must fire on the inherited manual scheduler")
                     .isFalse();
-            assertThat(Objects.requireNonNull(nested.get()).outcomeCounts().get(TaskClassification.TIMEOUT))
+            assertThat(Objects.requireNonNull(nested.get())
+                            .terminationKindCounts()
+                            .get(TaskTermination.Kind.CANCELLED))
                     .isEqualTo(1);
-            assertThat(Objects.requireNonNull(outcome.get()).outcome()).isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    Objects.requireNonNull(outcome.get()).termination());
         } finally {
             inner.close();
             outer.close();
@@ -344,8 +348,10 @@ class VirtualDeadlineTest {
             assertThat(startupFailure.get())
                     .as("group startup must converge to a result, not throw, when shutdown races a bind")
                     .isNull();
-            assertThat(Objects.requireNonNull(outerOutcome.get()).outcome()).isEqualTo(TaskClassification.USER_FAILURE);
-            assertThat(Objects.requireNonNull(nestedOutcome.get()).outcome()).isNotEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeFailed(
+                    Objects.requireNonNull(outerOutcome.get()).termination());
+            assertThat(Objects.requireNonNull(nestedOutcome.get()).termination().kind())
+                    .isNotEqualTo(ScopeTermination.Kind.SUCCEEDED);
         } finally {
             pausing.release.countDown();
             pausing.shutdownNow();

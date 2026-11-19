@@ -314,7 +314,7 @@ as its single source of truth (`results`/`resultOf`/`resultAt`,
 
 Member completion snapshots are unified as `TaskExitObservation` (shared by batch elements and
 group members), with fields `taskName()`/`unitId()`/`taskIndex()`/three
-timestamps/`outcome()`/`result()`/`failure()`. Member snapshots in group results are rebuilt
+timestamps/`termination()`/`result()`/`failure()`. Member snapshots in group results are rebuilt
 from completion signals, retaining real success values and final times; `taskIndex()` is always
 0 for group members; `taskName()` is the member declaration name.
 

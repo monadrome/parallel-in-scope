@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
  * <p>The combine shares the group's deadline, cooperative cancellation, execution context, TTL
  * replay, and final observation. Its TTL context is captured when the group is admitted. It is
  * submitted to its declared {@link Par}; a rejected handoff is recorded as {@link
- * TaskClassification#SUBMISSION_FAILURE}. For a recognized {@link
+ * FailureCause.Kind#SUBMISSION_REJECTED}. For a recognized {@link
  * java.util.concurrent.ThreadPoolExecutor}, execution on the submitting thread during the handoff,
  * including a saturated {@code CallerRunsPolicy} fallback, is also rejected without entering the
  * execution. Such a pool remains usable when it dispatches normally. Direct executors retain their
@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * cleanup before returning.
  *
  * <p>The declaration key binds the result type at compile time; raw types and unchecked casts are
- * the caller's responsibility. Checked failures are recorded as {@link TaskClassification#USER_FAILURE}
+ * the caller's responsibility. Checked failures are recorded as {@link FailureCause.Kind#USER_CODE_FAILURE}
  * with the original throwable, like a member's failure.
  *
  * @param <V> the input type, such as a batch value list or a group's {@link GroupValues}
@@ -40,7 +40,7 @@ public interface Combiner<V, R> {
      *
      * @param values the non-null aggregate input supplied by the batch or group contract
      * @return the assembled terminal result, possibly null
-     * @throws Exception any business failure, recorded as {@link TaskClassification#USER_FAILURE}
+     * @throws Exception any business failure, recorded as {@link FailureCause.Kind#USER_CODE_FAILURE}
      */
     @Nullable
     R apply(V values) throws Exception;

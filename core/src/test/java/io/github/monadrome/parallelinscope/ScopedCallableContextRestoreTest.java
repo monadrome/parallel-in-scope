@@ -47,7 +47,7 @@ class ScopedCallableContextRestoreTest {
         TaskExitObservation<String> event =
                 Objects.requireNonNull(future.observation()).view().get(2, TimeUnit.SECONDS);
         assertThat(event.failure()).isSameAs(failure);
-        assertThat(event.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+        TerminationAssertions.assertUserFailure(event.termination());
         assertThat(event.successful()).isFalse();
         assertThat(event.result()).isNull();
     }

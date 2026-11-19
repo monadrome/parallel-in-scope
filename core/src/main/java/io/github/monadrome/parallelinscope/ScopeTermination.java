@@ -63,7 +63,7 @@ public final class ScopeTermination {
         return kind == Kind.SUCCEEDED;
     }
 
-    /** Derives the migration projection for an already frozen batch result list. */
+    /** Derives the scope termination of an already frozen batch result list. */
     static ScopeTermination fromResults(String source, List<? extends ImmediateResult<?>> results) {
         checkNotNull(source, "source cannot be null");
         ImmediateResult<?> firstFailure = null;
@@ -84,36 +84,6 @@ public final class ScopeTermination {
                     checkNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason")));
         }
         return succeeded();
-    }
-
-    /** Derives the migration projection for a legacy group report. */
-    static ScopeTermination fromLegacy(
-            TaskClassification outcome,
-            @Nullable String failedTask,
-            @Nullable FailureCause failureCause,
-            String source) {
-        checkNotNull(outcome, "outcome cannot be null");
-        switch (outcome) {
-            case SUCCESS:
-                return succeeded();
-            case USER_FAILURE:
-            case SUBMISSION_FAILURE:
-                return failed(ScopeTerminationCause.failed(
-                        failureCause == null
-                                ? TaskTermination.failureCauseFor(
-                                        outcome, new IllegalStateException("missing failure cause"))
-                                : failureCause,
-                        failedTask));
-            case TIMEOUT:
-            case FAIL_FAST:
-            case GROUP_CANCELLED:
-            case MEMBER_CANCELLED:
-                return cancelled(ScopeTerminationCause.cancelled(
-                        TaskTermination.cancellationReasonFor(outcome, source, failedTask)));
-            case RUNNING:
-            default:
-                throw new IllegalArgumentException("running is not a scope termination");
-        }
     }
 
     static ScopeTermination fromPrimary(@Nullable ScopeTerminationCause primary, ScopeTermination fallback) {

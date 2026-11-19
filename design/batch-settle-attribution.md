@@ -56,7 +56,7 @@ time; it was unaffected.
 ## 3. Mechanism
 
 `Task.attributedOnSettle` constructs the views of batch elements and the terminal combine,
-registering a listener on the delegate that pins the settle-time `outcome()` into a
+registering a listener on the delegate that pins the settle-time `termination()` into a
 `SettableFuture<TaskTermination>`. Views are created before bind
 (`SlidingWindowSubmitter.viewsFor`, the terminal view of `Par.executeCombined`); Guava
 `AbstractFuture` runs a settled future's listeners in registration order — the group's

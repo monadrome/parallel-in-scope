@@ -65,7 +65,8 @@ class AggregateReadRuleTest {
                 par,
                 values -> 0);
 
-        assertThat(run.terminalResult().outcome()).isEqualTo(TaskClassification.FAIL_FAST);
+        TerminationAssertions.assertCancelled(
+                run.terminalResult().termination(), CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
         assertThatThrownBy(run::terminalValueOrThrow).isSameAs(priceUnavailable);
         assertThatThrownBy(run::orThrow).isSameAs(priceUnavailable);
     }
@@ -138,10 +139,10 @@ class AggregateReadRuleTest {
         assertThatThrownBy(batch::valuesOrThrow).isSameAs(first);
         assertThatThrownBy(batch::orThrow).isSameAs(first);
         assertThat(batch.failedTaskResult()).containsSame(batch.results().get(1));
-        assertThat(batch.outcomeCounts())
-                .containsEntry(TaskClassification.USER_FAILURE, 1)
-                .containsEntry(TaskClassification.FAIL_FAST, 2);
-        assertThat(batch.reportString()).contains("USER_FAILURE:1", "firstException=first");
+        assertThat(batch.terminationKindCounts())
+                .containsEntry(TaskTermination.Kind.FAILED, 1)
+                .containsEntry(TaskTermination.Kind.CANCELLED, 2);
+        assertThat(batch.reportString()).contains("FAILED:1", "firstException=first");
     }
 
     @Test
@@ -158,7 +159,7 @@ class AggregateReadRuleTest {
 
         assertThat(batch.failedTaskResult()).isEmpty();
         assertThatThrownBy(batch::valuesOrThrow).isInstanceOf(CancellationException.class);
-        assertThat(batch.outcomeCounts()).containsEntry(TaskClassification.TIMEOUT, 2);
+        assertThat(batch.terminationKindCounts()).containsEntry(TaskTermination.Kind.CANCELLED, 2);
     }
 
     @Test
@@ -221,8 +222,9 @@ class AggregateReadRuleTest {
                     return 0;
                 });
 
-        assertThat(run.batchResult().outcomeCounts()).containsEntry(TaskClassification.SUCCESS, 2);
-        assertThat(run.terminalResult().outcome()).isEqualTo(TaskClassification.TIMEOUT);
+        assertThat(run.batchResult().terminationKindCounts()).containsEntry(TaskTermination.Kind.SUCCESS, 2);
+        TerminationAssertions.assertCancelled(
+                run.terminalResult().termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
         assertThatThrownBy(run::terminalValueOrThrow).isInstanceOf(CancellationException.class);
     }
 
@@ -231,18 +233,20 @@ class AggregateReadRuleTest {
         IllegalStateException detail = new IllegalStateException("detail");
         TaskBatchResult<Integer> batch = new TaskBatchResult<>(
                 "manual",
-                Arrays.asList(ImmediateResult.succeeded(1), ImmediateResult.failed(TaskClassification.TIMEOUT, detail)),
+                Arrays.asList(
+                        ImmediateResult.succeeded(1),
+                        ImmediateResult.cancelled(CancellationReason.deadlineExceeded(), detail)),
                 Arrays.asList(null, null),
                 Collections.emptyMap());
 
         assertThat(batch.batchName()).isEqualTo("manual");
         assertThatThrownBy(batch::orThrow)
                 .isInstanceOf(CancellationException.class)
-                .hasMessage("batch 'manual' element ended with TIMEOUT")
+                .hasMessage("batch 'manual' element ended with DEADLINE_EXCEEDED")
                 .hasCauseReference(detail);
         assertThatThrownBy(batch::valuesOrThrow)
                 .isInstanceOf(CancellationException.class)
-                .hasMessage("batch 'manual' element ended with TIMEOUT")
+                .hasMessage("batch 'manual' element ended with DEADLINE_EXCEEDED")
                 .hasCauseReference(detail);
     }
 
@@ -255,12 +259,12 @@ class AggregateReadRuleTest {
 
         TaskBatchResult<Integer> userFirst = manual(
                 ImmediateResult.succeeded(1),
-                ImmediateResult.failed(TaskClassification.FAIL_FAST, cancelled),
-                ImmediateResult.failed(TaskClassification.USER_FAILURE, userFailure),
-                ImmediateResult.failed(TaskClassification.SUBMISSION_FAILURE, submissionFailure));
+                ImmediateResult.cancelled(CancellationReason.abortedByFailFast(), cancelled),
+                ImmediateResult.failed(FailureCause.userCodeFailure(userFailure)),
+                ImmediateResult.failed(FailureCause.submissionRejected(submissionFailure)));
         TaskBatchResult<Integer> submissionFirst = manual(
-                ImmediateResult.failed(TaskClassification.SUBMISSION_FAILURE, submissionFailure),
-                ImmediateResult.failed(TaskClassification.USER_FAILURE, userFailure));
+                ImmediateResult.failed(FailureCause.submissionRejected(submissionFailure)),
+                ImmediateResult.failed(FailureCause.userCodeFailure(userFailure)));
 
         assertThatThrownBy(userFirst::orThrow).isSameAs(userFailure);
         assertThatThrownBy(userFirst::valuesOrThrow).isSameAs(userFailure);
@@ -276,8 +280,8 @@ class AggregateReadRuleTest {
     void anAllCancelledBatchThrowsItsFirstElementsCancellation() {
         CancellationException first = new CancellationException("first");
         TaskBatchResult<Integer> batch = manual(
-                ImmediateResult.failed(TaskClassification.GROUP_CANCELLED, first),
-                ImmediateResult.failed(TaskClassification.FAIL_FAST, new CancellationException("second")));
+                ImmediateResult.cancelled(CancellationReason.cancelledByParentScope(), first),
+                ImmediateResult.cancelled(CancellationReason.abortedByFailFast(), new CancellationException("second")));
 
         assertThat(batch.failedTaskResult()).isEmpty();
         assertThatThrownBy(batch::valuesOrThrow).isSameAs(first);
@@ -289,13 +293,13 @@ class AggregateReadRuleTest {
         IOException failure = new IOException("failed after cancellation");
         TaskBatchResult<Integer> cancelled = manual(
                 ImmediateResult.succeeded(null),
-                ImmediateResult.failed(TaskClassification.TIMEOUT, first),
+                ImmediateResult.cancelled(CancellationReason.deadlineExceeded(), first),
                 ImmediateResult.succeeded(3),
-                ImmediateResult.failed(TaskClassification.FAIL_FAST, new CancellationException("second")));
+                ImmediateResult.cancelled(CancellationReason.abortedByFailFast(), new CancellationException("second")));
         TaskBatchResult<Integer> failed = manual(
                 ImmediateResult.succeeded(1),
-                ImmediateResult.failed(TaskClassification.TIMEOUT, first),
-                ImmediateResult.failed(TaskClassification.USER_FAILURE, failure));
+                ImmediateResult.cancelled(CancellationReason.deadlineExceeded(), first),
+                ImmediateResult.failed(FailureCause.userCodeFailure(failure)));
 
         Thread.currentThread().interrupt();
         try {
@@ -321,7 +325,7 @@ class AggregateReadRuleTest {
 
         assertThat(empty.orThrow()).isSameAs(empty);
         assertThat(empty.valuesOrThrow()).isEmpty();
-        assertThat(empty.outcomeCounts()).isEmpty();
+        assertThat(empty.terminationKindCounts()).isEmpty();
         assertThat(empty.failedTaskResult()).isEmpty();
         assertThat(empty.reportString()).isEmpty();
     }

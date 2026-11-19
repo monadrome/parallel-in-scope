@@ -105,17 +105,6 @@ public final class TaskGroupResult<R> {
         return report.deadlineNanos();
     }
 
-    /**
-     * How the group as a whole ended. A group with a recorded failure — of a member or of the
-     * combine — reports that task's own outcome ({@code USER_FAILURE} or {@code
-     * SUBMISSION_FAILURE}) whatever order the tasks completed in; otherwise {@code SUCCESS} or a
-     * cancellation outcome ({@code TIMEOUT}, {@code GROUP_CANCELLED}, {@code MEMBER_CANCELLED}).
-     * See {@link TaskClassification}.
-     */
-    TaskClassification outcome() {
-        return report.outcome();
-    }
-
     /** Returns the shared three-state logical termination of this group scope. */
     public ScopeTermination termination() {
         return report.termination();
@@ -292,7 +281,7 @@ public final class TaskGroupResult<R> {
      */
     @CanIgnoreReturnValue
     public TaskGroupResult<R> orThrow() {
-        if (outcome() == TaskClassification.SUCCESS) {
+        if (termination().kind() == ScopeTermination.Kind.SUCCEEDED) {
             return this;
         }
         Throwable failure = report.recordedFailure();
@@ -302,10 +291,10 @@ public final class TaskGroupResult<R> {
         }
         Throwable cancellation = values.failure();
         if (cancellation instanceof CancellationException) throw (CancellationException) cancellation;
-        throw new CancellationException("task group '" + groupName() + "' ended with " + outcome());
+        throw new CancellationException(
+                "task group '" + groupName() + "' ended with " + TaskGroupReport.describe(termination()));
     }
 
-    /** Counts every member and declared combine, including tasks without final observations. */
     /** Counts task-level termination branches for members and the optional combine. */
     public Map<TaskTermination.Kind, Integer> terminationKindCounts() {
         EnumMap<TaskTermination.Kind, Integer> counts = new EnumMap<>(TaskTermination.Kind.class);
@@ -318,26 +307,15 @@ public final class TaskGroupResult<R> {
         return Maps.immutableEnumMap(counts);
     }
 
-    Map<TaskClassification, Integer> outcomeCounts() {
-        EnumMap<TaskClassification, Integer> counts = new EnumMap<>(TaskClassification.class);
-        for (ImmediateResult<?> result : results.values()) {
-            counts.merge(result.outcome(), 1, Integer::sum);
-        }
-        if (terminalResult != null) {
-            counts.merge(terminalResult.outcome(), 1, Integer::sum);
-        }
-        return Maps.immutableEnumMap(counts);
-    }
-
     /**
-     * A one-line summary for logs: the {@link #outcomeCounts()}, the group outcome, and the failed
-     * task's name when one was recorded, as in {@code SUCCESS:1,USER_FAILURE:1 |
-     * outcome=USER_FAILURE, failedTask=load}. The format is diagnostic, not a parsing contract.
+     * A one-line summary for logs: the {@link #terminationKindCounts()}, the scope termination,
+     * and the failed task's name when one was recorded, as in {@code SUCCESS:1,FAILED:1 |
+     * termination=FAILED, failedTask=load}. The format is diagnostic, not a parsing contract.
      */
     public String reportString() {
         StringBuilder text =
-                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(outcomeCounts()));
-        text.append(" | outcome=").append(outcome());
+                new StringBuilder(Joiner.on(',').withKeyValueSeparator(':').join(terminationKindCounts()));
+        text.append(" | termination=").append(termination().kind());
         if (failedTaskName() != null) text.append(", failedTask=").append(failedTaskName());
         return text.toString();
     }

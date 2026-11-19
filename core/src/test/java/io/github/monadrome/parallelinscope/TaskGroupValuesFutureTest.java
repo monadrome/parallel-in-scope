@@ -46,8 +46,8 @@ class TaskGroupValuesFutureTest {
             // The values view names its slots in declaration order when printed, which is what a
             // caller logging a group result sees.
             assertThat(values).hasToString("GroupValues[user, count]");
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
             // The documented ordering invariant: a done completion future implies a done values
             // future, so a reader of both never sees a converged group with pending values.
             assertThat(group.valuesFuture().isDone()).isTrue();
@@ -68,8 +68,8 @@ class TaskGroupValuesFutureTest {
                     throw boom;
                 })
                 .submitAll()) {
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertScopeFailed(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
 
             // Settled, not stranded: the failure reaches the caller as a cause, never as a hang.
             assertThat(group.valuesFuture().isDone()).isTrue();
@@ -133,7 +133,7 @@ class TaskGroupValuesFutureTest {
                 })
                 .submitAll()) {
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
-            assertThat(result.outcome()).isEqualTo(TaskClassification.USER_FAILURE);
+            TerminationAssertions.assertScopeFailed(result.termination());
             assertThat(result.failedTaskName()).isEqualTo("assemble");
 
             // The terminal is not a member, so this is the case that proves the recorded failure is
@@ -192,8 +192,9 @@ class TaskGroupValuesFutureTest {
                     })
                     .submitAll();
 
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.TIMEOUT);
+            TerminationAssertions.assertScopeCancelled(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination(),
+                    CancellationReason.Kind.DEADLINE_EXCEEDED);
             // A deadline is a cancellation, not a failure: there is no throwable to hand back.
             assertThat(group.valuesFuture().isCancelled()).isTrue();
         } finally {
@@ -213,8 +214,8 @@ class TaskGroupValuesFutureTest {
 
             assertThat(values.size()).isZero();
             assertThat(values.size()).isZero();
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
         } finally {
             global.close();
             executor.shutdownNow();
@@ -287,8 +288,8 @@ class TaskGroupValuesFutureTest {
             // The value is published before the listeners run, so both facts must hold: the values
             // are readable, and convergence still publishes the completion future.
             assertThat(group.valuesFuture().get(2, TimeUnit.SECONDS).valueAt(0)).isEqualTo("value");
-            assertThat(group.convergenceFuture().get(2, TimeUnit.SECONDS).outcome())
-                    .isEqualTo(TaskClassification.SUCCESS);
+            TerminationAssertions.assertScopeSucceeded(
+                    group.convergenceFuture().get(2, TimeUnit.SECONDS).termination());
         } finally {
             release.countDown();
             global.close();

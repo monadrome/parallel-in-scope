@@ -29,8 +29,8 @@ through `TaskGroupResult.members()`/`terminal()`:
 - flattened identity fields `taskName()`, `unitId()`, `taskIndex()` (taken from the owning
   `MultiTaskContext`);
 - `termination()`: the same frozen logical termination as `resultOf(name).termination()` — one
-  conclusion per member; the old `outcome()` serves only as a `TaskTermination` compatibility
-  projection ([task termination contract](task-termination-and-scope.md)).
+  conclusion per member, and the sole attribution: the observation snapshot and the frozen result
+  share the same value ([task termination contract](task-termination-and-scope.md)).
 
 A snapshot is published only after the member future is terminal **and** the task code has
 entered `EXITED`/`SKIPPED`, so the end timing is always final. Members cancelled before
