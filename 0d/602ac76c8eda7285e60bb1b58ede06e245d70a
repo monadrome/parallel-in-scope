@@ -1,0 +1,19 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_ecf5eb70cbe7cc::t_4c66b879228329 322,325-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "0d602ac76c8eda7285e60bb1b58ede06e245d70a",
+  "prompts": {},
+  "sessions": {
+    "s_ecf5eb70cbe7cc": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_b22b1bf4-30c5-4ed8-b233-5f8b7fe8d108",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
