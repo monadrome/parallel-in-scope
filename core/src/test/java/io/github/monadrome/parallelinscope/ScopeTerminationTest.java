@@ -27,6 +27,11 @@ class ScopeTerminationTest {
     }
 
     @Test
+    void succeededReusesASingleSharedInstance() {
+        assertThat(ScopeTermination.succeeded()).isSameAs(ScopeTermination.succeeded());
+    }
+
+    @Test
     void failureKeepsTheOriginalThrowableByIdentityAndTheFailedTask() {
         IllegalStateException original = new IllegalStateException("boom");
 

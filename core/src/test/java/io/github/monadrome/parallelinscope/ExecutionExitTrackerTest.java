@@ -22,6 +22,16 @@ class ExecutionExitTrackerTest {
     }
 
     @Test
+    void emptyTrackerFactoryReusesOneDoneInstance() {
+        ExecutionExitTracker first = ExecutionExitTracker.empty();
+        ExecutionExitTracker second = ExecutionExitTracker.empty();
+
+        assertThat(first).isSameAs(second);
+        assertThat(first.isDone()).isTrue();
+        assertThat(second.isDone()).isTrue();
+    }
+
+    @Test
     void outstandingExecutionsKeepTheSignalPendingUntilTheLastRelease() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(2);
         TaskExecutionState first = tracker.register(context("first"));

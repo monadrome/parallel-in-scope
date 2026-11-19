@@ -51,7 +51,7 @@ final class ExecutionExitTracker {
 
     /** Creates a tracker for an empty submission: the signal is already complete. */
     static ExecutionExitTracker empty() {
-        return new ExecutionExitTracker(0);
+        return EmptyHolder.INSTANCE.value;
     }
 
     /**
@@ -284,5 +284,11 @@ final class ExecutionExitTracker {
         } catch (TimeoutException elapsed) {
             return false;
         }
+    }
+
+    private enum EmptyHolder {
+        INSTANCE;
+
+        private final ExecutionExitTracker value = new ExecutionExitTracker(0);
     }
 }

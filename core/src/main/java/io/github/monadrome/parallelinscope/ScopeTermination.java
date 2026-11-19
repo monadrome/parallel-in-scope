@@ -45,7 +45,7 @@ public final class ScopeTermination {
 
     /** Creates a successful scope termination without a failure or cancellation payload. */
     public static ScopeTermination succeeded() {
-        return new ScopeTermination(Kind.SUCCESS, null, null, null);
+        return SuccessHolder.INSTANCE.value;
     }
 
     /**
@@ -156,5 +156,11 @@ public final class ScopeTermination {
             return "ScopeTermination[kind=" + kind + ", failedTask=" + failedTask + ", failure=" + failureCause + ']';
         }
         return "ScopeTermination[kind=" + kind + ", cancellation=" + cancellationReason + ']';
+    }
+
+    private enum SuccessHolder {
+        INSTANCE;
+
+        private final ScopeTermination value = new ScopeTermination(Kind.SUCCESS, null, null, null);
     }
 }
