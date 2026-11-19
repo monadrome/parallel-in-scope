@@ -1,0 +1,22 @@
+AGENTS.md
+  s_b8d4cd8e170dbe::t_c1197a40631558 667-671
+  s_b8d4cd8e170dbe::t_bb2a963c05fa58 102
+verification/race-claims/README.md
+  s_b8d4cd8e170dbe::t_ca7ea00e3d1c2c 62-76,78-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e4fb645d40a608b075eab41dc7834f2108c38c68",
+  "prompts": {},
+  "sessions": {
+    "s_b8d4cd8e170dbe": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2feb75ae-05de-4fb7-82d5-301564e15632",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
