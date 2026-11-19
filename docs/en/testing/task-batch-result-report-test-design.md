@@ -25,8 +25,8 @@ The batch result's counting reads must describe completed, failed, cancelled, an
 Construct terminal ImmediateResult values directly. This keeps public report assertions deterministic
 without starting an executor. Internal live-future tests are a separate layer and do not imply that
 the public TaskBatchResult changes after return. Assert exact counts and states instead of checking
-that a string merely contains a fragment. `failedTaskResult()` selects the first USER_FAILURE or
-SUBMISSION_FAILURE in input order; pure timeout/cancellation leaves it empty.
+that a string merely contains a fragment. `failedTaskResult()` selects the first `FAILED` element
+in input order; pure timeout/cancellation leaves it empty.
 
 ### Demo integration tests
 

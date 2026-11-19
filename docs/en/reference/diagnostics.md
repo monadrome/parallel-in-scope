@@ -166,14 +166,14 @@ publication; retain the future before close to inspect the published report in a
 Batch `completions()` is an input-ordered list of available final TaskExitObservation snapshots; a null
 entry means final publication was not confirmed. Group `members()` contains available snapshots
 keyed by member name, and `terminal()` is the available combine observation or null.
-All observations contain identity, submit/start/end times, duration, outcome, failure, and actual
-successful values. Never-started tasks have zero start/end times. Missing observations stay missing
+All observations contain identity, submit/start/end times, duration, termination, failure, and
+actual successful values. Never-started tasks have zero start/end times. Missing observations stay missing
 in the frozen result; no pending business future is returned. Batch and group
 `terminationKindCounts()`/`reportString()` still include every terminal task, regardless of missing observations.
 
-`failure()` carries the detail, not the verdict. A successful task always reports null. Every other
-outcome carries a throwable: the execution-thrown exception for `USER_FAILURE` — including an
-`InterruptedException` or `CancellationException` the execution raised itself — and, for
-cancellation-attributed endings such as `TIMEOUT` and `FAIL_FAST`, normally a
-`LeanCancellationException` naming the outcome. Read `successful()` or `outcome()` to classify the
-task.
+`failure()` carries the detail, not the verdict. A successful task always reports null. Every
+non-success termination can carry a throwable: the execution-thrown exception for a user-code
+failure — including an `InterruptedException` or `CancellationException` the execution raised
+itself — and, for cancellation-attributed endings such as `DEADLINE_EXCEEDED` and
+`ABORTED_BY_FAIL_FAST`, normally a `LeanCancellationException` naming the reason. Read
+`successful()` or `termination()` to classify the task.

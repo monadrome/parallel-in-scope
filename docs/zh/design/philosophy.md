@@ -186,14 +186,16 @@ for (Item item : items) {
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
-库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskTermination`（以下列出取消相关的值）：
+库内部的取消 token 记录第一个胜出的取消原因，对外统一表达为 `TaskTermination` 的
+`CancellationReason`（以下列出取消原因的类别）：
 
-| `TaskTermination` | 含义 |
+| `CancellationReason.Kind` | 含义 |
 |---|---|
-| `FAIL_FAST` | 某个兄弟任务失败，触发 fail-fast |
-| `TIMEOUT` | 批次或组的 deadline 到期 |
-| `GROUP_CANCELLED` | 所在批次或组被取消，包括父任务取消的级联传播 |
-| `MEMBER_CANCELLED` | 单个组成员自身被取消 |
+| `ABORTED_BY_FAIL_FAST` | 某个兄弟任务失败，触发 fail-fast |
+| `DEADLINE_EXCEEDED` | 批次或组的 deadline 到期 |
+| `CANCELLED_BY_PARENT_SCOPE` | 所在批次或组被取消，包括父任务取消的级联传播 |
+| `CANCELLED_BY_CALLER` | 调用方直接取消该任务或其所属作用域 |
+| `CANCELLED_BY_MEMBER` | 单个组成员自身被取消，导致其所属作用域停止 |
 
 token 本身是包私有的内核类型：用户既拿不到也不需要它，限时用 `BatchOptions.timeout` / `TaskOptions.timeout`，
 在任务代码内观察取消与剩余预算用 `Checkpoints.checkpoint()` / `Checkpoints.remaining()`。

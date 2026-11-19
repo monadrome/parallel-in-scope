@@ -12,9 +12,9 @@ fail-fast 后的报告仍满足公开契约。公开结果不会出现 RUNNING�
 
 | 能力 | 稳定契约 | 测试层级 |
 |---|---|---|
-| 状态分类 | 每个冻结结果为 SUCCESS、USER_FAILURE、SUBMISSION_FAILURE 或 MEMBER_CANCELLED/GROUP_CANCELLED/FAIL_FAST/TIMEOUT 之一，不含 RUNNING | 核心单元测试 |
+| 状态分类 | 每个冻结结果的终止为 SUCCESS、FAILED 或 CANCELLED 之一，取消原因细分 DEADLINE_EXCEEDED/ABORTED_BY_FAIL_FAST/CANCELLED_BY_CALLER/CANCELLED_BY_PARENT_SCOPE/CANCELLED_BY_MEMBER | 核心单元测试 |
 | 状态计数 | 所有计数之和等于冻结结果数量 | 单元测试、集成测试 |
-| 首失败 | results 中第一个 USER_FAILURE/SUBMISSION_FAILURE 元素（`failedTaskResult()`），其 `failure()` 为记录的原对象；纯取消/超时为空 | 核心单元测试 |
+| 首失败 | results 中第一个 FAILED 元素（`failedTaskResult()`），其 `failure()` 为记录的原对象；纯取消/超时为空 | 核心单元测试 |
 | 快照语义 | report 只读取冻结数据，重复查询不变化 | 核心单元测试 |
 | 报告不可变 | 已生成报告的状态 map 不允许调用方修改 | 核心单元测试 |
 | 文本摘要 | 按状态枚举顺序输出计数；有失败时追加首异常消息 | 核心单元测试 |

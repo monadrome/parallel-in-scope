@@ -136,11 +136,11 @@ future，并在错误处理逻辑中检查已发布的报告。
 
 Batch.completions 是输入顺序的最终 TaskExitObservation 列表；null 表示返回前未确认发布。
 Group.members 按名称包含可用最终快照，terminal 是可用 combine 快照或 null。
-快照含身份、submit/start/end、耗时、outcome、failure、真实成功值；未启动任务的
+快照含身份、submit/start/end、耗时、termination、failure、真实成功值；未启动任务的
 start/end 为零。不完整项在冻结结果中始终缺失，不返回 pending 业务 future。
 批次与组的 terminationKindCounts/reportString 仍统计所有终态成员。
 
-`failure()` 承载的是细节而非结论。成功任务一定返回 null。其余 outcome 都带 throwable：
-`USER_FAILURE` 记录执行自己抛出的异常——包括执行主动抛出的 InterruptedException 或
-CancellationException；`TIMEOUT`、`FAIL_FAST` 等取消归类的结束通常记录一个以 outcome 命名的
-`LeanCancellationException`。判定任务归类要用 `successful()` 或 `outcome()`。
+`failure()` 承载的是细节而非结论。成功任务一定返回 null。非成功的终止都可带 throwable：
+用户代码失败记录执行自己抛出的异常——包括执行主动抛出的 InterruptedException 或
+CancellationException；`DEADLINE_EXCEEDED`、`ABORTED_BY_FAIL_FAST` 等取消归类的结束通常记录一个
+以原因命名的 `LeanCancellationException`。判定任务归类要用 `successful()` 或 `termination()`。

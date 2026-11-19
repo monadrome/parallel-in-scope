@@ -68,7 +68,7 @@ timeout 必须二选一：`BatchOptions.timeout(name, positiveDuration)` 或 `in
 成功值允许 null。`terminationKindCounts()` 统计各 outcome，`failedTaskResult()` 返回首个失败元素，
 与 `TaskGroupResult` 同名。
 
-executor handoff 失败记录为 SUBMISSION_FAILURE，内部 SubmissionException 保留原 cause，包括
+executor handoff 失败记录为提交拒绝（`SUBMISSION_REJECTED`），内部 SubmissionException 保留原 cause，包括
 Error。参数校验和关闭后的准入错误仍从入口抛出。
 
 `rejectEnqueue` 是唯一改变入队准入的选项，也只有 `SubmissionAwareBlockingQueue` 读取它；换成其他任何队列
@@ -107,12 +107,12 @@ TaskBatchResult<Price> elements = run.batchResult();
 ```
 
 `terminalValueOrThrow()` 先检查元素：失败的价格以它自己的异常抛出，不会被报成 combine 的
-`FAIL_FAST` 取消；combine 自身失败按同一规则处理。
+fail-fast 取消；combine 自身失败按同一规则处理。
 
 汇总任务随批次一起准备（Alibaba TransmittableThreadLocal（TTL）捕获与 deadline 绑定都发生在调用线程），但只在全部元素成功后
 才向它自己的 Par 恰好提交一次。任一元素失败或 deadline 先到，汇总不会运行，其
-`terminalResult()` 记录批次的归因（`FAIL_FAST` / `TIMEOUT`）；汇总提交被拒则记
-`SUBMISSION_FAILURE`。汇总体以 `Combiner<List<@Nullable E>, C>` 接收按输入顺序排列的元素值——因此
+`terminalResult()` 记录批次的归因（`ABORTED_BY_FAIL_FAST` / `DEADLINE_EXCEEDED`）；汇总提交被拒则记
+`SUBMISSION_REJECTED`。汇总体以 `Combiner<List<@Nullable E>, C>` 接收按输入顺序排列的元素值——因此
 可以抛 checked 异常——成功但为 null 的元素以 null 条目出现，元素级可空直接写在签名上。输入必须非空：零元素的汇总没有
 fan-out 可合并，与"空组带 combine"一样被拒绝。元素结果、`executionExitConfirmed()` 与
 `unexitedExecutions()` 同样覆盖汇总任务代码。
@@ -262,7 +262,7 @@ TaskGroupResult<Page> result = global
 - 从 `runAll()` 起组拥有每个被收养的 future。取消组内未完成成员的任何原因——失败、deadline、`cancelOn`、
   外层作用域——都以 `cancel(true)` 取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
   线程不符的拒绝不触及它们）。不要自己取消它：那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
-- future 成功即 `SUCCESS`；失败即 `USER_FAILURE`，保留它自己的原因。
+- future 成功的终止分支是 `SUCCESS`；失败是 `FAILED`，以 `FailureCause` 保留它自己的异常。
 - 组从不关闭 source 的值，包括组失败时已成功的兄弟值和取消之后才产生的迟到值。资源生命周期由 source 自己的
   管道或读取该值的接收方管理。`executionExitConfirmed()` 只确认所有被收养的 future 已落定，不确认外部机制的
   异步清理已经完成。忽略取消的 future 在落定前出现在 `unexitedExecutions()` 中。
@@ -309,38 +309,37 @@ TaskGroupResult<Page> result = global
 每个冻结结果还通过 `termination()` 暴露三分支 `TaskTermination<T>`：`SUCCESS`、`FAILED` 和
 `CANCELLED`。失败携带区分用户代码失败与提交拒绝的 `FailureCause`；取消携带
 `CancellationReason` 与 `ExecutionDisposition`。`CLAIMED` 表示取得 execution claim，
-`NOT_CLAIMED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。旧的 `outcome()` 继续作为
-迁移适配读取。
+`NOT_CLAIMED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。
 
 逻辑终止与执行退出分开。取消可以先落定结果，而用户代码仍在响应中断并展开 finally。释放与直接任务
 共享的资源前，检查 `executionExitConfirmed()` 和 `unexitedExecutions()`；实时诊断使用独立的
 `TaskState`，不会改写已经发布的终止值。
-outcome 永不为 RUNNING；SUCCESS 允许 null，其他终态保存非 null Throwable。
+终止值由构造保证终态；SUCCESS 允许 null，其他分支保存非 null Throwable。
 failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括取消。
 读取不等待、不消费中断标志。
 
 `asFuture()` 提供 Guava 适配：已完成、cancel 永远 false、isCancelled 为 false；
 未记录成员/combine 失败的取消作为失败值，get 抛 ExecutionException，cause 是取消异常；
-组一旦记录了成员或 combine 失败，即使组 outcome 是取消形状，cause 仍为该存储失败。
-手动 `failed(outcome, failure)` 保留传入异常；outcome 是元数据，不转换异常类型。
+组一旦记录了成员或 combine 失败，即使组的终止是取消形状，cause 仍为该存储失败。
+手动 `failed(FailureCause)` 与 `cancelled(CancellationReason, failure)` 保留传入异常；
+分类是元数据，不转换异常类型。
 
-`fold` 按四类公共终态消费结果：用户代码失败与提交失败分别处理，fail-fast 的兄弟不会被算作失败：
+`fold` 按三个终止分支消费结果；fail-fast 的兄弟读作 `CANCELLED`，不是 `FAILED`：
 
 ```java
 Price price = batch.results().get(i).fold(
         value -> value,
-        userFailure -> {
-            LOGGER.log(Level.WARNING, "price failed for " + sku, userFailure);
+        failure -> {
+            LOGGER.log(Level.WARNING, "price failed for " + sku, failure.cause());
             return Price.UNKNOWN;
         },
-        submissionFailure -> Price.UNKNOWN,
-        (outcome, detail) -> Price.UNKNOWN);
+        (reason, disposition) -> Price.UNKNOWN);
 ```
 
-`onValue` 接收可能为 null 的成功值；第二个处理器接收 `USER_FAILURE` 的异常，第三个处理器接收
-`SUBMISSION_FAILURE` 的异常；`onCancelled` 接收取消类 outcome 及其存储的异常，该异常不一定是
-`CancellationException`。四个处理器都必须提供，`fold` 返回被选处理器的结果。
-`successful()` 只判断是否为 `SUCCESS`。
+第一个处理器接收可能为 null 的成功值；第二个接收 `FailureCause`，其 kind 区分用户代码失败与
+提交拒绝，并保留原异常；第三个接收 `CancellationReason` 与 `ExecutionDisposition`，存储的异常——
+经 `failure()` 可读——不一定是 `CancellationException`。三个处理器都必须提供，`fold` 返回被选
+处理器的结果。`successful()` 只判断是否为 `SUCCESS`。
 两个 get 都立即读并保留中断标志；带 timeout 的 get 校验 TimeUnit，不会超时。
 Future 静态签名仍声明受检异常。listener 经消费者指定的 executor 执行，在已完成的业务
 scope 及其资源生命周期之外。
@@ -481,7 +480,7 @@ TaskGroupResult<Void> prices = runtime.group("prices", Duration.ofSeconds(3))
         .runAll();
 ```
 
-请求来源先赢时归因为 `GROUP_CANCELLED`；与祖先取消、deadline、fail-fast 的竞态仍按 first-wins。
+请求来源先赢时，作用域记录 `CANCELLED_BY_CALLER`；与祖先取消、deadline、fail-fast 的竞态仍按 first-wins。
 只有全部准备成功后才注册来源，随后立即 bind 和提交，因此预完成来源能阻止 inline 执行进入用户代码。
 空批次与空组不注册来源，照常立即 `SUCCESS`；`mapAndCombine` 仍拒绝空输入。
 
@@ -505,13 +504,13 @@ TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
 
 内层失败原样到达外层元素，内层的 `CancellationException` 也原样穿过，这正是归因正确的前提。
 外层作用域先取消该元素时（deadline、fail-fast 或祖先取消），无论执行之后抛什么，元素都按那次
-取消归因。外层已提交取消、而元素自己的执行先结束时，取消异常经外层归因（`TIMEOUT`、
-`FAIL_FAST`）。内层批次自己走到的取消（外层仍在运行）使外层元素以 `USER_FAILURE` 结束，并携带
-该异常。只有调用方需要额外上下文时才把内层失败包装成业务异常；不要包装 `CancellationException`，
-否则它会读作 `USER_FAILURE`。
+取消归因。外层已提交取消、而元素自己的执行先结束时，取消异常经外层归因（`DEADLINE_EXCEEDED`、
+`ABORTED_BY_FAIL_FAST`）。内层批次自己走到的取消（外层仍在运行）使外层元素以用户代码失败结束，
+并携带该异常。只有调用方需要额外上下文时才把内层失败包装成业务异常；不要包装
+`CancellationException`，否则它会读作用户代码失败。
 
-想保留部分结果而不让元素失败，就逐个读 `results()`：`outcome()` 给出每个元素的归类，
-`failure()` 携带它的异常，也可以用 `fold` 在一个表达式里处理四种公共终态。执行内的 `runAll` 遵循
+想保留部分结果而不让元素失败，就逐个读 `results()`：`termination()` 给出每个元素的归类，
+`failure()` 携带它的异常，也可以用 `fold` 在一个表达式里处理三个终止分支。执行内的 `runAll` 遵循
 同一规则，而组成员执行是 `Callable`，还可以抛受检异常。
 
 ## 诊断问题
