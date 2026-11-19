@@ -57,9 +57,17 @@
       "id": "runtime-admission-vs-close",
       "protocol": "ParRuntime admission/close",
       "claim": "The entire startup (prepare, binds, submit) is one admission against close; a close racing startup cannot retire the deadline scheduler between the group bind and a tighter member bind.",
-      "method": "code-proof",
-      "proof": "Without the admission, startup can read closed == false, then close can set closed and shut down services while startup is still preparing, binding, or submitting. The real enterAdmission increments first and rechecks closed; a close after the recheck sees a positive admission count and cannot retire services until the matching exit.",
-      "note": "The earlier mutation removed the increment but left whileOpen's unconditional decrement, so it corrupted activeAdmissions and failed ordinary quiescence tests; that result was a false positive, not proof of the close/startup race."
+      "method": "mutation",
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+      "mutations": [
+        {
+          "find": "        if (closed.get()\n                && activeAdmissions.get() == 0\n                && activeBatches.get() == 0",
+          "replace": "        if (closed.get()\n                && activeBatches.get() == 0"
+        }
+      ],
+      "tests": "ParRuntimeAdmissionRaceTest",
+      "expect": "failure",
+      "note": "ParRuntimeAdmissionRaceTest holds one admission open across close() and asserts quiescence stays unreached until the admission exits; dropping the activeAdmissions check retires the services under the in-flight admission and fails the first assertion. The earlier mutation attempt removed the increment but left whileOpen's unconditional decrement, corrupting activeAdmissions; that false positive is why this mutation targets the check instead."
     },
     {
       "id": "taskbatch-observation-publication",
@@ -82,7 +90,7 @@
       "claim": "A true awaitExecutionExit result must wait until every member observation future carries the final snapshot after execution exit settlement.",
       "method": "code-proof",
       "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
-      "note": "No deterministic test currently covers the window where awaitExecutionExit could return before a member observation listener publishes; retain the ordering as a code proof and record that test gap.",
+      "note": "Gap justification: the publication runs inside a Guava listener on the member-completion thread, and the window between the execution-exit barrier and that listener has no external gate; holding the member future's listener list was rejected as a gate because Guava listener order is an implementation detail, and kernel code is not modified solely for testability. Close the gap when a deterministic gate becomes available.",
       "proof": "TaskGroup.awaitExecutionExit waits for each member and terminal observation view after execution exit settlement. The observation listener publishes the frozen snapshot only after the execution exit barrier, and the await loop returns false on timeout before claiming confirmation; the per-member wait is the ordering guard even though no deterministic test currently covers its publication window."
     },
     {
