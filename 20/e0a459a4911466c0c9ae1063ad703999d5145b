@@ -1,0 +1,31 @@
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultToStringTest.java
+  s_3c1eb1c2dace59::t_80061b3018152b 18
+core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
+  s_3c1eb1c2dace59::t_950b0335bc5324 89-102
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_3c1eb1c2dace59::t_2d9a0ddf6a2e88 151
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupResult.java
+  s_3c1eb1c2dace59::t_9004c573167dbd 295
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_3c1eb1c2dace59::t_f0b56c6e308e29 872
+  s_3c1eb1c2dace59::t_4fa1df576c8d29 885-897
+  s_3c1eb1c2dace59::t_508e1d6898bf5f 921-923
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupReport.java
+  s_3c1eb1c2dace59::t_dce6abb48bd8ed 121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "20e0a459a4911466c0c9ae1063ad703999d5145b",
+  "prompts": {},
+  "sessions": {
+    "s_3c1eb1c2dace59": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_a28dc34d-29a9-4e6c-a3cf-095031d621f9",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
