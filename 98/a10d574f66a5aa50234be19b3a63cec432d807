@@ -1,0 +1,37 @@
+core/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowClaimRaceTest.java
+  s_b8d4cd8e170dbe::t_e6cd06b3336621 37-38
+core/src/test/java/io/github/monadrome/parallelinscope/ParentChildResultRetentionTest.java
+  s_b8d4cd8e170dbe::t_0e89343626d95b 169-170
+  s_b8d4cd8e170dbe::t_25259a9f94472d 186-187
+core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java
+  s_b8d4cd8e170dbe::t_f46b6d2f87af12 3
+  s_b8d4cd8e170dbe::t_ed1fc6982c6ad2 48-49,51
+  s_b8d4cd8e170dbe::t_ca9afc7669e1ce 64-66,70-71,75
+  s_b8d4cd8e170dbe::t_700d28574d1f63 10
+  s_b8d4cd8e170dbe::t_b54bd6e1bf7c59 90,100
+core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenLincheckTest.java
+  s_b8d4cd8e170dbe::t_e9679fe9b692eb 3-4
+  s_b8d4cd8e170dbe::t_766893aacb8589 9
+  s_b8d4cd8e170dbe::t_2b2eb8a9bebc94 40,44,60-62,65,69
+core/src/test/java/io/github/monadrome/parallelinscope/CancellationPropagationCartesianTest.java
+  s_b8d4cd8e170dbe::t_9e981a8698c289 52-54
+  s_b8d4cd8e170dbe::t_04f89d880bd5a2 85-87,89-90
+core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java
+  s_b8d4cd8e170dbe::t_a630504ea02987 1-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "98a10d574f66a5aa50234be19b3a63cec432d807",
+  "prompts": {},
+  "sessions": {
+    "s_b8d4cd8e170dbe": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2feb75ae-05de-4fb7-82d5-301564e15632",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
