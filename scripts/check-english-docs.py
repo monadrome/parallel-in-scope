@@ -33,10 +33,10 @@ def is_english_location(root: Path, path: Path) -> bool:
     relative = path.relative_to(root)
     parts = tuple(part.lower() for part in relative.parts)
     name = path.name.lower()
-    if "en" in parts or name.endswith(".en.md") or name.endswith("_en.md"):
-        return True
     if parts[:2] in EXEMPT_SUBTREES:
         return False
+    if "en" in parts or name.endswith(".en.md") or name.endswith("_en.md"):
+        return True
     if parts and parts[0] in AGENT_FACING_DOCS:
         return True
     return parts[:2] == (".agents", "skills")

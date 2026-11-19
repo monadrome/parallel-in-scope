@@ -78,6 +78,13 @@ class CheckEnglishDocsTest(unittest.TestCase):
         self.write("verification/pit-audit/2026-10-31/dispositions.md", "# 处置\n")
         self.assertEqual(docs.violations(self.root), [])
 
+    def test_exemption_takes_precedence_over_legacy_english_selectors(self):
+        self.write("design/archive/en/note.md", "# 笔记\n交互\n")
+        self.write("design/analysis/legacy.en.md", "# 笔记\n交互\n")
+        self.write("verification/pit-audit/run_en.md", "# 笔记\n交互\n")
+        self.write("design/archive/en/page.html", "<html>\n<p>演示</p>\n</html>\n")
+        self.assertEqual(docs.violations(self.root), [])
+
 
 if __name__ == "__main__":
     unittest.main()
