@@ -292,7 +292,7 @@ public final class TaskGroupResult<R> {
         Throwable cancellation = values.failure();
         if (cancellation instanceof CancellationException) throw (CancellationException) cancellation;
         throw new CancellationException(
-                "task group '" + groupName() + "' ended with " + TaskGroupReport.describe(termination()));
+                "task group '" + groupName() + "' ended with " + termination().diagnosticName());
     }
 
     /** Counts task-level termination branches for members and the optional combine. */

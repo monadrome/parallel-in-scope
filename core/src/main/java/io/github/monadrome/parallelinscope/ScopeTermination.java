@@ -86,6 +86,20 @@ public final class ScopeTermination {
         return succeeded();
     }
 
+    /**
+     * Names a non-successful scope termination for exception messages: the cancellation reason
+     * kind for a cancellation, the termination kind otherwise.
+     */
+    String diagnosticName() {
+        if (kind == Kind.CANCELLED) {
+            ScopeTerminationCause c = cause;
+            if (c != null && c.cancellationReason() != null) {
+                return c.cancellationReason().kind().name();
+            }
+        }
+        return kind.name();
+    }
+
     static ScopeTermination fromPrimary(@Nullable ScopeTerminationCause primary, ScopeTermination fallback) {
         if (primary == null) {
             return fallback;

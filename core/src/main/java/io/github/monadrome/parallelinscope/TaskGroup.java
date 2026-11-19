@@ -869,12 +869,7 @@ final class TaskGroup<R> implements AutoCloseable {
             }
 
             if (cancelledDirectly(observedTermination)) {
-                groupToken.cancel();
-                for (MemberState other : membersAndTerminal) {
-                    if (!other.future.isDone()) {
-                        other.context.multiTaskContext().cancellationToken().cancel();
-                    }
-                }
+                cancelGroupAndUnfinishedMembers();
             }
             if (failed && member == terminal) {
                 groupToken.failFastCancel();
@@ -882,6 +877,20 @@ final class TaskGroup<R> implements AutoCloseable {
         } finally {
             if (completedTasks.incrementAndGet() == totalTasks) {
                 converge();
+            }
+        }
+    }
+
+    /**
+     * Cancels the group token and the token of every member that has not finished, after a member
+     * was cancelled directly. The group token commits first so the cascade reads one committed
+     * group state; finished members keep their recorded termination.
+     */
+    private void cancelGroupAndUnfinishedMembers() {
+        groupToken.cancel();
+        for (MemberState other : membersAndTerminal) {
+            if (!other.future.isDone()) {
+                other.context.multiTaskContext().cancellationToken().cancel();
             }
         }
     }
@@ -909,7 +918,9 @@ final class TaskGroup<R> implements AutoCloseable {
     /**
      * Attributes a settled member's termination: submission rejection first, then cancellation from
      * the member and group tokens' committed states, then success or failure from the future
-     * itself.
+     * itself. The member's future must be done. As a side effect, a future that completed
+     * exceptionally records its cause into {@code member.failure}, which {@code publishValues} and
+     * {@code memberSnapshot} read afterward.
      */
     private TaskTermination<Object> classifyMemberTermination(MemberState member) {
         if (member.future.isCancelled()) {

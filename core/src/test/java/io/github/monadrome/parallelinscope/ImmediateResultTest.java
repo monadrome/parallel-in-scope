@@ -148,7 +148,7 @@ class ImmediateResultTest {
     }
 
     @Test
-    void freezingSuccessfulAndFailedTasksUsesCanonicalBranches() throws Exception {
+    void freezingSuccessfulAndFailedTasksPreservesValueAndFailure() throws Exception {
         CancellationToken token = new CancellationToken();
         TaskFuture<Integer> success = Task.of("success", token, Futures.immediateFuture(7));
         ImmediateResult<Integer> frozenSuccess = ImmediateResult.fromTask(success);

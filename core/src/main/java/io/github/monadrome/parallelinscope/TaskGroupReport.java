@@ -118,22 +118,8 @@ final class TaskGroupReport {
         if (failure != null) {
             throw new CompletionException("task group '" + groupName + "' failed in '" + failedTaskName + "'", failure);
         }
-        throw new CancellationException("task group '" + groupName + "' ended with " + describe(termination)
+        throw new CancellationException("task group '" + groupName + "' ended with " + termination.diagnosticName()
                 + (failedTaskName == null ? "" : " (triggered by '" + failedTaskName + "')"));
-    }
-
-    /**
-     * Names a non-successful scope termination for exception messages: the cancellation reason
-     * kind for a cancellation, the termination kind otherwise.
-     */
-    static String describe(ScopeTermination termination) {
-        if (termination.kind() == ScopeTermination.Kind.CANCELLED) {
-            ScopeTerminationCause cause = termination.cause();
-            if (cause != null && cause.cancellationReason() != null) {
-                return cause.cancellationReason().kind().name();
-            }
-        }
-        return termination.kind().name();
     }
 
     /**
