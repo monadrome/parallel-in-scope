@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -269,6 +270,80 @@ public class TaskBatchResultTest {
         assertThat(result.termination().failedTask()).isNull();
         // The scope-level alias exposes the same termination.
         assertThat(result.scopeTermination()).isSameAs(result.termination());
+    }
+
+    @Test
+    public void finish_attributesADirectCallerCancellationWithoutARecordedPrimaryToTheCaller() {
+        CancellationToken token = new CancellationToken();
+        TaskBatch<String> batch = TaskBatch.of(
+                ExecutionExitTracker.empty(),
+                Futures.immediateVoidFuture(),
+                Collections.singletonList(task(token, Futures.immediateFuture("ok"))),
+                token,
+                null);
+        token.cancelFromCaller();
+
+        TaskBatchResult<String> result = batch.finish();
+
+        // Every element succeeded, so the accumulator recorded no primary; the batch is still
+        // attributed to the caller's own cancellation, not to a success derived from the results.
+        assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.CANCELLED);
+        assertThat(verifyNotNull(result.termination().cancellationReason()).kind())
+                .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
+        assertThat(verifyNotNull(result.termination().cancellationReason()).source())
+                .isEqualTo("batch");
+    }
+
+    @Test
+    public void finish_overridesARecordedElementCancellationWithTheCallerAttribution() {
+        CancellationToken token = new CancellationToken();
+        // Cancel first: the element pins its settle attribution through the already-committed
+        // token, which records CANCELLED_BY_PARENT_SCOPE rather than the caller attribution.
+        token.cancelFromCaller();
+        TaskBatch<String> batch = TaskBatch.of(
+                ExecutionExitTracker.empty(),
+                Futures.immediateVoidFuture(),
+                Collections.singletonList(task(token, Futures.<String>immediateCancelledFuture())),
+                token,
+                null);
+
+        TaskBatchResult<String> result = batch.finish();
+
+        assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.CANCELLED);
+        assertThat(verifyNotNull(result.termination().cancellationReason()).kind())
+                .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
+    }
+
+    @Test
+    public void finish_keepsTheFrameworkCancellationPrimaryWhenTheCallerDidNotCommit() {
+        CancellationToken deadline = new CancellationToken();
+        deadline.timeoutCancel();
+        TaskBatchResult<String> deadlineResult = TaskBatch.of(
+                        ExecutionExitTracker.empty(),
+                        Futures.immediateVoidFuture(),
+                        Collections.singletonList(task(deadline, Futures.<String>immediateCancelledFuture())),
+                        deadline,
+                        null)
+                .finish();
+
+        CancellationToken failFast = new CancellationToken();
+        failFast.failFastCancel();
+        // The later caller cancel loses the first-wins commit, so this is not a caller cancellation.
+        failFast.cancelFromCaller();
+        TaskBatchResult<String> failFastResult = TaskBatch.of(
+                        ExecutionExitTracker.empty(),
+                        Futures.immediateVoidFuture(),
+                        Collections.singletonList(task(failFast, Futures.<String>immediateCancelledFuture())),
+                        failFast,
+                        null)
+                .finish();
+
+        assertThat(verifyNotNull(deadlineResult.termination().cancellationReason())
+                        .kind())
+                .isEqualTo(CancellationReason.Kind.DEADLINE_EXCEEDED);
+        assertThat(verifyNotNull(failFastResult.termination().cancellationReason())
+                        .kind())
+                .isEqualTo(CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
     }
 
     @Test
