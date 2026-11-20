@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-stateless-singleton-rule",
+  "date": "2026-11-19",
+  "topic": "stateless-singleton-rule",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "docs: add stateless singleton review rule",
+      "docs: require side-effect-free singleton candidates"
+    ],
+    "files": 1,
+    "insertions": 19,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "stateless-singleton-rule-cc54845f-20261120-015349-f45c8d",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 333724,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "stateless-singleton-rule-8b57a642-20261120-020114-46cbf8",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 344135,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "review-cli-launch": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Added refactoring-review lens S10 for stateless singleton candidates; Kiro confirmed one registration-side-effect gap, fixed, and the follow-up review was clean. Markdown-only process rule; PIT and refactoring-review not applicable."
+}
