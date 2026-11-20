@@ -69,15 +69,18 @@ public or protected `T2`.
 
 ### S10 Stateless singleton candidate
 - Smell: a factory path added by the change repeatedly constructs an immutable result with no
-  per-call payload, or shares a mutable or lifecycle-bound object without a documented no-mutation
-  and no-registration restriction.
+  per-call payload but no documented guarantee that construction has no registration or lifecycle
+  side effect, or shares a mutable or lifecycle-bound object without documented no-mutation and
+  no-registration restrictions.
 - Move: reuse the existing canonical instance, or introduce a private enum holder or
-  `static final` instance when identity and initialization order are safe; state the sharing and
+  `static final` instance only when every supported call would produce an equivalent, unregistered
+  result and no per-call lifecycle effect depends on a fresh instance; state the sharing and
   restrictions in the declaration contract when the factory is visible beyond its type.
-- Suppress: per-call payloads differ; the object is mutable after construction without a documented
-  read-only restriction; it captures request or registration context; it owns per-submission
-  resources or an independent lifecycle; the existing factory already caches it; or distinct
-  identity is part of the documented contract.
+- Suppress: the constructor or factory registers or publishes the result, or otherwise creates a
+  per-call lifecycle effect; per-call payloads differ; the object is mutable after construction
+  without a documented read-only restriction; it captures request or registration context; it owns
+  per-submission resources or an independent lifecycle; the existing factory already caches it; or
+  distinct identity is part of the documented contract.
 - Tier: `T0` private factories and read-only internal values; `T1` package-private factories and
   shared empty-state objects; `T2` public factories or shared identity added to a public contract.
 - mechanizable: partly (constant-construction repetition is detectable; payload, mutability, and
