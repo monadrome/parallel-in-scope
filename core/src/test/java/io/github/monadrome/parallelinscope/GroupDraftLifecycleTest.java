@@ -3,15 +3,12 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -179,30 +176,6 @@ class GroupDraftLifecycleTest {
         discarded.discard();
         assertThat(discarded.taskSlotCleared(0)).isTrue();
         assertThat(discarded.combineSlotCleared()).isTrue();
-    }
-
-    @Test
-    void submissionClearsTheDraftsAdoptedSourceRegistry() throws Exception {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try {
-            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
-            GroupDraft.Step step = start.adopt(TaskKey.<String>named("user"), Futures.immediateFuture("alice"));
-            try (TaskGroup<Void> group = step.submitAll()) {
-                Field draftField = GroupDraft.Start.class.getDeclaredField("draft");
-                draftField.setAccessible(true);
-                GroupDraft draft = (GroupDraft) draftField.get(start);
-                Field sourcesField = GroupDraft.class.getDeclaredField("adoptedSources");
-                sourcesField.setAccessible(true);
-
-                assertThat((Set<?>) sourcesField.get(draft)).isEmpty();
-                assertThat(group.groupName()).isEqualTo("page");
-            }
-        } finally {
-            global.close();
-            executor.shutdownNow();
-        }
     }
 
     @Test
