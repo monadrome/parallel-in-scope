@@ -1,12 +1,18 @@
 # ADR 0014: Core logging stays on JUL; backend integration is the application's responsibility
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-11-08
 - Decision scope: the core library's logging API, logging backend dependencies, and the
   application-side integration boundary
 - Stability: stable
 - Category: non-core
 - Supersedes: None
+- Superseded by: [ADR 0016](0016-slf4j-api-core-logging.md)
+
+> Superseded by [ADR 0016](0016-slf4j-api-core-logging.md): the core library now logs through
+> `slf4j-api` with no bundled provider — exactly the successor candidate this record named. The
+> four behavior rules below (delivery isolation, failure containment, best effort, stable logger
+> names) survive unchanged in ADR 0016.
 
 ## Context
 

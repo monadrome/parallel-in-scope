@@ -293,19 +293,19 @@ the exception object and this future's own delivery marker, and MUST NOT read th
 avoid racing the cascade):
 - A library-origin cancellation confirmation without suppressed (thrown after `Checkpoints`
   read a committed token, see the [interruption contract](interruption-contract.md) §3.1) is
-  logged `FINE`;
+  logged at debug level;
 - An `InterruptedException` without suppressed, where this future's cancellation interrupt was
   delivered to this run (interruption contract §2.4) and the thread's interrupt flag is clear
-  at recording time, is logged `FINE`. A JDK blocking call clears the flag when it throws for
+  at recording time, is logged at debug level. A JDK blocking call clears the flag when it throws for
   interruption; a still-set flag means this exception is not the consumption of that interrupt
   (for example, close throwing another `InterruptedException` after the execution restored the
   flag);
-- Everything else is `WARNING`: with suppressed, unmarked or wrapped cancellation exceptions,
+- Everything else is warn level: with suppressed, unmarked or wrapped cancellation exceptions,
   user-constructed `CancellationException`, and `InterruptedException` not delivered by the
   kernel.
 
 Accepted residual risk: after kernel delivery, with the flag cleared, an independently thrown
-`InterruptedException` without suppressed is also logged `FINE`; the cancellation is already
+`InterruptedException` without suppressed is also logged at debug level; the cancellation is already
 committed and the result settled at that point, so the downgrade hides no result. Rejected:
 filtering by type (would hide close failures); adding a `TaskTermination` for "the execution
 observed the cancellation" (see interruption contract §3.1). `proposal:P0034`

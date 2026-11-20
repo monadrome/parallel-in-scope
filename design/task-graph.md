@@ -67,12 +67,13 @@ its registered aliases), one concrete cycle (in wait order), and the first-obser
 each cycle edge (the waiting unit and the awaited unit). MUST NOT enumerate all simple cycles —
 a complete graph of 10 executors has about 1.11 million.
 
-**P8 Diagnostics do not run on the admission thread.** The admission thread MUST NOT invoke JUL
-or any user-replaceable handler: a handler may block or reenter, and recording happens before
+**P8 Diagnostics do not run on the admission thread.** The admission thread MUST NOT invoke the
+logging backend (the SLF4J provider and its appenders) or any user-replaceable handler: a
+backend may block or reenter, and recording happens before
 bind, so blocking would leave the deadline unarmed. Newly appeared cyclic components (including
-new components after merges) are handed to a runtime-owned thread, one `WARNING` each: the
+new components after merges) are handed to a runtime-owned thread, one warn-level record each: the
 thread that installed successfully compares the old and new states' component sets, so each
-component is announced exactly once, by the installation that formed it; when a handler fails
+component is announced exactly once, by the installation that formed it; when the backend fails
 or the service is closed, this log record may be lost — the reliable record is the report, not
 the log. A `RuntimeException` from the recording path itself MUST NOT fail the admission.
 

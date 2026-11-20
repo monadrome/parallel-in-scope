@@ -68,7 +68,7 @@ registering a listener on the delegate that pins the settle-time `termination()`
 `memberCompleted` relies on the same premise.
 
 The observation's settle signal (`TaskObservation.signal`) builds its snapshot inside a guarded
-call: a snapshot failure ends that observation exceptionally and logs one SEVERE record, and
+call: a snapshot failure ends that observation exceptionally and logs one error-level record, and
 the fan-out continues to the pins and the bind listener.
 
 `TaskBatch` replaces "waiting for element futures" with "waiting for settle classifications",
