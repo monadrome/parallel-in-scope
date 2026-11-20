@@ -27,8 +27,14 @@ class ExecutionExitTrackerTest {
         ExecutionExitTracker second = ExecutionExitTracker.empty();
 
         assertThat(first).isSameAs(second);
+        assertThat(ExecutionExitTracker.create(0)).isSameAs(first);
         assertThat(first.isDone()).isTrue();
         assertThat(second.isDone()).isTrue();
+    }
+
+    @Test
+    void createRejectsANegativeTaskCount() {
+        assertThatThrownBy(() -> ExecutionExitTracker.create(-1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -46,7 +46,9 @@ final class ExecutionExitTracker {
 
     /** Creates a tracker whose outstanding count starts at {@code taskCount}. */
     static ExecutionExitTracker create(int taskCount) {
-        return new ExecutionExitTracker(Validation.requireNonNegative(taskCount, "taskCount"));
+        return taskCount == 0
+                ? empty()
+                : new ExecutionExitTracker(Validation.requireNonNegative(taskCount, "taskCount"));
     }
 
     /** Returns the shared, already-complete tracker for empty submissions; it must not register or release executions. */
