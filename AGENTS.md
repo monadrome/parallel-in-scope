@@ -582,6 +582,13 @@ investigating review or test blind spots.
   the PR description must be self-contained. Before opening or updating an
   issue, read `CONTRIBUTING.md` section "Issue maintenance" for ownership,
   direction updates, and milestone rules.
+- Before a drafted PR description is posted for review, run it through a ZCode
+  pass that optimizes it for a general reader and drops unnecessary detail:
+  each verification states what was run and what it found, and run-by-run
+  counts, round-by-round history, and tool idiosyncrasies stay in the commit
+  messages, the change's `design/` document, the review run directory, or the
+  delivery ledger rather than the description. Honest statuses and the links
+  to the evidence survive the pass.
 - Issues may opt into the agent runner. Triage suggests `priority/*`, a type,
   and `agent/eligible` or `needs-decision`; a maintainer's `agent/ready`
   authorizes a run and `needs-decision` vetoes one. The runner is optional:
