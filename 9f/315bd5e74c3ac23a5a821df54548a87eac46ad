@@ -1,0 +1,26 @@
+docs/en/interactive-demo.html
+  s_4730cd68820ed7::t_462dff2fb99c98 96-98
+  s_4730cd68820ed7::t_8199f04d151a82 247
+  s_4730cd68820ed7::t_7264d553b3152d 266-267
+  s_4730cd68820ed7::t_4f5363dc82a78c 270-273
+  s_4730cd68820ed7::t_6e01c0e9e4bcc8 284-285
+  s_4730cd68820ed7::t_98e54e7e7f1555 350
+  s_4730cd68820ed7::t_7270e975011ad1 517-518
+  s_4730cd68820ed7::t_ca2984e0bcd8f9 557
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "9f315bd5e74c3ac23a5a821df54548a87eac46ad",
+  "prompts": {},
+  "sessions": {
+    "s_4730cd68820ed7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_42934f9a-fcbd-41f9-ae4e-88b54c46f585",
+        "model": "kimi-k3"
+      },
+      "human_author": null
+    }
+  }
+}
