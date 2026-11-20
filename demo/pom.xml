@@ -19,6 +19,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>8</maven.compiler.release>
         <parallel-in-scope.version>0.5.0-SNAPSHOT</parallel-in-scope.version>
+        <slf4j.version>2.0.20</slf4j.version>
         <junit-jupiter.version>5.14.4</junit-jupiter.version>
         <assertj.version>3.27.7</assertj.version>
     </properties>
@@ -31,6 +32,16 @@
             <groupId>io.github.monadrome</groupId>
             <artifactId>parallel-in-scope</artifactId>
             <version>${parallel-in-scope.version}</version>
+        </dependency>
+
+        <!-- Logging backend for the library's slf4j-api calls, so demo output keeps
+             showing the runtime diagnostics. The demo is an application, so it picks a
+             provider; the library itself carries none. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Test: JUnit 5. The demo keeps a Java 8 test runtime baseline. -->

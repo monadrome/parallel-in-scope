@@ -19,6 +19,7 @@
              repository instead, so a locally installed copy can never satisfy the check.
              Snapshot versions come from the Central snapshot repository declared below. -->
         <parallel-in-scope.version>0.5.0-SNAPSHOT</parallel-in-scope.version>
+        <slf4j.version>2.0.20</slf4j.version>
     </properties>
 
     <repositories>
@@ -39,6 +40,15 @@
             <groupId>io.github.monadrome</groupId>
             <artifactId>parallel-in-scope</artifactId>
             <version>${parallel-in-scope.version}</version>
+        </dependency>
+        <!-- Logging backend for the library's slf4j-api calls: the consumer is an
+             application and binds a provider, so the runtime matrix also exercises the
+             artifact's diagnostics through a real SLF4J backend. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>runtime</scope>
         </dependency>
         <!-- JUnit 5: this consumer runs on the Java 8 runtime in CI. -->
         <dependency>
