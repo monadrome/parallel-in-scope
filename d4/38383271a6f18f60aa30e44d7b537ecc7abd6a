@@ -1,0 +1,48 @@
+docs/en/user-guide.md
+  s_c848b6c0f627e3::t_3812e68735d21d 375
+  s_c848b6c0f627e3::t_d9e81728b422ac 493-494
+  s_c848b6c0f627e3::t_8fba60e123e904 408
+docs/zh/design/philosophy.md
+  s_c848b6c0f627e3::t_2fe4d478f23135 185
+  s_c848b6c0f627e3::t_ee785c0666bebc 273
+docs/zh/reference/cooperative-cancellation.md
+  s_c848b6c0f627e3::t_3259ae45c646c5 172-174,176
+docs/en/reference/diagnostics.md
+  s_c848b6c0f627e3::t_39fd6210e579eb 46
+  s_c848b6c0f627e3::t_9de78ba88edb3b 73
+  s_c848b6c0f627e3::t_59aa1d0abc03a2 86
+  s_c848b6c0f627e3::t_4a1bd5d74590cb 78-79
+  s_c848b6c0f627e3::t_afd0ad3ced1fce 20-24
+  s_c848b6c0f627e3::t_a5d8e654a077d0 34
+docs/zh/user-guide.md
+  s_c848b6c0f627e3::t_c2ca74580ab818 333
+  s_c848b6c0f627e3::t_9fc24894d06419 363
+  s_c848b6c0f627e3::t_505b2e8b503d39 428
+docs/en/reference/cooperative-cancellation.md
+  s_c848b6c0f627e3::t_c60a2e9ea7d9cc 129-131,134
+docs/zh/reference/diagnostics.md
+  s_c848b6c0f627e3::t_4591136b90a344 61
+  s_c848b6c0f627e3::t_2f05195a582821 24
+  s_c848b6c0f627e3::t_f5c12d39d9bf0d 65
+  s_c848b6c0f627e3::t_69d21f1fc471f5 71
+  s_c848b6c0f627e3::t_d554c03e3065b1 36
+  s_c848b6c0f627e3::t_9cd26d54e8eaae 16-17
+docs/zh/visuals/parallel-in-scope-architecture.html
+  s_c848b6c0f627e3::t_70f1dc4e6fdf50 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "d438383271a6f18f60aa30e44d7b537ecc7abd6a",
+  "prompts": {},
+  "sessions": {
+    "s_c848b6c0f627e3": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d086dc61-b04b-4adb-b994-e93827708776",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

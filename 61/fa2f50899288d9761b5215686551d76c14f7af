@@ -1,0 +1,41 @@
+adr/0016-slf4j-api-core-logging.md
+  s_c848b6c0f627e3::t_721996693034ad 1-113
+design/synchronous-scope-exit.md
+  s_c848b6c0f627e3::t_26c8974219658c 296,299,303,308
+design/workload-fit-screening.md
+  s_c848b6c0f627e3::t_691d415dcf80ca 56-58
+  s_c848b6c0f627e3::t_3201c01ef482fd 26
+design/group-one-shot-api-refactor-codex.md
+  s_c848b6c0f627e3::t_70431035c209a3 166
+design/extension-and-wrapping.md
+  s_c848b6c0f627e3::t_fdab7521cb4265 407
+adr/0014-logging-backend-boundary.md
+  s_c848b6c0f627e3::t_ce7fc04bad8838 3,10-15
+design/task-graph.md
+  s_c848b6c0f627e3::t_17831fc777e028 70-72,74,76
+design/interruption-contract.md
+  s_c848b6c0f627e3::t_5f1f1d86915d17 372-373
+  s_c848b6c0f627e3::t_933a6716502727 375-376
+design/batch-settle-attribution.md
+  s_c848b6c0f627e3::t_60b193732e75f5 71
+AGENTS.md
+  s_c848b6c0f627e3::t_9dd47d6672ff1d 286-287
+design/AGENTS.md
+  s_c848b6c0f627e3::t_73f63eef0f8096 191-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "61fa2f50899288d9761b5215686551d76c14f7af",
+  "prompts": {},
+  "sessions": {
+    "s_c848b6c0f627e3": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d086dc61-b04b-4adb-b994-e93827708776",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

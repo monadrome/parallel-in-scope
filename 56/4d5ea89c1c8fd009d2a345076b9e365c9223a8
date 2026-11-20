@@ -1,0 +1,29 @@
+core/pom.xml
+  s_c848b6c0f627e3::t_003578ff60803d 136-146
+  s_c848b6c0f627e3::t_2aba2c1d95ccc2 66
+demo/pom.xml
+  s_c848b6c0f627e3::t_7fd8ee0af4832f 22
+  s_c848b6c0f627e3::t_89246589f9aece 37-46
+verification/maven-central-consumer/pom.xml
+  s_c848b6c0f627e3::t_8c4b7347b004c7 44-52
+  s_c848b6c0f627e3::t_e6254ef41dcf78 22
+integrations/pom.xml
+  s_c848b6c0f627e3::t_15392e62541cc0 63-71
+  s_c848b6c0f627e3::t_541095151f47d1 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "564d5ea89c1c8fd009d2a345076b9e365c9223a8",
+  "prompts": {},
+  "sessions": {
+    "s_c848b6c0f627e3": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d086dc61-b04b-4adb-b994-e93827708776",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
