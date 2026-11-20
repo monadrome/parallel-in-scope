@@ -66,3 +66,19 @@ public or protected `T2`.
 - Move: Replace Primitive with Object.
 - Suppress: `long` nanosecond values (the Java 8 idiom used throughout the kernel); `int` indexes.
 - mechanizable: no
+
+### S10 Stateless singleton candidate
+- Smell: a factory path added by the change repeatedly constructs an immutable result with no
+  per-call payload, or shares a mutable or lifecycle-bound object without a documented no-mutation
+  and no-registration restriction.
+- Move: reuse the existing canonical instance, or introduce a private enum holder or
+  `static final` instance when identity and initialization order are safe; state the sharing and
+  restrictions in the declaration contract when the factory is visible beyond its type.
+- Suppress: per-call payloads differ; the object is mutable after construction without a documented
+  read-only restriction; it captures request or registration context; it owns per-submission
+  resources or an independent lifecycle; the existing factory already caches it; or distinct
+  identity is part of the documented contract.
+- Tier: `T0` private factories and read-only internal values; `T1` package-private factories and
+  shared empty-state objects; `T2` public factories or shared identity added to a public contract.
+- mechanizable: partly (constant-construction repetition is detectable; payload, mutability, and
+  lifecycle safety are judgement)
