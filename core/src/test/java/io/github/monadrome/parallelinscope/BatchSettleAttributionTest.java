@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Verify.verifyNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -402,6 +403,21 @@ class BatchSettleAttributionTest {
         delegate.setException(new CancellationException("checkpoint observed the deadline"));
 
         TerminationAssertions.assertCancelled(Futures.getDone(pin), CancellationReason.Kind.DEADLINE_EXCEEDED);
+    }
+
+    @Test
+    void aDerivedViewPublishesItsSettledTerminationImmediately() throws Exception {
+        CancellationToken token = new CancellationToken();
+        Task<String> derived = Task.of("base", token, Futures.immediateFuture("value"))
+                .transform(value -> value + "!", MoreExecutors.directExecutor());
+
+        // A derived view carries no settle-time pin; its termination signal is an immediate
+        // future recomputed from the settled delegate, not a pending or absent view.
+        ListenableFuture<TaskTermination<String>> signal = derived.terminationFuture();
+
+        assertThat(signal.isDone()).isTrue();
+        TerminationAssertions.assertSuccess(Futures.getDone(signal));
+        assertThat(verifyNotNull(Futures.getDone(signal)).value()).isEqualTo("value!");
     }
 
     private Par directPar() {
