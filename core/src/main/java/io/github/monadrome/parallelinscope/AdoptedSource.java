@@ -11,9 +11,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Kernel state of one adopted group member: a caller-supplied future the group owns from {@code
@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
  * the source's own pipeline or the value's recipient. See {@code design/task-group-adopted-futures.md}.
  */
 final class AdoptedSource {
-    private static final Logger LOGGER = Logger.getLogger(AdoptedSource.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(AdoptedSource.class);
 
     private final String name;
     private final ListenableFuture<?> source;
@@ -129,8 +129,7 @@ final class AdoptedSource {
             source.cancel(mayInterruptIfRunning);
         } catch (Throwable listenerFailure) {
             try {
-                LOGGER.log(
-                        Level.WARNING,
+                LOGGER.warn(
                         "a listener of adopted member '" + name + "' failed while the group cancelled it",
                         listenerFailure);
             } catch (Throwable ignored) {

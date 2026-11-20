@@ -15,7 +15,6 @@ import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -23,13 +22,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.slf4j.event.Level;
 
 /**
  * A batch element whose execution raises its own {@link CancellationException} or {@link
@@ -326,21 +322,7 @@ class BatchSettleAttributionTest {
      */
     @Test
     void aSnapshotThatCannotBeBuiltFailsItsObservationWithoutStoppingLaterListeners() {
-        List<LogRecord> logged = new CopyOnWriteArrayList<>();
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                logged.add(record);
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        Logger observationLogger = Logger.getLogger(TaskObservation.class.getName());
-        observationLogger.addHandler(capture);
+        LogCapture capture = LogCapture.attach(TaskObservation.class);
         try {
             SettableFuture<String> settle = SettableFuture.create();
             TaskObservation<String> observation = TaskObservation.of(
@@ -365,14 +347,14 @@ class BatchSettleAttributionTest {
             assertThatThrownBy(() -> Futures.getDone(observation.view()))
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseInstanceOf(StackOverflowError.class);
-            assertThat(logged)
-                    .extracting(LogRecord::getMessage)
+            assertThat(capture.events())
+                    .extracting(LogCapture.Event::message)
                     .containsExactly(
                             "an observation listener failed", "a task observation snapshot could not be built");
-            assertThat(logged)
-                    .allSatisfy(record -> assertThat(record.getLevel()).isEqualTo(Level.SEVERE));
+            assertThat(capture.events())
+                    .allSatisfy(record -> assertThat(record.level()).isEqualTo(Level.ERROR));
         } finally {
-            observationLogger.removeHandler(capture);
+            capture.close();
         }
     }
 

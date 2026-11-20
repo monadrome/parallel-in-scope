@@ -22,6 +22,7 @@
              Resilience4j 2.x and Spring 6.x require Java 17. -->
         <maven.compiler.release>8</maven.compiler.release>
         <parallel-in-scope.version>0.5.0-SNAPSHOT</parallel-in-scope.version>
+        <slf4j.version>2.0.20</slf4j.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <sentinel.version>1.8.10</sentinel.version>
         <spring.version>5.3.39</spring.version>
@@ -57,6 +58,15 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
+        </dependency>
+
+        <!-- Logging backend for the library's and Resilience4j's slf4j-api calls: the
+             samples are applications and bind a provider. slf4j-simple's own slf4j-api
+             pins the facade to the 2.0.x line ahead of Resilience4j's transitive 1.7.x. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
 
         <dependency>

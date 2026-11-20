@@ -393,7 +393,7 @@ httpPar.map(userIds, user -&gt; {
         <div class="log" id="s4log"></div>
         <div class="alert hidden" id="s4banner">
           <span>⚠</span>
-          <span><b>潜在死锁风险信号：</b>http 池的线程同步等待 database 池上的工作，database 又反向等待 http —— 两个池的 worker 互相占满时，环上谁都跑不完。报告是"曾经观测到的等待结构"，不证明此刻已经死锁；WARNING 由安装新边、形成分量的那次安装交给运行时自有线程发出。</span>
+          <span><b>潜在死锁风险信号：</b>http 池的线程同步等待 database 池上的工作，database 又反向等待 http —— 两个池的 worker 互相占满时，环上谁都跑不完。报告是"曾经观测到的等待结构"，不证明此刻已经死锁；warn 级别告警由安装新边、形成分量的那次安装交给运行时自有线程发出。</span>
         </div>
       </div>
       <div class="code">
@@ -412,7 +412,7 @@ http.map(requests, req -&gt; {
 }, handleOrders);
 
 // 另一条请求里 database 的执行再嵌套 http.map，就得到反向边 database → http
-// 形成环时运行时自动打 WARNING；也可以随时读取报告
+// 形成环时运行时自动打 warn 级别日志；也可以随时读取报告
 if (!runtime.executorWaitReport().cyclicComponents().isEmpty()) {
     LOGGER.warning("检测到执行器等待环 —— 潜在死锁风险信号");
 }</code></pre>

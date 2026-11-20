@@ -369,11 +369,11 @@ obligations:
 | 9 | An interruptible blocking library method is interrupted | Throws `InterruptedException`, not converted to a boolean return; excludes the synchronous exit's declared uninterruptible waits |
 | 10 | Call `awaitQuiescence(Duration.ZERO)` on an already-quiescent runtime with the flag set | Throws `InterruptedException` with the flag cleared; must not return `true` |
 | 11 | Calling thread enters `map` / `runAll` with the flag set and is interrupted again during the wait (§2.2) | Executions are not cancelled, results return normally, the cleanup budget is not skipped, flag still set at return |
-| 12 | A checkpoint exits after the future has settled due to cancellation, reading a committed token | Late log is `FINE`, no `WARNING`; the result keeps its cancellation attribution |
-| 13 | Same, but the confirmation carries a suppressed `close()` failure | Logs `WARNING` and keeps the original confirmation and the suppressed exception |
+| 12 | A checkpoint exits after the future has settled due to cancellation, reading a committed token | Late log is debug level, no warn-level record; the result keeps its cancellation attribution |
+| 13 | Same, but the confirmation carries a suppressed `close()` failure | Logs at warn level and keeps the original confirmation and the suppressed exception |
 | 14 | A blocking adapter is interrupted with no committed token | Exception carries no library-origin marker, result is `USER_FAILURE`, late-log behavior unchanged |
-| 15 | After the kernel delivers a cancellation interruption, a JDK blocking call throws an `InterruptedException` with no suppressed | Late log is `FINE`; the next future on the same thread does not receive that interrupt (§2.4) |
-| 16 | A standalone `close()` throws `InterruptedException` or `CancellationException` (R4) | Still logged as `WARNING`; an implementation filtering by exception type fails |
+| 15 | After the kernel delivers a cancellation interruption, a JDK blocking call throws an `InterruptedException` with no suppressed | Late log is debug level; the next future on the same thread does not receive that interrupt (§2.4) |
+| 16 | A standalone `close()` throws `InterruptedException` or `CancellationException` (R4) | Still logged at warn level; an implementation filtering by exception type fails |
 
 ## 5. Background: the counterintuitive properties of interruption
 

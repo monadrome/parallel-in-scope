@@ -188,9 +188,9 @@ Related decisions:
   diagnostic declaration; the runtime screening window is partially superseded by ADR 0010.
 - [ADR 0010](../adr/0010-always-on-workload-fit-screening.md): runtime-level always-on,
   per-entry workload-fit screening.
-- [ADR 0014](../adr/0014-logging-backend-boundary.md): core logging stays on JUL, and the
-  application bridges to other logging backends through configuration or a bridge; logging
-  remains best effort, with reliable diagnosis carried by the report APIs.
+- [ADR 0016](../adr/0016-slf4j-api-core-logging.md): core logging goes through `slf4j-api` with
+  no bundled provider, superseding ADR 0014's JUL decision; logging remains best effort, with
+  reliable diagnosis carried by the report APIs.
 
 ### Cancellation and queues
 

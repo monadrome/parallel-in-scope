@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -23,11 +22,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 /** Contract tests for {@link Par#submit(String, Callable, TaskOptions)}. */
 class ParSubmitTest {
@@ -221,21 +217,7 @@ class ParSubmitTest {
                 .register(ParId.of("smart"), smart)
                 .announcements(MoreExecutors.directExecutor())
                 .build();
-        Logger parLogger = Logger.getLogger(Par.class.getName());
-        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                records.add(record);
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        parLogger.addHandler(capture);
+        LogCapture capture = LogCapture.attach(Par.class);
         try {
             Par par = global.par(ParId.of("plain"));
             par.submit(
@@ -243,7 +225,7 @@ class ParSubmitTest {
                             () -> "a",
                             TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(false))
                     .get(2, TimeUnit.SECONDS);
-            assertThat(records).isEmpty();
+            assertThat(capture.events()).isEmpty();
 
             // A fixed pool's default queue never reads the flag: say so once, not once per task.
             // The flag is requested explicitly because it is off by default: an inert-flag warning
@@ -258,9 +240,9 @@ class ParSubmitTest {
                             () -> "c",
                             TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
                     .get(2, TimeUnit.SECONDS);
-            assertThat(records).hasSize(1);
-            assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
-            assertThat(records.get(0).getMessage()).contains("plain", "inert");
+            assertThat(capture.events()).hasSize(1);
+            assertThat(capture.events().get(0).level()).isEqualTo(Level.WARN);
+            assertThat(capture.events().get(0).message()).contains("plain", "inert");
 
             global.par(ParId.of("plain-two"))
                     .submit(
@@ -268,15 +250,15 @@ class ParSubmitTest {
                             () -> "d",
                             TaskOptions.timeout(Duration.ofSeconds(30)).rejectEnqueue(true))
                     .get(2, TimeUnit.SECONDS);
-            assertThat(records).hasSize(2);
+            assertThat(capture.events()).hasSize(2);
 
             // A SubmissionAwareBlockingQueue reads the flag, so the caller is not warned about an inert one.
             global.par(ParId.of("smart"))
                     .submit("quiet", () -> "e", TaskOptions.timeout(Duration.ofSeconds(30)))
                     .get(2, TimeUnit.SECONDS);
-            assertThat(records).hasSize(2);
+            assertThat(capture.events()).hasSize(2);
         } finally {
-            parLogger.removeHandler(capture);
+            capture.close();
             global.close();
             plain.shutdownNow();
             smart.shutdownNow();

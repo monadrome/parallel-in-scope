@@ -169,11 +169,11 @@ logger 上记录 `task '<name>' failed after cancellation` 并附原异常。级
 
 | 迟到异常（无 suppressed） | 级别 |
 |---|---|
-| `Checkpoints` 读到已提交的取消后抛出 | `FINE` |
-| 本次运行中内核的取消中断唤醒 JDK 阻塞调用而抛出的原始 `InterruptedException` | `FINE` |
-| 其他：用户自建的 `CancellationException` / `LeanCancellationException`、包装后的异常、非内核引起的 `InterruptedException`、任何业务失败 | `WARNING` |
+| `Checkpoints` 读到已提交的取消后抛出 | `debug` |
+| 本次运行中内核的取消中断唤醒 JDK 阻塞调用而抛出的原始 `InterruptedException` | `debug` |
+| 其他：用户自建的 `CancellationException` / `LeanCancellationException`、包装后的异常、非内核引起的 `InterruptedException`、任何业务失败 | `warn` |
 
-带 suppressed 的迟到异常（典型是 try-with-resources 中 `close()` 失败）一律 `WARNING`，并附带
+带 suppressed 的迟到异常（典型是 try-with-resources 中 `close()` 失败）一律 `warn`，并附带
 suppressed。日志级别不改变结果：取消次数读 `terminationKindCounts()` 或 `TaskTermination`，不要数告警条数。
 
 scope 未取消时被中断的 `Checkpoints` 阻塞适配器抛出同一类型的 `LeanCancellationException`，cause 为

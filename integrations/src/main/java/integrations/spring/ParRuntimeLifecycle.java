@@ -2,8 +2,8 @@ package integrations.spring;
 
 import io.github.monadrome.parallelinscope.ParRuntime;
 import java.time.Duration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 
 /**
@@ -27,7 +27,7 @@ public final class ParRuntimeLifecycle implements SmartLifecycle {
      */
     public static final int PHASE = SmartLifecycle.DEFAULT_PHASE - 4096;
 
-    private static final Logger LOGGER = Logger.getLogger(ParRuntimeLifecycle.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParRuntimeLifecycle.class);
 
     private final ParRuntime runtime;
     private final Duration shutdownTimeout;
@@ -55,9 +55,7 @@ public final class ParRuntimeLifecycle implements SmartLifecycle {
         runtime.close();
         try {
             if (!runtime.awaitQuiescence(shutdownTimeout)) {
-                LOGGER.log(Level.WARNING, "ParRuntime did not quiesce within {0}: {1}", new Object[] {
-                    shutdownTimeout, runtime.snapshot()
-                });
+                LOGGER.warn("ParRuntime did not quiesce within {}: {}", shutdownTimeout, runtime.snapshot());
             }
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();

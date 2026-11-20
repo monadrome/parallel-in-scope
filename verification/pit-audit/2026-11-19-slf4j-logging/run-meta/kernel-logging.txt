@@ -1,0 +1,7 @@
+a6d88c713b841f2ce584bc6280e7642b885b899b
+?? verification/pit-audit/2026-11-19-slf4j-logging/
+openjdk version "21.0.5" 2024-10-15 LTS
+OpenJDK Runtime Environment Temurin-21.0.5+11 (build 21.0.5+11-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.5+11 (build 21.0.5+11-LTS, mixed mode, sharing)
+batch: kernel-logging
+Fri Nov 20 02:18:58 UTC 2026

@@ -126,12 +126,12 @@ the exception came from, never on its type:
 
 | Late exception, no suppressed exceptions | Level |
 |---|---|
-| Thrown by a `Checkpoints` call that read the committed cancellation | `FINE` |
-| A raw `InterruptedException` from a JDK blocking call that the engine's cancellation interrupt woke on this run | `FINE` |
-| Anything else: your own `CancellationException` or `LeanCancellationException`, a wrapped one, an `InterruptedException` the engine did not cause, or any business failure | `WARNING` |
+| Thrown by a `Checkpoints` call that read the committed cancellation | `debug` |
+| A raw `InterruptedException` from a JDK blocking call that the engine's cancellation interrupt woke on this run | `debug` |
+| Anything else: your own `CancellationException` or `LeanCancellationException`, a wrapped one, an `InterruptedException` the engine did not cause, or any business failure | `warn` |
 
 Any late exception carrying a suppressed exception, typically a failing `close()` in
-try-with-resources, stays a `WARNING` with the suppressed failure attached. The log level never
+try-with-resources, stays a `warn` record with the suppressed failure attached. The log level never
 changes the result: read cancellation counts from `terminationKindCounts()` or `TaskTermination`, not from
 the number of warnings.
 

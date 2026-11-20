@@ -23,7 +23,7 @@ ParRuntime runtime = ParRuntime.builder()
         .build();
 runtime.par(ParId.of("cpu")).map(items, this::transform,
         BatchOptions.timeout("transform", Duration.ofSeconds(5)));
-// When executions wait, one WARNING names Par 'cpu'; the report attributes the time to units.
+// When executions wait, one warn-level record names Par 'cpu'; the report attributes the time to units.
 WorkloadFitReport report = runtime.workloadFitReport();
 ```
 
@@ -53,8 +53,9 @@ Count fields use the execution vocabulary: `executions()`, `unattributedExecutio
    `suspectedDeclarationDrift()`, which MUST NOT set `issue()`. The epoch length and the threshold are
    internal calibration values and MUST NOT be documented as stable across GC, hardware, or container
    environments.
-6. The first issue of an entry MUST log one `WARNING`, the first drift of a unit one `INFO`, and the
-   first unreadable reading of an entry one `WARNING`, each delivered through the runtime-owned
+6. The first issue of an entry MUST log one warn-level record, the first drift of a unit one
+   info-level record, and the
+   first unreadable reading of an entry one warn-level record, each delivered through the runtime-owned
    announcement path of §3.2.1. The text MUST read as a screening lead and MUST NOT claim proven blocking
    or misuse.
 7. When thread CPU time is unsupported, disabled, or unreadable, the execution MUST count in

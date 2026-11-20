@@ -10,9 +10,9 @@ import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Per-task observation sink backing {@link TaskFuture#completionFuture()}.
@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class TaskObservation<T> {
 
-    private static final Logger LOGGER = Logger.getLogger(TaskObservation.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskObservation.class);
 
     private final SettableFuture<TaskExitObservation<T>> sink = SettableFuture.create();
     private final ListenableFuture<TaskExitObservation<T>> view;
@@ -155,7 +155,7 @@ final class TaskObservation<T> {
     @SuppressWarnings("EmptyCatch")
     private static void logSnapshotFailureQuietly(Throwable snapshotFailure) {
         try {
-            LOGGER.log(Level.SEVERE, "a task observation snapshot could not be built", snapshotFailure);
+            LOGGER.error("a task observation snapshot could not be built", snapshotFailure);
         } catch (Throwable ignored) {
         }
     }
@@ -172,10 +172,10 @@ final class TaskObservation<T> {
         }
     }
 
-    /** A caller-supplied JUL handler must not be able to break the path it is only observing. */
+    /** A failing logging backend must not be able to break the path it is only observing. */
     private static void logQuietly(Throwable failure) {
         try {
-            LOGGER.log(Level.SEVERE, "an observation listener failed", failure);
+            LOGGER.error("an observation listener failed", failure);
         } catch (Throwable ignored) {
         }
     }

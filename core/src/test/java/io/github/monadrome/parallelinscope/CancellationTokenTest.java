@@ -21,10 +21,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -891,27 +887,12 @@ public class CancellationTokenTest {
         token.addStateListener(state -> {
             throw new IllegalStateException("listener boom");
         });
-        Logger logger = Logger.getLogger(CancellationToken.class.getName());
-        Handler handler = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                throw new IllegalStateException("handler boom");
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        logger.addHandler(handler);
-        Level previousLevel = logger.getLevel();
-        logger.setLevel(Level.ALL);
+        LogCapture capture = LogCapture.attach(CancellationToken.class);
+        capture.failOn("");
         try {
             token.cancel();
         } finally {
-            logger.removeHandler(handler);
-            logger.setLevel(previousLevel);
+            capture.close();
         }
 
         assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);

@@ -61,14 +61,16 @@ public final class QuoteApplication {
 
     private static void print(String label, TaskBatchResult<Quote> batch, CircuitBreaker breaker) {
         System.out.println("== " + label + " (breaker " + breaker.getState() + ")");
-        System.out.println("   " + batch.outcomeCounts());
+        System.out.println("   " + batch.terminationKindCounts());
         for (ImmediateResult<Quote> result : batch.results()) {
             System.out.println("   "
                     + result.fold(
                             String::valueOf,
-                            userFailure -> "failed: " + userFailure.getMessage(),
-                            submissionFailure -> "submission failed: " + submissionFailure.getMessage(),
-                            (outcome, detail) -> outcome.name()));
+                            failureCause -> failureCause.submissionRejected()
+                                    ? "submission failed: "
+                                            + failureCause.cause().getMessage()
+                                    : "failed: " + failureCause.cause().getMessage(),
+                            (reason, disposition) -> reason.kind().name()));
         }
     }
 

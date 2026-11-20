@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.base.Verify;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -14,21 +13,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.slf4j.event.Level;
 
 /**
- * Late-failure logging after cancellation: a cancellation acknowledgement is recorded at {@code
- * FINE} by provenance, every other late failure stays a {@code WARNING} (design/synchronous-scope-exit.md
- * section 4; design/interruption-contract.md sections 2.4 and 3.1).
+ * Late-failure logging after cancellation: a cancellation acknowledgement is logged at debug
+ * level by provenance, every other late failure stays a warn-level report
+ * (design/synchronous-scope-exit.md section 4; design/interruption-contract.md sections 2.4 and 3.1).
  *
  * <p>Each execution waits for a fact that happens only after its future settled as cancelled: the
  * kernel's cancellation interrupt ({@code interruptTask()} runs after the cancelled state is
@@ -39,35 +35,16 @@ import org.junit.jupiter.params.provider.EnumSource;
 class LateFailureLoggingTest {
     private static final String LATE = "failed after cancellation";
 
-    private final Logger logger = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
-    private final List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-    private final CountDownLatch logged = new CountDownLatch(1);
-    private final Handler handler = new Handler() {
-        @Override
-        public void publish(LogRecord record) {
-            if (record.getMessage() != null && record.getMessage().contains(LATE)) {
-                records.add(record);
-                logged.countDown();
-            }
-        }
-
-        @Override
-        public void flush() {}
-
-        @Override
-        public void close() {}
-    };
-
-    private Level previousLevel;
+    private LogCapture capture;
+    private CountDownLatch logged;
     private ExecutorService executor;
     private ParRuntime runtime;
     private Par par;
 
     @BeforeEach
     void setup() {
-        previousLevel = logger.getLevel();
-        logger.setLevel(Level.ALL);
-        logger.addHandler(handler);
+        capture = LogCapture.attach(ExecutionPhaseHintFuture.class);
+        logged = capture.latchOn(LATE);
         executor = Executors.newFixedThreadPool(2);
         runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build();
         par = runtime.par(ParId.of("worker"));
@@ -80,8 +57,7 @@ class LateFailureLoggingTest {
             executor.shutdownNow();
             assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
         } finally {
-            logger.removeHandler(handler);
-            logger.setLevel(previousLevel);
+            capture.close();
             Thread.interrupted();
         }
     }
@@ -103,9 +79,9 @@ class LateFailureLoggingTest {
 
         TerminationAssertions.assertCancelled(
                 batch.results().get(0).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
-        LogRecord record = singleRecord();
-        assertThat(record.getLevel()).isEqualTo(Level.FINE);
-        assertThat(record.getThrown()).isInstanceOf(CheckpointCancellation.class);
+        LogCapture.Event record = singleRecord();
+        assertThat(record.level()).isEqualTo(Level.DEBUG);
+        assertThat(record.thrown()).isInstanceOf(CheckpointCancellation.class);
     }
 
     @Test
@@ -118,9 +94,9 @@ class LateFailureLoggingTest {
 
         TerminationAssertions.assertCancelled(
                 batch.results().get(0).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
-        LogRecord record = singleRecord();
-        assertThat(record.getLevel()).isEqualTo(Level.FINE);
-        assertThat(record.getThrown())
+        LogCapture.Event record = singleRecord();
+        assertThat(record.level()).isEqualTo(Level.DEBUG);
+        assertThat(record.thrown())
                 .isInstanceOf(CheckpointCancellation.class)
                 .hasCauseInstanceOf(InterruptedException.class);
     }
@@ -145,10 +121,10 @@ class LateFailureLoggingTest {
 
         TerminationAssertions.assertCancelled(
                 result.resultAt(0).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
-        LogRecord record = singleRecord();
-        assertThat(record.getLevel()).isEqualTo(Level.WARNING);
-        assertThat(record.getThrown()).isInstanceOf(CheckpointCancellation.class);
-        assertThat(Verify.verifyNotNull(record.getThrown()).getSuppressed()).containsExactly(closeFailure);
+        LogCapture.Event record = singleRecord();
+        assertThat(record.level()).isEqualTo(Level.WARN);
+        assertThat(record.thrown()).isInstanceOf(CheckpointCancellation.class);
+        assertThat(Verify.verifyNotNull(record.thrown()).getSuppressed()).containsExactly(closeFailure);
     }
 
     @Test
@@ -163,9 +139,9 @@ class LateFailureLoggingTest {
 
         TerminationAssertions.assertCancelled(
                 result.resultAt(0).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
-        LogRecord record = singleRecord();
-        assertThat(record.getLevel()).isEqualTo(Level.FINE);
-        assertThat(record.getThrown()).isInstanceOf(InterruptedException.class);
+        LogCapture.Event record = singleRecord();
+        assertThat(record.level()).isEqualTo(Level.DEBUG);
+        assertThat(record.thrown()).isInstanceOf(InterruptedException.class);
     }
 
     @Test
@@ -190,7 +166,7 @@ class LateFailureLoggingTest {
         assertThat(failure.getClass()).isEqualTo(LeanCancellationException.class);
         assertThat(failure).hasCauseInstanceOf(InterruptedException.class);
         assertThat(flagRestored.get()).isTrue();
-        assertThat(records).isEmpty();
+        assertThat(capture.events(LATE)).isEmpty();
     }
 
     /** Late failures thrown by an execution released only after an explicit {@code cancel(false)}. */
@@ -236,9 +212,9 @@ class LateFailureLoggingTest {
         release.countDown();
         worker.join(TimeUnit.SECONDS.toMillis(5));
 
-        LogRecord record = singleRecord();
-        assertThat(record.getLevel()).isEqualTo(shape.warns ? Level.WARNING : Level.FINE);
-        assertThat(record.getThrown()).isSameAs(thrown);
+        LogCapture.Event record = singleRecord();
+        assertThat(record.level()).isEqualTo(shape.warns ? Level.WARN : Level.DEBUG);
+        assertThat(record.thrown()).isSameAs(thrown);
     }
 
     @Test
@@ -253,7 +229,7 @@ class LateFailureLoggingTest {
             throw independent;
         });
         assertThat(logged).isSameAs(independent);
-        assertThat(singleRecord().getLevel()).isEqualTo(Level.WARNING);
+        assertThat(singleRecord().level()).isEqualTo(Level.WARN);
     }
 
     @Test
@@ -270,37 +246,31 @@ class LateFailureLoggingTest {
             assertThat(firstEntered.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(first.cancel(true)).isTrue();
             assertThat(logged.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(singleRecord().getLevel()).isEqualTo(Level.FINE);
-            records.clear();
+            assertThat(singleRecord().level()).isEqualTo(Level.DEBUG);
+            capture.clear();
 
-            CountDownLatch secondLogged = new CountDownLatch(1);
-            Handler secondHandler = latchOn(secondLogged);
-            logger.addHandler(secondHandler);
-            try {
-                AtomicReference<Thread> firstThread = new AtomicReference<>();
-                AtomicReference<Thread> secondThread = new AtomicReference<>();
-                single.submit(() -> firstThread.set(Thread.currentThread())).get(5, TimeUnit.SECONDS);
-                CountDownLatch secondEntered = new CountDownLatch(1);
-                CountDownLatch secondRelease = new CountDownLatch(1);
-                InterruptedException independent = new InterruptedException("no delivery on this run");
-                ExecutionPhaseHintFuture<Void> second = ExecutionPhaseHintFuture.create(() -> {
-                    secondThread.set(Thread.currentThread());
-                    secondEntered.countDown();
-                    Uninterruptibles.awaitUninterruptibly(secondRelease);
-                    throw independent;
-                });
-                single.execute(second);
-                assertThat(secondEntered.await(5, TimeUnit.SECONDS)).isTrue();
-                assertThat(second.cancel(false)).isTrue();
-                secondRelease.countDown();
-                assertThat(secondLogged.await(5, TimeUnit.SECONDS)).isTrue();
-                assertThat(secondThread.get()).isSameAs(firstThread.get());
-                LogRecord record = singleRecord();
-                assertThat(record.getThrown()).isSameAs(independent);
-                assertThat(record.getLevel()).isEqualTo(Level.WARNING);
-            } finally {
-                logger.removeHandler(secondHandler);
-            }
+            CountDownLatch secondLogged = capture.latchOn(LATE);
+            AtomicReference<Thread> firstThread = new AtomicReference<>();
+            AtomicReference<Thread> secondThread = new AtomicReference<>();
+            single.submit(() -> firstThread.set(Thread.currentThread())).get(5, TimeUnit.SECONDS);
+            CountDownLatch secondEntered = new CountDownLatch(1);
+            CountDownLatch secondRelease = new CountDownLatch(1);
+            InterruptedException independent = new InterruptedException("no delivery on this run");
+            ExecutionPhaseHintFuture<Void> second = ExecutionPhaseHintFuture.create(() -> {
+                secondThread.set(Thread.currentThread());
+                secondEntered.countDown();
+                Uninterruptibles.awaitUninterruptibly(secondRelease);
+                throw independent;
+            });
+            single.execute(second);
+            assertThat(secondEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(second.cancel(false)).isTrue();
+            secondRelease.countDown();
+            assertThat(secondLogged.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(secondThread.get()).isSameAs(firstThread.get());
+            LogCapture.Event record = singleRecord();
+            assertThat(record.thrown()).isSameAs(independent);
+            assertThat(record.level()).isEqualTo(Level.WARN);
         } finally {
             single.shutdownNow();
             assertThat(single.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
@@ -319,31 +289,13 @@ class LateFailureLoggingTest {
         assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
         assertThat(future.cancel(true)).isTrue();
         worker.join(TimeUnit.SECONDS.toMillis(5));
-        return Verify.verifyNotNull(singleRecord().getThrown());
+        return Verify.verifyNotNull(singleRecord().thrown());
     }
 
-    private LogRecord singleRecord() throws InterruptedException {
+    private LogCapture.Event singleRecord() throws InterruptedException {
         assertThat(logged.await(5, TimeUnit.SECONDS)).isTrue();
-        synchronized (records) {
-            assertThat(records).hasSize(1);
-            return records.get(0);
-        }
-    }
-
-    private static Handler latchOn(CountDownLatch latch) {
-        return new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                if (record.getMessage() != null && record.getMessage().contains(LATE)) {
-                    latch.countDown();
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
+        List<LogCapture.Event> records = capture.events(LATE);
+        assertThat(records).hasSize(1);
+        return records.get(0);
     }
 }

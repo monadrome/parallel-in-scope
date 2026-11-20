@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-slf4j-logging",
+  "date": "2026-11-19",
+  "topic": "slf4j-logging",
+  "routes": [
+    "contract",
+    "dependency"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "build: add slf4j-api to core and slf4j-simple to demo, integrations, and the verification consumer",
+      "feat!: replace JUL with SLF4J in core logging",
+      "refactor: switch the Spring integrations sample to SLF4J",
+      "docs: supersede ADR 0014 with ADR 0016 for the SLF4J logging backend",
+      "docs: describe SLF4J log levels in the user guides",
+      "test: archive the slf4j-logging PIT audit"
+    ],
+    "files": 69,
+    "insertions": 2099,
+    "deletions": 843
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1,
+      "mvn test-compile": 2,
+      "integrations mvn test": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "verification/pit-audit/2026-11-19-slf4j-logging/reports/adopted-source.xml",
+      "statuses": {
+        "KILLED": 22,
+        "SURVIVED": 3
+      },
+      "total": 25,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "verification/pit-audit/2026-11-19-slf4j-logging/reports/kernel-logging.xml",
+      "statuses": {
+        "KILLED": 411,
+        "NO_COVERAGE": 102,
+        "SURVIVED": 70,
+        "TIMED_OUT": 26
+      },
+      "total": 609,
+      "inconclusive": 26,
+      "inconclusiveRate": 0.0427
+    },
+    {
+      "source": "verification/pit-audit/2026-11-19-slf4j-logging/reports/runtime-diagnostics.xml",
+      "statuses": {
+        "KILLED": 298,
+        "NO_COVERAGE": 27,
+        "SURVIVED": 22,
+        "TIMED_OUT": 8
+      },
+      "total": 355,
+      "inconclusive": 8,
+      "inconclusiveRate": 0.0225
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "JUL to SLF4J migration; refactoring-review plan generated at .agents/reviews/refactoring-slf4j-logging-2026-11-19 but detectors and adversarial rounds are driven by the parent workflow after this record; integrations failure was pre-existing consumer staleness fixed in the delivery; one parent course-correction on the moved base"
+}

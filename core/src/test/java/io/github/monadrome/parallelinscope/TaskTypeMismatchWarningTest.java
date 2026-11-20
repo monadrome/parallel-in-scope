@@ -11,18 +11,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 /**
  * Submission compares a unit's declared {@link TaskType} with its entry's and logs a disagreement
@@ -32,29 +27,13 @@ import org.junit.jupiter.api.Test;
 class TaskTypeMismatchWarningTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    private final List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-    private final Handler capture = new Handler() {
-        @Override
-        public void publish(LogRecord record) {
-            records.add(record);
-        }
-
-        @Override
-        public void flush() {}
-
-        @Override
-        public void close() {}
-    };
-    private final Logger parLogger = Logger.getLogger(Par.class.getName());
-    private boolean parentHandlers;
+    private LogCapture capture;
     private ExecutorService direct;
     private ParRuntime runtime;
 
     @BeforeEach
     void captureParRecords() {
-        parentHandlers = parLogger.getUseParentHandlers();
-        parLogger.setUseParentHandlers(false);
-        parLogger.addHandler(capture);
+        capture = LogCapture.attach(Par.class);
         direct = MoreExecutors.newDirectExecutorService();
         runtime = ParRuntime.builder()
                 .register(ParId.of("cpu"), direct, TaskType.COMPUTE)
@@ -66,8 +45,7 @@ class TaskTypeMismatchWarningTest {
 
     @AfterEach
     void release() {
-        parLogger.removeHandler(capture);
-        parLogger.setUseParentHandlers(parentHandlers);
+        capture.close();
         runtime.close();
         direct.shutdownNow();
     }
@@ -81,10 +59,10 @@ class TaskTypeMismatchWarningTest {
                         BatchOptions.timeout("load", TIMEOUT).taskType(TaskType.BLOCKING));
 
         assertThat(result.valuesOrThrow()).containsExactly(1, 2);
-        assertThat(records).hasSize(1);
-        LogRecord record = records.get(0);
-        assertThat(record.getLevel()).isEqualTo(Level.WARNING);
-        assertThat(record.getMessage())
+        assertThat(capture.events()).hasSize(1);
+        LogCapture.Event record = capture.events().get(0);
+        assertThat(record.level()).isEqualTo(Level.WARN);
+        assertThat(record.message())
                 .startsWith("Par 'cpu' is registered for TaskType.COMPUTE, but unit 'load' declares TaskType.BLOCKING.")
                 .contains("disagree", "once per Par and unit name")
                 .doesNotContain("starv", "oversubscri", "misuse");
@@ -98,9 +76,9 @@ class TaskTypeMismatchWarningTest {
                         x -> x,
                         BatchOptions.timeout("score", TIMEOUT).taskType(TaskType.COMPUTE));
 
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getLevel()).isEqualTo(Level.INFO);
-        assertThat(records.get(0).getMessage())
+        assertThat(capture.events()).hasSize(1);
+        assertThat(capture.events().get(0).level()).isEqualTo(Level.INFO);
+        assertThat(capture.events().get(0).message())
                 .startsWith(
                         "Par 'io' is registered for TaskType.BLOCKING, but unit 'score' declares TaskType.COMPUTE.");
     }
@@ -130,7 +108,7 @@ class TaskTypeMismatchWarningTest {
                         x -> x,
                         BatchOptions.timeout("plain-compute", TIMEOUT).taskType(TaskType.COMPUTE));
 
-        assertThat(records).isEmpty();
+        assertThat(capture.events()).isEmpty();
     }
 
     @Test
@@ -149,8 +127,8 @@ class TaskTypeMismatchWarningTest {
                         x -> x,
                         BatchOptions.timeout("load", TIMEOUT).taskType(TaskType.COMPUTE));
 
-        assertThat(records)
-                .extracting(LogRecord::getMessage)
+        assertThat(capture.events())
+                .extracting(LogCapture.Event::message)
                 .hasSize(3)
                 .anyMatch(message -> message.startsWith("Par 'cpu'") && message.contains("unit 'load'"))
                 .anyMatch(message -> message.startsWith("Par 'cpu'") && message.contains("unit 'save'"))
@@ -179,8 +157,8 @@ class TaskTypeMismatchWarningTest {
 
         assertThat(result.terminalValueOrThrow()).isEqualTo(2);
         assertThat(single.get()).isEqualTo(3);
-        assertThat(records)
-                .extracting(LogRecord::getMessage)
+        assertThat(capture.events())
+                .extracting(LogCapture.Event::message)
                 .hasSize(3)
                 .anyMatch(message -> message.contains("unit 'member'"))
                 .anyMatch(message -> message.contains("unit 'join'"))
@@ -205,31 +183,17 @@ class TaskTypeMismatchWarningTest {
                         cpu,
                         values -> Objects.requireNonNull(values).size());
 
-        assertThat(records).isEmpty();
+        assertThat(capture.events()).isEmpty();
     }
 
     /**
-     * A handler that throws or blocks must not reach admission: the warning is delivered from a
-     * runtime-owned thread, so the batch result does not depend on the logging backend.
+     * A logging backend that throws or blocks must not reach admission: the warning is delivered
+     * from a runtime-owned thread, so the batch result does not depend on the logging backend.
      */
     @Test
     void aFailingLogHandlerNeverRunsOnTheAdmittingThreadOrChangesTheOutcome() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        Set<Thread> publishers = ConcurrentHashMap.newKeySet();
-        Handler failing = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                publishers.add(Thread.currentThread());
-                throw new IllegalStateException("logging backend unavailable");
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        parLogger.addHandler(failing);
+        capture.failOn("");
         try (ParRuntime asynchronous = ParRuntime.builder()
                 .register(ParId.of("cpu"), pool, TaskType.COMPUTE)
                 .build()) {
@@ -242,13 +206,10 @@ class TaskTypeMismatchWarningTest {
 
             assertThat(result.valuesOrThrow()).containsExactly(1, 2);
             Thread admitting = Thread.currentThread();
-            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-                assertThat(records).hasSize(1);
-                assertThat(publishers).isNotEmpty();
-            });
-            assertThat(publishers).doesNotContain(admitting);
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertThat(capture.events()).hasSize(1));
+            assertThat(capture.events().get(0).thread()).isNotSameAs(admitting);
         } finally {
-            parLogger.removeHandler(failing);
             pool.shutdownNow();
         }
     }
@@ -293,7 +254,7 @@ class TaskTypeMismatchWarningTest {
             assertThat(values).as("%s", failure).containsExactly(1, 2);
             assertThat(attempts).as("%s", failure).hasValue(3);
         }
-        assertThat(records).isEmpty();
+        assertThat(capture.events()).isEmpty();
     }
 
     @Test
@@ -305,7 +266,7 @@ class TaskTypeMismatchWarningTest {
                     x -> x,
                     BatchOptions.timeout("unit-" + i, TIMEOUT).taskType(TaskType.BLOCKING));
         }
-        assertThat(records).hasSize(TaskTypeMismatches.CAPACITY);
+        assertThat(capture.events()).hasSize(TaskTypeMismatches.CAPACITY);
 
         BatchOptions overflow = BatchOptions.timeout("unit-overflow", TIMEOUT).taskType(TaskType.BLOCKING);
         cpu.map(Collections.singletonList(1), x -> x, overflow);
@@ -315,10 +276,10 @@ class TaskTypeMismatchWarningTest {
                 x -> x,
                 BatchOptions.timeout("unit-0", TIMEOUT).taskType(TaskType.BLOCKING));
 
-        assertThat(records).hasSize(TaskTypeMismatches.CAPACITY + 1);
-        LogRecord summary = records.get(TaskTypeMismatches.CAPACITY);
-        assertThat(summary.getLevel()).isEqualTo(Level.WARNING);
-        assertThat(summary.getMessage())
+        assertThat(capture.events()).hasSize(TaskTypeMismatches.CAPACITY + 1);
+        LogCapture.Event summary = capture.events().get(TaskTypeMismatches.CAPACITY);
+        assertThat(summary.level()).isEqualTo(Level.WARN);
+        assertThat(summary.message())
                 .contains("is full at 1024 Par and unit-name pairs", "unit 'unit-overflow' on Par 'cpu'")
                 .contains("are not logged")
                 .doesNotContain("suppressedTaskTypeMismatches");

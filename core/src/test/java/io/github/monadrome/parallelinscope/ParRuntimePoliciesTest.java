@@ -4,19 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.threadpool.TtlExecutors;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /** Builder validation matrix for {@link ParRuntime} policies. */
@@ -132,21 +125,7 @@ class ParRuntimePoliciesTest {
         ThreadPoolExecutor physical =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         ExecutorService wrapped = TtlExecutors.getTtlExecutorService(physical);
-        Logger runtimeLogger = Logger.getLogger(ParRuntime.class.getName());
-        List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                records.add(record);
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        runtimeLogger.addHandler(capture);
+        LogCapture capture = LogCapture.attach(ParRuntime.class);
         try {
             // Registration warnings are delivered on the runtime's announcements executor; a
             // direct executor keeps the capture synchronous with the build.
@@ -156,40 +135,26 @@ class ParRuntimePoliciesTest {
                     .build();
             runtime.close();
 
-            assertThat(records).hasSize(1);
-            assertThat(records.get(0).getMessage())
+            assertThat(capture.events()).hasSize(1);
+            assertThat(capture.events().get(0).message())
                     .contains("orders")
                     .contains("TTL wrapper")
                     .contains("twice")
                     .doesNotContain("cannot see through");
         } finally {
-            runtimeLogger.removeHandler(capture);
+            capture.close();
             physical.shutdownNow();
         }
     }
 
     @Test
     void aThrowingLogHandlerCannotAlterTheBuild() {
-        // Both registration warnings go through the guarded announcements path, so a user JUL
-        // handler that throws cannot reach the thread building the runtime. A direct
-        // announcements executor keeps delivery synchronous with the build, and the attempt
+        // Both registration warnings go through the guarded announcements path, so a logging
+        // backend that throws cannot reach the thread building the runtime. A direct
+        // announcements executor keeps delivery synchronous with the build, and the event
         // count proves both warning stations ran inside the guard rather than not running at all.
-        Logger runtimeLogger = Logger.getLogger(ParRuntime.class.getName());
-        AtomicInteger publishAttempts = new AtomicInteger();
-        Handler throwing = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                publishAttempts.incrementAndGet();
-                throw new IllegalStateException("user handler failure");
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        runtimeLogger.addHandler(throwing);
+        LogCapture capture = LogCapture.attach(ParRuntime.class);
+        capture.failOn("");
         // A delegated executor service is not a ThreadPoolExecutor, so it triggers the
         // "cannot see through" warning; the TTL wrapper triggers the double-capture warning.
         ExecutorService foreign = Executors.newSingleThreadExecutor();
@@ -204,9 +169,9 @@ class ParRuntimePoliciesTest {
                     .build();
             runtime.close();
 
-            assertThat(publishAttempts).hasValue(2);
+            assertThat(capture.events()).hasSize(2);
         } finally {
-            runtimeLogger.removeHandler(throwing);
+            capture.close();
             foreign.shutdownNow();
             physical.shutdownNow();
         }

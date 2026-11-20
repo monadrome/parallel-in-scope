@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Running scope of one submitted task group: a fixed, heterogeneous set of named tasks admitted at
@@ -57,7 +57,7 @@ import org.jspecify.annotations.Nullable;
  * convergence.
  */
 final class TaskGroup<R> implements AutoCloseable {
-    private static final Logger LOGGER = Logger.getLogger(TaskGroup.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskGroup.class);
 
     /** Null-object submission canceller: group members carry no submission pipeline to stop. */
     private static final ListenableFuture<@Nullable Void> NO_SUBMISSION = Futures.immediateVoidFuture();
@@ -1012,12 +1012,12 @@ final class TaskGroup<R> implements AutoCloseable {
 
     /**
      * Reports a values publication failure without ever letting the report itself become a failure:
-     * a JUL handler is caller-supplied configuration, and a handler that throws would otherwise
-     * escape this recovery path and skip the completion publication it exists to protect.
+     * the logging backend is caller-supplied configuration, and a backend that throws would
+     * otherwise escape this recovery path and skip the completion publication it exists to protect.
      */
     private void logValuesFailure(Throwable failure) {
         try {
-            LOGGER.log(Level.SEVERE, "TaskGroup '" + groupName + "' could not publish its values", failure);
+            LOGGER.error("TaskGroup '" + groupName + "' could not publish its values", failure);
         } catch (Throwable ignored) {
         }
     }

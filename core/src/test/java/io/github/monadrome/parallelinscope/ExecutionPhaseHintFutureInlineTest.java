@@ -6,18 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 /**
  * Inline execution and rejection state of the engine future: the phase hint reaches {@code
@@ -122,23 +117,7 @@ class ExecutionPhaseHintFutureInlineTest {
 
     @Test
     void aBrokenObservationListenerLeavesASevereDiagnosticWithoutStrandingTheSink() throws Exception {
-        Logger kernelLogger = Logger.getLogger(TaskObservation.class.getName());
-        List<LogRecord> severe = Collections.synchronizedList(new java.util.ArrayList<>());
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                if (record.getLevel() == Level.SEVERE) {
-                    severe.add(record);
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        kernelLogger.addHandler(capture);
+        LogCapture capture = LogCapture.attach(TaskObservation.class);
         try {
             MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                     BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
@@ -156,11 +135,14 @@ class ExecutionPhaseHintFutureInlineTest {
 
             assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo("value");
             assertThat(observation.view().isDone()).isTrue();
-            assertThat(severe)
+            assertThat(capture.events())
                     .as("the publication failure is reported instead of vanishing")
-                    .anySatisfy(record -> assertThat(record.getThrown()).isInstanceOf(AssertionError.class));
+                    .anySatisfy(record -> {
+                        assertThat(record.level()).isEqualTo(Level.ERROR);
+                        assertThat(record.thrown()).isInstanceOf(AssertionError.class);
+                    });
         } finally {
-            kernelLogger.removeHandler(capture);
+            capture.close();
         }
     }
 }

@@ -163,7 +163,7 @@ site.**
   points must catch `Throwable` itself, and must establish its invariants separately on the
   "value written" and "value not written" paths.
 - Logging calls are themselves failure points: logging on recovery paths must guard against a
-  JUL handler throwing (convergence matters more than diagnostics).
+  logging backend or handler throwing (convergence matters more than diagnostics).
 - A listener running on the convergence thread that blocks waiting for the completion future
   deadlocks — this is a caller self-inflicted risk; declare it in Javadoc rather than rework
   the publication mechanism.

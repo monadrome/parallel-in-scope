@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Route the `ParRuntime` registration warnings (opaque executor and TTL-wrapper diagnostics) through the guarded announcements delivery like every other log station: a user JUL handler that throws can no longer alter what `build()` observes, and the warnings are delivered on the runtime's announcements executor instead of the registering thread.
+- Route the `ParRuntime` registration warnings (opaque executor and TTL-wrapper diagnostics) through the guarded announcements delivery like every other log station: a logging backend that throws can no longer alter what `build()` observes, and the warnings are delivered on the runtime's announcements executor instead of the registering thread.
 
 ### Build
 
@@ -13,6 +13,17 @@
 
 ### Breaking changes
 
+- Move the core library's logging from `java.util.logging` (JUL) to SLF4J: every diagnostic is
+  logged through `org.slf4j` loggers named after the same stable class names, and
+  `org.slf4j:slf4j-api` becomes a compile dependency with no provider bundled. Levels map
+  `SEVERE` → `error`, `WARNING` → `warn`, `INFO` → `info`, and the cancellation-acknowledgement
+  `FINE` → `debug`; the level vocabulary in the user documentation and Javadoc follows. Migration:
+  bind an SLF4J 2.0 provider in the application (Logback, Log4j2, or `slf4j-simple` for a quick
+  start); with no provider the library's diagnostics silently go nowhere, and an application that
+  routed the records through a JUL-to-SLF4J bridge replaces the bridge with the provider binding.
+  The delivery rules are unchanged: diagnostics never run on admission threads, a failing logging
+  backend never changes a task, cancellation, or cleanup result, and reliable facts stay on the
+  report APIs (ADR 0016).
 - Simplify the beta scope-termination API: delete the public `ScopeTerminationCause` wrapper and its
   `Kind`, remove `ScopeTermination.cause()`, and read the branch payloads directly from
   `ScopeTermination`. Creation becomes `ScopeTermination.succeeded()`,

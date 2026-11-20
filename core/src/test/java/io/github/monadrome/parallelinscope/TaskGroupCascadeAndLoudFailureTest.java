@@ -6,18 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 /**
  * Group failure loudness and the member-cancellation cascade: {@code orThrow()} rethrows the
@@ -232,23 +227,7 @@ class TaskGroupCascadeAndLoudFailureTest {
                 ParRuntime.builder().register(ParId.of("worker"), executor).build();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        Logger kernelLogger = Logger.getLogger(TaskGroup.class.getName());
-        List<LogRecord> severe = Collections.synchronizedList(new java.util.ArrayList<>());
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                if (record.getLevel() == Level.SEVERE) {
-                    severe.add(record);
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        kernelLogger.addHandler(capture);
+        LogCapture capture = LogCapture.attach(TaskGroup.class);
         try {
             TaskGroup<Void> group = global.groupDraft("page", TIMEOUT)
                     .par(TaskKey.<String>named("user"), global.par(ParId.of("worker")), () -> {
@@ -266,15 +245,17 @@ class TaskGroupCascadeAndLoudFailureTest {
                             directExecutor());
             release.countDown();
 
-            // Convergence survives the broken listener, and the publication failure leaves a
-            // severe diagnostic naming the group.
+            // Convergence survives the broken listener, and the publication failure leaves an
+            // error-level diagnostic naming the group.
             TerminationAssertions.assertScopeSucceeded(
                     group.convergenceFuture().get(5, TimeUnit.SECONDS).termination());
-            assertThat(severe)
-                    .anySatisfy(record -> assertThat(record.getMessage()).contains("page"));
+            assertThat(capture.events()).anySatisfy(record -> {
+                assertThat(record.level()).isEqualTo(Level.ERROR);
+                assertThat(record.message()).contains("page");
+            });
         } finally {
             release.countDown();
-            kernelLogger.removeHandler(capture);
+            capture.close();
             global.close();
             executor.shutdownNow();
         }

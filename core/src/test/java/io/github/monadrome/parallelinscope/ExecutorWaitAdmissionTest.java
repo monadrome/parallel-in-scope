@@ -16,9 +16,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -265,33 +262,8 @@ class ExecutorWaitAdmissionTest {
     @Test
     void theCycleWarningRunsOffTheAdmittingThreadAndABlockedHandlerDelaysNoAdmission() throws Exception {
         ParRuntime runtime = runtime("io", buffering());
-        Logger logger = Logger.getLogger(ExecutorWaitGraph.class.getName());
-        CountDownLatch published = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        AtomicReference<@Nullable String> warningThread = new AtomicReference<>();
-        AtomicReference<@Nullable String> message = new AtomicReference<>();
-        Handler blocking = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                warningThread.set(Thread.currentThread().getName());
-                message.set(record.getMessage());
-                published.countDown();
-                try {
-                    release.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        boolean parents = logger.getUseParentHandlers();
-        logger.addHandler(blocking);
-        logger.setUseParentHandlers(false);
+        LogCapture capture = LogCapture.attach(ExecutorWaitGraph.class);
+        CountDownLatch published = capture.blockOn("Potential executor deadlock");
         try {
             AtomicReference<@Nullable String> admittingThread = new AtomicReference<>();
             runtime.par(ParId.of("io"))
@@ -309,15 +281,14 @@ class ExecutorWaitAdmissionTest {
             nested(runtime, "io", "io");
 
             assertThat(published.await(10, TimeUnit.SECONDS)).isTrue();
-            assertThat(warningThread.get()).isNotNull().isNotEqualTo(admittingThread.get());
-            assertThat(message.get())
-                    .contains("Potential executor deadlock")
+            List<LogCapture.Event> warnings = capture.events("Potential executor deadlock");
+            assertThat(warnings).hasSize(1);
+            assertThat(warnings.get(0).thread().getName()).isNotEqualTo(admittingThread.get());
+            assertThat(warnings.get(0).message())
                     .contains("Component[members=1, cycle=1, witnesses=1]")
                     .doesNotContain("[io] -> [io]");
         } finally {
-            release.countDown();
-            logger.removeHandler(blocking);
-            logger.setUseParentHandlers(parents);
+            capture.close();
         }
     }
 }

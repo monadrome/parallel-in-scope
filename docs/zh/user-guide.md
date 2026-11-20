@@ -330,7 +330,7 @@ failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括
 Price price = batch.results().get(i).fold(
         value -> value,
         failure -> {
-            LOGGER.log(Level.WARNING, "price failed for " + sku, failure.cause());
+            LOGGER.warn("price failed for " + sku, failure.cause());
             return Price.UNKNOWN;
         },
         (reason, disposition) -> Price.UNKNOWN);
@@ -360,7 +360,7 @@ scope 及其资源生命周期之外。
 ```java
 ScopeTermination termination = batch.termination();
 if (termination.kind() == ScopeTermination.Kind.FAILED) {
-    LOGGER.log(Level.WARNING, "批次失败于 " + termination.failedTask(), termination.failure());
+    LOGGER.warn("批次失败于 " + termination.failedTask(), termination.failure());
 } else if (termination.kind() == ScopeTermination.Kind.CANCELLED) {
     LOGGER.info("批次以 " + termination.cancellationReason().kind() + " 结束");
 }
@@ -425,7 +425,7 @@ TaskGroupResult<Void> result = global.group("read", Duration.ofSeconds(2))
 runtime 关闭且 awaitQuiescence 成功后，全部已接纳执行才确认退出。关闭失败保持 Java
 主异常/suppressed 规则；取消先落定后才抛出的异常按任务身份记录日志，不改写取消结果。
 执行只是确认取消（经读到取消的 `Checkpoints` 调用退出，或经被内核取消中断唤醒的 JDK 阻塞调用退出）时
-记 `FINE`；其他迟到失败（包括带 suppressed close 失败的）记 `WARNING`。见
+记 `debug` 级别；其他迟到失败（包括带 suppressed close 失败的）记 `warn` 级别。见
 [取消之后的日志](reference/cooperative-cancellation.md#logging-after-cancellation)。
 库不自动发现或关闭捕获/返回对象，也不管理用户额外启动的线程或外部异步操作。
 
