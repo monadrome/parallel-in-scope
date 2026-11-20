@@ -1,0 +1,19 @@
+verification/pit-audit/2026-11-19-slf4j-logging/README.md
+  s_c848b6c0f627e3::t_909e75dd882f72 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2599c48fa2d2b66a4d0f64020738fce1a070c60b",
+  "prompts": {},
+  "sessions": {
+    "s_c848b6c0f627e3": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d086dc61-b04b-4adb-b994-e93827708776",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
