@@ -132,6 +132,22 @@
       "tests": "TaskBatchResultTest#scopeTerminationPrefersTheFailureOverAReplayOfFailFastCancellation,ScopeTerminationTest,TaskGroupConvergenceTest",
       "expect": "failure",
       "note": "The cited batch test settles a fail-fast-cancelled task before its triggering failure, so the provisional cancellation is observed first and the failure must replace it; with the check removed the failure is refused and the scope stays cancelled."
+    },
+    {
+      "id": "cancel-during-execution-claim",
+      "protocol": "ExecutionPhaseHintFuture claim/cancel",
+      "claim": "A cancellation committing while run() is parked between its phase CAS and the execution claim must win the slot through skipExecutionIfPending: the slot goes SKIPPED and the callable is released before the resumed claim loses, so user code never runs and the reference is not retained.",
+      "method": "mutation",
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java",
+      "mutations": [
+        {
+          "find": "        } else if (phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {\n            skipExecutionIfPending();\n        }",
+          "replace": "        } else if (phase.compareAndSet(ExecutionPhase.RUNNING, ExecutionPhase.CANCEL_REQUESTED_RUNNING)) {\n        }"
+        }
+      ],
+      "tests": "ExecutionPhaseHintFutureTest#aCancellationLandingBetweenThePhaseClaimAndTheExecutionClaimSkipsUserCodeAndReleasesTheCallable",
+      "expect": "failure",
+      "note": "The prepared-state test parks the runner inside the claim and lands the cancellation; dropping the skip makes the slot stay PENDING and keeps the callable, both asserted before the claim resumes. The final-tree PIT partition kills the same window's three surviving mutants (afterDone conditional negation, skipExecutionIfPending removal, releaseCallable removal) with this test. The claimExecution TRUE_RETURNS mutant forces the return only after the real claim CAS runs and is equivalent: a failed claim is reachable only when skipIfPending already won, which implies the callable was released and the future completed as cancelled, so the flipped local never reaches user code."
     }
   ]
 }

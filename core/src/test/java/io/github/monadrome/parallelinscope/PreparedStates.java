@@ -59,6 +59,13 @@ final class PreparedStates {
                 taskCount));
     }
 
+    /** One execution slot registered with its tracker, as a submitted window element carries it. */
+    static TaskExecutionState trackedSlot(String name) {
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1));
+        return ExecutionExitTracker.create(1).register(unit);
+    }
+
     /** A parent token and its linked child. */
     static final class TokenPair {
         private final CancellationToken parent;
