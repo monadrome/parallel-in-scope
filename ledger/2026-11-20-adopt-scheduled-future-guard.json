@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-20-adopt-scheduled-future-guard",
+  "date": "2026-11-20",
+  "topic": "adopt-scheduled-future-guard",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "feat: guard adopt against scheduled future sources",
+      "refactor: centralize scheduled source rejection",
+      "refactor: restore registry test placement"
+    ],
+    "files": 6,
+    "insertions": 276,
+    "deletions": 3
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "adopt-scheduled-future-guard-88496c4a-20261120-110354-deb49a",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 9505,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 297968,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 1,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 1,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-fix-adopt-scheduled-future-guard-2026-11-20",
+        "head": "3268f7fe3ee2ce2e8722032d9e8f65ce2b957eb1",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M04"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "reverted"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "C03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "targeted-test": 3,
+      "pit": 2,
+      "refactoring-verify": 1,
+      "refactoring-detect": 1,
+      "preflight": 1,
+      "review-build": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "refactoring-fix-adopt-scheduled-future-guard-2026-11-20/pit/mutations.xml",
+      "statuses": {
+        "KILLED": 90,
+        "NO_COVERAGE": 4
+      },
+      "total": 94,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 2
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "PR opened early at maintainer request; Java 11 unavailable locally; Codex reviewer blocked after one retry while Kiro completed the full diff."
+}
