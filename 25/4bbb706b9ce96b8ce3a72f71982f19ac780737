@@ -1,0 +1,20 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java
+  s_53b1b28214a55e::t_38a9c50d120078 3
+  s_53b1b28214a55e::t_4a6ad044c34d96 276-348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "254bbb706b9ce96b8ce3a72f71982f19ac780737",
+  "prompts": {},
+  "sessions": {
+    "s_53b1b28214a55e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7f605f38-e83e-48c5-8ad7-5b5fc3f2ce34",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java
+  s_53b1b28214a55e::t_1dd6e6244c79ed 62-68
+verification/race-claims/claims.json
+  s_53b1b28214a55e::t_7c64e747bc1814 119-120,137-149
+  s_53b1b28214a55e::t_42da35d4df83e1 150
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureTest.java
+  s_53b1b28214a55e::t_36954099e70bb0 402-453
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "861c35e06de72d3465018c7b09caff23eb819080",
+  "prompts": {},
+  "sessions": {
+    "s_53b1b28214a55e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7f605f38-e83e-48c5-8ad7-5b5fc3f2ce34",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
