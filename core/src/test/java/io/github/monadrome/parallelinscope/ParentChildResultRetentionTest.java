@@ -93,8 +93,8 @@ class ParentChildResultRetentionTest {
     }
 
     /**
-     * The severable link must stay live while the child scope is running: cancelling the parent
-     * token from outside still propagates into a child scope whose execution has not finished.
+     * The parent cancellation link must stay live while the child scope is running: cancelling the
+     * parent token from outside still propagates into a child scope whose execution has not finished.
      */
     @Test
     void parentCancelWhileChildScopeRunsStillPropagates() throws Exception {
@@ -161,34 +161,34 @@ class ParentChildResultRetentionTest {
     }
 
     /**
-     * The sever itself is deterministic and must not wait for GC: once a child token commits any
-     * terminal state, its parent link no longer reaches the child.
+     * Child-reference release is deterministic and must not wait for GC: once a child token commits
+     * any terminal state, its parent cancellation link no longer reaches the child.
      */
     @Test
-    void terminalChildSeversTheParentLinkDeterministically() throws Exception {
+    void terminalChildIsReleasedFromParentCancellationLinkDeterministically() throws Exception {
         PreparedStates.TokenPair tokens = PreparedStates.parentChild();
         CancellationToken child = tokens.child();
 
         child.cancel();
 
-        assertThat(linkedChild(child))
-                .as("a terminal child token must not keep its parent link reachable")
+        assertThat(retainedChild(child))
+                .as("a terminal child token must not remain reachable from its parent cancellation link")
                 .isNull();
     }
 
     /**
      * Construction window: a parent whose future is already terminal runs the listener inline
      * during {@code addListener}. The holder must already be installed then, so the synchronous
-     * propagated cancellation severs it instead of leaking a link installed afterwards.
+     * propagated cancellation releases the child reference instead of retaining it afterwards.
      */
     @Test
-    void childCreatedFromAlreadyCancelledParentSeversLinkDuringConstruction() throws Exception {
+    void childCreatedFromAlreadyCancelledParentIsReleasedDuringConstruction() throws Exception {
         PreparedStates.TokenPair tokens = PreparedStates.parentChildWithCancelledParent();
         CancellationToken child = tokens.child();
 
         assertThat(child.state()).isEqualTo(CancellationToken.State.PROPAGATED_CANCELLED);
-        assertThat(linkedChild(child))
-                .as("the inline propagated cancellation must sever the link installed in the constructor")
+        assertThat(retainedChild(child))
+                .as("the inline propagated cancellation must release the child reference installed in the constructor")
                 .isNull();
     }
 
@@ -248,9 +248,9 @@ class ParentChildResultRetentionTest {
         return count;
     }
 
-    /** Reads the child reference of a token's parent link, or {@code null} when severed/absent. */
-    private static @Nullable CancellationToken linkedChild(CancellationToken token) throws Exception {
-        Field linkField = CancellationToken.class.getDeclaredField("parentLink");
+    /** Reads the child reference retained by a token's parent cancellation link, if any. */
+    private static @Nullable CancellationToken retainedChild(CancellationToken token) throws Exception {
+        Field linkField = CancellationToken.class.getDeclaredField("parentCancellationLink");
         linkField.setAccessible(true);
         Object link = linkField.get(token);
         if (link == null) {

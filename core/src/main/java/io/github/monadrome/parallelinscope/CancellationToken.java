@@ -50,7 +50,7 @@ final class CancellationToken {
     private final @Nullable CancellationToken parent;
     private final long deadlineNanos;
     private final List<Consumer<State>> stateListeners = new CopyOnWriteArrayList<>();
-    private final @Nullable ParentLink parentLink;
+    private final @Nullable ParentCancellationLink parentCancellationLink;
     private volatile @Nullable RequestCancellationLink requestCancellationLink;
     private volatile boolean cancelledByCaller;
     private final Ticker ticker;
@@ -106,11 +106,11 @@ final class CancellationToken {
         this.timeoutScheduler = parent == null ? timeoutScheduler : parent.timeoutScheduler;
         this.deadlineNanos = parent == null ? deadlineNanos : Math.min(deadlineNanos, parent.deadlineNanos());
         if (parent != null) {
-            ParentLink link = new ParentLink(parent, this);
-            this.parentLink = link;
+            ParentCancellationLink link = new ParentCancellationLink(parent, this);
+            this.parentCancellationLink = link;
             parent.futureToken.addListener(link::parentFinished, directExecutor());
         } else {
-            this.parentLink = null;
+            this.parentCancellationLink = null;
         }
     }
 
@@ -411,9 +411,9 @@ final class CancellationToken {
         if (!state.compareAndSet(RUNNING, terminal)) {
             return false;
         }
-        ParentLink link = parentLink;
+        ParentCancellationLink link = parentCancellationLink;
         if (link != null) {
-            link.sever();
+            link.releaseChild();
         }
         RequestCancellationLink cancellation = requestCancellationLink;
         if (cancellation != null) {
@@ -442,17 +442,17 @@ final class CancellationToken {
      *
      * <p>The parent's completion listener reaches the child only through this holder. {@link
      * #parentFinished()} runs when the parent's future completes; it propagates the cancellation
-     * only while the child is still running. {@link CancellationToken#transitionTo} severs the
-     * holder when the child commits any terminal state, so a completed child token — including the
-     * business results carried by its {@code futureToken} — stays collectable instead of being
-     * pinned by the parent's pending listener list for the parent's whole lifetime.
+     * only while the child is still running. {@link CancellationToken#transitionTo} releases this
+     * link's child reference when the child commits any terminal state, so a completed child token —
+     * including the business results carried by its {@code futureToken} — stays collectable instead
+     * of being pinned by the parent's pending listener list for the parent's whole lifetime.
      */
-    private static final class ParentLink {
+    private static final class ParentCancellationLink {
 
         private final CancellationToken parent;
         private @Nullable CancellationToken child;
 
-        ParentLink(CancellationToken parent, CancellationToken child) {
+        ParentCancellationLink(CancellationToken parent, CancellationToken child) {
             this.parent = parent;
             this.child = child;
         }
@@ -468,7 +468,7 @@ final class CancellationToken {
         }
 
         /** Drops the child reference; called exactly once by the child's own terminal transition. */
-        void sever() {
+        void releaseChild() {
             child = null;
         }
     }

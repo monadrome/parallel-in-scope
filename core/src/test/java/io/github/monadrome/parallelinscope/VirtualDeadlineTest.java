@@ -334,7 +334,7 @@ class VirtualDeadlineTest {
             // close both runtimes, and wait out the sibling's fail-fast cascade. The release must
             // not race propagation: the outer drain proves the outer member futures are cancelled,
             // and the inner drain proves the nested member future is cancelled — which Guava's
-            // cancel ordering (ParentLink listeners before the delegate cascade) guarantees
+            // cancel ordering (ParentCancellationLink listeners before the delegate cascade) guarantees
             // happens only after the nested token committed its propagated terminal state.
             pausing.shutdownDelegate();
             inner.close();

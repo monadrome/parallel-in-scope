@@ -67,5 +67,5 @@ same semantics (claimed elements run as usual).
 
 ## Residuals
 
-- Each historical (terminal) child batch still accumulates one `ParentLink` node constant on
+- Each historical (terminal) child batch still accumulates one `ParentCancellationLink` node constant on
   the parent token's listener stack — see the residual record in cancellation-propagation §8.
