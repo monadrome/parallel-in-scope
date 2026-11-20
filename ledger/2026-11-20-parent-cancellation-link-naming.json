@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-20-parent-cancellation-link-naming",
+  "date": "2026-11-20",
+  "topic": "parent-cancellation-link-naming",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "kimi-code",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "refactor: clarify parent cancellation link naming"
+    ],
+    "files": 7,
+    "insertions": 60,
+    "deletions": 57
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "parent-cancellation-link-9f2610f2-20261120-113719-35231f",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 4166,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 115612,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parent-cancellation-link-9f2610f2-20261120-114001-963f5e",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 151242,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 48108,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 48108,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-parent-cancellation-link-2026-11-20",
+        "head": "9f2610f28ad7c8a20d7c09c7e7dcb9a62bc8fe52",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 1,
+      "runtime-consumer": 1,
+      "multi-review": 2,
+      "pr-description": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "target/pit-parent-cancellation-link/mutations.xml",
+      "statuses": {
+        "KILLED": 64
+      },
+      "total": 64,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Behavior-preserving internal cancellation-link rename; Java 11 runtime unavailable locally and left to CI; failed Codex model attempt retained and replaced by a completed supported-model review."
+}
