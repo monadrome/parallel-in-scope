@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `adopt` overloads for statically typed `ListenableScheduledFuture` sources. Error Prone reports
+  these calls through `@DoNotCall`, and the runtime rejects them without advancing the group draft or
+  cancelling the source. To adopt a one-shot scheduled result, use a `ListenableFuture`-typed
+  reference; periodic scheduled futures are not supported because successful ticks never produce a
+  finite member result.
+
 ### Fixed
 
 - Route the `ParRuntime` registration warnings (opaque executor and TTL-wrapper diagnostics) through the guarded announcements delivery like every other log station: a user JUL handler that throws can no longer alter what `build()` observes, and the warnings are delivered on the runtime's announcements executor instead of the registering thread.

@@ -10,7 +10,9 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -78,6 +80,13 @@ class TaskGroupAdoptedFutureTest {
 
     private static Par io(ParRuntime runtime) {
         return runtime.par(ParId.of("io"));
+    }
+
+    private ListeningScheduledExecutorService scheduledPool() {
+        ListeningScheduledExecutorService pool =
+                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
+        pools.add(pool);
+        return pool;
     }
 
     /** A closeable value whose lifecycle is not owned by the group. */
@@ -525,6 +534,102 @@ class TaskGroupAdoptedFutureTest {
     @SuppressWarnings("NullAway")
     private static ListenableFuture<String> nullFuture() {
         return null;
+    }
+
+    @Test
+    @SuppressWarnings("DoNotCall")
+    void scheduledOverloadsRejectPeriodicSourcesWithoutAdvancingOrCancelling() {
+        ParRuntime runtime = runtime(pool(1));
+        ListeningScheduledExecutorService scheduler = scheduledPool();
+        ListenableScheduledFuture<?> periodic = scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS);
+        TaskKey<Object> first = TaskKey.named("first-scheduled");
+        TaskKey<Object> second = TaskKey.named("second-scheduled");
+
+        try {
+            GroupStart start = runtime.group("scheduled-start", TIMEOUT);
+            assertThatThrownBy(() -> start.adopt(first, periodic))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("first-scheduled")
+                    .hasMessageContaining("ListenableScheduledFuture");
+            assertThatThrownBy(() -> start.adopt(first, io(runtime), periodic))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("first-scheduled");
+
+            GroupStep step = start.adopt(first, Futures.immediateFuture("first"));
+            assertThatThrownBy(() -> step.adopt(second, periodic))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("second-scheduled");
+            assertThatThrownBy(() -> step.adopt(second, io(runtime), periodic))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("second-scheduled");
+
+            assertThat(step.adopt(second, Futures.immediateFuture("second"))).isNotNull();
+            assertThat(periodic.isCancelled()).isFalse();
+        } finally {
+            periodic.cancel(true);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("DoNotCall")
+    void scheduledOverloadsRetainStageAndThreadConfinementChecks() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        ListeningScheduledExecutorService scheduler = scheduledPool();
+        ListenableScheduledFuture<?> periodic = scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS);
+        TaskKey<Object> scheduledKey = TaskKey.named("scheduled");
+
+        try {
+            GroupStart staleStart = runtime.group("scheduled-stale", TIMEOUT);
+            GroupStep staleStep = staleStart.adopt(FIRST, Futures.immediateFuture("first"));
+            assertThatThrownBy(() -> staleStart.adopt(scheduledKey, periodic))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("no longer current");
+            GroupStep advanced = staleStep.adopt(SECOND, Futures.immediateFuture("second"));
+            assertThat(advanced).isNotNull();
+            assertThatThrownBy(() -> staleStep.adopt(scheduledKey, periodic))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("no longer current");
+
+            GroupStart confinedStart = runtime.group("scheduled-confined-start", TIMEOUT);
+            GroupStep confinedStep =
+                    runtime.group("scheduled-confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
+            AtomicReference<Throwable> fromStart = new AtomicReference<>();
+            AtomicReference<Throwable> fromStep = new AtomicReference<>();
+            Thread other = new Thread(() -> {
+                try {
+                    GroupStep unused = confinedStart.adopt(scheduledKey, periodic);
+                } catch (Throwable failure) {
+                    fromStart.set(failure);
+                }
+                try {
+                    GroupStep unused = confinedStep.adopt(scheduledKey, periodic);
+                } catch (Throwable failure) {
+                    fromStep.set(failure);
+                }
+            });
+            other.start();
+            other.join(TIMEOUT.toMillis());
+            assertThat(fromStart.get())
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("thread");
+            assertThat(fromStep.get()).isInstanceOf(IllegalStateException.class).hasMessageContaining("thread");
+        } finally {
+            periodic.cancel(true);
+        }
+    }
+
+    @Test
+    void aOneShotScheduledSourceIsAdoptedThroughItsListenableFutureType() {
+        ParRuntime runtime = runtime(pool(1));
+        ListeningScheduledExecutorService scheduler = scheduledPool();
+        ListenableFuture<String> source = scheduler.schedule(() -> "delayed", 0, TimeUnit.MILLISECONDS);
+
+        TaskGroupResult<Void> result = runtime.group("one-shot-scheduled", TIMEOUT)
+                .adopt(FIRST, source)
+                .runAll();
+
+        TerminationAssertions.assertScopeSucceeded(result.termination());
+        assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("delayed");
     }
 
     @Test

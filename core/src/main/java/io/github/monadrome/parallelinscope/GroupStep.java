@@ -1,7 +1,9 @@
 package io.github.monadrome.parallelinscope;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.errorprone.annotations.CheckReturnValue;
+import com.google.errorprone.annotations.DoNotCall;
 import java.util.concurrent.Callable;
 
 /**
@@ -48,7 +50,10 @@ public interface GroupStep {
 
     /**
      * Declares another member as an adopted future. The group owns and cancels the source from
-     * {@code runAll()} onward; it does not submit work for this member.
+     * {@code runAll()} onward; it does not submit work for this member. The source must represent
+     * one finite operation. Do not adopt a periodic scheduled future, including through a {@code
+     * ListenableFuture}-typed reference: successful ticks never settle the member, so {@code runAll()}
+     * waits until the group deadline and then cancels the loop.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
@@ -61,8 +66,31 @@ public interface GroupStep {
     <T> GroupStep adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
 
     /**
+     * Rejects a source whose static type is {@link ListenableScheduledFuture}. One-shot and periodic
+     * scheduled futures both select this overload. To adopt a one-shot scheduled result, refer to it
+     * as a {@code ListenableFuture} and use {@link #adopt(TaskKey, ListenableFuture)}.
+     *
+     * <p>Periodic scheduled futures must not be adopted: successful ticks never settle the member,
+     * so {@code runAll()} waits until the group deadline and then cancels the loop. Keep the scheduler
+     * application-owned and structure each tick as its own group instead.
+     *
+     * <p>Error Prone reports calls to this method through {@link DoNotCall}. Without Error Prone, a
+     * call on a live stage throws before advancing the draft and leaves the source caller-owned.
+     *
+     * @throws NullPointerException if {@code key} or {@code source} is null
+     * @throws IllegalArgumentException if a non-null scheduled source is declared on a live stage
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <T> member result type declared by the key
+     * @param key declaration key
+     * @param source rejected scheduled source
+     */
+    @DoNotCall
+    <T> GroupStep adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source);
+
+    /**
      * Declares another member as an adopted future with producer attribution for executor-wait
-     * diagnostics.
+     * diagnostics. The source must satisfy the same finite-operation rule as {@link #adopt(TaskKey,
+     * ListenableFuture)}; in particular, periodic scheduled futures must not be adopted.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
@@ -75,6 +103,22 @@ public interface GroupStep {
      * @return the next declaration stage
      */
     <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
+
+    /**
+     * Rejects a scheduled source with producer attribution. See {@link #adopt(TaskKey,
+     * ListenableScheduledFuture)} for the one-shot migration and the prohibition on periodic sources.
+     * This overload likewise throws before advancing a live draft and leaves the source caller-owned.
+     *
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if a non-null scheduled source is declared on a live stage
+     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @param <T> member result type declared by the key
+     * @param key declaration key
+     * @param producer rejected producer attribution
+     * @param source rejected scheduled source
+     */
+    @DoNotCall
+    <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source);
 
     /**
      * Declares the terminal combine over the non-null keyed member-value snapshot. The snapshot is

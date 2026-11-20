@@ -6,7 +6,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.errorprone.annotations.DoNotCall;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -126,6 +128,14 @@ final class GroupDraft {
         seenNames.add(key.name());
         adoptedSources.add(source);
         members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));
+    }
+
+    Step rejectScheduled(TaskKey<?> key, ListenableScheduledFuture<?> source) {
+        checkNotNull(key, "key cannot be null");
+        checkNotNull(source, "source cannot be null");
+        throw new IllegalArgumentException("ListenableScheduledFuture cannot be adopted as '" + key.name()
+                + "'; use a ListenableFuture reference for a one-shot source"
+                + " and keep periodic work outside the group");
     }
 
     void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner) {
@@ -256,8 +266,27 @@ final class GroupDraft {
         }
 
         @Override
+        @DoNotCall
+        public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
+            return rejectedScheduled(key, source);
+        }
+
+        @Override
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
             return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
+        }
+
+        @Override
+        @DoNotCall
+        public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
+            checkNotNull(producer, "producer cannot be null");
+            return rejectedScheduled(key, source);
+        }
+
+        private <T> Step rejectedScheduled(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
+            draft.checkThread();
+            draft.checkStage(0);
+            return draft.rejectScheduled(key, source);
         }
 
         private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
@@ -332,8 +361,27 @@ final class GroupDraft {
         }
 
         @Override
+        @DoNotCall
+        public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
+            return rejectedScheduled(key, source);
+        }
+
+        @Override
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source) {
             return adopted(key, checkNotNull(producer, "producer cannot be null"), source);
+        }
+
+        @Override
+        @DoNotCall
+        public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
+            checkNotNull(producer, "producer cannot be null");
+            return rejectedScheduled(key, source);
+        }
+
+        private <T> Step rejectedScheduled(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
+            draft.checkThread();
+            draft.checkStage(expectedStage);
+            return draft.rejectScheduled(key, source);
         }
 
         private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
