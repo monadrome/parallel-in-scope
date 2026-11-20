@@ -1,0 +1,59 @@
+docs/en/interactive-demo.html
+  s_4730cd68820ed7::t_7270e975011ad1 517-518
+  s_4730cd68820ed7::t_8199f04d151a82 247
+  s_4730cd68820ed7::t_6e01c0e9e4bcc8 284-285
+  s_4730cd68820ed7::t_462dff2fb99c98 96-98
+  s_4730cd68820ed7::t_7264d553b3152d 266-267
+  s_4730cd68820ed7::t_98e54e7e7f1555 350
+  s_4730cd68820ed7::t_4f5363dc82a78c 270-273
+  s_4730cd68820ed7::t_ca2984e0bcd8f9 557
+scripts/tests/test_check_race_claims.py
+  s_4730cd68820ed7::t_f84e82c14fafc8 135-151,153-167,169-171,190-206
+  s_4730cd68820ed7::t_0bf0c0a989209c 168,172-189
+  s_4730cd68820ed7::t_c80db515ae861a 152
+  s_4730cd68820ed7::t_812344a1587fa5 235
+verification/race-claims/README.md
+  s_4730cd68820ed7::t_c7b02f32d9a370 50
+  s_4730cd68820ed7::t_b8129f98978608 51-52
+  s_4730cd68820ed7::t_68cd4ad22cfc9d 94-97
+scripts/check-race-claims.py
+  s_4730cd68820ed7::t_f73b0b4da0a801 152,154-161,163-166,179-184,194-199
+  s_4730cd68820ed7::t_a588b556bffc44 47
+  s_4730cd68820ed7::t_260fac74670c1e 153,162,167-168,188-193
+  s_4730cd68820ed7::t_205be53214469b 258-260,263-264
+  s_4730cd68820ed7::t_bda9b4910da2ac 27
+  s_4730cd68820ed7::t_71d067cceae4db 48
+demo/docs/zh-CN/articles/I4-vs-completable-future.md
+  s_4730cd68820ed7::t_dfd728806a7457 91
+demo/docs/zh-CN/articles/G2-batch-result-report.md
+  s_4730cd68820ed7::t_db2fb917d46c61 103
+  s_4730cd68820ed7::t_12c9b292d5f1bf 49
+  s_4730cd68820ed7::t_b5b495ba33fef3 90
+demo/docs/zh-CN/articles/QUICK-START-5-minutes.md
+  s_4730cd68820ed7::t_80676521a3edf2 100
+docs/zh/reference/executor-registration.md
+  s_4730cd68820ed7::t_ba81af0b7e76ba 8
+demo/docs/zh-CN/articles/BATCH-best-practices.md
+  s_4730cd68820ed7::t_fcaae1d1818a96 76
+demo/docs/zh-CN/articles/G5-batch-http-calls.md
+  s_4730cd68820ed7::t_e19cfce5a289a9 62-63
+docs/zh/reference/cooperative-cancellation.md
+  s_4730cd68820ed7::t_5b4415cee27416 191
+  s_4730cd68820ed7::t_24d1fd89d60824 180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2953d1abd384f0f26a59c14e7f6e44a30806a4f7",
+  "prompts": {},
+  "sessions": {
+    "s_4730cd68820ed7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_42934f9a-fcbd-41f9-ae4e-88b54c46f585",
+        "model": "kimi-k3"
+      },
+      "human_author": null
+    }
+  }
+}
