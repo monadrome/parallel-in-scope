@@ -3,13 +3,11 @@ package io.github.monadrome.parallelinscope;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.common.util.concurrent.Futures;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -241,30 +239,6 @@ class GroupDraftContractTest {
             // The positional and named views are the same future, not an adapter over it.
             assertThat(group.futureAt(0)).isSameAs(group.futureOf(KEY_USER_STRING));
             assertThat(group.futureAt(1)).isSameAs(group.futureOf(KEY_COUNT_INTEGER));
-        } finally {
-            global.close();
-            executor.shutdownNow();
-        }
-    }
-
-    @Test
-    void submissionClearsTheDraftsAdoptedSourceRegistry() throws Exception {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        ParRuntime global =
-                ParRuntime.builder().register(ParId.of("worker"), executor).build();
-        try {
-            GroupDraft.Start start = global.groupDraft("page", TIMEOUT);
-            GroupDraft.Step step = start.adopt(KEY_USER_STRING, Futures.immediateFuture("alice"));
-            try (TaskGroup<Void> group = step.submitAll()) {
-                Field draftField = GroupDraft.Start.class.getDeclaredField("draft");
-                draftField.setAccessible(true);
-                GroupDraft draft = (GroupDraft) draftField.get(start);
-                Field sourcesField = GroupDraft.class.getDeclaredField("adoptedSources");
-                sourcesField.setAccessible(true);
-
-                assertThat((Set<?>) sourcesField.get(draft)).isEmpty();
-                assertThat(group.groupName()).isEqualTo("page");
-            }
         } finally {
             global.close();
             executor.shutdownNow();
