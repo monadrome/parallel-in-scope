@@ -130,7 +130,21 @@ final class GroupDraft {
         members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));
     }
 
-    Step rejectScheduled(TaskKey<?> key, ListenableScheduledFuture<?> source) {
+    /**
+     * Rejects a scheduled source after checking the owner thread and expected stage. The draft is
+     * not advanced and the source remains caller-owned. The producer overloads retain their earlier
+     * producer-null check before entering this method.
+     *
+     * @param key rejected member key
+     * @param source rejected scheduled source
+     * @param expectedStage stage required by the calling declaration view
+     * @throws NullPointerException if {@code key} or {@code source} is null
+     * @throws IllegalStateException if the draft is stale or used from another thread
+     * @throws IllegalArgumentException for a non-null scheduled source on a live stage
+     */
+    Step rejectScheduled(TaskKey<?> key, ListenableScheduledFuture<?> source, int expectedStage) {
+        checkThread();
+        checkStage(expectedStage);
         checkNotNull(key, "key cannot be null");
         checkNotNull(source, "source cannot be null");
         throw new IllegalArgumentException("ListenableScheduledFuture cannot be adopted as '" + key.name()
@@ -268,7 +282,7 @@ final class GroupDraft {
         @Override
         @DoNotCall
         public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
-            return rejectedScheduled(key, source);
+            return draft.rejectScheduled(key, source, 0);
         }
 
         @Override
@@ -280,13 +294,7 @@ final class GroupDraft {
         @DoNotCall
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
             checkNotNull(producer, "producer cannot be null");
-            return rejectedScheduled(key, source);
-        }
-
-        private <T> Step rejectedScheduled(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
-            draft.checkThread();
-            draft.checkStage(0);
-            return draft.rejectScheduled(key, source);
+            return draft.rejectScheduled(key, source, 0);
         }
 
         private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
@@ -363,7 +371,7 @@ final class GroupDraft {
         @Override
         @DoNotCall
         public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
-            return rejectedScheduled(key, source);
+            return draft.rejectScheduled(key, source, expectedStage);
         }
 
         @Override
@@ -375,13 +383,7 @@ final class GroupDraft {
         @DoNotCall
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
             checkNotNull(producer, "producer cannot be null");
-            return rejectedScheduled(key, source);
-        }
-
-        private <T> Step rejectedScheduled(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
-            draft.checkThread();
-            draft.checkStage(expectedStage);
-            return draft.rejectScheduled(key, source);
+            return draft.rejectScheduled(key, source, expectedStage);
         }
 
         private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
