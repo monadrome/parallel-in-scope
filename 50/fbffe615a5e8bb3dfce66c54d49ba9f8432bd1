@@ -1,0 +1,23 @@
+integrations/src/main/java/integrations/spring/ParRuntimeLifecycle.java
+  s_c848b6c0f627e3::t_f47402d472045e 30
+  s_c848b6c0f627e3::t_696ecc965e6d86 58
+  s_c848b6c0f627e3::t_76dca62cfd8a00 5-6
+integrations/src/main/java/integrations/app/QuoteApplication.java
+  s_c848b6c0f627e3::t_5ac9c66f593fbd 64,69-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "50fbffe615a5e8bb3dfce66c54d49ba9f8432bd1",
+  "prompts": {},
+  "sessions": {
+    "s_c848b6c0f627e3": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_d086dc61-b04b-4adb-b994-e93827708776",
+        "model": "kimi-k3"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
