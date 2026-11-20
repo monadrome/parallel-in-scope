@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-tostring-guava-style-pit-residuals",
+  "date": "2026-11-19",
+  "topic": "tostring-guava-style-pit-residuals",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: pin the cancellation window between the phase claim and the execution claim",
+      "test: pin the batch caller-cancellation override both ways",
+      "test: pin the derived view's immediate termination signal"
+    ],
+    "files": 5,
+    "insertions": 166,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-tostring-guava-style-2026-11-19/mutations-partition-g2g3g6.xml",
+      "statuses": {
+        "KILLED": 232,
+        "NO_COVERAGE": 4,
+        "SURVIVED": 7,
+        "TIMED_OUT": 4
+      },
+      "total": 247,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0162
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "maintainer disposition of the 13 pit residuals: g2/g3/g6 fixed by tests (one g2 mutant proven equivalent), g1a/g4a/g4b/g5/g7/g8 accepted; race claim cancel-during-execution-claim PROVEN; gate reads pass with accepted residuals"
+}
