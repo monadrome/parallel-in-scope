@@ -399,6 +399,58 @@ public class ExecutionPhaseHintFutureTest {
         }
     }
 
+    /* The claim/cancel race window: run() has claimed the phase (SUBMITTED -> RUNNING) and is
+     * parked inside claimExecution() when the cancellation commits. afterDone() must win the
+     * execution slot through skipExecutionIfPending() — marking it SKIPPED and releasing the
+     * callable — before the runner's claim resumes, so the resumed claim loses, user code never
+     * runs, and the reference is already gone while the runner is still parked. The gate stubs
+     * only the claim's timing; the claim itself and every skip/release step run for real. */
+    @SuppressWarnings({"DoNotMock", "ForOverride"})
+    @Test
+    public void aCancellationLandingBetweenThePhaseClaimAndTheExecutionClaimSkipsUserCodeAndReleasesTheCallable()
+            throws Exception {
+        CountDownLatch claimEntered = new CountDownLatch(1);
+        CountDownLatch claimRelease = new CountDownLatch(1);
+        AtomicInteger userCodeCalls = new AtomicInteger();
+        TaskExecutionState slot = PreparedStates.trackedSlot("claim-race");
+        TaskExecutionState gated = spy(slot);
+        doAnswer(invocation -> {
+                    claimEntered.countDown();
+                    awaitUninterruptibly(claimRelease);
+                    return invocation.callRealMethod();
+                })
+                .when(gated)
+                .claimRunning();
+        ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(
+                () -> {
+                    userCodeCalls.incrementAndGet();
+                    return null;
+                },
+                gated);
+        Thread runner = new Thread(future::run);
+        runner.setDaemon(true);
+        try {
+            runner.start();
+            assertThat(claimEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.RUNNING);
+            assertThat(future.cancel(true)).isTrue();
+            assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
+            // The cancellation won the slot while the runner is still parked in the claim.
+            assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.SKIPPED);
+            assertThat(future.callableReleased()).isTrue();
+        } finally {
+            claimRelease.countDown();
+            runner.join(5000);
+        }
+        assertThat(runner.isAlive()).isFalse();
+        assertThat(userCodeCalls).hasValue(0);
+        assertThat(future.isCancelled()).isTrue();
+        assertThat(future.callableReleased()).isTrue();
+        assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
+        assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.SKIPPED);
+        assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+    }
+
     // Delay the real cleanup method; no Future result or cancellation behavior is stubbed.
     @SuppressWarnings({"DoNotMock", "ForOverride"})
     @Test
