@@ -1,0 +1,23 @@
+core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java
+  s_53b1b28214a55e::t_b93a383a723224 408-419,421-422
+  s_53b1b28214a55e::t_90ce011dc45ef3 420
+  s_53b1b28214a55e::t_ed56c94c63b253 3
+verification/race-claims/claims.json
+  s_53b1b28214a55e::t_42da35d4df83e1 134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f3a991abd6df21d129bf15aec16ee2beb5057b93",
+  "prompts": {},
+  "sessions": {
+    "s_53b1b28214a55e": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_7f605f38-e83e-48c5-8ad7-5b5fc3f2ce34",
+        "model": "kimi-k3"
+      },
+      "human_author": null
+    }
+  }
+}
