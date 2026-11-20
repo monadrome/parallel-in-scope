@@ -26,9 +26,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Internal cooperative cancellation token carrying a deadline for one task unit.
@@ -43,7 +43,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class CancellationToken {
 
-    private static final Logger LOGGER = Logger.getLogger(CancellationToken.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(CancellationToken.class);
 
     private final SettableFuture<Object> futureToken = SettableFuture.create();
     private final AtomicReference<State> state = new AtomicReference<>(RUNNING);
@@ -430,7 +430,7 @@ final class CancellationToken {
                 listener.accept(newState);
             } catch (Throwable failure) {
                 try {
-                    LOGGER.log(Level.WARNING, "CancellationToken state listener failed", failure);
+                    LOGGER.warn("CancellationToken state listener failed", failure);
                 } catch (Throwable ignored) {
                 }
             }

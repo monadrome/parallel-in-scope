@@ -19,10 +19,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An execution entry bound to one executor in a {@link ParRuntime}.
@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Par {
 
-    private static final Logger LOGGER = Logger.getLogger(Par.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(Par.class);
 
     /** Null-object submission canceller: a single task carries no submission pipeline to stop. */
     private static final ListenableFuture<@Nullable Void> NO_SUBMISSION = Futures.immediateVoidFuture();
@@ -439,16 +439,16 @@ public final class Par {
                     + " what happens to an element that cannot start at once is left to the"
                     + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
                     + " whose work queue is a SubmissionAwareBlockingQueue to make the option effective.";
-            runtime.announce(() -> LOGGER.warning(message));
+            runtime.announce(() -> LOGGER.warn(message));
         }
     }
 
     /**
      * Reports, once per this entry and unit name, a unit whose declared {@link TaskType} disagrees
      * with the entry's. {@link TaskType#UNKNOWN} on either side never disagrees. A blocking unit on
-     * an entry declared for computation is a {@code WARNING}, since it can hold one of few threads
-     * while it waits; the reverse is {@code INFO}. Either message states only that the declarations
-     * disagree, never that starvation, oversubscription, or misuse happened.
+     * an entry declared for computation is logged at warn level, since it can hold one of few
+     * threads while it waits; the reverse is logged at info level. Either message states only that
+     * the declarations disagree, never that starvation, oversubscription, or misuse happened.
      */
     private void reportTaskTypeMismatch(MultiTaskContext unit) {
         TaskType unitType = unit.taskType();
@@ -457,16 +457,19 @@ public final class Par {
         }
         TaskTypeMismatches.Outcome outcome = runtime.taskTypeMismatches().record(id, unit.name());
         if (outcome == TaskTypeMismatches.Outcome.FIRST) {
-            Level level = taskType == TaskType.COMPUTE ? Level.WARNING : Level.INFO;
             String message = "Par '" + id + "' is registered for TaskType." + taskType + ", but unit '" + unit.name()
                     + "' declares TaskType." + unitType + ". The declarations disagree; check that the"
                     + " unit is submitted through the intended Par. Logged once per Par and unit name.";
-            runtime.announce(() -> LOGGER.log(level, message));
+            if (taskType == TaskType.COMPUTE) {
+                runtime.announce(() -> LOGGER.warn(message));
+            } else {
+                runtime.announce(() -> LOGGER.info(message));
+            }
         } else if (outcome == TaskTypeMismatches.Outcome.OVERFLOW) {
             String message = "The runtime's memory of TaskType mismatches is full at " + TaskTypeMismatches.CAPACITY
                     + " Par and unit-name pairs; mismatches of further pairs, starting with unit '" + unit.name()
                     + "' on Par '" + id + "', are not logged. Use fixed unit names rather than names built per call.";
-            runtime.announce(() -> LOGGER.warning(message));
+            runtime.announce(() -> LOGGER.warn(message));
         }
     }
 

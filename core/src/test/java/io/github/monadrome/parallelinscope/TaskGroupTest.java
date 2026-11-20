@@ -9,7 +9,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -24,15 +23,12 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.awaitility.Awaitility;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.event.Level;
 
 class TaskGroupTest {
     private static final TaskKey<String> KEY_TEXT_STRING = TaskKey.named("text");
@@ -370,14 +366,14 @@ class TaskGroupTest {
     }
 
     /**
-     * R6: a user-installed JUL handler that throws must not change the member's terminal path. The
-     * handoff {@code Error}'s SEVERE diagnostic runs before the prepared future is rejected in
+     * R6: a logging backend that throws must not change the member's terminal path. The handoff
+     * {@code Error}'s error-level diagnostic runs before the prepared future is rejected in
      * {@link ExecutionPhaseHintFuture#submitPrepared}; without isolation the logging failure escapes
      * {@code runAll()} with the wrong failure, skips the frozen result, and leaves the member
      * unsettled. Contract L7: any handoff {@code Throwable} must terminate the prepared future with
      * the original cause, and the group submission contract keeps post-admission submission failure
-     * in the returned results rather than a synchronous throw. The clean handler is the control:
-     * identical result path, and the SEVERE diagnostic is still published with the original {@code
+     * in the returned results rather than a synchronous throw. The clean backend is the control:
+     * identical result path, and the error diagnostic is still published with the original {@code
      * Error} attached.
      */
     @ParameterizedTest
@@ -386,10 +382,10 @@ class TaskGroupTest {
         ExecutorService broken = brokenAtHandoff();
         ParRuntime global =
                 ParRuntime.builder().register(ParId.of("broken"), broken).build();
-        Logger kernelLogger = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
-        List<LogRecord> captured = Collections.synchronizedList(new ArrayList<>());
-        Handler handler = boomOnHandoffError(brokenHandler, captured);
-        kernelLogger.addHandler(handler);
+        LogCapture capture = LogCapture.attach(ExecutionPhaseHintFuture.class);
+        if (brokenHandler) {
+            capture.failOn("executor handoff threw an Error");
+        }
         try {
             TaskGroupResult<Void> result = global.group("handoff-logging", TIMEOUT)
                     .par(KEY_FAILED_INTEGER, global.par(ParId.of("broken")), () -> 1)
@@ -403,13 +399,13 @@ class TaskGroupTest {
                     .hasCauseInstanceOf(AssertionError.class);
             assertThat(result.terminationKindCounts()).containsEntry(TaskTermination.Kind.FAILED, 1);
             assertThat(global.inFlight()).isZero();
-            assertThat(captured).anySatisfy(record -> {
-                assertThat(record.getLevel()).isEqualTo(Level.SEVERE);
-                assertThat(record.getThrown()).isInstanceOf(AssertionError.class);
-                assertThat(record.getMessage()).contains("failed");
+            assertThat(capture.events()).anySatisfy(record -> {
+                assertThat(record.level()).isEqualTo(Level.ERROR);
+                assertThat(record.thrown()).isInstanceOf(AssertionError.class);
+                assertThat(record.message()).contains("failed");
             });
         } finally {
-            kernelLogger.removeHandler(handler);
+            capture.close();
             global.close();
             broken.shutdownNow();
         }
@@ -1515,31 +1511,6 @@ class TaskGroupTest {
             public void execute(Runnable command) {
                 throw new AssertionError("handoff broken");
             }
-        };
-    }
-
-    /**
-     * Models the R6 fault: capture every record, and when asked to break, throw from {@code
-     * publish} exactly on the SEVERE handoff-Error diagnostic. Other records pass through so
-     * unrelated logging cannot disturb the test.
-     */
-    private static Handler boomOnHandoffError(boolean broken, List<LogRecord> captured) {
-        return new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                captured.add(record);
-                if (broken
-                        && record.getMessage() != null
-                        && record.getMessage().contains("executor handoff threw an Error")) {
-                    throw new IllegalStateException("handler boom");
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
         };
     }
 }

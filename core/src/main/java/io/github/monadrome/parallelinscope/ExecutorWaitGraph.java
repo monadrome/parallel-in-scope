@@ -23,9 +23,9 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntFunction;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The executor waits-for graph one {@link ParRuntime} accumulates over its lifetime.
@@ -37,7 +37,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class ExecutorWaitGraph {
 
-    private static final Logger LOGGER = Logger.getLogger(ExecutorWaitGraph.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorWaitGraph.class);
 
     private final ImmutableSetMultimap<ExecutorIdentity, ParId> aliases;
     private final ImmutableMap<ExecutorIdentity, Integer> registrationOrder;
@@ -138,7 +138,7 @@ final class ExecutorWaitGraph {
                 missing.add(new Wait(from, to, waiter + " -> " + target));
             }
         } catch (RuntimeException failure) {
-            announce(() -> LOGGER.log(Level.WARNING, "Reading executor wait units failed", failure));
+            announce(() -> LOGGER.warn("Reading executor wait units failed", failure));
             return;
         }
         if (missing != null) {
@@ -163,7 +163,7 @@ final class ExecutorWaitGraph {
         try {
             install(missing);
         } catch (RuntimeException failure) {
-            announce(() -> LOGGER.log(Level.WARNING, "Recording an executor wait failed", failure));
+            announce(() -> LOGGER.warn("Recording an executor wait failed", failure));
         }
     }
 
@@ -193,7 +193,7 @@ final class ExecutorWaitGraph {
     /** Announces exactly those components formed by the successful installation. */
     private void announceNewComponents(State previous, State installed) {
         for (ExecutorWaitReport.Component component : installed.componentsAbsentFrom(previous)) {
-            announce(() -> LOGGER.warning(warning(component)));
+            announce(() -> LOGGER.warn(warning(component)));
         }
     }
 

@@ -11,9 +11,9 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Shared runnable future with execution-phase hints for single tasks, batches, and groups.
@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements RunnableFuture<V> {
 
-    private static final Logger LOGGER = Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionPhaseHintFuture.class);
 
     /** Cleared permanently when the execution exits or becomes ineligible to run. */
     private volatile @Nullable Callable<V> callable;
@@ -154,11 +154,12 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         } catch (Throwable failure) {
             if (failure instanceof Error) {
                 try {
-                    LOGGER.log(
-                            Level.SEVERE,
-                            failure,
-                            () -> "executor handoff threw an Error; task '" + taskLabel()
-                                    + "' never reached a worker and is failed as a submission failure");
+                    if (LOGGER.isErrorEnabled()) {
+                        LOGGER.error(
+                                "executor handoff threw an Error; task '" + taskLabel()
+                                        + "' never reached a worker and is failed as a submission failure",
+                                failure);
+                    }
                 } catch (Throwable ignored) {
                 }
             }
@@ -263,10 +264,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         } catch (Throwable failure) {
             if (!setException(failure) && isCancelled()) {
                 try {
-                    LOGGER.log(
-                            lateFailureLevel(failure),
-                            failure,
-                            () -> "task '" + taskLabel() + "' failed after cancellation");
+                    if (lateFailureLevel(failure) == LateFailureLevel.DEBUG) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("task '" + taskLabel() + "' failed after cancellation", failure);
+                        }
+                    } else if (LOGGER.isWarnEnabled()) {
+                        LOGGER.warn("task '" + taskLabel() + "' failed after cancellation", failure);
+                    }
                 } catch (Throwable ignored) {
                 }
             }
@@ -293,30 +297,32 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /**
      * Chooses the level for an execution failure that arrived after this future settled as cancelled.
      *
-     * <p>Returns {@link Level#FINE} for exactly two shapes, both with no suppressed exceptions: a
-     * {@link CheckpointCancellation}, which only {@link Checkpoints} constructs after reading a
-     * committed token; and an {@link InterruptedException} thrown on this run after this future's
-     * cancellation interrupt was delivered to it, with the thread's interrupt flag clear. Every other
-     * failure, including an unmarked or wrapped cancellation exception, any failure carrying a
-     * suppressed exception, and an {@code InterruptedException} without this run's delivery, returns
-     * {@link Level#WARNING}. Must be called on the runner thread from {@link #run()}.
+     * <p>Returns {@link LateFailureLevel#DEBUG} for exactly two shapes, both with no suppressed
+     * exceptions: a {@link CheckpointCancellation}, which only {@link Checkpoints} constructs after
+     * reading a committed token; and an {@link InterruptedException} thrown on this run after this
+     * future's cancellation interrupt was delivered to it, with the thread's interrupt flag clear.
+     * Every other failure, including an unmarked or wrapped cancellation exception, any failure
+     * carrying a suppressed exception, and an {@code InterruptedException} without this run's
+     * delivery, returns {@link LateFailureLevel#WARN}. Must be called on the runner thread from
+     * {@link #run()}.
      *
      * @param failure the late failure; the original object is logged at either level
-     * @return {@link Level#FINE} for a cancellation acknowledgement, else {@link Level#WARNING}
+     * @return {@link LateFailureLevel#DEBUG} for a cancellation acknowledgement, else {@link
+     *     LateFailureLevel#WARN}
      */
-    private Level lateFailureLevel(Throwable failure) {
+    private LateFailureLevel lateFailureLevel(Throwable failure) {
         if (failure.getSuppressed().length != 0) {
-            return Level.WARNING;
+            return LateFailureLevel.WARN;
         }
         if (failure instanceof CheckpointCancellation) {
-            return Level.FINE;
+            return LateFailureLevel.DEBUG;
         }
         if (failure instanceof InterruptedException
                 && cancellationInterruptDelivered
                 && !Thread.currentThread().isInterrupted()) {
-            return Level.FINE;
+            return LateFailureLevel.DEBUG;
         }
-        return Level.WARNING;
+        return LateFailureLevel.WARN;
     }
 
     /** Names the task and its phase hint while the future is pending. */

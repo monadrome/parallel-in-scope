@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Always-on workload-fit screening: the thread CPU time and execution time of library-admitted task
@@ -29,7 +29,7 @@ final class WorkloadFit {
     static final long EPOCH_EXECUTION_NANOS = 10_000_000_000L;
     static final int UNIT_CAPACITY = 256;
 
-    private static final Logger LOGGER = Logger.getLogger(WorkloadFit.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(WorkloadFit.class);
 
     private WorkloadFit() {}
 
@@ -146,9 +146,8 @@ final class WorkloadFit {
             if (unitTotals != null) {
                 Totals drift = add(unitTotals, unitType == TaskType.COMPUTE, cpuNanos, executionNanos, false);
                 if (drift != null) {
-                    announce(
+                    announceInfo(
                             par,
-                            Level.INFO,
                             "Unit '" + unit + "' on Par '" + par.id()
                                     + "' declares TaskType.COMPUTE, but its task executions used CPU for "
                                     + share(drift)
@@ -158,9 +157,8 @@ final class WorkloadFit {
             Totals issue =
                     add(aggregate, par.taskType() == TaskType.COMPUTE, cpuNanos, executionNanos, unitTotals == null);
             if (issue != null) {
-                announce(
+                announceWarn(
                         par,
-                        Level.WARNING,
                         "Par '" + par.id() + "' is registered for TaskType.COMPUTE, but its"
                                 + " task executions used CPU for " + share(issue)
                                 + ". They may be waiting on I/O, a lock, or"
@@ -174,9 +172,8 @@ final class WorkloadFit {
                 Totals current = verifyNotNull(aggregate.get());
                 if (aggregate.compareAndSet(current, current.withUnmeasured())) {
                     if (current.unmeasuredExecutions == 0) {
-                        announce(
+                        announceWarn(
                                 par,
-                                Level.WARNING,
                                 "Par '" + par.id() + "' cannot screen workload fit: thread CPU"
                                         + " time is unsupported, disabled, or unreadable on this JVM, so its task executions"
                                         + " are counted as unmeasured. Logged once per Par.");
@@ -226,8 +223,12 @@ final class WorkloadFit {
             }
         }
 
-        private static void announce(Par par, Level level, String message) {
-            par.runtime().announce(() -> LOGGER.log(level, message));
+        private static void announceInfo(Par par, String message) {
+            par.runtime().announce(() -> LOGGER.info(message));
+        }
+
+        private static void announceWarn(Par par, String message) {
+            par.runtime().announce(() -> LOGGER.warn(message));
         }
 
         private static String share(Totals flagged) {

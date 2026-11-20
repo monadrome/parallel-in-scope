@@ -5,23 +5,16 @@ import static org.awaitility.Awaitility.await;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 /**
  * Only {@link SubmissionAwareBlockingQueue} reads {@code rejectEnqueue}, so on any other queue a requested
@@ -33,20 +26,7 @@ class InertEnqueueRefusalWarningTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    private final List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-    private final Handler capture = new Handler() {
-        @Override
-        public void publish(LogRecord record) {
-            records.add(record);
-        }
-
-        @Override
-        public void flush() {}
-
-        @Override
-        public void close() {}
-    };
-    private final Logger parLogger = Logger.getLogger(Par.class.getName());
+    private LogCapture capture;
 
     private ExecutorService plain;
     private ExecutorService smart;
@@ -54,7 +34,7 @@ class InertEnqueueRefusalWarningTest {
 
     @BeforeEach
     void captureParWarnings() {
-        parLogger.addHandler(capture);
+        capture = LogCapture.attach(Par.class);
         plain = Executors.newFixedThreadPool(2);
         smart = new ThreadPoolExecutor(1, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(4));
         runtime = ParRuntime.builder()
@@ -66,7 +46,7 @@ class InertEnqueueRefusalWarningTest {
 
     @AfterEach
     void release() {
-        parLogger.removeHandler(capture);
+        capture.close();
         runtime.close();
         plain.shutdownNow();
         smart.shutdownNow();
@@ -81,7 +61,7 @@ class InertEnqueueRefusalWarningTest {
                 x -> x,
                 BatchOptions.timeout("compute", TIMEOUT).taskType(TaskType.COMPUTE));
 
-        assertThat(records).isEmpty();
+        assertThat(capture.events()).isEmpty();
     }
 
     @Test
@@ -96,9 +76,9 @@ class InertEnqueueRefusalWarningTest {
                 x -> x,
                 BatchOptions.timeout("flag-again", TIMEOUT).rejectEnqueue(true));
 
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
-        assertThat(records.get(0).getMessage())
+        assertThat(capture.events()).hasSize(1);
+        assertThat(capture.events().get(0).level()).isEqualTo(Level.WARN);
+        assertThat(capture.events().get(0).message())
                 .startsWith("Par 'plain' requested rejectEnqueue, but its executor")
                 .contains("inert", "SubmissionAwareBlockingQueue")
                 .doesNotContain("TaskType");
@@ -118,8 +98,9 @@ class InertEnqueueRefusalWarningTest {
                         runtime.par(ParId.of("smart")),
                         values -> 0);
 
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getMessage()).startsWith("Par 'plain' requested rejectEnqueue, but its executor");
+        assertThat(capture.events()).hasSize(1);
+        assertThat(capture.events().get(0).message())
+                .startsWith("Par 'plain' requested rejectEnqueue, but its executor");
     }
 
     @Test
@@ -132,30 +113,16 @@ class InertEnqueueRefusalWarningTest {
                         runtime.par(ParId.of("plain")),
                         values -> 0);
 
-        assertThat(records).isEmpty();
+        assertThat(capture.events()).isEmpty();
     }
 
     /**
-     * The warning is delivered on a runtime-owned thread, so a logging handler that throws never
+     * The warning is delivered on a runtime-owned thread, so a logging backend that throws never
      * reaches the submitting caller or changes the batch's outcome.
      */
     @Test
     void aFailingLogHandlerNeverChangesTheOutcomeOfAnInertRefusal() throws Exception {
-        Set<Thread> publishers = ConcurrentHashMap.newKeySet();
-        Handler failing = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                publishers.add(Thread.currentThread());
-                throw new IllegalStateException("logging backend unavailable");
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        parLogger.addHandler(failing);
+        capture.failOn("");
         try (ParRuntime asynchronous =
                 ParRuntime.builder().register(ParId.of("plain"), plain).build()) {
             TaskBatchResult<Integer> result = asynchronous
@@ -167,13 +134,9 @@ class InertEnqueueRefusalWarningTest {
 
             assertThat(result.valuesOrThrow()).containsExactly(1, 2);
             Thread admitting = Thread.currentThread();
-            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-                assertThat(records).hasSize(1);
-                assertThat(publishers).isNotEmpty();
-            });
-            assertThat(publishers).doesNotContain(admitting);
-        } finally {
-            parLogger.removeHandler(failing);
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertThat(capture.events()).hasSize(1));
+            assertThat(capture.events().get(0).thread()).isNotSameAs(admitting);
         }
     }
 
@@ -185,6 +148,6 @@ class InertEnqueueRefusalWarningTest {
                         x -> x,
                         BatchOptions.timeout("flag", TIMEOUT).rejectEnqueue(true));
 
-        assertThat(records).isEmpty();
+        assertThat(capture.events()).isEmpty();
     }
 }

@@ -17,9 +17,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -395,29 +392,15 @@ class ExecutorWaitGraphTest {
     void aFailingLogHandlerIsContainedInsideTheAnnouncement() {
         ExecutorIdentity a = executor();
         ExecutorWaitGraph graph = graph(a, "a");
-        Logger logger = Logger.getLogger(ExecutorWaitGraph.class.getName());
-        Handler failing = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                throw new IllegalStateException("handler failure");
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        boolean parents = logger.getUseParentHandlers();
-        logger.addHandler(failing);
-        logger.setUseParentHandlers(false);
+        LogCapture capture = LogCapture.attach(ExecutorWaitGraph.class);
+        capture.failOn("");
         try {
             graph.record(unit("outer", a), unit("inner", a));
             assertThat(announcements).hasSize(1);
             announcements.remove().run();
+            assertThat(capture.events()).hasSize(1);
         } finally {
-            logger.removeHandler(failing);
-            logger.setUseParentHandlers(parents);
+            capture.close();
         }
     }
 

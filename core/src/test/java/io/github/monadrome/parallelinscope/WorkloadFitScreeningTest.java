@@ -9,25 +9,19 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import io.github.monadrome.parallelinscope.WorkloadFitReport.ParMeasurement;
 import io.github.monadrome.parallelinscope.WorkloadFitReport.UnitMeasurement;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 /**
  * Always-on workload-fit screening, driven by a scripted clock so every execution's CPU and execution
@@ -42,39 +36,26 @@ class WorkloadFitScreeningTest {
     private final ScriptedWorkloadClock clock = new ScriptedWorkloadClock();
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
     private final ExecutorService secondPool = Executors.newFixedThreadPool(4);
-    private final List<LogRecord> records = Collections.synchronizedList(new ArrayList<>());
-    private final Handler capture = new Handler() {
-        @Override
-        public void publish(LogRecord record) {
-            records.add(record);
-        }
-
-        @Override
-        public void flush() {}
-
-        @Override
-        public void close() {}
-    };
-    private final Logger logger = Logger.getLogger(WorkloadFit.class.getName());
-    private boolean parentHandlers;
+    private LogCapture capture;
     private ParRuntime runtime;
 
     @BeforeEach
     void captureRecords() {
-        parentHandlers = logger.getUseParentHandlers();
-        logger.setUseParentHandlers(false);
-        logger.addHandler(capture);
+        capture = LogCapture.attach(WorkloadFit.class);
     }
 
     @AfterEach
     void cleanUp() {
-        logger.removeHandler(capture);
-        logger.setUseParentHandlers(parentHandlers);
+        capture.close();
         if (runtime != null) {
             runtime.close();
         }
         pool.shutdownNow();
         secondPool.shutdownNow();
+    }
+
+    private List<LogCapture.Event> records() {
+        return capture.events();
     }
 
     @Test
@@ -106,9 +87,9 @@ class WorkloadFitScreeningTest {
         assertThat(unit.toString())
                 .startsWith("UnitMeasurement{unit='work'")
                 .contains("taskType=UNKNOWN", "executions=10");
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
-        assertThat(records.get(0).getMessage())
+        assertThat(records()).hasSize(1);
+        assertThat(records().get(0).level()).isEqualTo(Level.WARN);
+        assertThat(records().get(0).message())
                 .startsWith(
                         "Par 'cpu' is registered for TaskType.COMPUTE, but its task executions used CPU for 10% of 10.0s")
                 .contains("may be waiting", "workloadFitReport()", "Logged once per Par")
@@ -158,9 +139,9 @@ class WorkloadFitScreeningTest {
         UnitMeasurement unit = measurement.units().get(0);
         assertThat(unit.taskType()).isEqualTo(TaskType.COMPUTE);
         assertThat(unit.suspectedDeclarationDrift()).isTrue();
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getLevel()).isEqualTo(Level.INFO);
-        assertThat(records.get(0).getMessage())
+        assertThat(records()).hasSize(1);
+        assertThat(records().get(0).level()).isEqualTo(Level.INFO);
+        assertThat(records().get(0).message())
                 .startsWith(
                         "Unit 'score' on Par 'cpu' declares TaskType.COMPUTE, but its task executions used CPU for 10%");
     }
@@ -174,7 +155,7 @@ class WorkloadFitScreeningTest {
         ParMeasurement measurement = measurement(CPU);
         assertThat(measurement.issue()).isTrue();
         assertThat(measurement.units().get(0).suspectedDeclarationDrift()).isFalse();
-        assertThat(records).extracting(LogRecord::getLevel).containsExactly(Level.WARNING);
+        assertThat(records()).extracting(LogCapture.Event::level).containsExactly(Level.WARN);
     }
 
     @Test
@@ -184,7 +165,7 @@ class WorkloadFitScreeningTest {
         runtime.par(CPU).map(inputs(1), spendingNanos(9_999_999_999L, 0), options("short"));
 
         assertThat(measurement(CPU).issue()).isFalse();
-        assertThat(records).isEmpty();
+        assertThat(records()).isEmpty();
     }
 
     @Test
@@ -211,8 +192,8 @@ class WorkloadFitScreeningTest {
         ParMeasurement measurement = measurement(CPU);
         assertThat(measurement.cpuToExecutionRatio()).isGreaterThan(0.9);
         assertThat(measurement.issue()).isTrue();
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getMessage()).contains("0% of 10.0s");
+        assertThat(records()).hasSize(1);
+        assertThat(records().get(0).message()).contains("0% of 10.0s");
     }
 
     @Test
@@ -224,7 +205,7 @@ class WorkloadFitScreeningTest {
         runtime.par(CPU).map(inputs(10), spending(1000, 100), options("work"));
 
         assertThat(measurement(CPU).issue()).isTrue();
-        assertThat(records).hasSize(1);
+        assertThat(records()).hasSize(1);
     }
 
     @Test
@@ -256,9 +237,9 @@ class WorkloadFitScreeningTest {
         assertThat(measurement.unmeasuredExecutions()).isEqualTo(3);
         assertThat(measurement.executions()).isZero();
         assertThat(measurement.issue()).isFalse();
-        assertThat(records).hasSize(1);
-        assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
-        assertThat(records.get(0).getMessage()).startsWith("Par 'cpu' cannot screen workload fit");
+        assertThat(records()).hasSize(1);
+        assertThat(records().get(0).level()).isEqualTo(Level.WARN);
+        assertThat(records().get(0).message()).startsWith("Par 'cpu' cannot screen workload fit");
     }
 
     @Test
@@ -488,44 +469,24 @@ class WorkloadFitScreeningTest {
     }
 
     /**
-     * The warning is delivered on a runtime-owned thread, so a logging handler that throws never
+     * The warning is delivered on a runtime-owned thread, so a logging backend that throws never
      * reaches the execution or changes the batch's outcome.
      */
     @Test
     void aFailingLogHandlerNeverChangesTheOutcome() {
-        Set<Thread> publishers = ConcurrentHashMap.newKeySet();
-        Handler failing = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                publishers.add(Thread.currentThread());
-                throw new IllegalStateException("logging backend unavailable");
-            }
+        capture.failOn("");
+        runtime = ParRuntime.builder()
+                .register(CPU, pool, TaskType.COMPUTE)
+                .workloadClock(clock)
+                .build();
 
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        logger.addHandler(failing);
-        try {
-            runtime = ParRuntime.builder()
-                    .register(CPU, pool, TaskType.COMPUTE)
-                    .workloadClock(clock)
-                    .build();
-
-            assertThat(runtime.par(CPU)
-                            .map(inputs(10), spending(1000, 100), options("work"))
-                            .valuesOrThrow())
-                    .hasSize(10);
-            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-                assertThat(records).hasSize(1);
-                assertThat(publishers).isNotEmpty();
-            });
-            assertThat(measurement(CPU).issue()).isTrue();
-        } finally {
-            logger.removeHandler(failing);
-        }
+        assertThat(runtime.par(CPU)
+                        .map(inputs(10), spending(1000, 100), options("work"))
+                        .valuesOrThrow())
+                .hasSize(10);
+        await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertThat(records()).hasSize(1));
+        assertThat(measurement(CPU).issue()).isTrue();
     }
 
     private ParRuntime runtime(Consumer<ParRuntime.Builder> registrations) {

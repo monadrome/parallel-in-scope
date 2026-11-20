@@ -13,9 +13,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sliding-window concurrency limiter for task execution.
@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class SlidingWindowSubmitter<V> {
 
-    private static final Logger LOGGER = Logger.getLogger(SlidingWindowSubmitter.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(SlidingWindowSubmitter.class);
 
     private final ListeningExecutorService pool;
     private final MultiTaskContext unit;
@@ -187,12 +187,13 @@ final class SlidingWindowSubmitter<V> {
     private void logHandoffError(Throwable failure, int index, String phase) {
         if (failure instanceof Error) {
             try {
-                LOGGER.log(
-                        Level.SEVERE,
-                        failure,
-                        () -> "executor handoff threw an Error in batch '" + unit.name() + "' at element " + index
-                                + " during " + phase
-                                + "; the affected elements are failed as submission failures");
+                if (LOGGER.isErrorEnabled()) {
+                    LOGGER.error(
+                            "executor handoff threw an Error in batch '" + unit.name() + "' at element " + index
+                                    + " during " + phase
+                                    + "; the affected elements are failed as submission failures",
+                            failure);
+                }
             } catch (Throwable ignored) {
             }
         }

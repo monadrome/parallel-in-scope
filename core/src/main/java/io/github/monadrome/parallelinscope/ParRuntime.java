@@ -43,8 +43,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Immutable application execution topology containing logical {@link Par} entries.
@@ -62,7 +63,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ParRuntime implements AutoCloseable {
     private static final Duration MINIMUM_SAMPLING_INTERVAL = Duration.ofMillis(10);
-    private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParRuntime.class);
     private static final AtomicReference<@Nullable ParRuntime> INSTALLED = new AtomicReference<>();
     private final Map<ParId, Par> pars;
     private final Map<ParId, ExecutorRuntime> runtimes;
@@ -153,7 +154,7 @@ public final class ParRuntime implements AutoCloseable {
         if (!(introspectable instanceof ThreadPoolExecutor)) {
             Announcements.deliver(
                     announcements,
-                    () -> LOGGER.warning(
+                    () -> LOGGER.warn(
                             "Par '" + id + "' is registered with "
                                     + executor.getClass().getName()
                                     + ", which this library cannot see through:"
@@ -178,7 +179,7 @@ public final class ParRuntime implements AutoCloseable {
         if (TtlUnwrap.isWrapper(executor)) {
             Announcements.deliver(
                     announcements,
-                    () -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
+                    () -> LOGGER.warn("Par '" + id + "' is registered with the TTL wrapper "
                             + executor.getClass().getName()
                             + "; register the physical pool instead. TTL capture then happens twice"
                             + " for every task: once at the executor boundary and once at prepare."));

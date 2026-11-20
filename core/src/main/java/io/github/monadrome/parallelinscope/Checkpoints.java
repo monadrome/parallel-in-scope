@@ -32,11 +32,10 @@ import org.jspecify.annotations.Nullable;
  * <p><b>Cancellation acknowledgement.</b> An exception thrown after this class reads the current
  * token as committed, including the deadline backstop above, is the execution's acknowledgement of that
  * cancellation. The task's outcome is attributed from the token, never from the exception. When
- * the task's future has already settled as cancelled, the execution engine records an
- * acknowledgement that carries no suppressed exceptions at {@link java.util.logging.Level#FINE}
- * instead of reporting it as a late failure; an acknowledgement carrying a suppressed exception,
- * for example a failing {@code close()}, is still reported at {@link
- * java.util.logging.Level#WARNING}. Only this class can produce an acknowledgement: a {@link
+ * the task's future has already settled as cancelled, the execution engine logs an
+ * acknowledgement that carries no suppressed exceptions at debug level instead of reporting it as
+ * a late failure; an acknowledgement carrying a suppressed exception, for example a failing
+ * {@code close()}, is still reported at warn level. Only this class can produce an acknowledgement: a {@link
  * LeanCancellationException} constructed or wrapped by user code is reported like any other late
  * failure. An interrupt translated while the token is not committed is not an acknowledgement:
  * the exception has the same type and cause, and the task's outcome stays a user failure.

@@ -53,7 +53,9 @@ class TaskGroupConvergenceTest {
         // The group bind aggregates member futures, so a run with several failing members makes
         // Guava log a SEVERE "more than one input Future failure" per extra failure. This loop
         // provokes that deliberately and its own assertions cover the behavior, so the noise is
-        // muted for the duration and the level restored afterward.
+        // muted for the duration and the level restored afterward. The logger is configured
+        // through JUL because that is Guava's own logging backend, not this library's: the
+        // library logs through SLF4J, and muting its diagnostics would go through LogCapture.
         Logger aggregateFuture = Logger.getLogger("com.google.common.util.concurrent.AggregateFuture");
         Level previousLevel = aggregateFuture.getLevel();
         try {

@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.event.Level;
 
 @Timeout(10)
 class SynchronousExecutionTest {
@@ -691,29 +692,12 @@ class SynchronousExecutionTest {
 
     @Test
     void closeFailureAfterCancellationIsDiagnosedWithOriginalSuppressedCause() throws Exception {
-        java.util.logging.Logger logger = java.util.logging.Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
-        CountDownLatch diagnosed = new CountDownLatch(1);
+        LogCapture capture = LogCapture.attach(ExecutionPhaseHintFuture.class);
+        CountDownLatch diagnosed = capture.latchOn("'resource' failed after cancellation");
         Exception closeFailure = new Exception("late close failure");
-        AtomicReference<Throwable> logged = new AtomicReference<>();
-        AtomicReference<java.util.logging.Level> level = new AtomicReference<>();
-        java.util.logging.Handler handler = new java.util.logging.Handler() {
-            @Override
-            public void publish(java.util.logging.LogRecord record) {
-                if (record.getMessage().contains("'resource' failed after cancellation")) {
-                    level.set(record.getLevel());
-                    logged.set(record.getThrown());
-                    diagnosed.countDown();
-                    throw new AssertionError("broken handler");
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        logger.addHandler(handler);
+        // The broken-backend half of the contract: the diagnostic is attempted, and its failure
+        // must not reach the cleanup path it only observes.
+        capture.failOn("'resource' failed after cancellation");
         try {
             TaskGroupResult<Void> result = runtime.group("late-close", Duration.ofMillis(150))
                     .closeGrace(Duration.ofSeconds(1))
@@ -730,42 +714,25 @@ class SynchronousExecutionTest {
             TerminationAssertions.assertCancelled(
                     result.resultAt(0).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
             assertThat(diagnosed.await(2, TimeUnit.SECONDS)).isTrue();
-            assertThat(Verify.verifyNotNull(logged.get())).isInstanceOf(InterruptedException.class);
-            assertThat(Verify.verifyNotNull(logged.get()).getSuppressed()).containsExactly(closeFailure);
-            assertThat(level.get()).isEqualTo(java.util.logging.Level.WARNING);
+            LogCapture.Event event =
+                    capture.events("'resource' failed after cancellation").get(0);
+            assertThat(Verify.verifyNotNull(event.thrown())).isInstanceOf(InterruptedException.class);
+            assertThat(Verify.verifyNotNull(event.thrown()).getSuppressed()).containsExactly(closeFailure);
+            assertThat(event.level()).isEqualTo(Level.WARN);
             assertThat(result.executionExitConfirmed()).isTrue();
         } finally {
-            logger.removeHandler(handler);
+            capture.close();
         }
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void cancellationShapedCloseFailureIsDiagnosed(boolean interruptedFailure) throws Exception {
-        java.util.logging.Logger logger = java.util.logging.Logger.getLogger(ExecutionPhaseHintFuture.class.getName());
-        CountDownLatch diagnosed = new CountDownLatch(1);
+        LogCapture capture = LogCapture.attach(ExecutionPhaseHintFuture.class);
+        CountDownLatch diagnosed = capture.latchOn("'resource' failed after cancellation");
         Throwable closeFailure = interruptedFailure
                 ? new InterruptedException("resource close did not finish")
                 : new java.util.concurrent.CancellationException("resource close did not finish");
-        AtomicReference<Throwable> logged = new AtomicReference<>();
-        AtomicReference<java.util.logging.Level> level = new AtomicReference<>();
-        java.util.logging.Handler handler = new java.util.logging.Handler() {
-            @Override
-            public void publish(java.util.logging.LogRecord record) {
-                if (record.getMessage().contains("'resource' failed after cancellation")) {
-                    level.set(record.getLevel());
-                    logged.set(record.getThrown());
-                    diagnosed.countDown();
-                }
-            }
-
-            @Override
-            public void flush() {}
-
-            @Override
-            public void close() {}
-        };
-        logger.addHandler(handler);
         try {
             TaskGroupResult<Void> result = runtime.group("cancel-shaped-close", Duration.ofMillis(150))
                     .closeGrace(Duration.ofSeconds(1))
@@ -788,10 +755,12 @@ class SynchronousExecutionTest {
             TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
             assertThat(result.executionExitConfirmed()).isTrue();
             assertThat(diagnosed.await(2, TimeUnit.SECONDS)).isTrue();
-            assertThat(logged.get()).isSameAs(closeFailure);
-            assertThat(level.get()).isEqualTo(java.util.logging.Level.WARNING);
+            LogCapture.Event event =
+                    capture.events("'resource' failed after cancellation").get(0);
+            assertThat(event.thrown()).isSameAs(closeFailure);
+            assertThat(event.level()).isEqualTo(Level.WARN);
         } finally {
-            logger.removeHandler(handler);
+            capture.close();
         }
     }
 }
