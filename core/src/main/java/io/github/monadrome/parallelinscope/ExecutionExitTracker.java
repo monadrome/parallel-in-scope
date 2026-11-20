@@ -288,6 +288,7 @@ final class ExecutionExitTracker {
         }
     }
 
+    @SuppressWarnings("ImmutableEnumChecker")
     private enum EmptyHolder {
         INSTANCE;
 

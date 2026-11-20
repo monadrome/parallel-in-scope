@@ -158,6 +158,7 @@ public final class ScopeTermination {
         return "ScopeTermination[kind=" + kind + ", cancellation=" + cancellationReason + ']';
     }
 
+    @SuppressWarnings("ImmutableEnumChecker")
     private enum SuccessHolder {
         INSTANCE;
 
