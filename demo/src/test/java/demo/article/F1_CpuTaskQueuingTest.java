@@ -190,7 +190,7 @@ class F1_CpuTaskQueuingTest {
      * 诊断：声明为计算用途的池里跑了阻塞任务，runtime 常开的负载匹配筛查会发现它。
      *
      * <p>任务体大部分时间在等待（这里用 sleep 模拟远程调用），CPU 时间远低于执行时间。runtime 按条目累计，攒够一个判定周期后把
-     * {@code issue()} 置为 true 并记一条 WARNING；{@code workloadFitReport()} 给出测量值和归因到的单元。判定只做报告，任务结果不变。
+     * {@code issue()} 置为 true 并记一条 warn 级别日志；{@code workloadFitReport()} 给出测量值和归因到的单元。判定只做报告，任务结果不变。
      */
     @Test
     @Timeout(value = 60, unit = TimeUnit.SECONDS)

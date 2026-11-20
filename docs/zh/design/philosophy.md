@@ -182,7 +182,7 @@ for (Item item : items) {
 ```
 
 检查点读到已提交的取消后退出，是执行对取消的正确响应，不是失败：归因读 token，取消已落定时
-内核按来源把这种确认记为 `FINE`，不产生告警。
+内核按来源把这种确认记为 `debug` 级别，不产生告警。
 
 对比 `Thread.interrupt()`：中断标志是一个 boolean，你不知道是谁取消的、为什么取消。
 
@@ -270,7 +270,7 @@ parallel-in-scope 的解决方案是 **运行时级的执行器等待图**。每
 - 零容量交接队列（如 `CachedThreadPool` 的 `SynchronousQueue`）→ 不会，入队被拒，池子只能开新线程或显式拒绝
 - 有缓冲能力的队列（如 `FixedThreadPool` + `LinkedBlockingQueue`）→ **可能**，子任务排在已阻塞的 worker 后面，`maximumPoolSize` 再大也没机会开新线程
 
-上面的例子记成 `shared-pool → shared-pool` 自环。图属于运行时而不是某个请求，所以「请求 1 在 A 上等 B、请求 2 在 B 上等 A」这种跨请求的环也能看到——单看每个请求都没有环，合起来负载一高就会互相饿死。等待第一次形成环时，运行时在自有线程上打一条 `WARNING`，任何时候都能读出报告：
+上面的例子记成 `shared-pool → shared-pool` 自环。图属于运行时而不是某个请求，所以「请求 1 在 A 上等 B、请求 2 在 B 上等 A」这种跨请求的环也能看到——单看每个请求都没有环，合起来负载一高就会互相饿死。等待第一次形成环时，运行时在自有线程上打一条 `warn` 级别日志，任何时候都能读出报告：
 
 ```java
 ParRuntime global = ParRuntime.builder()

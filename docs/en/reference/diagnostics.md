@@ -17,9 +17,11 @@ The declaration never changes admission, queueing, rejection, cancellation, dead
 It feeds two diagnostics:
 
 - **Submission-time comparison.** When an entry and a unit both declare a type and they differ, the
-  library logs it once per entry and unit name: `WARNING` for a `BLOCKING` unit on a `COMPUTE` entry,
-  `INFO` for the reverse. The message only says that the declarations disagree, and it is logged from
-  a runtime-owned thread, so a log handler that throws or blocks never affects the submission; messages
+  library logs it once per entry and unit name: at warn level for a `BLOCKING` unit on a `COMPUTE`
+  entry, at info level for the reverse. The message only says that the declarations disagree, and it
+  is logged from
+  a runtime-owned thread, so a logging backend that throws or blocks never affects the submission;
+  messages
   are delivered independently and may appear out of submission order. The runtime remembers
   at most 1024 such pairs; after that it logs one summary and no further mismatch of a new pair. Use
   fixed unit names, not names built per call.
@@ -29,7 +31,7 @@ It feeds two diagnostics:
 
 ## Observe nested work
 
-Every `ParRuntime` records, always and without a scope, which of its registered executors synchronously wait for which. A task execution that calls `map`, `mapAndCombine`, or `runAll` waits for every unit it admits; when the awaited unit runs on a starvation-prone pool, that is a wait from the execution's pool to that pool. A combine only consumes its inputs, so it adds no wait of its own, and a top-level call has no waiting pool. When the recorded waits first form a cycle — a pool waiting on itself included — the runtime logs one JUL `WARNING` from a runtime-owned thread, never from the submitting one.
+Every `ParRuntime` records, always and without a scope, which of its registered executors synchronously wait for which. A task execution that calls `map`, `mapAndCombine`, or `runAll` waits for every unit it admits; when the awaited unit runs on a starvation-prone pool, that is a wait from the execution's pool to that pool. A combine only consumes its inputs, so it adds no wait of its own, and a top-level call has no waiting pool. When the recorded waits first form a cycle — a pool waiting on itself included — the runtime logs one warn-level record from a runtime-owned thread, never from the submitting one.
 
 Read the current state at any time, for example at the end of a test:
 
@@ -41,7 +43,7 @@ assertThat(runtime.executorWaitReport().cyclicComponents()).isEmpty();
 
 `cyclicComponents()` lists each cyclic strongly connected component: its `members()` and one concrete `cycle()` in wait order. A component's `toString()` is count-only — member, cycle, and witness counts — so logging a report never expands configured labels; the task units observed behind each wait stay internal to the library. Each executor appears as the set of every `ParId` it is registered under — two ids naming one pool are one executor, and a name alone never makes a cycle.
 
-The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures not adopted with a producer `Par`, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs an execution inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging handler may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
+The report accumulates for the runtime's lifetime, so it is a structural risk signal, not a deadlock proof: a cycle may join waits from unrelated requests that never overlapped — which is exactly how two requests on two bounded pools starve each other — and a pool with headroom may never starve. An empty report says nothing about external futures not adopted with a producer `Par`, direct executor submissions, locks, opaque or unregistered executors, or other runtimes. A wait is attributed to the executor its unit was submitted to; when `CallerRunsPolicy` runs an execution inline, the blocked thread may belong to another pool. The warning is best effort — a failing logging backend may drop it — while the report is always available. For a verdict on one piece of code, run it against a dedicated `ParRuntime`.
 
 ## Screen workload fit {#workload-fit}
 
@@ -68,20 +70,20 @@ for (WorkloadFitReport.ParMeasurement par : report.pars()) {
 The runtime times only the executions whose entry or unit is declared `COMPUTE`, comparing each execution's
 thread CPU time with its execution time (time running, not queued). It judges every entry's totals in
 epochs of ten seconds of execution time: the first epoch whose CPU time is below half its execution
-time sets `issue()` for the runtime's lifetime and logs one `WARNING` from a runtime-owned thread.
+time sets `issue()` for the runtime's lifetime and logs one warn-level record from a runtime-owned thread.
 Judging the whole entry catches blocking spread over many small units, and judging per epoch keeps a
 regression after a long healthy period from being diluted. `units()` attributes the totals to up to
 256 units per entry, a unit being a name with its declared type; executions of further units count only
 in `unattributedExecutions()`. A unit
-declared `COMPUTE` is judged the same way for `suspectedDeclarationDrift()`, logged once at `INFO`;
-drift never sets `issue()`.
+declared `COMPUTE` is judged the same way for `suspectedDeclarationDrift()`, logged once at info
+level; drift never sets `issue()`.
 
 Counts are cumulative and never decrease, so the difference between two reports measures the
 interval between them. A `BLOCKING` unit on a `COMPUTE` entry is timed and counts toward its entry;
 an execution whose entry and unit are both undeclared or `BLOCKING` is never timed and pays nothing. Work
 submitted directly with `execute` is never measured, and an entry absent from `pars()` was not
 screened. When thread CPU time is unsupported, disabled, or unreadable, screened executions count in
-`unmeasuredExecutions()` and one `WARNING` says so; the library never enables CPU timing itself. A
+`unmeasuredExecutions()` and one warn-level record says so; the library never enables CPU timing itself. A
 screened execution pays two thread-CPU and two wall-clock reads plus an atomic update of its unit's and its
 entry's totals.
 

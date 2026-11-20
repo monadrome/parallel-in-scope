@@ -372,7 +372,7 @@ throwable; the classification is metadata and does not convert the throwable's t
 Price price = batch.results().get(i).fold(
         value -> value,
         failure -> {
-            LOGGER.log(Level.WARNING, "price failed for " + sku, failure.cause());
+            LOGGER.warn("price failed for " + sku, failure.cause());
             return Price.UNKNOWN;
         },
         (reason, disposition) -> Price.UNKNOWN);
@@ -405,7 +405,7 @@ and diagnostics, and the member results for each task's own outcome.
 ```java
 ScopeTermination termination = batch.termination();
 if (termination.kind() == ScopeTermination.Kind.FAILED) {
-    LOGGER.log(Level.WARNING, "batch failed in " + termination.failedTask(), termination.failure());
+    LOGGER.warn("batch failed in " + termination.failedTask(), termination.failure());
 } else if (termination.kind() == ScopeTermination.Kind.CANCELLED) {
     LOGGER.info("batch ended with " + termination.cancellationReason().kind());
 }
@@ -490,8 +490,8 @@ followed by successful awaitQuiescence confirms all admitted executions. Close f
 primary/suppressed exception rules. A failure lost because cancellation already settled the task is
 logged with task identity; it does not rewrite the frozen cancellation result. An execution that merely
 acknowledges the cancellation, by exiting through a `Checkpoints` call that read it or through a JDK
-blocking call woken by the engine's cancellation interrupt, is logged at `FINE`; every other late
-failure, including any carrying a suppressed close failure, is a `WARNING`. See
+blocking call woken by the engine's cancellation interrupt, is logged at `debug` level; every other late
+failure, including any carrying a suppressed close failure, is a `warn` record. See
 [logging after cancellation](reference/cooperative-cancellation.md#logging-after-cancellation). The library does not
 discover or close captured/returned objects, unmanaged threads, or external async operations.
 

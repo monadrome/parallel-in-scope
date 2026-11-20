@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
  * 线程池等待风险诊断示例：演示嵌套调用形成的潜在等待环
  *
  * <p>运行时常开地记录执行器之间的同步等待：嵌套调用第一次在饥饿型线程池上形成等待环时，
- * {@code ParRuntime} 在自有线程上打一条 JUL {@code WARNING}；任何时候都可以用
+ * {@code ParRuntime} 在自有线程上打一条 warn 级别日志；任何时候都可以用
  * {@code executorWaitReport()} 读出有环的执行器分量与见证。
  *
  * <p>场景：同一个固定大小线程池（4 线程）被嵌套调用占用，形成潜在循环等待：
