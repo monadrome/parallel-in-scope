@@ -161,69 +161,35 @@ conclusion, use a dedicated `ParRuntime` serving only that code (as in tests).
   passes the recording point; the hot path only reads immutable state and the cold path CASes,
   so neither read nor write paths block, and computation happens only when new edges appear.
   Switched to CAS.
+- **Deleting token names that appear only as historical mechanism notes in the Chinese design
+  philosophy and idea graveyard**: those sentences neither link to nor teach public usage and
+  do not violate cancellation contract §5.3. Rejected.
 
 ## 7. Verification baseline
 
-- `ExecutorWaitGraphTest`: top-level calls record nothing; non-starvation-prone targets and
-  external endpoints form no edges; self-loops and cross-admission cross-request cycles; a
-  multi-alias executor is one member; one admission's multiple edges install together;
-  re-announcement when components merge; a complete graph of 12 executors reports one
-  component; neither announcement rejection nor a throwing handler fails the admission;
-  concurrent installation of the same edge or closing of the same cycle neither loses edges nor
-  double-announces; when index reads fail after new edges exist, the whole admission is not
-  installed, and a recording failure does not affect admission.
-- `ExecutorWaitAdmissionTest`: real waits at public admissions — a same-pool nested `map`
-  self-loop, a handoff pool forming no edge, two unrelated calls composing a cross-request
-  cycle, a `mapAndCombine` combine returning to the caller's pool being a self-loop while the
-  batch pool is not, a nested group waiting on every member and the combine, a top-level group
-  recording nothing, an external runtime's caller not entering this graph, one pool with two
-  ids, and warnings not running on the admission thread with a blocking handler not blocking
-  admission.
-- `ScopedTaskContractTest`: both the batch and group entries report self-loops under same-pool
-  nesting.
-- `ParMapAndCombineTest`: a top-level combined batch records nothing; a nested combine on the
-  batch's own pool is not a self-loop.
+Verification must cover, by risk area:
 
-## 8. Implementation review and dispositions
-
-- Claude's read-only review of the executor wait graph's first implementation confirmed: the
-  single-target and `mapAndCombine` double-target recording points allocated temporary
-  collections before the known-edge lookup, violating P6. Retained and fixed: both recording
-  forms now run eligibility and known-edge checks against the same immutable snapshot first,
-  allocating no collections for known edges; only the cold path builds the missing-edge list,
-  and one admission is still installed by the same CAS, with witnesses and exception isolation
-  unchanged.
-- The same review found that BACKLOG A-P2 and the interactive demo still described the deleted
-  request-level task graph. Retained and fixed: A-P2 closed with the old public query surface's
-  deletion; the demo now renders two executor nodes, real wait edges, and components with
-  witnesses, no longer fabricating a root, task nodes, or top-level edges.
-- Deleting token names that appear only as historical mechanism notes in the Chinese design
-  philosophy and idea graveyard was proposed; rejected: those sentences neither link to nor
-  teach public usage and do not violate cancellation contract §5.3. Wording, line-break, and
-  naming-style suggestions were dropped as behavior-free noise.
-- A later re-review returned no content and was abandoned per the maintainer's instruction, not
-  counted as an independent pass; the dispositions above come from the Claude review that did
-  return and the main agent's item-by-item verification.
-- Kimi's read-only review of the executor wait graph changes further confirmed: nested groups
-  still built an `awaitedUnits` list by member count before recording — a P6 residual the
-  previous round did not cover. Fixed by reading from the existing `membersAndTerminal` by
-  index, with the count taken from the same list; the missing-edge list is created only after
-  new edges are found, and the one-CAS atomic install is unchanged. The list overload that lost
-  its production callers was deleted with it, keeping no test-only convenience entry.
-- DeepSeek's first independent read-only round retained four items: a `RuntimeException` from
-  an index callback could escape recording; the list overload was down to test-only callers;
-  the wait count borrowed the convergence counter; and the member-to-combine data-flow note was
-  lost. All fixed; when reading any unit fails, the whole admission is discarded and a warning
-  is logged asynchronously, with no partial edges installed. The second round retained stale
-  Javadoc and a weak test covering only first-element failure: the documentation now states the
-  index domain and callback preconditions, and the regression was changed to a first element
-  producing a new edge with a second element failing, proving partial admissions are not
-  installed. The final re-review has no remaining findings; allocation properties were checked
-  against the implementation and Guava collection paths, with no allocation benchmark
-  measured.
-- 32 targeted and 965 full tests pass. Reverse verification reverted the read-failure guard and
-  the catch's `return` separately, observing the exception escaping and partial self-loop
-  installation respectively; passing after restoration. The final `ExecutorWaitGraph` PIT is
-  65/65 KILLED with none surviving or uncovered; the remaining 32 SURVIVED, 29 NO_COVERAGE, and
-  1 TIMED_OUT of the two-class run all sit in `TaskGroup` statements untouched by this change —
-  kept as a pre-existing coverage limit and not counted as this fix's unverified part.
+- **No-edge conditions**: top-level calls record nothing; awaits on non-starvation-prone
+  targets and on executors external to this runtime form no edges; group membership and the
+  members-to-combine data flow are not waits; sliding-window refills and late-submitted
+  combines are not new logical admissions and produce no edges; a nested combine on the batch's
+  own pool is not a self-loop.
+- **Edge formation**: same-pool nesting produces the expected self-loop at every admission
+  path — batch, internal single-task submission, and group entries alike; a handoff pool
+  forms no edge; two unrelated calls compose a cross-request cycle; a `mapAndCombine`
+  combine returning to the caller's starvation-prone pool is a self-loop while the batch's
+  own pool is not; a nested group records one wait per member and the combine and a top-level
+  group records nothing; one pool registered under two ids is one member; one admission's
+  multiple edges install together (P5), and a newly announced component re-announces when it
+  merges into another; a densely connected executor set (for example a complete graph of a
+  dozen executors) reports one component, not an explosion.
+- **Admission safety**: announcement rejection, a throwing warning handler, and a blocking
+  handler neither fail nor stall the admission; warnings never run on the admission thread;
+  concurrent installation of the same edge and concurrent closing of the same cycle neither
+  lose edges nor double-announce; when reading a unit fails after new edges were found, the
+  whole admission is discarded with no partial edges installed — the regression must prove
+  partial installation cannot happen, with a failing element preceded by one that would have
+  installed a new edge; a recording failure never changes the admission's result.
+- **Hot-path discipline (P6)**: every recording form — single-target, the `mapAndCombine`
+  double target, and the group's per-member recording — must stay allocation-free on the
+  known-edge path; missing-edge lists are built only after new edges are found.

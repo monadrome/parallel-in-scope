@@ -52,24 +52,20 @@ wins.
 
 The framework no longer creates threads for batches waiting to refill: the thread cost drops
 from O(number of concurrent bounded-window batches) to O(1) (depending only on the business
-executor's own threads). The `SlidingWindowResourceBoundTest` regression locks this bound
-through public entries; reverse verification yields 24 `submitRemaining` waiting threads on the
-old resident-submitter implementation and 0 on the new one.
+executor's own threads). A regression through public entries locks this bound: no framework
+thread may sit waiting for a batch's refills.
 
 ## Cancellation and window consistency
 
-`cancelDuringHandoffKeepsClaimedElementConsistent` locks: when cancellation lands inside the
+A regression gates the cancellation point after the claimed element's `execute()` has returned
+(handoff complete, execution not yet running) and requires: when cancellation lands inside the
 refill window, claimed elements execute as usual and present their real results externally,
-while unclaimed elements are abandoned as `SUBMISSION_FAILURE`;
-`repeatedSubmitAndCancelNeverReportsARanTaskAsUnsubmitted` hammers the same race over many
-rounds. That test gates the cancellation point after the claimed element's `execute()` has
-returned (handoff complete, execution not yet running); the TOCTOU window between the `settled`
-check and `execute()` is outside this case's gating, but behavior in that window follows the
+while unclaimed elements are abandoned as `SUBMISSION_FAILURE`; a repeated submit-and-cancel
+hammer over many rounds never reports a ran task as unsubmitted. The TOCTOU window between the
+`settled` check and `execute()` is outside that gating, but behavior in the window follows the
 same semantics (claimed elements run as usual).
 
 ## Residuals
 
-- Independent review: the R2 rework has not yet obtained the different-model/harness review the
-  project requires.
 - Each historical (terminal) child batch still accumulates one `ParentLink` node constant on
   the parent token's listener stack — see the residual record in cancellation-propagation §8.

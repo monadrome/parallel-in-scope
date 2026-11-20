@@ -114,36 +114,6 @@ inherit choice) are carried by the `ParRuntime.group(name, timeout)`/
 `GroupStart.closeGrace(Duration)` and `GroupStart.cancelOn(ListenableFuture<?>)` respectively,
 and both must be declared before the first `par`.
 
-```java
-public final class TaskOptions {
-    public static TaskOptions inheritTimeout();
-    public static TaskOptions timeout(Duration timeout);
-    public TaskOptions taskType(TaskType taskType);
-    public TaskOptions rejectEnqueue(boolean rejectEnqueue);
-
-    public Optional<Duration> timeout();
-    public TaskType taskType();
-    public boolean rejectEnqueue();
-}
-
-public final class BatchOptions {
-    public static BatchOptions inheritTimeout(String name);
-    public static BatchOptions timeout(String name, Duration timeout);
-    public BatchOptions parallelism(int parallelism);
-    public BatchOptions taskType(TaskType taskType);
-    public BatchOptions rejectEnqueue(boolean rejectEnqueue);
-    public BatchOptions closeGrace(Duration closeGrace);
-    public BatchOptions cancelOn(ListenableFuture<?> signal);
-
-    public String name();
-    public int parallelism();
-    public Optional<Duration> timeout();
-    public TaskType taskType();
-    public boolean rejectEnqueue();
-    public Optional<Duration> closeGrace();
-}
-```
-
 **Fields equal the consumption set.** The field set an option type exposes must equal the set
 its consumers read: member and combine identities come from declaration names, and a single
 task is one execution with no fan-out, so `TaskOptions` MUST NOT contain name, parallelism, or
@@ -214,7 +184,7 @@ options into the kernel carrier (name, requestedParallelism, timeout, taskType, 
 The member side adapts from `TaskOptions` (name is the member declaration name,
 requestedParallelism is always 1), and the batch side adapts from `BatchOptions`. Request
 sources do not enter `UnitSpec`; they are wired into the execution token separately at
-admission. The signature and the three-parent decoupling semantics are in
+admission. The resolution entry and the three-parent decoupling semantics are in
 [Lifecycle and state machine §5](task-group-lifecycle.md).
 
 #### 3.2.1 `TaskType`: an optional diagnostic declaration

@@ -53,19 +53,10 @@ preparation phase. Members add no public Context.
 `TaskGroup` is itself the group-level run state; no `TaskGroupContext` or `CurrentTaskGroupTl`
 MUST be added.
 
-It is produced in the submission's runtime creation phase and holds at least:
-
-```text
-groupId / groupName
-startTimeNanos / deadlineNanos
-lifecycle
-first completion reason
-frozen members registry
-totalTasks / completedTasks (convergence barrier)
-group CancellationToken (internal, not a public control entry)
-completion SettableFuture
-failedTaskName
-```
+It is produced in the submission's runtime creation phase and is the single owner of the
+group's run state; the members registry, convergence counting, and completion publication it
+holds are specified normatively in §6. Its internal `CancellationToken` and its internal
+completion future are kernel-internal and are not public control entries.
 
 The `first completion reason` accepts member failure, deadline, group cancel/close, outer
 cancellation, and direct member cancellation. A single directly cancelled member cascades into
@@ -76,17 +67,10 @@ future still reference it; it belongs to no physical thread.
 
 ### 4.3 MemberState
 
-Each frozen member needs an internal state record. Recommended as a private/package-visible
-inner class of `TaskGroup`, to avoid adding a public Context:
-
-```text
-memberName
-TaskExecutionContext
-member ListenableFuture (package-private)
-execution future/phase
-member TaskTermination (nullable, assigned when the member goes terminal)
-failure (nullable)
-```
+Each frozen member needs an internal state record linking the member's identity, its
+`TaskExecutionContext`, its package-private futures, and — once the member goes terminal — its
+`TaskTermination` and failure. Keep it a private/package-visible inner class of `TaskGroup`, to
+avoid adding a public Context.
 
 The lifecycle runs from the submission's full-registration phase until the Group result is no
 longer referenced. A member may be cancelled before the user function starts; in that case the
@@ -95,14 +79,9 @@ MemberState exists, but the `TaskExecutionContext` was never installed, and no
 
 ### 4.4 MultiTaskContext
 
-Each member creates a single-task `MultiTaskContext`:
-
-```text
-taskCount = 1
-effectiveParallelism = 1
-name = member name (String)
-executorIdentity / executorLabel = the member Par's binding
-```
+Each member creates a single-task `MultiTaskContext` resolved for exactly one task: the member
+declaration name is the unit name, and the member `Par`'s binding is the executor identity and
+label.
 
 The member declaration name (a `String`) is the single source of truth for member identity: it
 serves simultaneously as the unique key inside the Group, the group-level result key, and the
@@ -149,13 +128,10 @@ completed member's structured child task".
 Each time a member actually calls the target executor's `execute/submit`, the member Batch must
 be temporarily installed:
 
-```java
-MultiTaskContext previous = SubmissionScope.install(memberBatch);
-try {
-    executor.execute(memberFuture);
-} finally {
-    SubmissionScope.restore(previous);
-}
+```text
+previous = install(memberBatch)
+    executor.execute(member future)
+finally restore(previous)
 ```
 
 Its lifecycle covers only one submission call — not queueing or task execution. Stack-wise
@@ -179,31 +155,24 @@ queued task holds a TTL snapshot — that is TTL's own retention semantics.
 
 ## 5. Structural parent, cancellation parent, and deadline ceiling must be decoupled
 
-The existing `MultiTaskContext.resolve()` derives three things from the `parent
-MultiTaskContext`:
+Resolution derives three things from an enclosing `MultiTaskContext`: the nested structural
+parent (also the waiter for executor waits), the cancellation token parent, and the deadline
+ceiling. Group members prove these three are not always the same object, so the single
+package-private entry `MultiTaskContext.resolve(Resolution)` takes them as independent,
+order-free parameters: a `Resolution` carries the package-private carrier `UnitSpec` (name,
+requestedParallelism, timeout, taskType, rejectEnqueue) plus the task count, and unset
+parent-derived values default from the structural parent — the cancellation parent to its
+token, the deadline ceiling to its deadline — while explicitly set values always win. A caller
+nesting under an enclosing scoped task therefore sets only the parent; a group member overrides
+the cancellation parent with the group token and the ceiling with the group deadline. The
+resolution also fixes the resolution clock reading and, for a unit without a cancellation
+parent, the root clock/scheduler pair (the pairing rules are §5.2 of the
+[cancellation propagation contract](cancellation-propagation.md)); the entry the unit is
+submitted through supplies diagnostic and graph state only, never a submission target.
 
-1. the nested structural parent (also the waiter for executor waits);
-2. the cancellation token parent;
-3. the deadline ceiling.
-
-Group members prove these three are not always the same object. `MultiTaskContext` provides a
-package-visible overload so the three can be passed independently. The overload accepts the
-package-private carrier `UnitSpec` (name, requestedParallelism, timeout, taskType,
-rejectEnqueue) and MUST NOT accept public option types: each public type provides a
-package-private adapter method folding its options into the carrier, so batches and members
-still go through the same resolution path, with members passing `requestedParallelism = 1`:
-
-```java
-static MultiTaskContext resolve(
-        UnitSpec spec,
-        int taskCount,
-        @Nullable MultiTaskContext structuralParent,
-        @Nullable CancellationToken cancellationParent,
-        long deadlineCeilingNanos,
-        long resolutionTimeNanos,
-        @Nullable ExecutorIdentity executorIdentity,
-        @Nullable String executorLabel);
-```
+`resolve` MUST NOT accept public option types: each public type provides a package-private
+adapter method folding its options into `UnitSpec`, so batches and members still go through the
+same resolution path, with members passing `requestedParallelism = 1`.
 
 The semantics cannot be merged back into a fake parent. Splitting the option types changes none
 of this section's resolution results: `UnitSpec` only changes "where the values come from", not

@@ -10,9 +10,8 @@
 > Relationship to [first-principles.md](first-principles.md): this document concretizes
 > criterion 2 (can existing mechanisms be parameterized) and criterion 4 (does it introduce a
 > second execution pipeline) on the subject of "wrapping".
-> **Status: final — no task decorator SPI; the only user extension point is task code itself
-> (§10 has the deferral rationale and re-entry conditions).** Alibaba TransmittableThreadLocal
-> (TTL) wrapper detection and the L8 guard have landed (see §6's landing record).
+> **No task decorator SPI; the only user extension point is task code itself (§10 has the
+> deferral rationale and re-entry conditions).** The TTL wrapper detection contract is §6.
 
 ## 0. The one-sentence conclusion
 
@@ -332,20 +331,34 @@ global.group("retry", Duration.ofSeconds(5))
         .valueOf(flaky);
 ```
 
-## 6. TTL wrapper detection (landed; see the landing record below)
+## 6. TTL wrapper detection
 
-Draft snapshot (the warning's location and wording are governed by the landing record):
+Registering an executor wrapped by `TtlExecutors.getTtlExecutorService(pool)` adds a second
+capture point outside `run()` (breaks I3, problem P9). The runtime therefore detects TTL
+wrappers at registration and probes executor capabilities on the unwrapped object:
 
-```java
-// ExecutorRuntime construction
-if (TtlUnwrap.isWrapper(suppliedExecutor)) {
-    LOGGER.warning("Registered executor is a TTL wrapper; register the physical pool instead. "
-            + "TTL capture will happen twice (executor boundary + prepare), and purge/BlockingRisk "
-            + "introspection is disabled.");
-}
-// Capability probing (purge, BlockingRisk) runs on the unwrapped object
-ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
-```
+- **Detection and warning**: when the supplied executor is a TTL wrapper
+  (`TtlUnwrap.isWrapper`), registration logs one `WARNING` naming the Par id, stating the
+  double-capture cost (executor boundary + prepare) and the remedy — register the physical
+  pool. Double capture comes from wrapping at the user's executor boundary, which the library
+  cannot control; the warning is the only remedy. The warning is emitted from `ParRuntime`'s
+  registration path — the message needs the Par id, and `ExecutorRuntime` stays free of logging
+  side effects — and fires at most once per new registered identity, through the guarded log
+  delivery (a throwing handler must not alter what `build()` observes).
+- **Capability probing reads the unwrapped object**: blocking-risk classification, starvation
+  determination, `rejectEnqueue` effectiveness, and the registration-time "opaque" warning all
+  read `TtlUnwrap.unwrap(suppliedExecutor)`, held by `ExecutorRuntime` as its introspectable
+  executor.
+- **Identity stays with the registered object**: `ExecutorIdentity` follows the object passed
+  to `register`, never the unwrapped pool — the same physical pool registered as two objects
+  would otherwise be merged, changing executor-graph semantics (INV-11).
+- **Discarding-policy guards cannot be bypassed by TTL wrapping**: the L8 registration check
+  reads the unwrapped object too, so a `DiscardPolicy` / `DiscardOldestPolicy` pool wrapped in
+  TTL is still refused. Without this, tasks would be accepted and silently discarded, task code
+  would never execute, and the framework would surface only TIMEOUT at the deadline — exactly
+  the failure shape L8 exists to block.
+- **TTL-agent short-circuit**: with the TTL agent loaded, `getTtlExecutorService` returns the
+  original object directly — no wrapper, no double capture, no warning.
 
 Factual basis (verified line by line against the TTL 2.14.5 source):
 
@@ -355,42 +368,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 - `ExecutorServiceTtlWrapper` is a package-private class (`implements ExecutorService,
   TtlEnhanced`) — no external `instanceof`, but `TtlUnwrap.isWrapper/unwrap` is public API;
 - Guava's `WrappingExecutorService` is package-private with no public unwrap entry, so **only
-  the TTL side is fixed**;
-- **Identity does not follow the unwrap**: `ExecutorIdentity` still follows the registered
-  object (see its Javadoc for the reasons), or the same physical pool registered as two objects
-  would be merged, changing executor-graph semantics.
-
-> **Landing record**: added
-> `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`;
-> blocking-risk classification, starvation determination, `rejectEnqueue` effectiveness
-> determination, purge binding, and the registration-time "opaque" warning all now read the
-> unwrapped object; identity still follows the registered object. Measured root module 644/644
-> and demo 54/54 all green, with 3 new regression tests.
->
-> **A new defect found at landing (not previously recorded in this document)**: the L8 guard
-> had been bypassed wholesale. The registration-time rejection-policy check used the same
-> `instanceof ThreadPoolExecutor` judgment, and a TTL wrapper is not a `ThreadPoolExecutor` —
-> so `DiscardPolicy` / `DiscardOldestPolicy` pools wrapped in TTL slipped past the check and
-> registered successfully: tasks were accepted and silently discarded, task code never
-> executed, and the framework surfaced only as TIMEOUT at the deadline. This is exactly the
-> failure shape L8 exists to block. Regression case:
-> `ParRuntimePoliciesTest.aTtlWrappedDiscardingPoolIsStillRefusedInsteadOfSlidingPastTheGuard`
-> (measured failing before the fix).
->
-> Two intentional deviations from the draft:
-> 1. **Warning location**: actually placed in `ParRuntime`'s registration loop rather than
->    `ExecutorRuntime`'s construction — the message needs to name the Par id (this repository's
->    established message convention), and `ExecutorRuntime` does not know the Par id; it also
->    keeps `ExecutorRuntime` free of logging side effects. The warning fires at most once per
->    new identity.
-> 2. **Warning wording**: the draft's *"purge/BlockingRisk introspection is disabled"* stopped
->    being true once probing moved to the unwrapped object; the actual warning states only the
->    cost that still holds: TTL capture happens twice (executor boundary + prepare). Double
->    capture comes from wrapping at the user's executor boundary, which the library cannot
->    control — the warning is the only remedy.
->
-> With the TTL agent loaded, `getTtlExecutorService` returns the original object directly: no
-> wrapper, no double capture, no warning needed.
+  the TTL side is fixed**.
 
 ## 7. Contracts
 
@@ -405,7 +383,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 | L5 | **Attribution unchanged**: exceptions thrown by user executions (including self-wrapping) attribute `USER_FAILURE`; no new `TaskTermination` vocabulary |
 | L6 | **Independent snapshots**: each `prepare` captures its context snapshot independently, never reused across tasks (P6) |
 | L7 | **`execute()` only**: submissions to user executors MUST call `execute(Runnable)` and MUST NOT call `submit()` (P8); when rejected, the future MUST be terminated (inline fallback or `SubmissionException`) — never returning a never-completing object. **Any** failure thrown by a submission call — including an `Error` thrown directly in breach of contract — MUST likewise terminate that prepared future with `SubmissionException`: no worker holds it, and after the throw no other path can complete it. "Any failure" covers `Throwable` literally: `execute(Runnable)` declares no checked exceptions, but an executor can smuggle one through generic erasure, so every catch point uniformly catches `Throwable` (initial window and sliding-window refill in `SlidingWindowSubmitter`, single submissions and group members in the shared kernel `ExecutionPhaseHintFuture.submitPrepared`, with the original throwable always kept as cause). A handoff `Error` is diagnosed once at SEVERE at the catch point that records it, the message carrying batch/member identity and phase; the batch path does not go through `submitPrepared`, so the same failure is never recorded twice. Ordinary rejections are control flow and are not logged |
-| L8 | **Refuse discarding rejection policies at registration**: when a registered `ThreadPoolExecutor` uses `DiscardPolicy` / `DiscardOldestPolicy`, `ParRuntime.Builder.build()` MUST fail with `IllegalArgumentException`, naming the Par id, the pool class, and the policy class in the message. These two policies "accept then discard": they neither execute nor throw `RejectedExecutionException`, while the submission kernel treats only the latter as a terminal signal, so `Par.map` and TaskGroup would wait forever (P10/L7). `AbortPolicy` (rejection becomes `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (tasks execute inline) are unaffected. The guard reads the supplied object once at registration: handlers installed after `build()`, custom discarding handlers, and wrappers the library cannot see through are all outside its coverage — those shapes remain constrained only by U2 |
+| L8 | **Refuse discarding rejection policies at registration**: when a registered `ThreadPoolExecutor` uses `DiscardPolicy` / `DiscardOldestPolicy`, `ParRuntime.Builder.build()` MUST fail with `IllegalArgumentException`, naming the Par id, the pool class, and the policy class in the message. These two policies "accept then discard": they neither execute nor throw `RejectedExecutionException`, while the submission kernel treats only the latter as a terminal signal, so `Par.map` and TaskGroup would wait forever (P10/L7). `AbortPolicy` (rejection becomes `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (tasks execute inline) are unaffected. The guard reads the supplied object — TTL-unwrapped, so a wrapped pool cannot slip past — once at registration: handlers installed after `build()`, custom discarding handlers, and wrappers the library cannot see through are all outside its coverage — those shapes remain constrained only by U2 |
 
 ### 7.2 User-side constraints
 
@@ -458,15 +436,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 | Promising to propagate arbitrary `ThreadLocal`s/MDC | The propagation set is closed (A3) |
 | Optional Listening wrapping | `ListenableFuture` is an internal implementation detail; the external contract is `TaskBatchResult`/`TaskGroupResult` |
 
-## 11. Landing status
-
-1. ~~TTL wrapper detection~~ — landed (see §6's landing record);
-2. This document + the `design/AGENTS.md` index + `CHANGELOG.md` — documentation final (the
-   zero-SPI direction); the CHANGELOG records the detection and L8 fixes above;
-3. User documentation (en/zh): self-wrapping rules and examples (§5), wiring metrics from
-   observation snapshots; `idea-graveyard` carries the SPI deferral record.
-
-## 12. References
+## 11. References
 
 - [first-principles.md](first-principles.md): axioms and evaluation criteria
 - [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md): rejection records

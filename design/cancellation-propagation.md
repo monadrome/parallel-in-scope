@@ -2,56 +2,48 @@
 
 > The correctness of `CancellationToken.bind` depends on a set of Guava cancellation-propagation
 > semantics that are not intuitive. This document records those mechanics and their correct use.
-> Every conclusion has been verified line by line against the `guava-33.6.0-jre` source, with
-> source locations appended per section.
+> Every conclusion has been verified line by line against the `guava-33.7.2-jre` source (the
+> version the parent POM pins), with source locations appended per section.
 > For how the cancellation mechanism's layers connect and which contract owns each question, see
 > the [cancellation model overview](cancellation-model.md).
 
-## 1. The current bind shape
+## 1. The bind protocol
 
-```java
-public <T> void bind(
-        List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
-    // The deadline lives inside the token (min'ed with the parent at construction); bind no
-    // longer takes a Duration.
-    // Unified cancel handle: successfulAsList stays pending until every input completes, so at
-    // the moment "one member has failed" it is still pending, and cancelling it cascades to all
-    // inputs.
-    ListenableFuture<?> allFutures =
-            Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
+`bind` connects one already-constructed token to the submitted work and arms its deadline. The
+deadline lives inside the token — min'ed with the parent at construction — so bind takes no
+duration. The protocol assembles four roles:
 
-    // Event sources must be distinguished by source, never guessed by exception type: a business
-    // body may legitimately throw TimeoutException.
-    // The allAsList callback is the only FAIL_FAST source; the explicitly scheduled timer task is
-    // the only TIMEOUT source.
-    ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
-    // An already-terminal token is not armed: no transition can win anymore and the deadline is
-    // meaningless; its cancellation still arrives intact through the futureToken/setFuture bridge
-    // and the onFailure callback. Skipping also keeps a terminal token's bind from touching a
-    // scheduler that may already be closed with its owning runtime (group start race).
-    if (deadlineNanos != Long.MAX_VALUE && state() == RUNNING) {
-        // Fall back to the caller's scheduler when the domain scheduler is retired; when both
-        // reject, absorb if the token concurrently went terminal (return null — terminal already
-        // implies cancellation and the timer has nothing to do), and throw only if still RUNNING:
-        // silently dropping a live deadline violates the timeout contract (§5.2).
-        @Nullable ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
-            transitionTo(TIMEOUT);
-            cancelBoundWork(allFutures); // always cancel(true): every cancellation interrupts
-        }, remaining);
-        // Any terminal path completes futureToken, where the scheduled task is cancelled, so a
-        // shared timer does not pin a terminal token until its deadline; the absorb path returns
-        // null and has nothing to attach.
-        if (timeoutHandle != null) {
-            futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
-        }
-    }
-    Futures.addCallback(businessOutcome, new FutureCallback<>() {
-        onSuccess: transitionTo(SUCCESS);
-        onFailure: transitionTo(FAIL_FAST); cancelBoundWork(allFutures);
-    }, directExecutor());
-    futureToken.setFuture(businessOutcome);
-}
-```
+- **Unified cancel handle**: a still-pending aggregate built as
+  `successfulAsList(successfulAsList(futures), submitCanceller)`. `successfulAsList` stays
+  pending until every input completes, so at the moment "one member has failed" it is still
+  pending, and cancelling it cascades to all inputs, including the submit canceller (§3). Every
+  cancelling transition cancels this one handle with `cancel(true)` — every framework
+  cancellation interrupts (§5.1).
+- **Business outcome**: `allAsList(futures)`, observed through a direct-executor `addCallback`:
+  `onSuccess` commits `SUCCESS`; `onFailure` commits `FAIL_FAST` and cancels the cancel handle.
+  The `allAsList` callback is the only FAIL_FAST source — event sources are distinguished by
+  source, never guessed by exception type, because a business body may legitimately throw
+  `TimeoutException`.
+- **Deadline timer**: when the token has a deadline and is still `RUNNING`, the timeout action
+  (commit `TIMEOUT`, then cancel the handle) is scheduled on the token tree's domain scheduler,
+  with the caller's scheduler as the fallback for tokens that carry no domain scheduler or whose
+  domain retired with its runtime, and the absorb-or-throw rule for a double rejection (§5.2).
+  TIMEOUT attribution is deadline-owned: the already-expired bind check and the scheduled
+  deadline action are the framework TIMEOUT paths, and a business `TimeoutException` is not
+  framework TIMEOUT. An already-expired deadline commits `TIMEOUT` and cancels the bound work
+  synchronously before bind returns, arming no timer. An already-terminal token arms nothing:
+  no transition can win anymore, and its cancellation still arrives intact through the
+  futureToken bridge and the `onFailure` callback; skipping also keeps a terminal token's
+  bind from touching a scheduler that may already be closed with its owning runtime (group start
+  race).
+- **futureToken bridge**: the token's own completion future is connected to the business outcome
+  with `setFuture`, so cancel-before-bind still reaches the chain and a second bind does no
+  collateral damage (§4). Any terminal path completes `futureToken`, where the scheduled timer
+  handle is revoked, so a shared timer does not pin a terminal token until its deadline.
+
+bind runs before submission: a submission can execute inline on the submitting thread, and the
+armed deadline is that path's only source of liveness (the bind-before-submit invariant,
+[ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)).
 
 Three shape constraints determine this form (mechanics in §2/§3, rules collected in §7):
 
@@ -61,10 +53,12 @@ Three shape constraints determine this form (mechanics in §2/§3, rules collect
 2. **The unified cancel handle must be a still-pending aggregate future (`successfulAsList`)**:
    `allAsList` goes terminal at the first failure/cancellation, and calling `cancel` on a
    completed future is a no-op that cannot cascade to inputs (§3).
-3. **The timer task is the only TIMEOUT source**: historically `allAsList` was wrapped in
-   `withTimeout` and attribution was done by `instanceof TimeoutException`; a business
-   `TimeoutException` was misrecorded as a framework TIMEOUT. `withTimeout` is still used in
-   `Task.withTimeout` derived views; it no longer plays a token-attribution role.
+3. **The armed deadline is the only framework TIMEOUT source**: the already-expired bind check
+   and the scheduled deadline action commit `TIMEOUT`; a business `TimeoutException` is not
+   framework TIMEOUT. Historically `allAsList` was wrapped in `withTimeout` and attribution was
+   done by `instanceof TimeoutException`; a business `TimeoutException` was misrecorded as a
+   framework TIMEOUT. `withTimeout` is still used in `Task.withTimeout` derived views; it no
+   longer plays a token-attribution role.
 
 ## 2. Mechanic one: cancellation and failure travel on two different paths
 
@@ -104,8 +98,9 @@ fallback is dead code on this path.
 ### 2.2 Bottom-up: cancellation enters the fallback as CancellationException
 
 When a member future is cancelled directly, cancellation travels from the chain base upward:
-input cancelled → `transform`'s `run()` runs `cancel(false)` on itself for the cancelled input
-(`AbstractTransformFuture.run()`, source comment "inputFuture is cancelled... cancel(false)")
+input cancelled → `transform`'s `run()` completes the output as cancelled for a cancelled input
+(`AbstractTransformFuture.run()` mirrors the cancelled input through `setFuture`, which
+preserves the cancellation while clearing the interrupt bit)
 → by the time it reaches catchingAsync the input is cancelled but the output is not →
 `getDone(input)` throws `CancellationException` → caught by `catch (Throwable t)` (the source
 comment says *"this includes CancellationException"*) → `exceptionType` is `Throwable.class` →
@@ -115,10 +110,10 @@ The same fallback: does not run top-down, runs bottom-up. Direction decides beha
 
 ### 2.3 addCallback: cancellation enters onFailure too
 
-`Futures.CallbackListener.run()` calls `getUninterruptibly` on the future; a cancelled future
-throws `CancellationException` (a RuntimeException) → `catch (RuntimeException | Error e)` →
-`onFailure(e)` is invoked. **Both directions enter onFailure** — this is the essential
-difference between addCallback and the catching family.
+`Futures.CallbackListener.run()` reads the future uninterruptibly through `getDone`; a
+cancelled future throws `CancellationException` (a RuntimeException), which lands in the
+catch-all `Throwable` branch → `onFailure(e)` is invoked. **Both directions enter
+onFailure** — this is the essential difference between addCallback and the catching family.
 
 ## 3. Mechanic two: the aggregate future's cancellation cascade (allAsList ≠ successfulAsList)
 
@@ -164,8 +159,9 @@ is preserved along the chain via `wasInterrupted()`:
   semantics of "completing as cancelled", not "requesting cancellation", and should not carry
   interruption
 - The `cancel(false)` contract: the cascade proceeds as usual, but running tasks are not
-  interrupted. This library's cancellation paths do not use it (§5.1); it appears only inside
-  the "completing as cancelled" mirror and combiners
+  interrupted. This library's cancellation paths do not use it on work futures (§5.1); inside
+  Guava it appears only in the "completing as cancelled" mirror, in combiners, and to revoke
+  scheduled timer tasks
 
 ## 5.1 Every framework cancellation interrupts
 
@@ -309,30 +305,29 @@ attribution and sealing protocols); requiring immutable options to clear the sou
 automatically (the source field is held for the request's lifetime anyway).
 Historical source: `proposal:P0001`; the removal of the interruption parameter is in §5.1.
 
-Claims rejected in review (2026-11-04, the three review rounds of §5.1's interruption-intent
-removal): counting the second cancellation from a terminal-race loser was requested — the loser
-only calls `futureToken.cancel(true)` once more; that future's value is never read, its
-listeners (parent propagation, timer revocation) all re-read state, and with SUCCESS already
-committed parent propagation is a no-op, equivalent to not calling. Supporting `cancel(false)`
-for adopted members was requested — the public surface has no member handle and adopted members
-are not handed to executors, so there is no selectable interruption intent. An earlier
-clock-domain review rejected "upgrading every ordinary bound direct-cancel or parent-propagated
-`cancel(false)` to `true`": Guava first cancels the inputs with `wasInterrupted()=false` along
-the futureToken→allAsList chain, and the aggregate callback's `cancel(true)` landing on an
-already-terminal future is a no-op — reverse verification passed entirely on the old code; that
-distinction lost its object with §5.1's intent removal and is not reopened. The same round also
-rejected "the combine timeout regression must assert token attribution": the review's fault
-injection wrote the batch decision directly as `TIMEOUT`, which the production path cannot
-reach (only the timer can commit `TIMEOUT`), while a business `TimeoutException` is always
-FAILED(USER_CODE_FAILURE) by contract, independent of token state.
+Claims rejected in review: counting the second cancellation from a terminal-race loser was
+requested — the loser only calls `futureToken.cancel(true)` once more; that future's value is
+never read, its listeners (parent propagation, timer revocation) all re-read state, and with
+SUCCESS already committed parent propagation is a no-op, equivalent to not calling. Supporting
+`cancel(false)` for adopted members was requested — the public surface has no member handle and
+adopted members are not handed to executors, so there is no selectable interruption intent.
+Upgrading every ordinary bound direct-cancel or parent-propagated `cancel(false)` to `true` was
+rejected — Guava first cancels the inputs with `wasInterrupted()=false` along the
+futureToken→allAsList chain, and the aggregate callback's `cancel(true)` landing on an
+already-terminal future is a no-op; that distinction lost its object with §5.1's intent removal
+and is not reopened. Requiring the combine timeout regression to assert token attribution was
+rejected — the review's fault injection wrote the batch decision directly as `TIMEOUT`, which
+the production path cannot reach (only the armed deadline can commit `TIMEOUT`), while a
+business `TimeoutException` is always FAILED(USER_CODE_FAILURE) by contract, independent of
+token state.
 
 ## 6. Cheat sheet
 
 | API | Input cancelled | Output cancelled |
 |---|---|---|
-| `transform` | `cancel(false)` on itself in `run()`, propagates upward | `afterDone` propagates to the input |
+| `transform` | Output completes as cancelled in `run()` (mirrors the cancelled input, no interruption) | `afterDone` propagates to the input |
 | `catching` / `catchingAsync` | Output not cancelled: fallback runs with `CancellationException`; output cancelled: early return | Propagates to the input; fallback does not run |
-| `withTimeout` | Fire → `cancel(false)` | Cancels the delegate + the timer task |
+| `withTimeout` | `Fire` mirrors the cancelled delegate into the output (no interruption) | Cancels the delegate + the timer task |
 | `addCallback` | `onFailure(CancellationException)` | `onFailure(CancellationException)` |
 | `allAsList` | Itself becomes cancelled-terminal, no cascade | Cascades to all while pending; no-op once failed |
 | `successfulAsList` | Stays pending | Cascades to all |
@@ -393,7 +388,7 @@ runs only while the holder is non-null.
 - bind-before-submit, first-wins attribution, and deadline-min propagation do not pass through
   the holder and are unaffected by severing.
 
-## Source index (guava-33.6.0-jre)
+## Source index (guava-33.7.2-jre)
 
 | Conclusion | Location |
 |---|---|
@@ -401,7 +396,7 @@ runs only while the holder is non-null.
 | setFuture cancels its argument on an already-cancelled future | `AbstractFuture#setFuture` |
 | cancel propagates into DelegatingToFuture | `AbstractFuture#cancel` |
 | catching's isCancelled early return / catch Throwable includes cancellation | `AbstractCatchingFuture#run` |
-| transform's cancel(false) for a cancelled input | `AbstractTransformFuture#run` |
+| transform's setFuture mirror of a cancelled input | `AbstractTransformFuture#run` |
 | Timer cleared when the timeout output is cancelled | `TimeoutFuture#afterDone`, `TimeoutFuture.Fire#run` |
 | Aggregate future cancellation cascade | `AggregateFuture#afterDone` |
 | allAsList's self-cancellation for a cancelled input | `AggregateFuture#processAllMustSucceedDoneFuture` |

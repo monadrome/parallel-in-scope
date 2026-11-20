@@ -219,16 +219,10 @@ batch. Historical source: `proposal:P0010`; the remaining executor-diagnostic di
 
 ### 9.3 Code organization
 
-```text
-io.github.monadrome.parallelinscope/
-  GroupDraft.java                 // the chained draft, implementing the three public step interfaces
-  TaskGroup.java                  // the package-private run object
-  TaskGroupDefinition.java        // the package-private frozen structure
-  TaskGroupResult.java
-  TaskExitObservation.java
-  TaskTermination.java
-  TaskSubmissions.java            // the package-private prepare / submitScoped two-phase kernel
-```
+The group's declaration, run, definition, and result types all live in the root package next
+to the shared kernel — one package, with the public surface and the package-private kernel
+boundary owned by §3 of [API and options](task-group-api-and-options.md); no conceptual
+subpackage is introduced for the group path.
 
 `ParName` was renamed `ParId` and kept: the v0.3 redesign once proposed deleting `ParName` and
 having endpoints take bare `String`, and review rejected it — the value type is the only

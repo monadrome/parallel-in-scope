@@ -144,15 +144,14 @@ Cover Java 8 compile-time positive and negative cases, parameterized types, keys
 inside generic methods, nullable values, identity addressing, cross-run reuse, duplicate
 declarations not consuming stages, stale/cross-thread stages, and foreign runtimes — plus, for
 both terminal input forms, success gating, explicit options, cancellation, TTL, rejection, and
-bounded cleanup. External consumption, independent read-only review, reverse verification, and
-scoped PIT are reported separately; none can substitute for another.
+bounded cleanup. Dynamic name/position queries keep their own boundary coverage and cannot be
+replaced by key tests. External consumption, independent read-only review, reverse
+verification, and scoped PIT are reported separately; none can substitute for another.
 
 ## 9. Review and verification lessons
 
-After landing, the change went through three independent adversarial review rounds (fresh seat
-each round, reading the previous round's baseline first) and one PIT mutation run; all 16
-review findings were confirmed and fixed. The per-item transcript is no longer archived; the
-generalizable lessons worth keeping:
+Generalizable lessons from this change's review and verification rounds; per-item transcripts
+are not archived.
 
 **"Caller listeners must not block framework convergence" is a defect family, not a single
 site.**
@@ -183,66 +182,34 @@ combines made the latter win while the former was discarded without an error.
   (let a later-declared member finish first), and the order must be established by observation
   (seeing futures terminate first), not by timing luck inside executions.
 - Reverse verification (revert the fix, watch the test go red) only covers changed lines; zero
-  coverage on critical paths went unnoticed by three review rounds plus per-fix reverse
-  verification — it was PIT that found it. Mutation testing asks a different question: "do
-  these tests bite". The two complement each other and are both process steps in the root
-  AGENTS.md's Adversarial Review.
-- PIT survivors must be classified one by one: equivalent mutants (for example a boundary
+  coverage on critical paths can go unnoticed by review plus per-fix reverse verification —
+  mutation testing is what asks "do these tests bite". The two complement each other and are
+  both process steps in the root AGENTS.md's Adversarial Review.
+- Mutation survivors must be classified one by one: equivalent mutants (for example a boundary
   condition flipped where `List.get` throws anyway) are not gaps; reporting equivalent mutants
   as gaps costs the reader's trust more than a missed report does.
 - Hand-written stubs can make the mechanism under test spin idle or even hang (see the
   "Historical lessons" section of [interruption-contract.md](interruption-contract.md));
   critical paths use real implementations.
 
-### Review and verification of typed keys
-
-An independent read-only Codex CLI harness in the cmux `task-key-review` workspace checked the
-typed-key contract item by item, covering Java 8, generics, identity, lifecycle, cancellation,
-and terminal inputs; no implementation defect was confirmed. The following test findings were
-all kept and corrected:
+**Assertion-shape lessons from the typed-key rounds:**
 
 - Asserting only terminal non-success cannot rule out a failed member still triggering the
-  terminal submission. Changed to also require `FAIL_FAST` and zero submissions on the
-  terminal executor, so an input-assembly failure cannot mask a success-gating error.
-- Asserting only `TIMEOUT` cannot distinguish an explicit member budget from the group budget.
-  Added a convergence bound well before the group deadline; temporarily dropping the explicit
-  options made the test actually fail, and restoring them made it pass.
-- Coverage of the old combine cannot substitute for the new value-view entry. Added
-  cancel-before-join, cancel-while-terminal-running, and terminal rejection, checking key
-  results, submission or invocation counts, and execution-exit confirmation respectively.
-- Cooperative interrupt exit cannot prove bounded cleanup. Used a separate latch to hold
-  executions unexited, observed cleanup's return and the unexited summary through a bounded
-  `Future.get`; the finally releases the executions, confirms exit, drains the finish worker,
-  and closes the scope. Re-review noted that calling finish synchronously could hang the test
-  on failure, so it was changed to the controlled worker above and confirmed to have no
-  blocking finding.
-- The reverse verification of key identity queries temporarily switched to name-based lookup,
-  and the same-name key impersonation test actually failed; restoring reference identity made
-  it pass.
+  terminal submission — also require `FAIL_FAST` and zero submissions on the terminal
+  executor, so an input-assembly failure cannot mask a success-gating error.
+- Asserting only `TIMEOUT` cannot distinguish an explicit member budget from the group budget
+  — add a convergence bound well before the group deadline.
+- Coverage of a replaced entry cannot substitute for its successor: the value-view entry needs
+  its own cancel-before-join, cancel-while-terminal-running, and rejection cases, checking key
+  results, submission or invocation counts, and execution-exit confirmation.
+- Cooperative interrupt exit cannot prove bounded cleanup: hold executions unexited with a
+  separate latch, observe cleanup's return and the unexited summary through a bounded
+  `Future.get`, and run finish on a controlled worker rather than synchronously, so a failure
+  cannot hang the test.
+- Reverse verification of identity addressing temporarily resolves keys by name, making the
+  same-name key impersonation test fail until reference identity is restored.
 
-The historical verification scores of the type-token implementation do not carry over to the
-implementation after type-token removal; the latter was verified and reviewed separately.
-
-### Re-review without runtime type tokens
-
-Independent read-only gpt-6-astra checked generics, Java 8, identity queries, draft guards,
-result freezing, and cancellation/terminal interleavings against this document's MUST/MUST
-NOT, finding no production-code defect. Two documentation findings were kept and corrected:
-the terminal contract still described the removed string-plus-type declaration; this document
-misstated the construction timing of the combineValues input as after the whole group
-succeeded. The corrected text describes key declarations and "the input built after all
-ordinary members succeed, the aggregate values published after the whole group succeeds"
-respectively. These corrections do not change execution behavior. A CLI review that could not
-complete due to connection retries does not count as a passing independent review.
-
-With type-token tests removed, boundary coverage of dynamic name/position and nullable slots
-must be kept independently and cannot be replaced by key tests. Reverse verification
-temporarily resolved keys by name and the same-name key impersonation test failed; restoring
-reference identity made the full suite pass. This round's scoped PIT covered TaskKey,
-GroupValues, and TaskGroupResult, including VOID_METHOD_CALLS. The remaining survivors are
-only the value view's and result's positional bounds/explicit checks: the underlying lists
-still throw the same exception types the contract requires, equivalent under the existing
-value and exception-type contract. The only uncovered mutation is GroupValues.toString's
-diagnostic-text return value; no claim is made that this branch or the scheduling kernel's
-full mutation space is covered. Real JDK 8 consumption and behavior tests are verified
-separately.
+**Verification does not carry across reimplementation.** The type-token implementation's
+verification results do not carry over to the type-token-free implementation; each shape —
+including the documents describing it — was verified and reviewed separately. The current
+combineValues semantics are owned by §5.
