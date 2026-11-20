@@ -1,0 +1,246 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-19-enum-singletons",
+  "date": "2026-11-19",
+  "topic": "enum-singletons",
+  "routes": [
+    "contract",
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "refactor: reuse successful and empty scope objects",
+      "refactor: document shared scope instances",
+      "refactor: share the zero-count execution tracker",
+      "refactor: suppress enum holder immutability warnings"
+    ],
+    "files": 4,
+    "insertions": 42,
+    "deletions": 5
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "enum-singletons-e0bd5a87-20261119-235655-47b6af",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 11607,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 258241,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "enum-singletons-7728c23f-20261120-001217-886ae3",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 12847,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 240273,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "enum-singletons-63e62fe6-20261120-001956-855074",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 401010,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-enum-singletons-2026-11-19",
+        "head": "06118b7d59dfbb87df89f9dc3ec304815da610ab",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "check-race-claims.py": 1,
+      "review-cli-launch": 1,
+      "review-cli-build": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "pit-enum-singletons/final-create-zero/mutations.xml",
+      "statuses": {
+        "KILLED": 88,
+        "SURVIVED": 4
+      },
+      "total": 92,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Final Kiro review completed with zero findings; Codex failed twice in each of two earlier rounds with empty output; PIT retains three equivalent boundary mutants and one tool blind spot proven by direct reverse verification; local JDK 11 unavailable"
+}
