@@ -778,8 +778,9 @@ public class CancellationTokenTest {
 
     @Test
     public void childCancelledBeforeParentKeepsItsOwnOutcome() {
-        // First-wins: a child that already committed SUCCESS is severed from the parent link, and a
-        // later parent cancel(false) neither rewrites its state nor cancels its recorded work.
+        // First-wins: a child that already committed SUCCESS has released its parent cancellation
+        // link's child reference, and a later parent cancel(false) neither rewrites its state nor
+        // cancels its recorded work.
         CancellationToken parent = CancellationToken.create();
         CancellationToken child = new CancellationToken(parent);
         InterruptRecordingFuture childWork = new InterruptRecordingFuture();

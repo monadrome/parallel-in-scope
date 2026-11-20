@@ -17,7 +17,7 @@ settles.
 | Layer | Responsibility | Kernel mechanism | Authoritative contract |
 |---|---|---|---|
 | Decision | Who cancels first, and why | The first-wins state machine of `CancellationToken` (package-private) | [cancellation propagation](cancellation-propagation.md) §5, §8 |
-| Propagation | Deliver the decision to bound futures and child scopes | `bind()`'s combined futures, `ParentLink`, the Guava cascade | [cancellation propagation](cancellation-propagation.md) §1–§4 |
+| Propagation | Deliver the decision to bound futures and child scopes | `bind()`'s combined futures, `ParentCancellationLink`, the Guava cascade | [cancellation propagation](cancellation-propagation.md) §1–§4 |
 | Execution | Whether an execution may enter, interrupt delivery, thread handoff | `ExecutionPhaseHintFuture`, `TaskExecutionState` | [interruption contract](interruption-contract.md) §2.3–§2.4, [runner interrupt delivery](runner-interrupt-delivery.md) |
 | Cooperation | Executions observe cancellation and exit | `Checkpoints`' checkpoints and blocking adapters | [interruption contract](interruption-contract.md) §3.1 |
 | Attribution | Map token state to `TaskTermination` | `TokenOutcomes`, the settle pin | [group cancellation](task-group-cancellation.md) §8.4.1, [settle attribution](batch-settle-attribution.md) |
@@ -36,7 +36,7 @@ There are exactly four sources of execution cancellation
   late timer.
 - **Fail-fast**: the failure callback of the arbiter in `bind()` is the only source of
   `FAIL_FAST`.
-- **Ancestor cancellation**: after the parent token goes terminal, a `ParentLink` submits the
+- **Ancestor cancellation**: after the parent token goes terminal, a `ParentCancellationLink` submits the
   child's `PROPAGATED_CANCELLED`.
 - **Request source**: a `cancelOn(ListenableFuture)` completing in any way submits `CANCELLED`
   ([cancellation propagation](cancellation-propagation.md) §5.4).
@@ -57,9 +57,10 @@ The order below is the seam between the contracts; no change may disturb it:
    ([ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)).
    Inline executions and deadlines expiring mid-submission are therefore covered.
 2. **The source decides**: the source calls `transitionTo`; one `compareAndSet(RUNNING,
-   terminal)` decides the winner, and losers do not change state. The winner severs the parent
-   link and the request-source link in turn, and notifies state listeners synchronously; the
-   group uses this moment to escalate a member's `TIMEOUT` onto the group token
+   terminal)` decides the winner, and losers do not change state. The winner releases the parent
+   cancellation link's child reference and severs the request-source link in turn, and notifies
+   state listeners synchronously; the group uses this moment to escalate a member's `TIMEOUT` onto
+   the group token
    ([group cancellation](task-group-cancellation.md) §8.4 step 4).
 3. **The cascade**: `cancelBoundWork` calls `cancel(true)` on the still-incomplete combined
    handle, and Guava then cancels the inputs and the submission loop one by one. Every

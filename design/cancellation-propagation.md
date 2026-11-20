@@ -169,7 +169,7 @@ MUST: every framework-initiated cancellation — deadline, fail-fast, explicit a
 cancellation, ancestor propagation — cancels bound work with `cancel(true)` and interrupts
 running executions. The token records no interruption intent: terminal states are only states,
 `transitionTo` commits with one `compareAndSet(RUNNING, terminal)`, and state listeners run only
-after the CAS succeeds. `ParentLink.parentFinished()` commits the child's
+after the CAS succeeds. `ParentCancellationLink.parentFinished()` commits the child's
 `PROPAGATED_CANCELLED` first, then cancels the child's `futureToken` with `cancel(true)`;
 cascade cancellation uniformly goes through `cancelBoundWork`, calling `cancel(true)` on
 `allFutures`. First-wins is unchanged: an already-terminal child is unaffected by parent
@@ -351,42 +351,43 @@ token state.
    already-terminal future is a no-op, so a repeated cascade is harmless while skipping loses
    cancellations. `cancelBoundWork` is always `cancel(true)` (§5.1).
 
-## 8. Terminal severing of the parent listener (the result-retention contract)
+## 8. Terminal release of the parent listener's child reference (the result-retention contract)
 
 The implementation shape of parent→child cancellation propagation: at child-token construction
 a listener is registered on `parent.futureToken`; that listener **does not capture the child
-token directly** but reaches it through the severable private holder `ParentLink` (holding the
-parent and a nullable child). When the parent future dispatches its terminal state, propagation
-runs only while the holder is non-null.
+token directly** but reaches it through the private holder `ParentCancellationLink` (holding the
+parent and a nullable child), whose child reference can be explicitly released. When the parent
+future dispatches its terminal state, propagation runs only while the child reference is non-null.
 
 - MUST: when the child token wins any terminal transition in `transitionTo` (SUCCESS, TIMEOUT,
-  FAIL_FAST, CANCELLED, PROPAGATED_CANCELLED), it severs the holder (child set to null), so a
-  completed child token is no longer strongly referenced by the still-running parent token's
-  pending listener list.
+  FAIL_FAST, CANCELLED, PROPAGATED_CANCELLED), it releases the holder's child reference (sets the
+  child to null), so a completed child token is no longer strongly referenced by the still-running
+  parent token's pending listener list.
 - MUST NOT: the parent-side listener must not strongly reference the child token through a
   lambda capture or method reference. Otherwise a still-running parent token would retain every
   completed child's token through its own non-terminal listener list, and with it the success
   result list on the child's `futureToken` (historical successful child calls' results would
   then be retained in proportion to call count instead of active child scope count).
-- MUST NOT: do not use `WeakReference` in place of explicit severing. Propagation must remain
-  effective for a still-RUNNING child even after user code has dropped the child handle; a weak
-  reference would silently lose propagation at exactly that moment.
+- MUST NOT: do not use `WeakReference` in place of explicit child-reference release. Propagation
+  must remain effective for a still-RUNNING child even after user code has dropped the child
+  handle; a weak reference would silently lose propagation at exactly that moment.
 - MUST: at construction, install the holder first, then register the parent listener. The
   parent future may already be terminal, in which case the listener runs synchronously inside
   `addListener` and makes the child commit `PROPAGATED_CANCELLED`; the holder must already be
-  visible for that synchronous terminal transition to sever it, otherwise an unsevered link
-  survives construction.
+  visible for that synchronous terminal transition to release its child reference, otherwise the
+  reference survives construction.
 - Residue (accepted): while the parent runs, its listener stack still accumulates one
-  `ParentLink` node per historical (terminal) child batch. The business results are released;
-  a node is a small constant per child; the release boundary remains the parent future's
+  `ParentCancellationLink` node per historical (terminal) child batch. The business results are
+  released; a node is a small constant per child; the release boundary remains the parent future's
   terminal state.
-- Race: the parent's terminal dispatch and the child's terminal severing can be concurrent.
-  Severing is GC hygiene, not a synchronization protocol: the decision point is still the
-  child's terminal CAS — while the child is RUNNING the holder is non-null and propagation
-  proceeds; once the child is terminal, propagation was already a no-op (the CAS fails, or
-  cancelling an already-terminal future is a no-op). Severing changes no observable behavior.
+- Race: the parent's terminal dispatch and the child's terminal reference release can be
+  concurrent. Releasing the child reference is GC hygiene, not a synchronization protocol: the
+  decision point is still the child's terminal CAS — while the child is RUNNING the holder's child
+  reference is non-null and propagation proceeds; once the child is terminal, propagation was
+  already a no-op (the CAS fails, or cancelling an already-terminal future is a no-op). Reference
+  release changes no observable behavior.
 - bind-before-submit, first-wins attribution, and deadline-min propagation do not pass through
-  the holder and are unaffected by severing.
+  the holder and are unaffected by child-reference release.
 
 ## Source index (guava-33.7.2-jre)
 
