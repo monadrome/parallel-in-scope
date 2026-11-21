@@ -4,6 +4,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.monadrome.parallelinscope.BatchOptions;
 import io.github.monadrome.parallelinscope.Checkpoints;
+import io.github.monadrome.parallelinscope.ContextPropagation;
+import io.github.monadrome.parallelinscope.ContextSnapshot;
 import io.github.monadrome.parallelinscope.GroupValues;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.Par;
@@ -39,6 +41,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Timeout(value = 15, unit = TimeUnit.SECONDS)
 class MavenCentralConsumerTest {
+
+    /** Custom providers propagate on Java 8 without requiring any TTL types in application source. */
+    @Test
+    void customContextProviderRestoresBorrowedWorker() throws Exception {
+        ThreadLocal<String> request = new ThreadLocal<>();
+        ContextPropagation propagation = () -> {
+            String captured = request.get();
+            return ContextSnapshot.of(() -> {
+                String previous = request.get();
+                request.set(captured);
+                return () -> {
+                    if (previous == null) {
+                        request.remove();
+                    } else {
+                        request.set(previous);
+                    }
+                };
+            });
+        };
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("context"), executor)
+                .contextPropagation(propagation).build()) {
+            executor.submit(() -> request.set("worker")).get(5, TimeUnit.SECONDS);
+            request.set("request");
+            TaskBatchResult<String> result = runtime.par(ParId.of("context")).map(Arrays.asList(1, 2),
+                    ignored -> request.get(), BatchOptions.timeout("context", Duration.ofSeconds(5)));
+            assertEquals(Arrays.asList("request", "request"), result.valuesOrThrow());
+            assertEquals("worker", executor.submit(request::get).get(5, TimeUnit.SECONDS));
+            assertEquals("request", request.get());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
     private static final ParId CONSUMER = ParId.of("consumer-pool");
 

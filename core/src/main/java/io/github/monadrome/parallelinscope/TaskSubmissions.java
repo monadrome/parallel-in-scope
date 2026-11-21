@@ -1,13 +1,12 @@
 package io.github.monadrome.parallelinscope;
 
-import com.alibaba.ttl.TtlCallable;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 
 /**
  * Prepares scoped tasks and hands them to executors under their submission policy.
  *
- * <p>Preparation captures TTL context and attaches lifecycle observations without executing the
+ * <p>Preparation captures application context and attaches lifecycle observations without executing the
  * execution. Submission installs only the unit's enqueue policy; executor handoff failures are recorded
  * without entering user code. Callers own cancellation binding and the choice of submission order.
  */
@@ -17,10 +16,13 @@ final class TaskSubmissions {
 
     /**
      * Wraps {@code callable} with {@link ScopedCallable} instrumentation and captures the current
-     * thread's TTL context for replay on the worker thread.
+     * thread's configured application context for replay on the worker thread.
      */
     static <V> Callable<V> wrapScoped(TaskExecutionContext taskContext, Callable<V> callable) {
-        return TtlCallable.get(new ScopedCallable<>(taskContext, callable), true, true);
+        Par par = taskContext.multiTaskContext().par();
+        ContextPropagation propagation =
+                par == null ? ContextPropagation.ttl() : par.runtime().contextPropagation();
+        return ContextPropagationSupport.wrap(propagation, new ScopedCallable<>(taskContext, callable));
     }
 
     /**
@@ -29,15 +31,27 @@ final class TaskSubmissions {
      * attached here, so every later {@code Task} view of the future exposes the same observation
      * future.
      *
+     * <p>Failed capture cancels the admitted unit and releases its registered execution slot before
+     * propagating the failure; no executor or future can claim that abandoned slot afterward.
+     *
      * @param taskContext per-task execution context carrying the batch and task index
      * @param callable user task
      * @return the prepared future, still in {@code SUBMITTED} phase
      */
     static <V> ExecutionPhaseHintFuture<V> prepare(TaskExecutionContext taskContext, Callable<V> callable) {
-        ExecutionPhaseHintFuture<V> future =
-                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.executionState());
-        future.observation(TaskObservation.forTask(taskContext, future));
-        return future;
+        try {
+            ExecutionPhaseHintFuture<V> future =
+                    ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.executionState());
+            future.observation(TaskObservation.forTask(taskContext, future));
+            return future;
+        } catch (Throwable failure) {
+            taskContext.multiTaskContext().cancellationToken().cancel();
+            TaskExecutionState executionState = taskContext.executionState();
+            if (executionState != null) {
+                executionState.skipped();
+            }
+            throw failure;
+        }
     }
 
     /**

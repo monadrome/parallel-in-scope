@@ -12,7 +12,17 @@
   reference; periodic scheduled futures are not supported because successful ticks never produce a
   finite member result.
 
+- Add provider-neutral application-context propagation: configure `ParRuntime.Builder.contextPropagation`
+  with a `ContextPropagation`, create reusable `ContextSnapshot`s, and install thread-bound LIFO
+  `ContextScope`s. Ordered composition supports disjoint providers, and `none()` opts out of
+  application propagation without disabling task identity, cancellation, or deadlines. Callback
+  helpers accept explicit providers for invocation-time or registration-time capture. TTL remains
+  the default; existing callers need no migration and the TTL dependency remains present.
+
 ### Fixed
+
+- Release registered execution slots when application-context capture fails before a task future is
+  created, including batch elements, terminal combines, and group members.
 
 - Route the `ParRuntime` registration warnings (opaque executor and TTL-wrapper diagnostics) through the guarded announcements delivery like every other log station: a user JUL handler that throws can no longer alter what `build()` observes, and the warnings are delivered on the runtime's announcements executor instead of the registering thread.
 

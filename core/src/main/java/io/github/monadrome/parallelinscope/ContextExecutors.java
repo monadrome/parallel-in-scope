@@ -2,12 +2,10 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.alibaba.ttl.TransmittableThreadLocal.Transmitter;
 import java.util.concurrent.Executor;
 
 /**
- * Executors that preserve a selected Alibaba TransmittableThreadLocal (TTL) context while retaining
- * direct execution.
+ * Direct executors that preserve application context using TTL by default or an explicit provider.
  *
  * <p>{@link #directContextExecutor()} captures the TTL context at each {@link Executor#execute(Runnable)} call.
  * Each command then runs synchronously on the calling thread, with that call's context installed for
@@ -45,6 +43,18 @@ public final class ContextExecutors {
     }
 
     /**
+     * Returns an inline executor that captures the supplied provider at each execution call.
+     *
+     * @param propagation provider shared safely across unrelated execution callers
+     * @return an inline executor restoring each caller's entering context
+     * @throws NullPointerException if the provider is null
+     */
+    public static Executor directContextExecutor(ContextPropagation propagation) {
+        checkNotNull(propagation, "context propagation cannot be null");
+        return command -> runWithPropagation(propagation, command);
+    }
+
+    /**
      * Creates a direct executor bound to the current thread's TTL context.
      *
      * <p>Each command replays this creation-time snapshot and restores the execution thread's entry
@@ -55,7 +65,19 @@ public final class ContextExecutors {
      * @return an executor that replays the creation-time context for every command
      */
     public static Executor registrationContextExecutor() {
-        return new CapturedDirectExecutor(Transmitter.capture());
+        return registrationContextExecutor(ContextPropagation.ttl());
+    }
+
+    /**
+     * Captures a provider now and reuses that snapshot for inline callbacks, including concurrent calls.
+     *
+     * @param propagation provider whose registration-time context belongs to these callbacks
+     * @return an executor retaining this capture until the executor becomes unreachable
+     * @throws NullPointerException if the provider or its capture is null
+     */
+    public static Executor registrationContextExecutor(ContextPropagation propagation) {
+        return new CapturedDirectExecutor(
+                ContextPropagationSupport.capture(checkNotNull(propagation, "context propagation cannot be null")));
     }
 
     /**
@@ -67,8 +89,7 @@ public final class ContextExecutors {
 
         @Override
         public void execute(Runnable command) {
-            checkNotNull(command, "command cannot be null");
-            runWithCaptured(Transmitter.capture(), command);
+            runWithPropagation(ContextPropagation.ttl(), command);
         }
 
         @Override
@@ -78,16 +99,16 @@ public final class ContextExecutors {
     }
 
     private static final class CapturedDirectExecutor implements Executor {
-        private final Object captured;
+        private final ContextSnapshot captured;
 
-        private CapturedDirectExecutor(Object captured) {
+        private CapturedDirectExecutor(ContextSnapshot captured) {
             this.captured = captured;
         }
 
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
-            runWithCaptured(captured, command);
+            ContextPropagationSupport.run(captured, command);
         }
 
         @Override
@@ -97,20 +118,16 @@ public final class ContextExecutors {
     }
 
     /**
-     * Runs a command with a captured TTL context and restores the context that was active on entry.
+     * Validates the command before capturing invocation-time application context, then runs inline.
      *
      * <p>The command runs synchronously on the calling thread. If the command throws, its failure
      * is propagated after the entry context has been restored.
      *
-     * @param captured the non-null context to replay
+     * @param propagation the non-null provider to capture for this invocation
      * @param command the non-null command to run
      */
-    private static void runWithCaptured(Object captured, Runnable command) {
-        Object previous = Transmitter.replay(captured);
-        try {
-            command.run();
-        } finally {
-            Transmitter.restore(previous);
-        }
+    private static void runWithPropagation(ContextPropagation propagation, Runnable command) {
+        checkNotNull(command, "command cannot be null");
+        ContextPropagationSupport.run(ContextPropagationSupport.capture(propagation), command);
     }
 }

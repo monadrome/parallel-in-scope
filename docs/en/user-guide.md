@@ -683,9 +683,61 @@ causes and keeps that flag. A checkpoint that commits an inherited deadline repo
 `DEADLINE_EXCEEDED` for both the group and the member or combine that observed it; time passing
 alone does not reclassify a spontaneous business cancellation exception.
 
+### Application context providers
+
+TTL remains the default. For an application-owned context system, configure a provider once on the
+runtime instead of wrapping every task. This example propagates an immutable request identifier:
+
+```java
+ThreadLocal<String> requestId = new ThreadLocal<>();
+ContextPropagation requests = () -> {
+    String captured = requestId.get();
+    return ContextSnapshot.of(() -> {
+        String previous = requestId.get();
+        requestId.set(captured);
+        return () -> {
+            if (previous == null) {
+                requestId.remove();
+            } else {
+                requestId.set(previous);
+            }
+        };
+    });
+};
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("workers"), pool)
+        .contextPropagation(requests)
+        .build();
+```
+
+Import `ContextPropagation` and `ContextSnapshot` from `io.github.monadrome.parallelinscope`.
+The provider captures on the admission caller before any task is handed off, including window-delayed
+elements and terminal combines. Failed capture fails admission synchronously without partial task
+submission. Failed installation prevents user-code entry; restoration finishes before physical
+execution exit. Cancellation may settle a result earlier but does not transfer restoration ownership.
+
+A snapshot is reusable, including concurrently on different threads. Each installation needs its own
+backup. Close its `ContextScope` on the installing thread, in reverse installation order; wrong-thread
+and out-of-order closure throw before changing bindings. Use try-with-resources for explicit scopes.
+Providers must roll back a failed installation, preserve interruption, and keep callbacks nonblocking.
+If a task body and restoration both fail, the body failure wins and cleanup failures are suppressed.
+Restoration is attempted once even when it fails; the library cannot repair arbitrary provider state.
+
+`ContextPropagation.none()` opts out of application propagation without clearing thread state or
+disabling framework task identity, cancellation, deadlines, or submission rules. To retain TTL as
+well, configure `ContextPropagation.compose(ContextPropagation.ttl(), requests)`. Components must
+own disjoint bindings. Composition installs in order and restores in reverse order, attempting every
+restoration after failure. Binding restoration is not a deep copy of mutable context values.
+
+Callback providers are explicit, not inferred from the runtime:
+`ContextExecutors.directContextExecutor(requests)` captures at each `execute` call, while
+`ContextExecutors.registrationContextExecutor(requests)` captures once at helper creation. Both
+run inline. A registration-bound executor retains its snapshot, so keep it request-scoped, not global.
+These helpers do not automatically wrap arbitrary listeners. Existing no-argument helpers use TTL.
+
 ### MDC (SLF4J)
 
-Context propagation here is Alibaba TransmittableThreadLocal: the library captures TTL bindings when
+Default context propagation uses Alibaba TransmittableThreadLocal: the library captures TTL bindings when
 it prepares a task and replays them on the worker. MDC is an ordinary ThreadLocal, so it neither
 crosses the pool boundary nor gets captured automatically. Hold the diagnostic fields in a TTL and
 bridge them into MDC inside the execution. Copy this application-owned helper once instead of re-deriving
