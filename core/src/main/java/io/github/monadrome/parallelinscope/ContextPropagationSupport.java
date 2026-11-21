@@ -129,7 +129,7 @@ final class ContextPropagationSupport {
         }
     }
 
-    /** Preserves a provider's original JVM failure across the non-throwing Java callback signature. */
+    /** Always throws the supplied failure instance, including checked failures from Java callbacks. */
     @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
     private static <Failure extends Throwable> RuntimeException unchecked(Throwable failure) throws Failure {
         throw (Failure) failure;
