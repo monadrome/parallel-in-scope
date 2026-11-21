@@ -17,15 +17,18 @@ For each check, catch, fallback, guard, or switch the change added, name the cal
 foreign code that makes it fire:
 
 - **An external caller or foreign code** (public API, user callable or listener, executor, log
-  handler, unannotated JDK or third-party API, reflection): a trust boundary. Keep it, in the root
-  `AGENTS.md` Guava taxonomy form.
+  handler, unannotated JDK or third-party API, reflection): a trust boundary. Keep it, in the
+  Guava taxonomy form from
+  [code/prose conventions](../../.agents/skills/project-delivery/references/conventions.md).
 - **Our own code being wrong**: an internal invariant. Keep a `Verify` only when the invariant is
   non-obvious and cheap to check; otherwise delete the check and let NullAway, constructors, and
   tests carry it.
 - **Something the platform rules out**: throw `AssertionError`.
 - **Nothing**: dead code. Delete it.
 
-Never report code that restores or propagates interruption (root `AGENTS.md` P1-P4). Removing a
+Never report code that restores or propagates interruption (P1-P4, summarized in
+[`core/AGENTS.md`](../../core/AGENTS.md), with authoritative full text in
+[`design/interruption-contract.md`](../../design/interruption-contract.md)). Removing a
 check, catch, or fallback that something can reach changes behavior (R1): report it with its trigger
 as a finding for code review, not as a refactoring, and give it tier `T2`.
 

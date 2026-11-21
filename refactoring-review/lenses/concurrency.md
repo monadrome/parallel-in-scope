@@ -2,8 +2,10 @@
 
 Whether shared-state coordination in the change uses the highest mechanism that can express it.
 This file is the single source of the mechanism ladder; the root `AGENTS.md` Design Decisions
-section points here. Interruption rules P1-P4 stay in the root `AGENTS.md` and
-`design/interruption-contract.md`; this lens checks structure, not those rules' text.
+section points here. Interruption rules P1-P4 are summarized in
+[`core/AGENTS.md`](../../core/AGENTS.md); their authoritative full text stays in
+[`design/interruption-contract.md`](../../design/interruption-contract.md).
+This lens checks structure, not those rules' text.
 
 ## The Ladder
 

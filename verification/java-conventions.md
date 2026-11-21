@@ -1,8 +1,9 @@
 # Java convention gate
 
 `scripts/check-java-conventions.py` fails a change that introduces a violation
-of a Java convention already written in the "Key Conventions" section of the
-root `AGENTS.md`, which stays the authoritative wording. Before this gate,
+of a Java convention already written in the "Key Conventions" section of
+[code/prose conventions](../.agents/skills/project-delivery/references/conventions.md),
+which owns the authoritative wording; the root `AGENTS.md` routes readers there. Before this gate,
 review alone enforced these rules. The gate only reports violations a change
 adds: existing code is migrated when it is touched, as `AGENTS.md` requires,
 not by a sweep.
@@ -58,7 +59,7 @@ closed`, `TaskGroup.start was called twice`), or when the token is followed by
 optional whitespace and a quote (`Par '%s' does not belong to ...`). A
 capitalized English word such as `Invalid value` is still a violation.
 
-R3 rationale: the project uses the doubled-l family listed in `AGENTS.md`
+R3 rationale: the project uses the doubled-l family listed in code/prose conventions
 (`cancelled`, `cancelling`, `canceller`, `cancellable`, `signalling`,
 `labelled`). Third-party names and dated records keep their original
 spellings; they already exist in the base, so baseline subtraction passes
@@ -71,7 +72,7 @@ single-l word elsewhere on the same line is still reported. An acronym prefix
 such as `URLCanceledTask` is still reported because it is a new local name,
 not a mandated one.
 
-R4 rationale: `AGENTS.md` prefers `Preconditions.checkNotNull` over
+R4 rationale: code/prose conventions prefer `Preconditions.checkNotNull` over
 `Objects.requireNonNull`.
 
 ## Baseline subtraction

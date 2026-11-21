@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Fail when a change introduces a violation of the library's written Java conventions.
 
-The rules restate conventions from the root AGENTS.md that review used to enforce alone;
+The rules restate .agents/skills/project-delivery/references/conventions.md, routed by
+the root AGENTS.md, that review used to enforce alone;
 verification/java-conventions.md owns their scope, exemptions, and limitations:
 
 - R1: a public or protected zero-argument `getX()`/`isX()` method without `@Override`;

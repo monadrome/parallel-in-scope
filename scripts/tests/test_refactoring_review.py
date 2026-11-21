@@ -195,7 +195,17 @@ class RoutesAndRulesTest(RepoTestCase):
         self.assertIn("demo/AGENTS.md", routes)
         self.assertIn("design/interruption-contract.md", routes)
         self.assertIn("design/AGENTS.md", routes)
+        self.assertIn("core/AGENTS.md", routes)
+        self.assertIn(".agents/skills/project-delivery/references/conventions.md", routes)
         self.assertNotIn("adr/0012-contract-and-implementation-comment-layers.md", routes)
+
+    def test_relocated_conventions_follow_each_code_class(self):
+        for path in (f"{MAIN}/A.java", f"{TEST}/ATest.java", "scripts/task.py"):
+            with self.subTest(path=path):
+                changed = review.ChangedFile(path, path, Path(path).suffix, review.classify(path, CONFIG))
+                routes = review.routes_for([changed], CONFIG)
+                self.assertIn(".agents/skills/project-delivery/references/conventions.md", routes)
+                self.assertEqual("core/AGENTS.md" in routes, path.startswith("core/"))
 
     def test_rules_come_from_the_base_commit(self):
         lens = self.root / "refactoring-review" / "lenses" / "structure.md"

@@ -3,7 +3,7 @@
 > This document is the authoritative full text of the rules for handling the interrupt flag and
 > `InterruptedException`: the general rule and P1–P4 (§1), the core design (§2), the per-role
 > rules (§3), and the verification matrix (§4). §5 is the JDK/Guava background the rules rely on,
-> and §6 is the historical lessons. The root AGENTS.md holds only the summary; on conflict this
+> and §6 is the historical lessons. `core/AGENTS.md` holds only the summary; on conflict this
 > document wins.
 
 ## 1. Principles

@@ -1,7 +1,8 @@
 # Lens V: Repository Conventions
 
-Conventions from the root `AGENTS.md` Key Conventions section that a reviewer applies by
-judgement to Java code the change touched. That section is the source; this lens only states how
+Conventions from [code/prose conventions](../../.agents/skills/project-delivery/references/conventions.md)
+that a reviewer applies by judgement to Java code the change touched. That reference is the
+source, routed by the root `AGENTS.md` Key Conventions section; this lens only states how
 a finding is formed. Most rules here are candidates for deterministic checks (R5); a rule moves out
 of this file once its check exists.
 

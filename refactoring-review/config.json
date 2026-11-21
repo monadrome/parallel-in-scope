@@ -80,7 +80,8 @@
     "maxAcceptedFindings": 5
   },
   "routes": [
-    {"classes": ["main", "script", "test"], "read": ["AGENTS.md#key-conventions", "AGENTS.md#design-decisions"]},
+    {"classes": ["main", "script", "test"], "read": ["AGENTS.md#key-conventions", "AGENTS.md#design-decisions", ".agents/skills/project-delivery/references/conventions.md"]},
+    {"pathGlobs": ["core/*"], "read": ["core/AGENTS.md"]},
     {"pathGlobs": ["core/src/main/java/io/github/monadrome/parallelinscope/*"], "read": ["design/AGENTS.md"]},
     {"pathGlobs": ["demo/*"], "read": ["demo/AGENTS.md"]},
     {"pathGlobs": ["integrations/*"], "read": ["integrations/AGENTS.md"]},
