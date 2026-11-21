@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-instruction-routing-parity",
+  "date": "2026-11-21",
+  "topic": "instruction-routing-parity",
+  "routes": [
+    "contract",
+    "defect",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": "gpt-6.2"
+  },
+  "change": {
+    "commits": [
+      "fix: preserve review routes after instruction relocation",
+      "fix: retain guardrail coverage for relocated instructions"
+    ],
+    "files": 17,
+    "insertions": 74,
+    "deletions": 19
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "parallel-in-scope-new-39aaab4e-20261121-092847-85d17a",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 280578,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-b6b97ef2-20261121-094303-c88a6e",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 568854,
+            "findings": {
+              "total": 5,
+              "adjudicated": 5,
+              "confirmed": 5,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 5,
+          "adjudicated": 5,
+          "confirmed": 5,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-717d4a56-20261121-095632-1781f2",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 65793,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-dev-v0.5.0-2026-11-21",
+        "head": "b6b97ef2a0d93779ec4eef83cf649f5628c458b0",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "routing-tests": 3,
+      "guard-regressions": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Kimi confirmed seven findings across two rounds; all fixed and focused third review clean. Ten relocated sections retain original wording; 32 detector-route scenarios preserve prior routes. New regression tests reverse-verified, 376 script tests and documentation gates pass. Failed test runs include intentional pre-fix reproduction and two invocation/fixture mistakes. Java, runtime-consumer and PIT skipped: no Java or build changes. Usage unknown."
+}
