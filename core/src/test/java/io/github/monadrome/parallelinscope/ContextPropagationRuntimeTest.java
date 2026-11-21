@@ -169,6 +169,37 @@ class ContextPropagationRuntimeTest {
         }
     }
 
+    /** A borrowed execution thread regains both its application binding and its submission scope. */
+    @Test
+    void inlineExecutionRestoresTheBorrowedSubmissionScope() throws Exception {
+        ThreadLocal<String> local = new ThreadLocal<>();
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(WORKERS, executor)
+                .contextPropagation(ContextPropagationTest.provider(local))
+                .build()) {
+            local.set("task context");
+            ExecutionPhaseHintFuture<String> future = PreparedStates.contextTask(runtime.par(WORKERS), () -> {
+                assertThat(SubmissionScope.current()).isNull();
+                return local.get();
+            });
+            MultiTaskContext enclosing = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                    BatchOptions.timeout("enclosing-submission", TIMEOUT).spec(), 1));
+            local.set("borrowed context");
+            MultiTaskContext previous = SubmissionScope.install(enclosing);
+            try {
+                executor.execute(future);
+                assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo("task context");
+                assertThat(SubmissionScope.current()).isSameAs(enclosing);
+                assertThat(local.get()).isEqualTo("borrowed context");
+            } finally {
+                SubmissionScope.restore(previous);
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     /** Cancellation during provider installation still owns exactly one unwind and skips the body checkpoint. */
     @Test
     void cancellationDuringInstallationRestoresWithoutBodyEntry() throws Exception {

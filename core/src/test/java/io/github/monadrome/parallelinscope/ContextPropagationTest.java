@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.alibaba.ttl.spi.TtlEnhanced;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -212,6 +213,34 @@ class ContextPropagationTest {
         assertThatThrownBy(scope::close).isSameAs(second);
         assertThat(second.getSuppressed()).containsExactly(first);
         scope.close();
+    }
+
+    /** Checked failures from JVM-language providers cannot skip other restorations or mask a body failure. */
+    @Test
+    void checkedRestorationFailurePreservesUnwindAndFailureOrder() {
+        IOException cleanup = new IOException("checked restore failure");
+        IllegalStateException other = new IllegalStateException("earlier provider");
+        ContextPropagation checked = () -> ContextSnapshot.of(() -> () -> {
+            throw unchecked(cleanup);
+        });
+        ContextScope scope = ContextPropagation.compose(failingRestore(other), checked)
+                .capture()
+                .install();
+        assertThatThrownBy(scope::close).isSameAs(cleanup);
+        assertThat(cleanup.getSuppressed()).containsExactly(other);
+
+        IllegalStateException body = new IllegalStateException("body failure");
+        assertThatThrownBy(() -> ContextExecutors.directContextExecutor(checked).execute(() -> {
+                    throw body;
+                }))
+                .isSameAs(body);
+        assertThat(body.getSuppressed()).containsExactly(cleanup);
+    }
+
+    /** Throws a JVM failure outside a Java functional interface's declared exception types. */
+    @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
+    static <Failure extends Throwable> RuntimeException unchecked(Throwable failure) throws Failure {
+        throw (Failure) failure;
     }
 
     /** Callback and task adapters preserve body failures, including identical cleanup throwables. */

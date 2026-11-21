@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mockStatic;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -48,6 +49,33 @@ class ContextPreparationFailureTest {
                                 List::size));
     }
 
+    /** A checked provider failure abandons earlier elements when the next element cannot capture. */
+    @Test
+    void checkedElementCaptureFailureReleasesRegisteredPreparations() throws Exception {
+        assertFailedPreparation(
+                2,
+                3,
+                runtime -> runtime.par(WORKERS)
+                        .map(Arrays.asList(1, 2, 3), value -> value, BatchOptions.timeout("checked-batch", TIMEOUT)),
+                new IOException("checked element capture failure"));
+    }
+
+    /** A checked terminal capture failure abandons earlier elements and releases the terminal slot. */
+    @Test
+    void checkedTerminalCaptureFailureReleasesRegisteredPreparations() throws Exception {
+        assertFailedPreparation(
+                3,
+                3,
+                runtime -> runtime.par(WORKERS)
+                        .mapAndCombine(
+                                Arrays.asList(1, 2),
+                                value -> value,
+                                BatchOptions.timeout("checked-failure", TIMEOUT),
+                                runtime.par(WORKERS),
+                                List::size),
+                new IOException("checked terminal capture failure"));
+    }
+
     /** A failed group member releases earlier callables and the group's own parent link. */
     @Test
     void failedGroupCaptureReleasesMemberPreparations() throws Exception {
@@ -64,11 +92,16 @@ class ContextPreparationFailureTest {
     /** Records real, unpublished preparation results without replacing their production behavior. */
     private static void assertFailedPreparation(int failAt, int taskCount, Consumer<ParRuntime> prepare)
             throws Exception {
-        IllegalStateException failure = new IllegalStateException("capture failed");
+        assertFailedPreparation(failAt, taskCount, prepare, new IllegalStateException("capture failed"));
+    }
+
+    /** Inspects synchronous preparation failure without waiting for runtime shutdown to clean it up. */
+    private static void assertFailedPreparation(
+            int failAt, int taskCount, Consumer<ParRuntime> prepare, Throwable failure) throws Exception {
         AtomicInteger captures = new AtomicInteger();
         ContextPropagation provider = () -> {
             if (captures.incrementAndGet() == failAt) {
-                throw failure;
+                throw ContextPropagationTest.unchecked(failure);
             }
             return ContextPropagation.none().capture();
         };

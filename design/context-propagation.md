@@ -76,8 +76,9 @@ disjoint bindings; overlap, including nested compositions with overlapping owner
 If installation fails, restore all previously installed components in reverse order. Every remaining
 restoration MUST be attempted even after a failure. Preserve the installation or body failure as
 primary and suppress cleanup failures onto it, without self-suppression. When only restoration fails,
-the first reverse-order failure is primary. A failed capture discards earlier captures without a
-rollback callback because captures own no closeable resources.
+the first reverse-order failure is primary. The same rules apply if a provider implemented in
+another JVM language throws a checked exception through a Java callback. A failed capture discards
+earlier captures without a rollback callback because captures own no closeable resources.
 
 ## Admission and execution invariants
 

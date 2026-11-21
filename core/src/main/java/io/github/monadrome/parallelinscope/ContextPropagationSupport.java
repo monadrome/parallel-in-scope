@@ -116,7 +116,7 @@ final class ContextPropagationSupport {
         for (int index = restorations.size() - 1; index >= 0; index--) {
             try {
                 restorations.get(index).run();
-            } catch (RuntimeException | Error cleanupFailure) {
+            } catch (Throwable cleanupFailure) {
                 if (failure == null) {
                     failure = cleanupFailure;
                 } else {
@@ -124,14 +124,15 @@ final class ContextPropagationSupport {
                 }
             }
         }
-        if (primary == null) {
-            if (failure instanceof RuntimeException) {
-                throw (RuntimeException) failure;
-            }
-            if (failure instanceof Error) {
-                throw (Error) failure;
-            }
+        if (primary == null && failure != null) {
+            throw unchecked(failure);
         }
+    }
+
+    /** Preserves a provider's original JVM failure across the non-throwing Java callback signature. */
+    @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
+    private static <Failure extends Throwable> RuntimeException unchecked(Throwable failure) throws Failure {
+        throw (Failure) failure;
     }
 
     /** Runs one callback under a snapshot while preserving a body failure over cleanup failure. */
@@ -152,7 +153,7 @@ final class ContextPropagationSupport {
     private static void close(ContextScope scope, @Nullable Throwable primary) {
         try {
             scope.close();
-        } catch (RuntimeException | Error cleanupFailure) {
+        } catch (Throwable cleanupFailure) {
             if (primary == null) {
                 throw cleanupFailure;
             }

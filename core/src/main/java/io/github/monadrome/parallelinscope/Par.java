@@ -246,7 +246,7 @@ public final class Par {
         ExecutionPhaseHintFuture<C> terminalFuture;
         try {
             terminalFuture = TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
-        } catch (RuntimeException | Error failure) {
+        } catch (Throwable failure) {
             abandonPrepared(tasks, unit);
             throw failure;
         }
@@ -424,7 +424,7 @@ public final class Par {
                         callableMapper.apply(elements.get(index))));
             }
             return tasks;
-        } catch (RuntimeException | Error failure) {
+        } catch (Throwable failure) {
             abandonPrepared(tasks, unit);
             throw failure;
         }

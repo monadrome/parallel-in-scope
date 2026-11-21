@@ -44,7 +44,7 @@ final class TaskSubmissions {
                     ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.executionState());
             future.observation(TaskObservation.forTask(taskContext, future));
             return future;
-        } catch (RuntimeException | Error failure) {
+        } catch (Throwable failure) {
             taskContext.multiTaskContext().cancellationToken().cancel();
             TaskExecutionState executionState = taskContext.executionState();
             if (executionState != null) {
