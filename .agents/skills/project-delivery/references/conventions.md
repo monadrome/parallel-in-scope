@@ -34,15 +34,9 @@ Java-specific bullets apply only to Java.
   Respelled public members need changelog entries that name the replacement.
   Preserve third-party names and original spellings in dated records (released
   changelogs, published migration guides, accepted ADRs).
-- Write all newly added project-authored agent-facing and maintainer-facing
-  documentation in English. This includes new content in `AGENTS.md`, `design/`,
-  `adr/`, `verification/`, `refactoring-review/`, repository scripts and tooling
-  documentation, and issue or pull-request templates. Existing Chinese content
-  in those areas may remain unchanged. New content in user-facing documentation
-  maintained for Chinese users, such as `README.zh-CN.md`, `docs/zh/`, and
-  `demo/docs/zh-CN/`, may be written in Chinese. Code snippets, proper names,
-  quoted external text, and historical records may retain their original
-  language when translating them would change their meaning.
+- For documentation language, including code/proper-name/historical exceptions and approval
+  before changing existing Chinese maintainer content, read Documentation Audiences in
+  [documentation maintenance](documentation.md) before writing or editing that content.
 - Accessors use the bare `x()` style everywhere (`token.state()`, `event.result()`);
   do not introduce `getX()`/`isX()` forms. Methods implementing JDK or
   third-party contracts keep their mandated names (`ExecutorService.isShutdown()`,
