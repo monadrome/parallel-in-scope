@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-scheduled-adoption-diagnostics",
+  "date": "2026-11-21",
+  "topic": "scheduled-adoption-diagnostics",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "fix: strengthen scheduled adoption diagnostics and verification"
+    ],
+    "files": 12,
+    "insertions": 324,
+    "deletions": 21
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "pr79-guard-diagnostics-094a3b36-20261121-075215-aad972",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 110285,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 37980,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 37980,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "pr79-complexity",
+        "head": "094a3b3686f58e94ae78777b9cdbae47ad57f2f9",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "compile-contract": 3
+    }
+  },
+  "pit": [
+    {
+      "source": "pr79-handoff/pit/mutations.xml",
+      "statuses": {
+        "KILLED": 90,
+        "NO_COVERAGE": 4
+      },
+      "total": 94,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "PR 79 follow-up. Review covered the complete PR diff. Four uncovered PIT return instructions are unreachable because the scheduled overloads always throw."
+}
