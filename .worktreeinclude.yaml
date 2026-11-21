@@ -13,4 +13,5 @@ required:
   - path: .agents/skills/dependency-audit
   - path: .agents/skills/isolated-test-generation
   - path: .agents/skills/multi-review
+  - path: .agents/skills/project-delivery
   - path: .agents/skills/refactoring-review
