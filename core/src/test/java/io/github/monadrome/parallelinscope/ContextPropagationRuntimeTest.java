@@ -16,6 +16,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /** Integration evidence for capture timing, cancellation, and execution-exit ownership. */
@@ -109,15 +110,18 @@ class ContextPropagationRuntimeTest {
                                 return captured;
                             },
                             BatchOptions.timeout("delayed-context", TIMEOUT).parallelism(1));
+            Future<String> workerBetweenTasks;
             try {
                 assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
                 local.set("later");
+                workerBetweenTasks = executor.submit(local::get);
             } finally {
                 release.countDown();
             }
             for (TaskFuture<String> task : batch.results()) {
                 assertThat(task.get(5, TimeUnit.SECONDS)).isEqualTo("admission");
             }
+            assertThat(workerBetweenTasks.get(5, TimeUnit.SECONDS)).isEqualTo("worker");
             assertThat(executor.submit(local::get).get(5, TimeUnit.SECONDS)).isEqualTo("worker");
             assertThat(local.get()).isEqualTo("later");
         } finally {
@@ -126,24 +130,40 @@ class ContextPropagationRuntimeTest {
         }
     }
 
-    /** Normal completion listeners see restoration and released callable ownership, not just body exit. */
+    /** Normal completion listeners see the original worker binding and released callable ownership. */
     @Test
-    void normalSettlementFollowsRestorationAndRelease() {
+    void normalSettlementFollowsRestorationAndRelease() throws Exception {
+        ThreadLocal<String> local = new ThreadLocal<>();
         AtomicInteger restores = new AtomicInteger();
-        ContextPropagation provider = () -> ContextSnapshot.of(() -> restores::incrementAndGet);
-        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         try (ParRuntime runtime = ParRuntime.builder()
                 .register(WORKERS, executor)
-                .contextPropagation(provider)
+                .contextPropagation(ContextPropagation.compose(
+                        ContextPropagationTest.provider(local),
+                        () -> ContextSnapshot.of(() -> restores::incrementAndGet)))
                 .build()) {
-            ExecutionPhaseHintFuture<String> future = PreparedStates.contextTask(runtime.par(WORKERS), () -> "value");
+            executor.submit(() -> local.set("worker")).get(5, TimeUnit.SECONDS);
+            local.set("submission");
+            ExecutionPhaseHintFuture<String> future = PreparedStates.contextTask(runtime.par(WORKERS), () -> {
+                String value = local.get();
+                local.set("task mutation");
+                return value;
+            });
+            local.set("later");
+            AtomicReference<String> listenerBinding = new AtomicReference<>();
             AtomicBoolean listenerSawRestoredExit = new AtomicBoolean();
             future.addListener(
-                    () -> listenerSawRestoredExit.set(
-                            restores.get() == 1 && future.state() == TaskState.EXITED && future.callableReleased()),
+                    () -> {
+                        listenerBinding.set(local.get());
+                        listenerSawRestoredExit.set(
+                                restores.get() == 1 && future.state() == TaskState.EXITED && future.callableReleased());
+                    },
                     MoreExecutors.directExecutor());
-            future.run();
+            executor.submit(future).get(5, TimeUnit.SECONDS);
+            assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo("submission");
+            assertThat(listenerBinding).hasValue("worker");
             assertThat(listenerSawRestoredExit).isTrue();
+            assertThat(local.get()).isEqualTo("later");
         } finally {
             executor.shutdownNow();
         }
