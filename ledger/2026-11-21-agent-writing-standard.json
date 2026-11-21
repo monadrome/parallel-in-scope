@@ -13,11 +13,15 @@
   },
   "change": {
     "commits": [
-      "docs: sharpen agent delivery instructions and completion criteria"
+      "docs: sharpen agent delivery instructions and completion criteria",
+      "chore: record delivery agent-writing-standard",
+      "chore: correct delivery validation evidence",
+      "docs: restore language and code preflight guarantees",
+      "docs: vendor Matt Pocock writing-for-agents skill"
     ],
-    "files": 5,
-    "insertions": 195,
-    "deletions": 254
+    "files": 12,
+    "insertions": 421,
+    "deletions": 256
   },
   "reviews": {
     "adversarial": [
@@ -59,6 +63,162 @@
           "systemsTotal": 1,
           "costsByCurrency": []
         }
+      },
+      {
+        "runId": "agent-writing-standard-a0c6029c-20261121-103917-2684a5",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 464384,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-writing-standard-288d872f-20261121-104055-a53601",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 26986,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-writing-standard-e4a5a83c-20261121-105024-457873",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 75042,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-writing-standard-29e13ffc-20261121-105454-cc99f7",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 46794,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
       }
     ],
     "refactoring": []
@@ -66,7 +226,8 @@
   "gates": {
     "failures": {
       "issue-agent test discovery without scripts import root": 1,
-      "skill validation without PyYAML in system Python": 1
+      "skill validation without PyYAML in system Python": 1,
+      "temporary wording guard without required checkout argument": 1
     }
   },
   "pit": [],
@@ -79,5 +240,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Applied Matt Pocock writing-for-agents: triggered pointers, common delivery steps with Done criteria, conditional references, single language-rule owner. Root Task Routes, Design Decisions, and Permissions unchanged. Documentation/reference/link/design/baseline/skill/language/ADR/proposal gates, 376 script tests, strict MkDocs, and skill quick validation pass on committed tree. Kimi k3.1-pro read-only full diff review completed with zero findings; open-world recall n/a. Java tests, consumer tests, refactoring review, and PIT skipped: documentation-only change. Initial issue-agent discovery lacked the scripts import root; the exact CI discovery command passed. System Python lacked PyYAML for skill validation; the existing documentation virtualenv passed. Usage unknown."
+  "notes": "Applied Matt Pocock writing-for-agents: conditional pointers, common delivery steps with Done criteria, single-source rules. Imported project-local upstream skill with MIT license and worktree discovery. Root Task Routes, Design Decisions, Permissions unchanged. Five Kimi k3.1-pro reviews cover every changed path; two confirmed wording regressions (Chinese user-documentation exception and mandatory code preflight) fixed and re-reviewed clean. Focused guards reverse-verified. Documentation/link/design/baseline/skill/language/ADR/proposal gates, 376 script tests, strict MkDocs, Java conventions, assurance package verification, and skill validation pass on committed source. Java tests, consumer tests, PIT, refactoring review skipped: documentation-only. Three environment/invocation failures corrected; usage unknown; open-world recall n/a. Remote CI monitored separately after delivery."
 }
