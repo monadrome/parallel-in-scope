@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { removePath } from '../util/fsx.js';
 import { git, worktreeAdd, worktreeRemove } from '../util/git.js';
 import { shortSha } from '../util/ids.js';
 
@@ -12,6 +13,7 @@ const helper = fileURLToPath(new URL('../java/ReviewNavigation.java', import.met
 const roots = ['core/src/main/java/', 'core/src/test/java/'];
 const fileLimit = 12;
 const callLimit = 24;
+const heading = '## Java review navigation';
 
 type Side = 'head' | 'base';
 type Span = readonly [start: number, end: number];
@@ -42,6 +44,20 @@ function isSource(file: string): boolean {
   return roots.some((root) => file.startsWith(root)) && /^[^\r\n\t]+\.java$/.test(file);
 }
 
+function parseChangedSpans(diff: string): Record<Side, Span[]> {
+  const ranges: Record<Side, Span[]> = { head: [], base: [] };
+  for (const match of diff.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)) {
+    for (const [side, offset] of [['base', 1], ['head', 3]] as const) {
+      const start = Number(match[offset]);
+      const length = Number(match[offset + 1] ?? 1);
+      if (length > 0) {
+        ranges[side].push([start, start + length - 1]);
+      }
+    }
+  }
+  return ranges;
+}
+
 async function readChanges(input: Input): Promise<Map<string, Record<Side, Span[]>>> {
   const paths = (await git(input.repo, [
     'diff', '--name-only', '-z', '--no-renames', input.base, input.head, '--', ...roots,
@@ -52,17 +68,7 @@ async function readChanges(input: Input): Promise<Map<string, Record<Side, Span[
       'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--unified=0',
       input.base, input.head, '--', `:(literal)${file}`,
     ]);
-    const ranges: Record<Side, Span[]> = { head: [], base: [] };
-    for (const match of diff.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)) {
-      for (const [side, offset] of [['base', 1], ['head', 3]] as const) {
-        const start = Number(match[offset]);
-        const length = Number(match[offset + 1] ?? 1);
-        if (length > 0) {
-          ranges[side].push([start, start + length - 1]);
-        }
-      }
-    }
-    changes.set(file, ranges);
+    changes.set(file, parseChangedSpans(diff));
   }
   return changes;
 }
@@ -192,9 +198,25 @@ function status(index: Index): string {
   return index.errors === 0 ? 'no compiler errors' : `partial (${index.errors} compiler errors)`;
 }
 
+function renderNavigation(
+  input: Input, indexes: Record<Side, Index>, changes: Map<string, Record<Side, Span[]>>,
+): string {
+  return [
+    heading,
+    '',
+    `Head ${code(shortSha(input.head))}: ${status(indexes.head)}. Base ${code(shortSha(input.base))}: ${status(indexes.base)}.`,
+    input.options.classpathFile === null ? 'Classpath: JDK and captured source only.' : 'Classpath: supplied dependency file and captured source.',
+    'These references guide reading the full diff. Call targets are compile-time declarations.',
+    '',
+    section('Files outside the diff that reference affected types', classReferences(indexes, changes), fileLimit),
+    '',
+    section('Calls to affected method and constructor declarations', callReferences(indexes, changes), callLimit),
+    '',
+  ].join('\n');
+}
+
 export async function generateJavaNavigation(input: Input): Promise<string> {
   const changes = await readChanges(input);
-  const heading = '## Java review navigation';
   if (changes.size === 0) {
     return `${heading}\n\nNo changes to core Java source or tests.\n`;
   }
@@ -215,28 +237,14 @@ export async function generateJavaNavigation(input: Input): Promise<string> {
     if (baseResult.status === 'rejected') {
       throw baseResult.reason;
     }
-    const head = headResult.value;
-    const base = baseResult.value;
-    const indexes = { head, base };
-    return [
-      heading,
-      '',
-      `Head ${code(shortSha(input.head))}: ${status(head)}. Base ${code(shortSha(input.base))}: ${status(base)}.`,
-      input.options.classpathFile === null ? 'Classpath: JDK and captured source only.' : 'Classpath: supplied dependency file and captured source.',
-      'These references guide reading the full diff. Call targets are compile-time declarations.',
-      '',
-      section('Files outside the diff that reference affected types', classReferences(indexes, changes), fileLimit),
-      '',
-      section('Calls to affected method and constructor declarations', callReferences(indexes, changes), callLimit),
-      '',
-    ].join('\n');
+    return renderNavigation(input, { head: headResult.value, base: baseResult.value }, changes);
   } finally {
     try {
       if (baseAdded) {
         await worktreeRemove(input.repo, baseDirectory);
       }
     } finally {
-      await fs.rm(directory, { recursive: true, force: true });
+      await removePath(directory);
     }
   }
 }
