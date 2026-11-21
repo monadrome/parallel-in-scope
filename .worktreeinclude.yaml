@@ -16,3 +16,4 @@ required:
   - path: .agents/skills/project-delivery
   - path: .agents/skills/refactoring-review
   - path: .agents/skills/reflect-agents-md
+  - path: .agents/skills/writing-for-agents
