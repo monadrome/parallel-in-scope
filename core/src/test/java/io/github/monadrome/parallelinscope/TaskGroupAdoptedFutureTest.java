@@ -541,41 +541,63 @@ class TaskGroupAdoptedFutureTest {
         return null;
     }
 
-    /** Both scheduled shapes are rejected by all four overloads without consuming the draft. */
+    /** Scheduled sources are rejected regardless of timeout, scheduling mode, or completion. */
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    @CsvSource({
+        "1,pending-one-shot", "1,completed-one-shot", "1,fixed-rate", "1,fixed-delay",
+        "100,pending-one-shot", "100,completed-one-shot", "100,fixed-rate", "100,fixed-delay",
+        "10000,pending-one-shot", "10000,completed-one-shot", "10000,fixed-rate", "10000,fixed-delay"
+    })
     @SuppressWarnings({"DoNotCall", "deprecation"})
-    void scheduledOverloadsRejectSourcesWithoutAdvancingOrCancelling(boolean periodicSource) {
+    void scheduledOverloadsRejectSourcesWithoutAdvancingOrCancelling(long timeoutMillis, String scheduling)
+            throws Exception {
         ParRuntime runtime = runtime(pool(1));
         ListeningScheduledExecutorService scheduler = scheduledPool();
-        ListenableScheduledFuture<?> periodic = periodicSource
-                ? scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS)
-                : scheduler.schedule(() -> "one-shot", 1, TimeUnit.DAYS);
+        ListenableScheduledFuture<?> source = scheduledSource(scheduler, scheduling);
         TaskKey<Object> first = TaskKey.named("first-scheduled");
         TaskKey<Object> second = TaskKey.named("second-scheduled");
 
         try {
-            GroupStart start = runtime.group("scheduled-start", TIMEOUT);
-            assertThatThrownBy(() -> start.adopt(first, periodic))
+            GroupStart start = runtime.group("scheduled-start", Duration.ofMillis(timeoutMillis));
+            assertThatThrownBy(() -> start.adopt(first, source))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("first-scheduled")
                     .hasMessageContaining("ListenableScheduledFuture");
-            assertThatThrownBy(() -> start.adopt(first, io(runtime), periodic))
+            assertThatThrownBy(() -> start.adopt(first, io(runtime), source))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("first-scheduled");
 
             GroupStep step = start.adopt(first, Futures.immediateFuture("first"));
-            assertThatThrownBy(() -> step.adopt(second, periodic))
+            assertThatThrownBy(() -> step.adopt(second, source))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("second-scheduled");
-            assertThatThrownBy(() -> step.adopt(second, io(runtime), periodic))
+            assertThatThrownBy(() -> step.adopt(second, io(runtime), source))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("second-scheduled");
 
             assertThat(step.adopt(second, Futures.immediateFuture("second"))).isNotNull();
-            assertThat(periodic.isCancelled()).isFalse();
+            assertThat(source.isCancelled()).isFalse();
         } finally {
-            periodic.cancel(true);
+            source.cancel(true);
+        }
+    }
+
+    /** Creates distinct scheduled modes, explicitly awaiting the completed one-shot case. */
+    private static ListenableScheduledFuture<?> scheduledSource(
+            ListeningScheduledExecutorService scheduler, String scheduling) throws Exception {
+        switch (scheduling) {
+            case "pending-one-shot":
+                return scheduler.schedule(() -> "one-shot", 1, TimeUnit.DAYS);
+            case "completed-one-shot":
+                ListenableScheduledFuture<String> completed = scheduler.schedule(() -> "one-shot", 0, TimeUnit.DAYS);
+                assertThat(completed.get(5, TimeUnit.SECONDS)).isEqualTo("one-shot");
+                return completed;
+            case "fixed-rate":
+                return scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS);
+            case "fixed-delay":
+                return scheduler.scheduleWithFixedDelay(() -> {}, 1, 1, TimeUnit.DAYS);
+            default:
+                throw new AssertionError("unknown scheduling mode: " + scheduling);
         }
     }
 
@@ -692,18 +714,76 @@ class TaskGroupAdoptedFutureTest {
     }
 
     /** Widening a one-shot source preserves its supported result and ownership semantics. */
-    @Test
-    void aOneShotScheduledSourceIsAdoptedThroughItsListenableFutureType() {
+    @ParameterizedTest
+    @CsvSource({
+        "1000,false,false",
+        "1000,false,true",
+        "1000,true,false",
+        "1000,true,true",
+        "5000,false,false",
+        "5000,false,true",
+        "5000,true,false",
+        "5000,true,true",
+        "10000,false,false",
+        "10000,false,true",
+        "10000,true,false",
+        "10000,true,true"
+    })
+    void aOneShotScheduledSourceIsAdoptedThroughItsListenableFutureType(
+            long timeoutMillis, boolean later, boolean attributed) {
         ParRuntime runtime = runtime(pool(1));
         ListeningScheduledExecutorService scheduler = scheduledPool();
         ListenableFuture<String> source = scheduler.schedule(() -> "delayed", 0, TimeUnit.MILLISECONDS);
-
-        TaskGroupResult<Void> result = runtime.group("one-shot-scheduled", TIMEOUT)
-                .adopt(FIRST, source)
-                .runAll();
+        GroupStart start = runtime.group("one-shot-scheduled", Duration.ofMillis(timeoutMillis));
+        GroupStep resultStage = later ? start.adopt(SECOND, Futures.immediateFuture("second")) : null;
+        GroupStep adopted = resultStage == null
+                ? attributed ? start.adopt(FIRST, io(runtime), source) : start.adopt(FIRST, source)
+                : attributed ? resultStage.adopt(FIRST, io(runtime), source) : resultStage.adopt(FIRST, source);
+        TaskGroupResult<Void> result = adopted.runAll();
 
         TerminationAssertions.assertScopeSucceeded(result.termination());
         assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("delayed");
+        assertThat(source.isCancelled()).isFalse();
+        assertThat(result.executionExitConfirmed()).isTrue();
+    }
+
+    /** A supported but not-yet-due one-shot source is cancelled when the group deadline expires. */
+    @ParameterizedTest
+    @ValueSource(longs = {1, 25, 100})
+    void aPendingOneShotScheduledSourceIsCancelledAtTheGroupDeadline(long timeoutMillis) {
+        ParRuntime runtime = runtime(pool(1));
+        ListenableFuture<String> source = scheduledPool().schedule(() -> "not due", 1, TimeUnit.DAYS);
+
+        TaskGroupResult<Void> result = runtime.group("pending-one-shot", Duration.ofMillis(timeoutMillis))
+                .adopt(FIRST, source)
+                .runAll();
+
+        TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+        assertThat(source.isCancelled()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
+    }
+
+    /** Successful periodic ticks do not complete a widened source; its unsupported adoption times out. */
+    @ParameterizedTest
+    @CsvSource({"1,true", "1,false", "25,true", "25,false", "100,true", "100,false"})
+    void wideningAPeriodicSourceBypassesTheGuardButDoesNotMakeItFinite(long timeoutMillis, boolean fixedRate)
+            throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        ListeningScheduledExecutorService scheduler = scheduledPool();
+        CountDownLatch ticked = new CountDownLatch(1);
+        ListenableFuture<?> source = fixedRate
+                ? scheduler.scheduleAtFixedRate(ticked::countDown, 0, 1, TimeUnit.DAYS)
+                : scheduler.scheduleWithFixedDelay(ticked::countDown, 0, 1, TimeUnit.DAYS);
+        assertThat(ticked.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(source.isDone()).isFalse();
+
+        TaskGroupResult<Void> result = runtime.group("widened-periodic", Duration.ofMillis(timeoutMillis))
+                .adopt(TaskKey.named("periodic"), source)
+                .runAll();
+
+        TerminationAssertions.assertScopeCancelled(result.termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+        assertThat(source.isCancelled()).isTrue();
+        assertThat(result.executionExitConfirmed()).isTrue();
     }
 
     @Test
