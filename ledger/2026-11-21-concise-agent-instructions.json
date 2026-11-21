@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-concise-agent-instructions",
+  "date": "2026-11-21",
+  "topic": "concise-agent-instructions",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: route agent instructions through project delivery skill",
+      "docs: route ordinary delivery through snapshot safeguards"
+    ],
+    "files": 11,
+    "insertions": 905,
+    "deletions": 788
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "parallel-in-scope-new-aa8d1340-20261121-090727-302e09",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 122010,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 61852,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 61852,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-163c037d-20261121-091113-8661a8",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 38772,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 48687,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 48687,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "skill-validation": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Root instructions 690 to 179 lines; design router 265 to 142. One project-delivery skill with conditional references; all approval and delivery gates retained. Different-model gpt-6.1-terra review: one confirmed routing gap fixed (P1 downgraded to P2 because executable snapshot verification was unchanged), final full-range review clean with all 11 paths covered. Documentation gates, skill validator, 372 script tests and strict MkDocs pass on the final committed tree. Java tests, runtime-consumer, refactoring and PIT skipped locally for documentation-only change. Skill validator initially lacked PyYAML; reran successfully with existing MkDocs requirements in an isolated environment. Generated Python cache left untracked because cleanup command was denied. Implementer model/tokens/cost not reported by harness."
+}
