@@ -85,8 +85,10 @@ rollback callback because captures own no closeable resources.
   elements, including window-deferred elements, and terminal combines capture on the admission
   caller. Group callable members and their terminal combine use the same preparation boundary.
 - Capture failure propagates synchronously, abandons prepared callables, and cancels admitted
-  cancellation links. It MUST NOT submit a partial batch or group. Adopted sources retain their
-  existing cancellation ownership; adoption does not replay producer context retroactively.
+  cancellation links. It MUST NOT submit a partial batch or group. Under the
+  [adopted-future ownership contract](task-group-adopted-futures.md), ownership transfers at
+  `runAll()`, including failed admission: every unconnected adopted source is cancelled. Provider
+  capture failure does not change that rule or replay producer context retroactively.
 - Application installation surrounds the existing `ScopedCallable`; framework task installation,
   checkpoints, timing, and submission-scope suppression stay on the one shared execution path.
   Nested admission captures the context active in its parent body.
@@ -128,6 +130,9 @@ remain provider behavior, not failures the library can recover or surface.
   decorator adds a second execution mechanism without improving context ownership.
 - Immediate TTL removal or a new adapter artifact mixes protocol design with packaging and default
   changes. Those require a separate decision and self-contained changelog migration action.
+- Keeping adopted sources alive after failed capture was rejected in review: the existing adoption
+  contract transfers cancellation ownership at `runAll()`, not successful preparation. Preserving
+  source values and not replaying producer context do not rescind that cancellation ownership.
 
 Verification must distinguish capture from installation, independent backups from shared mutable
 slots, physical exit from logical completion, and default TTL from custom/composed providers. The

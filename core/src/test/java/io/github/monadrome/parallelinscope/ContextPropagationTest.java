@@ -266,6 +266,27 @@ class ContextPropagationTest {
         }
     }
 
+    /** Custom-only compositions must not suppress an external TTL adapter by claiming enhancement. */
+    @Test
+    void nestedCompositionsMarkOnlyActualTtlTransport() throws Exception {
+        ThreadLocal<String> local = new ThreadLocal<>();
+        local.set("captured");
+        ContextPropagation custom =
+                ContextPropagation.compose(ContextPropagation.none(), ContextPropagation.compose(provider(local)));
+        Callable<String> callable = ContextPropagationSupport.wrap(custom, local::get);
+        assertThat(callable).isNotInstanceOf(TtlEnhanced.class);
+        Callable<String> ttlCallable = ContextPropagationSupport.wrap(
+                ContextPropagation.compose(
+                        ContextPropagation.none(),
+                        ContextPropagation.compose(ContextPropagation.ttl(), provider(local))),
+                local::get);
+        assertThat(ttlCallable).isInstanceOf(TtlEnhanced.class);
+        local.set("entering");
+        assertThat(callable.call()).isEqualTo("captured");
+        assertThat(ttlCallable.call()).isEqualTo("captured");
+        assertThat(local.get()).isEqualTo("entering");
+    }
+
     /** Scope operations preserve an existing interruption signal. */
     @Test
     void scopeDoesNotConsumeInterruption() {

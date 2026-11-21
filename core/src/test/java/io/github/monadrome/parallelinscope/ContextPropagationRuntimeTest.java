@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.Arrays;
@@ -21,6 +22,59 @@ import org.junit.jupiter.api.Test;
 class ContextPropagationRuntimeTest {
     private static final ParId WORKERS = ParId.of("context-workers");
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+    /** Failed capture cancels the admitted unit instead of retaining running admission state. */
+    @Test
+    void captureFailureCancelsAdmittedUnit() {
+        IllegalStateException failure = new IllegalStateException("capture failed");
+        ContextPropagation provider = () -> {
+            throw failure;
+        };
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(WORKERS, executor)
+                .contextPropagation(provider)
+                .build()) {
+            TaskExecutionContext context = PreparedStates.contextPreparation(runtime.par(WORKERS));
+            assertThatThrownBy(() -> TaskSubmissions.prepare(context, () -> "unreachable"))
+                    .isSameAs(failure);
+            assertThat(context.multiTaskContext().cancellationToken().state())
+                    .isEqualTo(CancellationToken.State.CANCELLED);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    /** Ownership transfers at runAll, including adopted sources on both sides of a failing preparation. */
+    @Test
+    void captureFailurePreservesAdoptedAdmissionCancellationOwnership() throws Exception {
+        IllegalStateException failure = new IllegalStateException("capture failed");
+        ContextPropagation provider = () -> {
+            throw failure;
+        };
+        SettableFuture<String> before = SettableFuture.create();
+        SettableFuture<String> after = SettableFuture.create();
+        AtomicInteger bodies = new AtomicInteger();
+        ExecutorService executor = MoreExecutors.newDirectExecutorService();
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(WORKERS, executor)
+                .contextPropagation(provider)
+                .build()) {
+            assertThatThrownBy(() -> runtime.group("adopted-capture-failure", TIMEOUT)
+                            .adopt(TaskKey.<String>named("before"), before)
+                            .par(TaskKey.<Integer>named("failing"), runtime.par(WORKERS), bodies::incrementAndGet)
+                            .adopt(TaskKey.<String>named("after"), after)
+                            .runAll())
+                    .isSameAs(failure);
+            assertThat(before.isCancelled()).isTrue();
+            assertThat(after.isCancelled()).isTrue();
+            assertThat(bodies).hasValue(0);
+            runtime.close();
+            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(1))).isTrue();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
     /** Deferred window elements retain admission context and leave the worker's original context intact. */
     @Test
