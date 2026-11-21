@@ -51,6 +51,8 @@ test('review navigation uses the captured range and exact overloads even with un
     '    String ambiguousCall = Api.pick(null);',
     '    java.util.function.Function<String, String> reference = Api::pick;',
     '    Api instance = new Api();',
+    '    Missing unresolvedType;',
+    '    String unresolvedCall = Api.pick(unresolvedType);',
     '}',
   ].join('\n'));
   await writeRepoFile(repo, `${source}/Guide.java`, 'package sample; /** See {@link Api}. */ class Guide {}\n');
@@ -77,7 +79,7 @@ test('review navigation uses the captured range and exact overloads even with un
   assert.match(context, /Caller\.java:6.*head, method reference.*sample\.Api#pick\(java\.lang\.String\)/);
   assert.match(context, /Caller\.java:7.*head, new.*sample\.Api#<init>\(\)/);
   assert.match(context, /OldCaller\.java:1.*base, call.*sample\.Api#removed\(\)/);
-  assert.doesNotMatch(context, /Caller\.java:[45].*head, call/);
+  assert.doesNotMatch(context, /Caller\.java:[459].*head, call/);
   assert.equal(runGit(repo, ['status', '--porcelain']), dirty);
   assert.doesNotMatch(runGit(repo, ['worktree', 'list', '--porcelain']), /lrb-java-/);
   const prompt = await readText(path.join(json.runDir, 'inputs/prompt.md'));

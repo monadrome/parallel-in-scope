@@ -2,6 +2,7 @@ import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.ReferenceTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -22,15 +23,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.UnionType;
+import javax.lang.model.type.WildcardType;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaFileObject;
@@ -166,21 +175,28 @@ public final class ReviewNavigation {
         /** Records the compile-time target of an ordinary or explicit constructor call. */
         @Override
         public Void visitMethodInvocation(MethodInvocationTree tree, Void unused) {
-            call("call", tree, trees.getElement(new TreePath(getCurrentPath(), tree.getMethodSelect())));
+            var select = new TreePath(getCurrentPath(), tree.getMethodSelect());
+            var receiver = tree.getMethodSelect() instanceof MemberSelectTree member
+                    ? new TreePath(select, member.getExpression())
+                    : null;
+            call("call", select, receiver, tree.getArguments());
             return super.visitMethodInvocation(tree, unused);
         }
 
         /** Records the constructor selected by a class instance creation expression. */
         @Override
         public Void visitNewClass(NewClassTree tree, Void unused) {
-            call("new", tree, trees.getElement(getCurrentPath()));
+            var enclosing = tree.getEnclosingExpression();
+            var receiver = enclosing == null ? null : new TreePath(getCurrentPath(), enclosing);
+            call("new", getCurrentPath(), receiver, tree.getArguments());
             return super.visitNewClass(tree, unused);
         }
 
         /** Records the method or constructor selected by a reference expression. */
         @Override
         public Void visitMemberReference(MemberReferenceTree tree, Void unused) {
-            call("method reference", tree, trees.getElement(getCurrentPath()));
+            var qualifier = new TreePath(getCurrentPath(), tree.getQualifierExpression());
+            call("method reference", getCurrentPath(), qualifier, List.of());
             return super.visitMemberReference(tree, unused);
         }
 
@@ -228,18 +244,41 @@ public final class ReviewNavigation {
             }
         }
 
-        /** Emits only attributed calls with a real declaration and an error-free expression. */
-        private void call(String kind, Tree tree, Element element) {
-            if (!(element instanceof ExecutableElement method)) {
+        /** Rejects javac recovery targets even when the diagnostic is at an operand's declaration. */
+        private void call(String kind, TreePath target, TreePath receiver, List<? extends ExpressionTree> arguments) {
+            if (!(trees.getElement(target) instanceof ExecutableElement method)) {
                 return;
             }
+            var site = getCurrentPath();
             var positions = trees.getSourcePositions();
-            var start = positions.getStartPosition(unit, tree);
-            var end = positions.getEndPosition(unit, tree);
-            var id = signature(method);
-            if (id != null && start >= 0 && end > start && !errors.overlaps(unit.getSourceFile(), start, end)) {
-                reference(kind, start, declaringType(method), id);
+            var start = positions.getStartPosition(unit, site.getLeaf());
+            var end = positions.getEndPosition(unit, site.getLeaf());
+            if (start < 0 || end <= start || errors.overlaps(unit.getSourceFile(), start, end)) {
+                return;
             }
+            if (unresolvedOperands(site, target, receiver, arguments)) {
+                return;
+            }
+            var signature = signature(method);
+            if (signature != null) {
+                reference(kind, start, declaringType(method), signature);
+            }
+        }
+
+        /** Checks the attributed types that can affect the binding of the call. */
+        private boolean unresolvedOperands(
+                TreePath site, TreePath target, TreePath receiver, List<? extends ExpressionTree> arguments) {
+            var seen = new HashSet<TypeMirror>();
+            return unresolved(site, seen)
+                    || unresolved(target, seen)
+                    || (receiver != null && unresolved(receiver, seen))
+                    || arguments.stream().anyMatch(argument -> unresolved(new TreePath(site, argument), seen));
+        }
+
+        /** Missing expression attribution cannot support an exact target. */
+        private boolean unresolved(TreePath path, Set<TypeMirror> seen) {
+            var type = trees.getTypeMirror(path);
+            return type == null || containsError(type, seen);
         }
 
         /** Keeps anonymous and broken target declarations out of cross-file references. */
@@ -261,17 +300,44 @@ public final class ReviewNavigation {
             }
             var types = task.getTypes();
             var parameters = method.getParameters().stream().map(parameter -> types.erasure(parameter.asType())).toList();
-            if (parameters.stream().anyMatch(Scanner::invalidType)) {
+            var seen = new HashSet<TypeMirror>();
+            if (parameters.stream().anyMatch(parameter -> containsError(parameter, seen))) {
                 return null;
             }
             return typeName(type) + "#" + method.getSimpleName() + "("
                     + parameters.stream().map(TypeMirror::toString).collect(Collectors.joining(", ")) + ")";
         }
 
-        /** An array of an unresolved component cannot identify an overload. */
-        private static boolean invalidType(TypeMirror type) {
-            return type.getKind() == TypeKind.ERROR
-                    || (type instanceof ArrayType array && invalidType(array.getComponentType()));
+        /** Inspects compound types while permitting recursive generic bounds and absent optional bounds. */
+        private static boolean containsError(TypeMirror type, Set<TypeMirror> seen) {
+            if (type == null || !seen.add(type)) {
+                return false;
+            }
+            return switch (type.getKind()) {
+                case ERROR -> true;
+                case ARRAY -> containsError(((ArrayType) type).getComponentType(), seen);
+                case DECLARED -> {
+                    var declared = (DeclaredType) type;
+                    yield containsError(declared.getEnclosingType(), seen)
+                            || declared.getTypeArguments().stream().anyMatch(argument -> containsError(argument, seen));
+                }
+                case EXECUTABLE -> {
+                    var executable = (ExecutableType) type;
+                    yield containsError(executable.getReturnType(), seen)
+                            || executable.getParameterTypes().stream().anyMatch(parameter -> containsError(parameter, seen));
+                }
+                case TYPEVAR -> {
+                    var variable = (TypeVariable) type;
+                    yield containsError(variable.getUpperBound(), seen) || containsError(variable.getLowerBound(), seen);
+                }
+                case WILDCARD -> {
+                    var wildcard = (WildcardType) type;
+                    yield containsError(wildcard.getExtendsBound(), seen) || containsError(wildcard.getSuperBound(), seen);
+                }
+                case INTERSECTION -> ((IntersectionType) type).getBounds().stream().anyMatch(bound -> containsError(bound, seen));
+                case UNION -> ((UnionType) type).getAlternatives().stream().anyMatch(bound -> containsError(bound, seen));
+                default -> false;
+            };
         }
 
         /** Finds the declaring class for a member or a type reference. */
