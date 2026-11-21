@@ -18,8 +18,11 @@ Documentation has two top-level audiences; keep their entry points and responsib
   history; `adr/` owns durable decisions and their rationale. Users must not need these internal
   documents to use the public API.
 
-All newly added agent-facing and other maintainer-facing documentation is English by default; this
-rule does not require translating existing Chinese content. If a task proposes translating, editing,
+All newly added project-authored agent-facing and maintainer-facing documentation is English,
+including `AGENTS.md`, `design/`, `adr/`, `verification/`, `refactoring-review/`, repository
+scripts/tooling documentation, and issue/PR templates. Code snippets, proper names, quoted external
+text, and historical records may retain their language when translation would change meaning.
+This rule does not require translating existing Chinese content. If a task proposes translating, editing,
 renaming, or deleting existing Chinese content in an agent-facing or maintainer-facing area, first
 prepare the inventory, proposed wording, and affected-reference list for human review. Do not apply
 that change until the user has explicitly approved it. New or maintained Chinese user-facing
