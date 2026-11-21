@@ -185,6 +185,20 @@ strings are HTML-escaped, and CSV is sanitized against formula prefixes.
 same measurement. `link` only adds gold/evaluation versions and produces no new reviewer
 results; `rescore` and `report` call no models.
 
+### Java review navigation
+
+A live review can opt in to a bounded navigation section. The CLI derives it from the base
+and head's captured core sources, then appends it to the review context before freezing inputs.
+Type-use edges and resolved JavaDoc links can identify related files beyond the diff.
+Resolved call sites identify the compile-time method or constructor, with base evidence for
+removed signatures. Results are partial when attribution reports errors. The section guides
+reading and leaves full diff coverage to the reviewer.
+
+The JDK analyzer reads source and an optional operator-provided dependency classpath with
+annotation processing disabled. This avoids running a build in a reviewed snapshot. A
+text-only index cannot distinguish overloads or identify where a name is declared.
+See the [CLI usage](../tools/llm-review-bench/README.md#java-review-navigation).
+
 ## 6. Raw immutability and derived versioning
 
 - `run.json`, `inputs/` (context, diff, prompt, case manifest, structured context),
@@ -370,6 +384,10 @@ JSON's `note`).
     score.
 23. Tests MUST NOT call real models; protocol and process behavior MUST be verified with
     temporary git repositories and fixture adapters.
+24. Java navigation MUST be opt-in on live reviews and use the captured base and head.
+    It MUST freeze hints in the review context and disclose incomplete compiler analysis.
+    It MUST NOT execute snapshot build steps or annotation processors, infer unresolved
+    call targets, or narrow full review coverage.
 
 ## 12. Explicit non-goals
 

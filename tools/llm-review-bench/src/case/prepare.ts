@@ -28,6 +28,7 @@ import { CONTEXT_SCHEMA } from '../protocol/types.js';
 import { CASE_SCHEMA } from '../protocol/types.js';
 import type { RunStore } from '../protocol/store.js';
 import { detectRulesFiles, generateContextMd } from './context.js';
+import { generateJavaNavigation, type JavaNavigationOptions } from './java-navigation.js';
 
 export const MAX_CONTEXT_BYTES = 200_000;
 
@@ -44,6 +45,7 @@ export interface PrepareCaseOptions {
   head: string;
   fixCommit: string | null;
   contextFile: string | null;
+  javaNavigation?: JavaNavigationOptions;
   rangeLabel: string;
 }
 
@@ -120,6 +122,12 @@ export async function prepareCase(options: PrepareCaseOptions): Promise<Prepared
       contextPath,
       rulesFiles,
     });
+  }
+  if (options.javaNavigation !== undefined) {
+    const navigation = await generateJavaNavigation({
+      repo, snapshot: snapshotPath, base, head, options: options.javaNavigation,
+    });
+    context = `${context.trimEnd()}\n\n${navigation}`;
   }
   const contextBytes = Buffer.byteLength(context, 'utf8');
   if (contextBytes > MAX_CONTEXT_BYTES) {

@@ -45,6 +45,8 @@ Run options:
   --cleanup-timeout S         Cleanup budget (default 60 = 1m)
   --kill-grace S              SIGTERM-to-SIGKILL grace (default 10)
   --context FILE              Explicit immutable context.md for a new run
+  --java-navigation           Add core Java reference and call-site hints (review only)
+  --java-classpath FILE       Path-separated dependency classpath for Java navigation
   --working                   Review uncommitted working-tree changes (review only)
   --include-fixture           Include fixture systems in leaderboard aggregation
 
@@ -76,6 +78,8 @@ const OPTIONS = {
   base: { type: 'string' },
   context: { type: 'string' },
   working: { type: 'boolean' },
+  'java-navigation': { type: 'boolean' },
+  'java-classpath': { type: 'string' },
   agents: { type: 'string' },
   systems: { type: 'string' },
   model: { type: 'string' },
@@ -168,6 +172,14 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   const output = stringValue(values, 'output');
   const debug = values['debug'] === true;
   try {
+    const javaNavigation = values['java-navigation'] === true;
+    const javaClasspath = stringValue(values, 'java-classpath');
+    if ((javaNavigation || javaClasspath !== undefined) && command !== 'review') {
+      throw new UsageError('Java navigation options are available only with review');
+    }
+    if (javaClasspath !== undefined && !javaNavigation) {
+      throw new UsageError('--java-classpath requires --java-navigation');
+    }
     switch (command) {
       case 'discover': {
         if (rest.length > 0) {
@@ -220,6 +232,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
           commit: stringValue(values, 'commit'),
           base: stringValue(values, 'base'),
           context: stringValue(values, 'context'),
+          javaNavigation,
+          javaClasspath,
           working: values['working'] === true,
           agents: stringValue(values, 'agents'),
           systems: stringValue(values, 'systems'),

@@ -146,6 +146,33 @@ snapshot commit as `head`; `base` defaults to HEAD. It cannot be combined with `
 `<rev>..<snapshot>` while the snapshot parent remains HEAD. `resume` and `rerun` reproduce the snapshot
 from the recorded ref, including after `cleanup`.
 
+### Java review navigation
+
+Add `--java-navigation` to a live review to include a bounded list of files that reference
+affected core types and call sites that resolve to affected Java methods or constructors.
+It reads core production and test sources at the exact base and head, including a captured
+`--working` head. Entries identify the revision side and source line. For removed
+declarations, the list can point to callers in the base.
+
+Run from the repository root with a JDK 17 or newer on `JAVA_HOME` or `PATH`. For this project,
+export the core dependency classpath from a trusted checkout with the project's build JDK.
+Use a classpath that matches the commits under review.
+
+```bash
+navigation_dir=$(mktemp -d)
+mvn -q -pl core dependency:build-classpath -DincludeScope=test \
+  -Dmdep.outputFile="$navigation_dir/classpath"
+node tools/llm-review-bench/dist/cli.js review --commit HEAD --java-navigation \
+  --java-classpath "$navigation_dir/classpath" --json
+```
+
+Without a classpath file, the analyzer has the JDK and captured source. Compilation errors
+produce partial results, and launch failures are shown in the context. Calls use compile-time
+declarations, including overloads selected for calls, constructor expressions and method
+references. Runtime dispatch and reflective calls are outside this view. The review reads
+the full diff; the navigation is supplementary. The CLI appends it to the generated or
+supplied context before freezing the run inputs.
+
 ## Commands
 
 | Command | Purpose |

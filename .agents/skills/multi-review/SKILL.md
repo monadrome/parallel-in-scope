@@ -93,6 +93,11 @@ node tools/llm-review-bench/dist/cli.js resume <run-id> --json
 with `--commit`. The default output root is `<repo>/.review-benchmark`, overridable with
 `--output`.
 
+For affected core Java types and exact compile-time call sites, add `--java-navigation`
+to a live review. See [Java review navigation](../../../tools/llm-review-bench/README.md#java-review-navigation)
+for the dependency classpath and partial-result behavior. Read the full diff and verify
+each cited relationship in the indicated snapshot.
+
 Before starting, the CLI probes the selected reviewers: missing binaries, non-zero exits, and
 probe timeouts are all reported before the run is created instead of surfacing after a long
 review. At runtime each reviewer has a hard timeout and a SIGTERM→SIGKILL wind-down; shorten or
