@@ -15,4 +15,3 @@ required:
   - path: .agents/skills/multi-review
   - path: .agents/skills/project-delivery
   - path: .agents/skills/refactoring-review
-  - path: .agents/skills/writing-for-agents

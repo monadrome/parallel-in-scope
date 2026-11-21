@@ -1,88 +1,49 @@
 ---
 name: project-delivery
-description: Deliver repository changes. Use before modifying code, documentation, scripts, skills, or configuration in parallel-in-scope.
+description: Execute a repository change from implementation through verification, independent review, commit, delivery ledger, push, and CI monitoring. Use for changes to code, documentation, scripts, skills, or configuration in parallel-in-scope; not for read-only analysis or questions. Preserves the root task routes and approval boundaries.
 ---
 
 # Project Delivery
 
-Follow the root `AGENTS.md` task routes and permissions. The steps below own the delivery
-sequence; references supply branch-specific rules. Paths and commands are repository-relative.
+Use this skill for a requested modification, not a read-only investigation. Classify the task
+with the root `AGENTS.md` first; routes are cumulative and the most restrictive gate wins.
+This skill orchestrates existing procedures rather than replacing their contracts or scripts.
+All commands run from the repository root.
 
-## Authority And Stops
+## Load Only What Applies
 
-A change request authorizes the selected route through delivery, including tests, formatting,
-documentation/changelog maintenance, review/fixes, commits, and push. Settle implementation
-choices within that scope; design for the best end state in `0.x`, recording breaks in the
-changelog rather than selecting for compatibility or migration cost.
+| When | Read |
+|---|---|
+| Every modification, before editing | [workflow.md](references/workflow.md) and [review.md](references/review.md) |
+| Editing project-authored code or prose | [conventions.md](references/conventions.md) |
+| Writing, moving, or deleting documentation, instructions, or skills | [documentation.md](references/documentation.md) |
+| Selecting a less-common command, maintaining skills, or diagnosing a gate | Relevant section of [commands.md](references/commands.md) |
+| Before any development-line push (including ordinary delivery), or release/snapshot/development-line maintenance | Current Development Line in [operations.md](references/operations.md); stop at root approval boundaries |
+| Issue/PR maintenance or issue-runner delivery | Issue Tracking in [operations.md](references/operations.md), plus the routed issue-runner contract when applicable |
 
-Stop for an undecided public API, contract, concurrency protocol, or unnamed large refactor;
-an approval required by root Permissions or Design Decisions; an unrelated outward action;
-or an unremovable blocker. Finish independent work, then ask once with each open decision,
-its recommendation, and its effect. Analysis alone authorizes no edits.
+Do not preload every reference. Read the owning subject contract through `design/AGENTS.md`
+when behavior is affected; archived proposals and historical ADRs are not default reading.
 
-Retry after addressing the cause, or once for a known transient. Report an unchanged repeated
-failure. If the environment denies a prescribed action, report the exact command rather than
-working around the denial. After the same user correction twice, propose a preventive rule;
-permission/gate changes require maintainer approval and cannot widen their originating task.
+## Execute The Selected Route
 
-Track failed required checks, decision stops, and user corrections as they occur for the ledger.
+1. Fetch the development line and check checkout ownership before editing. Isolate work if
+   another agent's changes, commits, or HEAD movement appear; follow the workflow exactly.
+2. Resolve only the open directions that require maintainer input. Reproduce defects before
+   fixing them; state invariants/interleavings for concurrency changes. Keep scope bounded.
+3. Implement with the applicable scoped instructions. Run the route's local checks and
+   update documentation/changelog obligations before the initial commit.
+4. Commit with the required contract statements. For code changes, run the existing
+   refactoring-review skill after that commit and before independent review. Accepted
+   behavior-preserving refactors remain separate commits.
+5. Obtain read-only, different-model review of the complete commit diff. Apply the review
+   procedure's lightweight/full classification, verified dispositions, and retry/stop rules.
+   Workflow-contract changes require full review even when the files are Markdown only.
+6. Finish applicable committed-tree preflight checks. Record the delivery in a separate ledger
+   commit, rebase onto the freshly fetched development tip, push by the authorized route,
+   and monitor only that pushed tip's CI to a terminal result.
+7. Report separate honest statuses for checks, review, consumer verification, and mutation
+   coverage. Required blocked checks mean delivery is not complete.
 
-## Delivery Steps
-
-### 1. Establish The Route And Checkout
-
-Fetch the development line declared in `.agents/project-baseline.json`; start new work there.
-Select every applicable root task route and the nearest scoped instructions. Before the first
-edit and each commit, check for unfamiliar modified/untracked files, other agents' commits
-ahead of the fetched tip, and unexpected branch/HEAD movement. If any appear, follow
-[Checkout Isolation](references/workflow.md#checkout-isolation) before proceeding.
-
-**Done:** the checkout is owned, the base is freshly fetched, every applicable route is named,
-and required direction/approvals are settled. Reclassify if the task later crosses a gate.
-
-### 2. Implement And Verify Locally
-
-Before editing code or prose, read [conventions](references/conventions.md). For documentation,
-instruction, or skill edits, also read [documentation maintenance](references/documentation.md).
-Before creating or editing skills, agent instructions, or documents reached through their
-pointers, use [writing-for-agents](../writing-for-agents/SKILL.md).
-Load subject contracts through the root routes; use [commands](references/commands.md) only
-for the specialized check or maintenance task being performed.
-
-Read [Local Verification](references/workflow.md#local-verification) for the code/docs branch.
-Reproduce defects before fixing them; use the selected route's regression and concurrency gates.
-
-**Done:** each requested change and its documentation/changelog obligations are accounted for,
-all applicable local checks pass, and every required regression is reverse-verified. Fix
-change-caused failures before the first commit; report unrelated failures or blockers.
-
-### 3. Commit And Review
-
-Read [Commit And Preflight](references/workflow.md#commit-and-preflight) before committing.
-For code changes, run the project refactoring-review skill after the initial commit and before
-independent review; its planner decides applicability and detector scope.
-
-For every non-empty change, read Independent Review in [review](references/review.md).
-For a high-risk route, also follow its Adversarial Review section through the project
-multi-review skill. Workflow contracts take that full-review route even when Markdown-only.
-Fix confirmed findings in follow-up commits and apply the review's re-review/stop rules.
-
-**Done:** the committed tree passes applicable preflight; the review evidence covers every
-changed path, including metadata; and no required review or confirmed blocking finding remains
-unresolved. A failed, timed-out, or unreadable review is blocked, not clean.
-
-### 4. Record And Deliver
-
-For a non-mechanical delivery, read `verification/delivery-ledger.md` and record the change
-after its last implementation/fix commit; commit the ledger alone as
-`chore: record delivery <topic>`. Record unknown usage as unknown.
-
-Before pushing, read Current Development Line in [operations](references/operations.md),
-including for ordinary development delivery: its push can trigger snapshot publication.
-Follow [Delivery And CI](references/workflow.md#delivery-and-ci) for direct delivery, an
-existing PR, an external contributor, or the unattended issue runner, as applicable.
-
-**Done:** delivery followed the authorized route, required CI for the pushed tip is terminal
-and passing, and every check has its own pass/fail/blocked/inconclusive/skipped status with
-a reason for each non-pass. Behavior tests, external consumers, review, and mutation coverage
-are distinct results. Required pending or blocked checks mean delivery remains incomplete.
+Use the existing dependency-audit, refactoring-review, and multi-review skills only when the
+selected route calls for them. Assurance remains an optional, separately versioned bundle;
+this skill must not copy its algorithms or host-adapter assumptions.
