@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-scheduled-adoption-timeout-matrix",
+  "date": "2026-11-21",
+  "topic": "scheduled-adoption-timeout-matrix",
+  "routes": [
+    "concurrency"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: expand scheduled adoption timeout coverage"
+    ],
+    "files": 1,
+    "insertions": 98,
+    "deletions": 18
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "pr79-guard-diagnostics-2850aca1-20261121-083252-fe32bb",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 51100,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 15674,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 15674,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "pr79-timeouts-refactoring",
+        "head": "2850aca1020bb983ad9118dc4e7c56b7dae1bd35",
+        "incompleteAgents": 0,
+        "findings": []
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "targeted-compile": 1,
+      "pit-archive-wrapper": 1,
+      "docs-build-launch": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "pr79-timeouts/mutations.xml",
+      "statuses": {
+        "KILLED": 112,
+        "NO_COVERAGE": 4,
+        "SURVIVED": 3
+      },
+      "total": 119,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Test-only expansion adds 30 cases (64 targeted, 3437 full-suite cases). No production fix to reverse. PIT includes AdoptedSource as the deadline collaborator; all four uncovered returns and three surviving invariant assertions have supported-path dispositions reviewed independently. Command setup failures were corrected without changing production code. Implementer token and cost usage unknown."
+}
