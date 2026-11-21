@@ -16,9 +16,11 @@ choices within that scope; design for the best end state in `0.x`, recording bre
 changelog rather than selecting for compatibility or migration cost.
 
 Stop for an undecided public API, contract, concurrency protocol, or unnamed large refactor;
-an approval required by root Permissions or Design Decisions; an unrelated outward action;
-or an unremovable blocker. Finish independent work, then ask once with each open decision,
-its recommendation, and its effect. Analysis alone authorizes no edits.
+an approval required by root Permissions or Design Decisions; an outward action not prescribed
+by the selected route; or an unremovable blocker. Merging a development pull request requires
+explicit maintainer authorization; only the documented issue runner may merge through its own
+gates. Finish independent work, then ask once with each open decision, its recommendation, and
+its effect. Analysis alone authorizes no edits.
 
 Retry after addressing the cause, or once for a known transient. Report an unchanged repeated
 failure. If the environment denies a prescribed action, report the exact command rather than
@@ -45,7 +47,11 @@ and required direction/approvals are settled. Reclassify if the task later cross
 Before editing code or prose, read [conventions](references/conventions.md). For documentation,
 instruction, or skill edits, also read [documentation maintenance](references/documentation.md).
 Before creating or editing skills, agent instructions, or documents reached through their
-pointers, use [writing-for-agents](../writing-for-agents/SKILL.md).
+pointers, use [writing-for-agents](../writing-for-agents/SKILL.md). For skills with
+`agents/openai.yaml`, keep `disable-model-invocation` and `policy.allow_implicit_invocation`
+synchronized in both directions; the imported frontmatter-only mechanics do not override this
+cross-harness contract. A manual-only subflow may still be read explicitly by its entry workflow,
+as in `contract-first-assurance`; do not convert that pattern into autonomous invocation.
 Load subject contracts through the root routes; use [commands](references/commands.md) only
 for the specialized check or maintenance task being performed.
 
@@ -86,3 +92,7 @@ existing PR, an external contributor, or the unattended issue runner, as applica
 and passing, and every check has its own pass/fail/blocked/inconclusive/skipped status with
 a reason for each non-pass. Behavior tests, external consumers, review, and mutation coverage
 are distinct results. Required pending or blocked checks mean delivery remains incomplete.
+
+Use the existing dependency-audit, refactoring-review, and multi-review skills only when the
+selected route calls for them. Assurance remains an optional, separately versioned bundle;
+this skill must not copy its algorithms or host-adapter assumptions.

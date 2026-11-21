@@ -51,9 +51,20 @@ under the documentation-maintenance decision-rationale rules.
 
 ## Commands
 
-Run commands from the repository root. For specialized checks, skill-bundle maintenance,
-static analysis, metrics, or CI monitoring, read the matching section of the
-[command reference](.agents/skills/project-delivery/references/commands.md).
+Run from the repository root; select checks by route, not by copying the whole catalog.
+
+```bash
+mvn test -Dtest='ClassName#methodName' # targeted test
+mvn test                            # full library suite
+mvn spotless:apply                  # Java changes only
+python3 scripts/check-doc-refs.py
+python3 scripts/check-local-links.py
+python3 scripts/check-worktree-skills.py
+python3 scripts/check-project-baseline.py
+```
+
+The [command reference](.agents/skills/project-delivery/references/commands.md) owns specialized
+checks, skill-bundle maintenance, static analysis, metrics, and CI-watching commands.
 
 ## Design Decisions
 
