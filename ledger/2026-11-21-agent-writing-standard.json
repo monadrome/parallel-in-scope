@@ -8,7 +8,7 @@
     "docs"
   ],
   "implementer": {
-    "agent": "codex",
+    "agent": "kimi",
     "model": null
   },
   "change": {
@@ -17,11 +17,13 @@
       "chore: record delivery agent-writing-standard",
       "chore: correct delivery validation evidence",
       "docs: restore language and code preflight guarantees",
-      "docs: vendor Matt Pocock writing-for-agents skill"
+      "docs: vendor Matt Pocock writing-for-agents skill",
+      "chore: record delivery agent-writing-standard",
+      "fix: restore workflow authority and invocation guards"
     ],
     "files": 12,
-    "insertions": 421,
-    "deletions": 256
+    "insertions": 585,
+    "deletions": 238
   },
   "reviews": {
     "adversarial": [
@@ -219,6 +221,168 @@
           "systemsTotal": 1,
           "costsByCurrency": []
         }
+      },
+      {
+        "runId": "agent-writing-standard-e383d92d-20261121-105701-bf8b3e",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 111883,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-writing-standard-68ac8a11-20261121-110053-6838b6",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 52846,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-workflow-pr-b6108f12-20261121-110134-cbf2da",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 741781,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-workflow-pr-7024a85d-20261121-113746-f7ec6f",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 41256,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 28037,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 28037,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
       }
     ],
     "refactoring": []
@@ -227,18 +391,21 @@
     "failures": {
       "issue-agent test discovery without scripts import root": 1,
       "skill validation without PyYAML in system Python": 1,
-      "temporary wording guard without required checkout argument": 1
+      "temporary wording guard without required checkout argument": 1,
+      "temporary wording guard whitespace-sensitive fixture": 1,
+      "local review CLI build without installed tsc": 1,
+      "review adjudication default output root": 1
     }
   },
   "pit": [],
   "interventions": {
-    "asks": 0,
-    "corrections": 0
+    "asks": 1,
+    "corrections": 1
   },
   "usage": {
     "totalTokens": null,
     "cost": null,
     "currency": null
   },
-  "notes": "Applied Matt Pocock writing-for-agents: conditional pointers, common delivery steps with Done criteria, single-source rules. Imported project-local upstream skill with MIT license and worktree discovery. Root Task Routes, Design Decisions, Permissions unchanged. Five Kimi k3.1-pro reviews cover every changed path; two confirmed wording regressions (Chinese user-documentation exception and mandatory code preflight) fixed and re-reviewed clean. Focused guards reverse-verified. Documentation/link/design/baseline/skill/language/ADR/proposal gates, 376 script tests, strict MkDocs, Java conventions, assurance package verification, and skill validation pass on committed source. Java tests, consumer tests, PIT, refactoring review skipped: documentation-only. Three environment/invocation failures corrected; usage unknown; open-world recall n/a. Remote CI monitored separately after delivery."
+  "notes": "Restored route-bound outward actions and development-PR merge authorization, cross-harness invocation synchronization with explicit manual subflow dispatch, optional decoupled assurance, and the common command cache. Nine review runs recorded; the latest full-range Codex review confirmed only the stale ledger, now regenerated after the final fix. Five workflow regressions fixed across the PR; focused wording guards failed before and pass after. Documentation/link/language/design/baseline/worktree-skill/ADR/proposal/Java-convention checks, 376 script tests, strict MkDocs, and assurance package verification pass. Java tests, consumer tests, PIT, and refactoring review skipped locally for documentation-only changes. One rollback/PR correction and one maintainer-direction stop recorded; three new invocation/environment failures corrected; usage unknown; open-world recall n/a. Remote CI monitored separately."
 }
