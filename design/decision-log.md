@@ -527,12 +527,18 @@ The remaining verification tasks are in [BACKLOG.md](../BACKLOG.md).
 The annotation pilot added immutability, return-value, lock-ownership, and test-visibility
 annotations. Not adopted: `@LazyInit` (the code has no lazy-initialization field pattern),
 `@ThreadSafe` (it cannot prove cross-method protocols), and `@CompileTimeConstant`, `@FormatMethod`,
-`@Var`, `@StrictlyNonNullGeneric`, `@WeakOuter`, `@ParametricNullness`, `@GwtIncompatible`, `@Beta`,
-`@DoNotCall` (limited benefit; they are shaped by GWT, Android, Checker Framework, or Guava
+`@Var`, `@StrictlyNonNullGeneric`, `@WeakOuter`, `@ParametricNullness`, `@GwtIncompatible`, `@Beta`
+(limited benefit; they are shaped by GWT, Android, Checker Framework, or Guava
 compatibility constraints that this project does not have). Also not adopted: `@Contended` to
 express races (it documents contention, not protocol), annotations as a substitute for local
 correctness proofs, and package-level return-value checks taken to reduce comments
 (harvested from `P0030`).
+
+The pilot also rejected `@DoNotCall` for lack of a concrete forbidden-call surface. Scheduled
+`adopt` overloads now provide that surface: use actionable diagnostics plus `@Deprecated` for
+ordinary tooling, following Guava's immutable-collection precedent. The runtime guard remains
+necessary without either tool. The static-type limitation and rejected runtime type check are
+owned by the [adopted-future contract](task-group-adopted-futures.md).
 
 ### JSpecify null safety (v0.3)
 

@@ -43,6 +43,26 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
 
 ## 2. Contract
 
+**Finite-operation boundary**
+
+- A0 Callers MUST supply a source representing one finite operation and MUST NOT adopt periodic
+  scheduled futures, including through a `ListenableFuture`-typed reference. Successful periodic
+  ticks do not settle the member; absent an earlier failure or cancellation, the group waits until
+  its deadline and then cancels the loop. Keep periodic scheduling application-owned and structure
+  each tick as its own group.
+- A call whose source has static type `ListenableScheduledFuture` MUST select a rejecting overload,
+  including for a one-shot source. The overload MUST carry `@DoNotCall` with actionable migration
+  guidance and `@Deprecated` for tools without Error Prone support. These annotations discourage
+  calls; the runtime guard does not depend on the caller enabling either diagnostic.
+- Rejection MUST leave the draft stage, member names, and adopted-source registry unchanged and
+  MUST NOT cancel or connect the source. Producer-attributed calls check producer nullness first;
+  all scheduled overloads then check owner thread, stage, key nullness, and source nullness in that
+  order before throwing `IllegalArgumentException`. Stale or foreign-thread calls still throw
+  `IllegalStateException`; null arguments reached by this sequence throw `NullPointerException`.
+- One-shot scheduled results remain supported through a `ListenableFuture`-typed reference. This
+  is a static overload guard, not runtime detection of periodicity: widening a periodic source
+  also bypasses the rejecting overload but remains a caller contract violation.
+
 **Ownership and cancellation**
 
 - A1 From the moment `runAll()` is called, the group owns every adopted source. Any reason the
@@ -127,6 +147,15 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
 
 ## 3. Rejected alternatives
 
+- **Rejecting all runtime instances of `ListenableScheduledFuture`**: one-shot and periodic sources
+  share that interface, which exposes no periodicity query. Such a check would also reject the
+  supported one-shot migration path. The static guard makes a common mistake conspicuous without
+  claiming to prove that an arbitrary external future eventually completes.
+- **Copying immutable-collection rejection semantics wholesale**: Guava's immutable mutators
+  override inherited operations, so widening the receiver does not bypass runtime rejection.
+  Here argument overload selection is static. Keep the existing draft validation order and
+  argument-error vocabulary instead of unconditionally throwing `UnsupportedOperationException`.
+
 - **The batch shape `Par.map(List<ListenableFuture<T>>)`**: a batch is a homogeneous mapping
   depending on executions and sliding-window throttling; a list of futures has neither a
   mappable execution nor a throttleable submission. For a dynamic number of inputs, loop the
@@ -163,3 +192,12 @@ shapes, same-pool self-loops with a producer and no edges without one, and the w
 starvation observation both being visible when the source is queued on the waiter's own pool.
 `AdoptedSourceTest` covers abandoning a prepared source and abandonment after connection.
 `verification/maven-central-consumer` covers adopted members on the Java 8 runtime.
+
+The scheduled-source cases cover start and later stages, producer attribution, one-shot and
+periodic rejection, null and stale-stage precedence, source ownership, and one-shot adoption
+through the general future type. After compiling core, run
+`python3 scripts/check-adopt-compile-contract.py` to verify Java 8 consumer snippets against the
+built API: every scheduled overload produces an Error Prone `DoNotCall` diagnostic with migration
+guidance, ordinary javac emits deprecation diagnostics, and the supported general-future calls
+compile under both configurations. The check reuses the core Maven compiler configuration in a
+temporary project and writes its command logs under `target/adopt-compile-contract/`.
