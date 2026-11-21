@@ -44,6 +44,8 @@ and required direction/approvals are settled. Reclassify if the task later cross
 
 Before editing code or prose, read [conventions](references/conventions.md). For documentation,
 instruction, or skill edits, also read [documentation maintenance](references/documentation.md).
+Before creating or editing skills, agent instructions, or documents reached through their
+pointers, use [writing-for-agents](../writing-for-agents/SKILL.md).
 Load subject contracts through the root routes; use [commands](references/commands.md) only
 for the specialized check or maintenance task being performed.
 
