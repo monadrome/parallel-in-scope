@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-crr-problem-driven-article",
+  "date": "2026-11-21",
+  "topic": "crr-problem-driven-article",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: explain the CRR implementation through user problems",
+      "docs: clarify provider resource and TTL error boundaries"
+    ],
+    "files": 2,
+    "insertions": 220,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Documentation-only Chinese user article; external lightweight read-only gpt-6.1-terra commit-diff review clean on both changed paths, evidence in .agents/reviews/crr-article/review.md. Documentation references, local links, English-location policy, design routes, diff check and strict MkDocs pass. Java and mutation checks skipped as inapplicable to these Markdown-only commits. Broader CRR implementation delivery is not complete and remains separate."
+}
