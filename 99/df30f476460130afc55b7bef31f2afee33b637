@@ -1,0 +1,23 @@
+.agents/skills/reflect-agents-md/SKILL.md
+  s_21de9cf55082eb::t_0918ac00d0463e 1-104
+.worktreeinclude.yaml
+  s_21de9cf55082eb::t_c2e0cbdf777243 18
+.agents/skills/reflect-agents-md/agents/openai.yaml
+  s_21de9cf55082eb::t_0918ac00d0463e 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "99df30f476460130afc55b7bef31f2afee33b637",
+  "prompts": {},
+  "sessions": {
+    "s_21de9cf55082eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bdea9493-b191-4ec8-a5e0-cf0e24cb9c2b",
+        "model": "deepseek-flash"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
