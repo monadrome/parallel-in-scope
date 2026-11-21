@@ -19,7 +19,7 @@ SECRET_RE = re.compile(
     r"gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|sk-[A-Za-z0-9_-]{24,}"
     r"|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----"
 )
-HUMAN_PREFIXES = (".github/", ".mvn/", "scripts/", "adr/")
+HUMAN_PREFIXES = (".github/", ".mvn/", "scripts/", "adr/", ".agents/skills/project-delivery/")
 LOCAL_ONLY_PREFIXES = (".github/workflows/", ".github/actions/")
 HUMAN_SUFFIXES = ("AGENTS.md", "CLAUDE.md")
 HUMAN_FILES = frozenset({"pom.xml", "demo/pom.xml", "LICENSE", "design/issue-automation.md"})

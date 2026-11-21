@@ -10,7 +10,7 @@ Reference styles that silently rot or force chained edits are rejected:
 
 The repository keeps only the current view: retired material is harvested into
 live documents and deleted. See the "Documentation References" section of the
-root AGENTS.md.
+.agents/skills/project-delivery/references/documentation.md.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 SCAN_FILES = {
     "AGENTS.md",
+    "core/AGENTS.md",
     "BACKLOG.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
@@ -32,6 +33,7 @@ SCAN_FILES = {
     "todo.md",
 }
 SCAN_PREFIXES = (
+    ".agents/skills/project-delivery/",
     ".github/",
     "adr/",
     "demo/",

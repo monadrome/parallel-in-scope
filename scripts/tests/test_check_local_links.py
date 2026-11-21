@@ -29,6 +29,16 @@ class LocalLinksTest(GateCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(result.stdout.strip(), "Local documentation links: OK")
 
+    def test_relocated_instruction_links_are_checked(self):
+        paths = ("core/AGENTS.md", ".agents/skills/project-delivery/SKILL.md",
+                 ".agents/skills/project-delivery/references/workflow.md")
+        for path in paths:
+            with self.subTest(path=path):
+                self.write(path, "# Instructions\nSee [missing](missing.md).\n")
+                result = self.check()
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn(f"{path}: missing target: missing.md", result.stdout)
+
     def test_archive_sources_and_their_links_are_not_scanned(self):
         self.write("design/archive/proposal/P0001-dormant.md",
                    "# Dormant\nA [stale link](../gone.md) and [live](../P0002-x.md) stay frozen.\n")

@@ -162,7 +162,8 @@ Path policy:
   `needs-decision`, and pushed by the maintainer personally. The runner's token should also
   lack the `workflow` scope, so GitHub rejects such pushes as a backstop.
 - Human-merge-required: deletions or renames, `.github/`, `.mvn/`, `pom.xml`, new ADRs,
-  `scripts/` (the runner and gate scripts), any `AGENTS.md`/`CLAUDE.md`. An agent must not
+  `scripts/` (the runner and gate scripts), `.agents/skills/project-delivery/` (the mandatory
+  delivery instructions and references), any `AGENTS.md`/`CLAUDE.md`. An agent must not
   loosen its own guardrails, rewrite its gates, or rewrite its own instructions unattended.
 
 These guardrails defend against mistakes and naive injection, not a sandbox: the execution

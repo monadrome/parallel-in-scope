@@ -116,6 +116,16 @@ class PathPolicyTest(unittest.TestCase):
         _, human = policy.classify_paths([("M", "AGENTS.md"), ("M", "design/AGENTS.md"), ("A", "src/x/CLAUDE.md")])
         self.assertEqual(len(human), 3)
 
+    def test_relocated_delivery_instructions_need_a_human(self):
+        names = ("SKILL.md", "references/commands.md", "references/conventions.md",
+                 "references/documentation.md", "references/operations.md", "references/review.md",
+                 "references/workflow.md", "references/future.md")
+        for status in ("A", "M"):
+            for name in names:
+                path = f".agents/skills/project-delivery/{name}"
+                with self.subTest(status=status, path=path):
+                    self.assertEqual(policy.classify_paths([(status, path)]), ([], [f"{status} {path}"]))
+
     def test_ordinary_source_changes_pass(self):
         self.assertEqual(policy.classify_paths([("M", "src/main/java/x/Par.java"), ("A", "docs/en/guide.md")]), ([], []))
 

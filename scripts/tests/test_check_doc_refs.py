@@ -110,6 +110,16 @@ class CheckDocRefsTest(unittest.TestCase):
         self.write("refactoring-review/lenses/structure.md", "# Lens\nSee Foo.java:9.\n")
         self.assertEqual(len(docs.violations(self.root)), 1)
 
+    def test_relocated_instructions_are_scanned(self):
+        paths = ("core/AGENTS.md", ".agents/skills/project-delivery/SKILL.md",
+                 ".agents/skills/project-delivery/references/workflow.md")
+        for path in paths:
+            with self.subTest(path=path):
+                self.write(path, "# Instructions\nSee Foo.java:9 and commit `abc1234`.\n")
+                errors = docs.violations(self.root)
+                self.assertTrue(any(error.startswith(f"{path}:2: line-number reference:") for error in errors))
+                self.assertTrue(any(error.startswith(f"{path}:2: commit-hash reference:") for error in errors))
+
     def test_consumer_module_documents_are_scanned(self):
         self.write("demo/README.en.md", "# Demo\nRemoved in `abc1234`.\n")
         self.write("integrations/README.en.md", "# Integrations\nSee Foo.java:9.\n")

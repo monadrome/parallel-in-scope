@@ -10,7 +10,8 @@ public or protected `T2`.
 - Smell: a function, variable, field, or type whose name does not reveal what it does or holds.
 - Move: Rename. If no honest name comes, report the murky responsibility instead.
 - Suppress: names fixed by a JDK or third-party contract (`isShutdown`, `isSatisfied`); suffixes
-  defined by the root `AGENTS.md` (`Scope`, `Context`, `Step`, `Id`) used as defined.
+  defined by [code/prose conventions](../../.agents/skills/project-delivery/references/conventions.md)
+  (`Scope`, `Context`, `Step`, `Id`) used as defined.
 - mechanizable: no
 
 ### S02 Long function
