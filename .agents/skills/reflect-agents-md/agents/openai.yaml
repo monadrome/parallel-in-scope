@@ -1,0 +1,7 @@
+interface:
+  display_name: "Reflect AGENTS.md"
+  short_description: "审查 AGENTS.md 的规则、路由与上下文负担"
+  default_prompt: "Use $reflect-agents-md to audit the repository AGENTS.md files for routing, conflicts, stale rules, and context burden."
+
+policy:
+  allow_implicit_invocation: false
