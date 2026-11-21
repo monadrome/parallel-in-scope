@@ -79,9 +79,15 @@ snippets deliberately capture before execution, not inside the delayed task body
 ## Protocol and ownership
 
 The API separates three responsibilities rather than exposing opaque backup objects to callers.
-`ContextPropagation` captures the calling thread's application context. Its `ContextSnapshot`
-installs that captured context on the executing thread and returns a `ContextScope`. Closing that
-scope restores the entering bindings without checked exceptions. These public contracts belong
+`ContextPropagation` is the provider SPI that captures the calling thread's application context.
+`ContextSnapshot` and `ContextScope` are final, library-owned types, not provider-implemented
+interfaces. A provider creates its snapshot with `ContextSnapshot.of(installer)`: the installer
+is a Java 8 `Supplier<? extends Runnable>` closing over the captured data. Each invocation installs
+that data and returns a non-null restoration action closing over its independent backup. Only
+`ContextSnapshot.install()` invokes the installer and issues a guarded `ContextScope`; providers
+never issue or subclass scopes. Closing the scope invokes that restoration action without checked
+exceptions. Provider capture, installation, and restoration callbacks MUST NOT reenter protocol
+capture, installation, or closure. These public contracts belong
 in the existing root package; internal helpers remain package-private. No new artifact, dependency,
 executor wrapper, public kernel bridge, or global provider discovery is proposed.
 
@@ -103,12 +109,14 @@ isolates bindings, not arbitrary mutations to referenced objects. A single-use p
 its capture to a reusable snapshot or is unsuitable for this interface. Capturing MUST leave the
 source bindings unchanged; it does not acquire resources needing explicit snapshot closure.
 
-Installed scopes are thread-confined and cannot be transferred. Library-managed installations
-share one per-thread LIFO discipline across providers. A wrong-thread or out-of-order close MUST
+Installed scopes are thread-confined and cannot be transferred. Every installation, including a
+direct application call to `snapshot.install()`, shares one library-owned per-thread LIFO discipline
+across providers. A wrong-thread or out-of-order close MUST
 throw `IllegalStateException` before invoking provider restoration or changing the stack. A
 successfully closed scope is idempotent on its owner thread; closing it on another thread remains
-an error. Rejected closure leaves the scope available for a later valid close. Provider authors
-MUST preserve these rules for scopes obtained directly through their implementation as well.
+an error. Rejected closure leaves the scope available for a later valid close. The library performs
+these checks before calling the provider's restoration action, so providers cannot accidentally
+bypass the shared stack by implementing their own scope.
 
 Use ordinary thread-local scope bookkeeping and lexical `try`/`finally` ownership; do not introduce
 cross-thread scope manipulation, locks, interrupt delivery, or a hand-built synchronization
@@ -200,12 +208,14 @@ replaces application propagation; it does not disable task context, cancellation
 submission policy. Applications wanting TTL and another provider choose explicit composition.
 
 The existing decision-log rejection of inlining TTL CRR into `ScopedCallable` remains relevant.
-The proposed boundary is outside that class; it MUST preserve TTL's enhanced-wrapper recognition,
-capture-copy semantics, and task snapshot release behavior. A TTL adapter must retain an actual
-TTL-compatible enhanced wrapper at the executor boundary so an executor decorator or agent does
-not mistake an already prepared task for unwrapped work. Task wrappers remain single-execution
-even though callback snapshots are reusable. Merely replacing `TtlCallable` with an unmarked
-lambda is not an acceptable implementation.
+The proposed boundary is outside that class; it MUST preserve TTL's enhanced-wrapper recognition
+at the existing callable-wrapper boundary, capture-copy semantics, and task snapshot release
+behavior. The object handed to the executor MUST remain the prepared future itself, not a new
+provider wrapper. The current future is not a TTL-enhanced executor command: TTL-decorated pools
+can already capture twice, which is why registration warns against them. This proposal does not
+claim to eliminate that double capture or to introduce agent-level idempotence at handoff.
+Task wrappers remain single-execution even though callback snapshots are reusable. Merely replacing
+the enhanced callable wrapper with an unmarked lambda is not an acceptable implementation.
 
 The TTL adapter uses the pinned, released TTL APIs, not unreleased v3 CRR classes. Its integration
 must demonstrate equivalence against the current task wrapper and callback helpers before it can
@@ -250,6 +260,12 @@ those implementation gates have passed.
   mandatory framework bindings and conflate transport with lexical installation.
 - **Expose raw replay backups:** makes wrong-thread restore, crossed nesting, and forgotten
   cleanup caller responsibilities instead of making misuse conspicuous.
+- **Let providers implement public scopes:** cannot enforce one cross-provider LIFO stack for
+  direct and runtime-managed installations; final library-owned snapshots and scopes keep the
+  registration and close checks on an unavoidable path.
+- **Add an enhanced wrapper around the executor command:** violates prepared-future identity and
+  changes cancellation and rejection handling. Preserve the current inner callable boundary and
+  existing double-capture warning rather than promise stronger executor-agent interoperability.
 - **Introduce an event bus or generic lifecycle framework:** adds ordering and shutdown mechanisms
   without improving context ownership.
 - **Remove TTL or publish new modules immediately:** mixes protocol design with default behavior,
