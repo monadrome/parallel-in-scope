@@ -18,7 +18,7 @@ All commands run from the repository root.
 | Editing project-authored code or prose | [conventions.md](references/conventions.md) |
 | Writing, moving, or deleting documentation, instructions, or skills | [documentation.md](references/documentation.md) |
 | Selecting a less-common command, maintaining skills, or diagnosing a gate | Relevant section of [commands.md](references/commands.md) |
-| Release/snapshot/development-line maintenance | Current Development Line in [operations.md](references/operations.md); stop at root approval boundaries |
+| Before any development-line push (including ordinary delivery), or release/snapshot/development-line maintenance | Current Development Line in [operations.md](references/operations.md); stop at root approval boundaries |
 | Issue/PR maintenance or issue-runner delivery | Issue Tracking in [operations.md](references/operations.md), plus the routed issue-runner contract when applicable |
 
 Do not preload every reference. Read the owning subject contract through `design/AGENTS.md`

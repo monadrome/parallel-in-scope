@@ -109,6 +109,9 @@ The root task routes and permissions still apply; this workflow grants no additi
   commit the record alone as `chore: record delivery <topic>`. Keep a count of
   failed required checks and of stops for a decision while you work; record
   unknown usage as unknown instead of estimating it.
+- Before any development-line push, read Current Development Line in
+  [operations.md](operations.md): an ordinary delivery can trigger snapshot publication.
+  Preserve its publication safeguards; this route does not authorize manual deployment.
 - After verification, commit and deliver to the development line: rebase onto
   its freshly fetched tip, rerun the checks whose inputs the incoming commits
   changed, and fast-forward push it; when the push is rejected, repeat from the

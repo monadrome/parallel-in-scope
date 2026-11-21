@@ -15,7 +15,8 @@ implementations and tests belong to that separate repository, not this reading s
 - Library, demo, and default verification consumer use `0.5.0-SNAPSHOT`; stable installation
   examples stay on `0.4.1`. Release integration and syncing default-branch workflows or
   Dependabot configuration are separate maintainer actions.
-- For release/snapshot or development-line maintenance, read Current Development Line in
+- Before any development-line push, or release/snapshot/development-line maintenance, read
+  Current Development Line in
   [.agents/skills/project-delivery/references/operations.md](.agents/skills/project-delivery/references/operations.md).
 
 ## Context Loading
