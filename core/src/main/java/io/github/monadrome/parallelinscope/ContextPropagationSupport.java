@@ -28,6 +28,11 @@ final class ContextPropagationSupport {
     /** Prevents construction of the shared protocol helpers. */
     private ContextPropagationSupport() {}
 
+    /** Validates a provider's capture at the application-provider trust boundary. */
+    static ContextSnapshot capture(ContextPropagation propagation) {
+        return checkNotNull(propagation.capture(), "provider must return a snapshot");
+    }
+
     /** Validates identity-distinct providers and copies their configured order. */
     static ContextPropagation compose(ContextPropagation[] providers) {
         checkNotNull(providers, "providers cannot be null");
@@ -46,7 +51,7 @@ final class ContextPropagationSupport {
         if (propagation == TTL) {
             return TtlCallable.get(callable, true, true);
         }
-        ContextSnapshot captured = checkNotNull(propagation.capture(), "provider must return a snapshot");
+        ContextSnapshot captured = capture(propagation);
         return usesTtl(propagation)
                 ? new TtlContextualCallable<>(captured, callable)
                 : new ContextualCallable<>(captured, callable);
@@ -81,7 +86,7 @@ final class ContextPropagationSupport {
         public ContextSnapshot capture() {
             List<ContextSnapshot> captures = new ArrayList<>();
             for (ContextPropagation component : components) {
-                captures.add(checkNotNull(component.capture(), "provider must return a snapshot"));
+                captures.add(ContextPropagationSupport.capture(component));
             }
             return ContextSnapshot.of(() -> installAll(captures));
         }
@@ -101,7 +106,10 @@ final class ContextPropagationSupport {
         return () -> restoreAll(restorations, null);
     }
 
-    /** Attempts every unwind, preserving the first failure and avoiding self-suppression. */
+    /**
+     * Attempts every reverse-order unwind. With a primary installation failure, attaches cleanup
+     * failures for the caller to rethrow; otherwise throws the first cleanup failure after unwinding.
+     */
     private static void restoreAll(List<Runnable> restorations, @Nullable Throwable primary) {
         Throwable failure = primary;
         for (int index = restorations.size() - 1; index >= 0; index--) {
@@ -110,8 +118,8 @@ final class ContextPropagationSupport {
             } catch (RuntimeException | Error cleanupFailure) {
                 if (failure == null) {
                     failure = cleanupFailure;
-                } else if (failure != cleanupFailure) {
-                    failure.addSuppressed(cleanupFailure);
+                } else {
+                    suppress(failure, cleanupFailure);
                 }
             }
         }
@@ -147,9 +155,14 @@ final class ContextPropagationSupport {
             if (primary == null) {
                 throw cleanupFailure;
             }
-            if (primary != cleanupFailure) {
-                primary.addSuppressed(cleanupFailure);
-            }
+            suppress(primary, cleanupFailure);
+        }
+    }
+
+    /** Attaches a cleanup failure without replacing the primary or attempting self-suppression. */
+    private static void suppress(Throwable primary, Throwable cleanupFailure) {
+        if (primary != cleanupFailure) {
+            primary.addSuppressed(cleanupFailure);
         }
     }
 

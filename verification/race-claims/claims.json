@@ -1,6 +1,22 @@
 {
   "claims": [
     {
+      "id": "context-exit-before-normal-settlement",
+      "protocol": "Application context restoration and normal completion",
+      "claim": "Normal completion listeners must observe restored application bindings, released callable ownership, and physical execution exit.",
+      "method": "mutation",
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java",
+      "mutations": [
+        {
+          "find": "                set(callAndRelease(taskCode));",
+          "replace": "                set(taskCode.call());"
+        }
+      ],
+      "tests": "ContextPropagationRuntimeTest#normalSettlementFollowsRestorationAndRelease,ScopedCallableEntryTest#theExecutionExitIsPublishedBeforeTheFutureSettles",
+      "expect": "failure",
+      "note": "PreparedStates.contextTask binds the configured provider and lifecycle tracker before execution; the direct completion listener records restoration count, exit state, and callable release."
+    },
+    {
       "id": "application-restore-before-execution-exit",
       "protocol": "Application context restoration and execution lifetime",
       "claim": "Physical exit and observation must wait for application restoration even after cancellation settles the result.",

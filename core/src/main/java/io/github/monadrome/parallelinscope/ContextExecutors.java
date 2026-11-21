@@ -51,10 +51,7 @@ public final class ContextExecutors {
      */
     public static Executor directContextExecutor(ContextPropagation propagation) {
         checkNotNull(propagation, "context propagation cannot be null");
-        return command -> {
-            checkNotNull(command, "command cannot be null");
-            runWithCaptured(propagation.capture(), command);
-        };
+        return command -> runWithPropagation(propagation, command);
     }
 
     /**
@@ -79,9 +76,8 @@ public final class ContextExecutors {
      * @throws NullPointerException if the provider or its capture is null
      */
     public static Executor registrationContextExecutor(ContextPropagation propagation) {
-        return new CapturedDirectExecutor(checkNotNull(
-                checkNotNull(propagation, "context propagation cannot be null").capture(),
-                "provider must return a snapshot"));
+        return new CapturedDirectExecutor(
+                ContextPropagationSupport.capture(checkNotNull(propagation, "context propagation cannot be null")));
     }
 
     /**
@@ -93,8 +89,7 @@ public final class ContextExecutors {
 
         @Override
         public void execute(Runnable command) {
-            checkNotNull(command, "command cannot be null");
-            runWithCaptured(ContextPropagation.ttl().capture(), command);
+            runWithPropagation(ContextPropagation.ttl(), command);
         }
 
         @Override
@@ -113,7 +108,7 @@ public final class ContextExecutors {
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
-            runWithCaptured(captured, command);
+            ContextPropagationSupport.run(captured, command);
         }
 
         @Override
@@ -123,15 +118,16 @@ public final class ContextExecutors {
     }
 
     /**
-     * Runs a command with captured application context and restores the context active on entry.
+     * Validates the command before capturing invocation-time application context, then runs inline.
      *
      * <p>The command runs synchronously on the calling thread. If the command throws, its failure
      * is propagated after the entry context has been restored.
      *
-     * @param captured the non-null context to replay
+     * @param propagation the non-null provider to capture for this invocation
      * @param command the non-null command to run
      */
-    private static void runWithCaptured(ContextSnapshot captured, Runnable command) {
-        ContextPropagationSupport.run(checkNotNull(captured, "provider must return a snapshot"), command);
+    private static void runWithPropagation(ContextPropagation propagation, Runnable command) {
+        checkNotNull(command, "command cannot be null");
+        ContextPropagationSupport.run(ContextPropagationSupport.capture(propagation), command);
     }
 }
