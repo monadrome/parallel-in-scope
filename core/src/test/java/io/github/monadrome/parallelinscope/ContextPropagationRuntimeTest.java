@@ -40,6 +40,12 @@ class ContextPropagationRuntimeTest {
                     .isSameAs(failure);
             assertThat(context.multiTaskContext().cancellationToken().state())
                     .isEqualTo(CancellationToken.State.CANCELLED);
+            assertThat(checkNotNull(context.executionState()).isOutstanding()).isFalse();
+            assertThat(checkNotNull(context.executionState()).terminal().isDone())
+                    .isTrue();
+            TaskExecutionContext untracked = new TaskExecutionContext(context.multiTaskContext(), 0, System.nanoTime());
+            assertThatThrownBy(() -> TaskSubmissions.prepare(untracked, () -> "unreachable"))
+                    .isSameAs(failure);
         } finally {
             executor.shutdownNow();
         }

@@ -31,6 +31,9 @@ final class TaskSubmissions {
      * attached here, so every later {@code Task} view of the future exposes the same observation
      * future.
      *
+     * <p>Failed capture cancels the admitted unit and releases its registered execution slot before
+     * propagating the failure; no executor or future can claim that abandoned slot afterward.
+     *
      * @param taskContext per-task execution context carrying the batch and task index
      * @param callable user task
      * @return the prepared future, still in {@code SUBMITTED} phase
@@ -43,6 +46,10 @@ final class TaskSubmissions {
             return future;
         } catch (RuntimeException | Error failure) {
             taskContext.multiTaskContext().cancellationToken().cancel();
+            TaskExecutionState executionState = taskContext.executionState();
+            if (executionState != null) {
+                executionState.skipped();
+            }
             throw failure;
         }
     }

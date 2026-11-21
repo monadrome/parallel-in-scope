@@ -84,8 +84,9 @@ rollback callback because captures own no closeable resources.
 - All captures required by an admission MUST complete before its first executor handoff. Batch
   elements, including window-deferred elements, and terminal combines capture on the admission
   caller. Group callable members and their terminal combine use the same preparation boundary.
-- Capture failure propagates synchronously, abandons prepared callables, and cancels admitted
-  cancellation links. It MUST NOT submit a partial batch or group. Under the
+- Capture failure propagates synchronously, abandons prepared callables, releases the failed
+  preparation's registered execution slot, and cancels admitted cancellation links. It MUST NOT
+  leave an unclaimable execution slot outstanding or submit a partial batch or group. Under the
   [adopted-future ownership contract](task-group-adopted-futures.md), ownership transfers at
   `runAll()`, including failed admission: every unconnected adopted source is cancelled. Provider
   capture failure does not change that rule or replay producer context retroactively.

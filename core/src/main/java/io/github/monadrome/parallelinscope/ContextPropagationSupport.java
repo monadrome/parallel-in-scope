@@ -23,7 +23,8 @@ final class ContextPropagationSupport {
             return () -> Transmitter.restore(backup);
         });
     };
-    static final ContextPropagation NONE = () -> ContextSnapshot.of(() -> () -> {});
+    private static final ContextSnapshot EMPTY_SNAPSHOT = ContextSnapshot.of(() -> () -> {});
+    static final ContextPropagation NONE = () -> EMPTY_SNAPSHOT;
 
     /** Prevents construction of the shared protocol helpers. */
     private ContextPropagationSupport() {}

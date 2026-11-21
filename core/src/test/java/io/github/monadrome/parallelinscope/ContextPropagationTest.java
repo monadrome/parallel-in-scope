@@ -19,6 +19,26 @@ import org.junit.jupiter.api.Test;
 
 /** Contract tests for reusable captures, guarded scopes, composition, and callback boundaries. */
 class ContextPropagationTest {
+    /** Reuses an immutable empty capture without sharing thread-bound installation frames. */
+    @Test
+    void noOpCaptureReusesSnapshotButNotScopeFrames() {
+        ContextPropagation provider = ContextPropagation.none();
+        ContextSnapshot snapshot = provider.capture();
+        assertThat(provider.capture()).isSameAs(snapshot);
+        ContextScope outer = snapshot.install();
+        try {
+            ContextScope inner = snapshot.install();
+            try {
+                assertThat(inner).isNotSameAs(outer);
+                assertThatThrownBy(outer::close).isInstanceOf(IllegalStateException.class);
+            } finally {
+                inner.close();
+            }
+        } finally {
+            outer.close();
+        }
+    }
+
     /** Restores nested captures and rejects crossed closure before changing application state. */
     @Test
     void nestedScopesRejectCrossedCloseAndAllowRetry() {
