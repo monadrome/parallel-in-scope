@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-reflect-agents-md",
+  "date": "2026-11-21",
+  "topic": "reflect-agents-md",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "claude",
+    "model": "deepseek-flash"
+  },
+  "change": {
+    "commits": [
+      "docs: move reflect-agents-md skill into the project",
+      "fix: align reflect-agents-md invocation mode and metadata"
+    ],
+    "files": 3,
+    "insertions": 113,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "lightweight read-only review by an opus agent; one fix commit applied for invocation-mode and English metadata findings"
+}
