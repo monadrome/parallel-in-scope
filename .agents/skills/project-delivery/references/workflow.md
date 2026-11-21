@@ -52,10 +52,12 @@ delete its branch.
   Documentation-only/comment-only diffs do not count. Accepted behavior-preserving refactors
   land as separate `refactor:` commits with unchanged test assertions; those commits do not
   trigger another refactoring-review run.
-- **Committed-tree preflight:** after the initial commit, run every CI/CD job reproducible
-  locally and applicable to the selected route, against the exact committed tree. Fix a
-  failure in a follow-up commit and rerun the affected job before pushing. Local preflight
-  does not replace remote CI.
+- **Committed-tree preflight:** after the initial commit, inspect the exact committed tree.
+  For code changes, run every CI/CD job reproducible
+  locally, regardless of the selected task route: documentation, Maven, runtime-consumer,
+  static-analysis, and packaging jobs. Documentation-only changes follow Local Verification
+  instead of running Java jobs. Fix a failure in a follow-up commit and rerun the affected
+  job before pushing. Local preflight does not replace remote CI.
 - **Documentation lifecycle:** delivery includes maintained documentation and in-flight
   proposals. Before landing/retiring proposals or committing/deleting analysis, read
   [documentation maintenance](documentation.md) and `design/proposal-lifecycle.md`.

@@ -25,8 +25,8 @@ text, and historical records may retain their language when translation would ch
 This rule does not require translating existing Chinese content. If a task proposes translating, editing,
 renaming, or deleting existing Chinese content in an agent-facing or maintainer-facing area, first
 prepare the inventory, proposed wording, and affected-reference list for human review. Do not apply
-that change until the user has explicitly approved it. New or maintained Chinese user-facing
-documentation remains covered by the documented Chinese-user exceptions.
+that change until the user has explicitly approved it. New or maintained user-facing content
+for Chinese users, including `README.zh-CN.md`, `docs/zh/`, and `demo/docs/zh-CN/`, may be written in Chinese.
 
 Group related contracts, ADRs, and history by subject in their existing routes where useful. Link
 related documents by subject without duplicating implementation rationale. Subject grouping is a
