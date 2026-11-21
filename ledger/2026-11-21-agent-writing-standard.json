@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-agent-writing-standard",
+  "date": "2026-11-21",
+  "topic": "agent-writing-standard",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: sharpen agent delivery instructions and completion criteria"
+    ],
+    "files": 5,
+    "insertions": 195,
+    "deletions": 254
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "agent-writing-standard-ff279fc6-20261121-103355-70ddab",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 283430,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "issue-agent test discovery without scripts import root": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Applied Matt Pocock writing-for-agents: triggered pointers, common delivery steps with Done criteria, conditional references, single language-rule owner. Root Task Routes, Design Decisions, and Permissions unchanged. Documentation/reference/link/design/baseline/skill/language/ADR/proposal gates, 376 script tests, and strict MkDocs pass on committed tree. Kimi k3.1-pro read-only full diff review completed with zero findings; open-world recall n/a. Java tests, consumer tests, refactoring review, and PIT skipped: documentation-only change. Initial issue-agent discovery failed for missing scripts import root; corrected to the exact CI discovery command and all tests passed. Usage unknown."
+}
