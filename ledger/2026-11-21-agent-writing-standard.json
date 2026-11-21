@@ -65,7 +65,8 @@
   },
   "gates": {
     "failures": {
-      "issue-agent test discovery without scripts import root": 1
+      "issue-agent test discovery without scripts import root": 1,
+      "skill validation without PyYAML in system Python": 1
     }
   },
   "pit": [],
@@ -78,5 +79,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Applied Matt Pocock writing-for-agents: triggered pointers, common delivery steps with Done criteria, conditional references, single language-rule owner. Root Task Routes, Design Decisions, and Permissions unchanged. Documentation/reference/link/design/baseline/skill/language/ADR/proposal gates, 376 script tests, and strict MkDocs pass on committed tree. Kimi k3.1-pro read-only full diff review completed with zero findings; open-world recall n/a. Java tests, consumer tests, refactoring review, and PIT skipped: documentation-only change. Initial issue-agent discovery failed for missing scripts import root; corrected to the exact CI discovery command and all tests passed. Usage unknown."
+  "notes": "Applied Matt Pocock writing-for-agents: triggered pointers, common delivery steps with Done criteria, conditional references, single language-rule owner. Root Task Routes, Design Decisions, and Permissions unchanged. Documentation/reference/link/design/baseline/skill/language/ADR/proposal gates, 376 script tests, strict MkDocs, and skill quick validation pass on committed tree. Kimi k3.1-pro read-only full diff review completed with zero findings; open-world recall n/a. Java tests, consumer tests, refactoring review, and PIT skipped: documentation-only change. Initial issue-agent discovery lacked the scripts import root; the exact CI discovery command passed. System Python lacked PyYAML for skill validation; the existing documentation virtualenv passed. Usage unknown."
 }
