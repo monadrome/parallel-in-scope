@@ -11,6 +11,8 @@ import type { RunCommandOptions } from './shared.js';
 
 export interface CaseRunOptions extends RunCommandOptions {
   json?: boolean;
+  javaNavigation?: boolean;
+  javaClasspath?: string;
 }
 
 export async function runCase(mode: CaseMode, options: CaseRunOptions): Promise<number> {
@@ -40,6 +42,7 @@ export async function runCase(mode: CaseMode, options: CaseRunOptions): Promise<
     spec,
     config,
     contextFile: options.context === undefined ? null : options.context,
+    javaNavigation: options.javaNavigation === true ? { classpathFile: options.javaClasspath ?? null } : undefined,
   });
   const reviewsState = await executeReviewPhase({
     store: started.store,

@@ -37,6 +37,7 @@ import { assertFixtureFile } from '../adapters/fixture.js';
 import { manifestPaths, prepareCase, readCaseManifest } from '../case/prepare.js';
 import { renderPrompt } from '../case/context.js';
 import { captureWorkingTree } from '../case/working.js';
+import type { JavaNavigationOptions } from '../case/java-navigation.js';
 import { TOOL_NAME, TOOL_VERSION } from '../version.js';
 import {
   finalizeArtifacts,
@@ -288,6 +289,7 @@ export async function startRun(options: {
   spec: CaseSpec;
   config: BenchmarkConfig;
   contextFile: string | null;
+  javaNavigation?: JavaNavigationOptions;
 }): Promise<StartedRun> {
   const { root, repo, spec, config, contextFile } = options;
   await ensureBenchRoot(root);
@@ -320,6 +322,7 @@ export async function startRun(options: {
     head,
     fixCommit: spec.fixCommit,
     contextFile,
+    javaNavigation: options.javaNavigation,
     rangeLabel,
   });
   const promptPath = store.resolve('inputs', 'prompt.md');
