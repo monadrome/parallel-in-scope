@@ -55,10 +55,11 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
   guidance and `@Deprecated` for tools without Error Prone support. These annotations discourage
   calls; the runtime guard does not depend on the caller enabling either diagnostic.
 - Rejection MUST leave the draft stage, member names, and adopted-source registry unchanged and
-  MUST NOT cancel or connect the source. Producer-attributed calls check producer nullness first;
-  all scheduled overloads then check owner thread, stage, key nullness, and source nullness in that
-  order before throwing `IllegalArgumentException`. Stale or foreign-thread calls still throw
-  `IllegalStateException`; null arguments reached by this sequence throw `NullPointerException`.
+  MUST NOT cancel or connect the source. All four scheduled overloads MUST unconditionally throw
+  `UnsupportedOperationException`, including null arguments, stale stages, and foreign-thread calls.
+  They MUST NOT validate arguments, producer attribution, the owner thread, or the draft stage:
+  the operation itself is unsupported, so validation must not replace rejection with an argument
+  or lifecycle exception. Validation remains unchanged for the supported `ListenableFuture` overloads.
 - One-shot scheduled results remain supported through a `ListenableFuture`-typed reference. This
   is a static overload guard, not runtime detection of periodicity: widening a periodic source
   also bypasses the rejecting overload but remains a caller contract violation.
@@ -194,8 +195,8 @@ starvation observation both being visible when the source is queued on the waite
 `verification/maven-central-consumer` covers adopted members on the Java 8 runtime.
 
 The scheduled-source cases cover start and later stages, producer attribution, one-shot and
-periodic rejection, null and stale-stage precedence, source ownership, and one-shot adoption
-through the general future type. After compiling core, run
+periodic rejection, unconditional rejection of null, stale-stage, and foreign-thread calls, source
+ownership, and one-shot adoption through the general future type. After compiling core, run
 `python3 scripts/check-adopt-compile-contract.py` to verify Java 8 consumer snippets against the
 built API: every scheduled overload produces an Error Prone `DoNotCall` diagnostic with migration
 guidance, ordinary javac emits deprecation diagnostics, and the supported general-future calls
