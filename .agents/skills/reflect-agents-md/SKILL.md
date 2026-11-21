@@ -1,6 +1,7 @@
 ---
 name: reflect-agents-md
-description: Audit AGENTS.md files for scope routing, conflicts, stale rules, duplication, and context burden; use only when the user explicitly invokes this skill or asks for an AGENTS.md audit.
+description: Audit AGENTS.md files for scope routing, conflicts, stale rules, duplication, and context burden. Invoked only explicitly by the user.
+disable-model-invocation: true
 ---
 
 # Reflect AGENTS.md
