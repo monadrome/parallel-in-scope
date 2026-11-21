@@ -71,20 +71,24 @@ public interface GroupStep {
      * as a {@code ListenableFuture} and use {@link #adopt(TaskKey, ListenableFuture)}.
      *
      * <p>Periodic scheduled futures must not be adopted: successful ticks never settle the member,
-     * so {@code runAll()} waits until the group deadline and then cancels the loop. Keep the scheduler
-     * application-owned and structure each tick as its own group instead.
+     * so an otherwise successful group waits until its deadline and then cancels the loop. Keep the
+     * scheduler application-owned and structure each tick as its own group instead.
      *
      * <p>Error Prone reports calls to this method through {@link DoNotCall}. Without Error Prone, a
      * call on a live stage throws before advancing the draft and leaves the source caller-owned.
      *
      * @throws NullPointerException if {@code key} or {@code source} is null
+     * @deprecated This overload must not be called. Use a {@code ListenableFuture}-typed reference
+     *     only for a one-shot source; keep periodic work outside the group.
      * @throws IllegalArgumentException if a non-null scheduled source is declared on a live stage
      * @throws IllegalStateException if this stage is stale or used from another thread
      * @param <T> member result type declared by the key
      * @param key declaration key
      * @param source rejected scheduled source
      */
-    @DoNotCall
+    @Deprecated
+    @DoNotCall(
+            "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
     <T> GroupStep adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source);
 
     /**
@@ -110,6 +114,8 @@ public interface GroupStep {
      * This overload likewise throws before advancing a live draft and leaves the source caller-owned.
      *
      * @throws NullPointerException if any argument is null
+     * @deprecated This overload must not be called. Use a {@code ListenableFuture}-typed reference
+     *     only for a one-shot source; keep periodic work outside the group.
      * @throws IllegalArgumentException if a non-null scheduled source is declared on a live stage
      * @throws IllegalStateException if this stage is stale or used from another thread
      * @param <T> member result type declared by the key
@@ -117,7 +123,9 @@ public interface GroupStep {
      * @param producer rejected producer attribution
      * @param source rejected scheduled source
      */
-    @DoNotCall
+    @Deprecated
+    @DoNotCall(
+            "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
     <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source);
 
     /**

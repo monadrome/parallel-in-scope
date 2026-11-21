@@ -35,9 +35,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Adopted group members: caller-supplied futures owned by the group from {@code runAll()}, cancelled
@@ -82,6 +86,7 @@ class TaskGroupAdoptedFutureTest {
         return runtime.par(ParId.of("io"));
     }
 
+    /** Creates a caller-owned scheduler that is shut down after each test. */
     private ListeningScheduledExecutorService scheduledPool() {
         ListeningScheduledExecutorService pool =
                 MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
@@ -536,12 +541,16 @@ class TaskGroupAdoptedFutureTest {
         return null;
     }
 
-    @Test
-    @SuppressWarnings("DoNotCall")
-    void scheduledOverloadsRejectPeriodicSourcesWithoutAdvancingOrCancelling() {
+    /** Both scheduled shapes are rejected by all four overloads without consuming the draft. */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @SuppressWarnings({"DoNotCall", "deprecation"})
+    void scheduledOverloadsRejectSourcesWithoutAdvancingOrCancelling(boolean periodicSource) {
         ParRuntime runtime = runtime(pool(1));
         ListeningScheduledExecutorService scheduler = scheduledPool();
-        ListenableScheduledFuture<?> periodic = scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS);
+        ListenableScheduledFuture<?> periodic = periodicSource
+                ? scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS)
+                : scheduler.schedule(() -> "one-shot", 1, TimeUnit.DAYS);
         TaskKey<Object> first = TaskKey.named("first-scheduled");
         TaskKey<Object> second = TaskKey.named("second-scheduled");
 
@@ -570,8 +579,9 @@ class TaskGroupAdoptedFutureTest {
         }
     }
 
+    /** A forbidden call still observes the declaration thread and stage guards. */
     @Test
-    @SuppressWarnings("DoNotCall")
+    @SuppressWarnings({"DoNotCall", "deprecation"})
     void scheduledOverloadsRetainStageAndThreadConfinementChecks() throws Exception {
         ParRuntime runtime = runtime(pool(1));
         ListeningScheduledExecutorService scheduler = scheduledPool();
@@ -618,6 +628,70 @@ class TaskGroupAdoptedFutureTest {
         }
     }
 
+    /** Null checks have stable precedence and leave both the key and source available. */
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    @SuppressWarnings("NullAway")
+    void scheduledNullChecksPreserveTheDraft(boolean later, boolean attributed) {
+        ParRuntime runtime = runtime(pool(1));
+        GroupStart start = runtime.group("scheduled-nulls", TIMEOUT);
+        GroupStep stage = later ? start.adopt(FIRST, Futures.immediateFuture("first")) : null;
+        BiFunction<TaskKey<String>, ListenableScheduledFuture<String>, GroupStep> declare =
+                scheduledDeclaration(start, stage, attributed, io(runtime));
+        ListenableScheduledFuture<String> source = scheduledPool().schedule(() -> "value", 1, TimeUnit.DAYS);
+        try {
+            assertThatThrownBy(() -> declare.apply(null, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("key cannot be null");
+            assertThatThrownBy(() -> declare.apply(SECOND, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("source cannot be null");
+            assertThatThrownBy(() -> declare.apply(SECOND, source)).isInstanceOf(IllegalArgumentException.class);
+            ListenableFuture<String> oneShot = source;
+            GroupStep next = later ? stage.adopt(SECOND, oneShot) : start.adopt(SECOND, oneShot);
+            assertThat(next).isNotNull();
+            assertThat(source.isCancelled()).isFalse();
+            assertThatThrownBy(() -> declare.apply(null, null))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("no longer current");
+        } finally {
+            source.cancel(true);
+        }
+    }
+
+    /** Producer nullness precedes stage and argument validation on both declaration views. */
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @SuppressWarnings("NullAway")
+    void scheduledProducerNullCheckPrecedesStaleStage(boolean later) {
+        ParRuntime runtime = runtime(pool(1));
+        GroupStart start = runtime.group("scheduled-null-producer", TIMEOUT);
+        GroupStep stage = later ? start.adopt(FIRST, Futures.immediateFuture("first")) : null;
+        BiFunction<TaskKey<String>, ListenableScheduledFuture<String>, GroupStep> declare =
+                scheduledDeclaration(start, stage, true, null);
+        assertThatThrownBy(() -> declare.apply(null, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("producer cannot be null");
+        GroupStep next = later
+                ? stage.adopt(SECOND, Futures.immediateFuture("second"))
+                : start.adopt(SECOND, Futures.immediateFuture("second"));
+        assertThat(next).isNotNull();
+        assertThatThrownBy(() -> declare.apply(null, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("producer cannot be null");
+    }
+
+    /** Selects one scheduled overload, retaining nullable arguments for validation tests. */
+    @SuppressWarnings({"DoNotCall", "deprecation"})
+    private static BiFunction<TaskKey<String>, ListenableScheduledFuture<String>, GroupStep> scheduledDeclaration(
+            GroupStart start, GroupStep stage, boolean attributed, Par producer) {
+        if (stage == null) {
+            return attributed ? (key, source) -> start.adopt(key, producer, source) : start::adopt;
+        }
+        return attributed ? (key, source) -> stage.adopt(key, producer, source) : stage::adopt;
+    }
+
+    /** Widening a one-shot source preserves its supported result and ownership semantics. */
     @Test
     void aOneShotScheduledSourceIsAdoptedThroughItsListenableFutureType() {
         ParRuntime runtime = runtime(pool(1));

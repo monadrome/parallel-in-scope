@@ -247,6 +247,7 @@ class GroupDraftContractTest {
         }
     }
 
+    /** Submission releases declaration-only source references after transferring ownership. */
     @Test
     void submissionClearsTheDraftsAdoptedSourceRegistry() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();

@@ -101,6 +101,9 @@ jobs:
       - name: Verify library bytecode targets Java 8
         run: python3 scripts/check-java-bytecode.py core/target/classes --release 8
 
+      - name: Verify scheduled adoption compiler diagnostics
+        run: python3 scripts/check-adopt-compile-contract.py
+
       - name: Verify registered race claims
         timeout-minutes: 30
         run: python3 scripts/check-race-claims.py

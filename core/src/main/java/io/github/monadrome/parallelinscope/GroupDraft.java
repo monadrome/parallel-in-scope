@@ -280,7 +280,9 @@ final class GroupDraft {
         }
 
         @Override
-        @DoNotCall
+        @Deprecated
+        @DoNotCall(
+                "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
             return draft.rejectScheduled(key, source, 0);
         }
@@ -291,7 +293,9 @@ final class GroupDraft {
         }
 
         @Override
-        @DoNotCall
+        @Deprecated
+        @DoNotCall(
+                "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
             checkNotNull(producer, "producer cannot be null");
             return draft.rejectScheduled(key, source, 0);
@@ -369,7 +373,9 @@ final class GroupDraft {
         }
 
         @Override
-        @DoNotCall
+        @Deprecated
+        @DoNotCall(
+                "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
             return draft.rejectScheduled(key, source, expectedStage);
         }
@@ -380,7 +386,9 @@ final class GroupDraft {
         }
 
         @Override
-        @DoNotCall
+        @Deprecated
+        @DoNotCall(
+                "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
             checkNotNull(producer, "producer cannot be null");
             return draft.rejectScheduled(key, source, expectedStage);
