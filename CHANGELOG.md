@@ -6,8 +6,9 @@
 
 - Add `adopt` overloads for statically typed `ListenableScheduledFuture` sources. Error Prone reports
   these calls through `@DoNotCall` with migration guidance; `@Deprecated` also warns callers using
-  ordinary Java tooling. The runtime rejects them without advancing the group draft or
-  cancelling the source. To adopt a one-shot scheduled result, use a `ListenableFuture`-typed
+  ordinary Java tooling. Every call throws `UnsupportedOperationException`, including null arguments,
+  stale stages, and calls from another thread, without advancing the draft or cancelling the source.
+  To adopt a one-shot scheduled result, use a `ListenableFuture`-typed
   reference; periodic scheduled futures are not supported because successful ticks never produce a
   finite member result.
 

@@ -29,6 +29,11 @@ import org.jspecify.annotations.Nullable;
  */
 final class GroupDraft {
 
+    /** Migration guidance shared by the unconditionally unsupported scheduled-source overloads. */
+    private static final String SCHEDULED_ADOPTION_MESSAGE = "ListenableScheduledFuture cannot be adopted;"
+            + " use a ListenableFuture reference for a one-shot source"
+            + " and keep periodic work outside the group";
+
     private final ParRuntime owner;
     private final String name;
     private final @Nullable Duration timeout;
@@ -128,28 +133,6 @@ final class GroupDraft {
         seenNames.add(key.name());
         adoptedSources.add(source);
         members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));
-    }
-
-    /**
-     * Rejects a scheduled source after checking the owner thread and expected stage. The draft is
-     * not advanced and the source remains caller-owned. The producer overloads retain their earlier
-     * producer-null check before entering this method.
-     *
-     * @param key rejected member key
-     * @param source rejected scheduled source
-     * @param expectedStage stage required by the calling declaration view
-     * @throws NullPointerException if {@code key} or {@code source} is null
-     * @throws IllegalStateException if the draft is stale or used from another thread
-     * @throws IllegalArgumentException for a non-null scheduled source on a live stage
-     */
-    Step rejectScheduled(TaskKey<?> key, ListenableScheduledFuture<?> source, int expectedStage) {
-        checkThread();
-        checkStage(expectedStage);
-        checkNotNull(key, "key cannot be null");
-        checkNotNull(source, "source cannot be null");
-        throw new IllegalArgumentException("ListenableScheduledFuture cannot be adopted as '" + key.name()
-                + "'; use a ListenableFuture reference for a one-shot source"
-                + " and keep periodic work outside the group");
     }
 
     void setCombine(TaskKey<?> key, Par par, TaskOptions options, Combiner<?, ?> combiner) {
@@ -284,7 +267,7 @@ final class GroupDraft {
         @DoNotCall(
                 "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
-            return draft.rejectScheduled(key, source, 0);
+            throw new UnsupportedOperationException(SCHEDULED_ADOPTION_MESSAGE);
         }
 
         @Override
@@ -297,8 +280,7 @@ final class GroupDraft {
         @DoNotCall(
                 "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
-            checkNotNull(producer, "producer cannot be null");
-            return draft.rejectScheduled(key, source, 0);
+            throw new UnsupportedOperationException(SCHEDULED_ADOPTION_MESSAGE);
         }
 
         private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {
@@ -377,7 +359,7 @@ final class GroupDraft {
         @DoNotCall(
                 "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, ListenableScheduledFuture<? extends T> source) {
-            return draft.rejectScheduled(key, source, expectedStage);
+            throw new UnsupportedOperationException(SCHEDULED_ADOPTION_MESSAGE);
         }
 
         @Override
@@ -390,8 +372,7 @@ final class GroupDraft {
         @DoNotCall(
                 "scheduled sources are rejected; use a ListenableFuture reference only for a one-shot source; keep periodic work outside the group")
         public <T> Step adopt(TaskKey<T> key, Par producer, ListenableScheduledFuture<? extends T> source) {
-            checkNotNull(producer, "producer cannot be null");
-            return draft.rejectScheduled(key, source, expectedStage);
+            throw new UnsupportedOperationException(SCHEDULED_ADOPTION_MESSAGE);
         }
 
         private <T> Step adopted(TaskKey<T> key, @Nullable Par producer, ListenableFuture<? extends T> source) {

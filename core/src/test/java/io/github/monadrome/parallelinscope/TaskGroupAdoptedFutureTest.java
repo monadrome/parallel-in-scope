@@ -560,20 +560,19 @@ class TaskGroupAdoptedFutureTest {
         try {
             GroupStart start = runtime.group("scheduled-start", Duration.ofMillis(timeoutMillis));
             assertThatThrownBy(() -> start.adopt(first, source))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("first-scheduled")
+                    .isInstanceOf(UnsupportedOperationException.class)
                     .hasMessageContaining("ListenableScheduledFuture");
             assertThatThrownBy(() -> start.adopt(first, io(runtime), source))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("first-scheduled");
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("ListenableFuture");
 
             GroupStep step = start.adopt(first, Futures.immediateFuture("first"));
             assertThatThrownBy(() -> step.adopt(second, source))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("second-scheduled");
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("ListenableFuture");
             assertThatThrownBy(() -> step.adopt(second, io(runtime), source))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("second-scheduled");
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("periodic");
 
             assertThat(step.adopt(second, Futures.immediateFuture("second"))).isNotNull();
             assertThat(source.isCancelled()).isFalse();
@@ -601,60 +600,46 @@ class TaskGroupAdoptedFutureTest {
         }
     }
 
-    /** A forbidden call still observes the declaration thread and stage guards. */
-    @Test
-    @SuppressWarnings({"DoNotCall", "deprecation"})
-    void scheduledOverloadsRetainStageAndThreadConfinementChecks() throws Exception {
+    /** Unsupported overloads reject stale and foreign-thread calls without validating the draft. */
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    @SuppressWarnings("NullAway")
+    void scheduledOverloadsRejectRegardlessOfStageAndThread(boolean later, boolean attributed) throws Exception {
         ParRuntime runtime = runtime(pool(1));
-        ListeningScheduledExecutorService scheduler = scheduledPool();
-        ListenableScheduledFuture<?> periodic = scheduler.scheduleAtFixedRate(() -> {}, 1, 1, TimeUnit.DAYS);
-        TaskKey<Object> scheduledKey = TaskKey.named("scheduled");
-
+        GroupStart start = runtime.group("scheduled-confined", TIMEOUT);
+        GroupStep stage = later ? start.adopt(FIRST, Futures.immediateFuture("first")) : null;
+        BiFunction<TaskKey<String>, ListenableScheduledFuture<String>, GroupStep> declare =
+                scheduledDeclaration(start, stage, attributed, io(runtime));
+        ListenableScheduledFuture<String> source = scheduledPool().schedule(() -> "value", 1, TimeUnit.DAYS);
         try {
-            GroupStart staleStart = runtime.group("scheduled-stale", TIMEOUT);
-            GroupStep staleStep = staleStart.adopt(FIRST, Futures.immediateFuture("first"));
-            assertThatThrownBy(() -> staleStart.adopt(scheduledKey, periodic))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("no longer current");
-            GroupStep advanced = staleStep.adopt(SECOND, Futures.immediateFuture("second"));
-            assertThat(advanced).isNotNull();
-            assertThatThrownBy(() -> staleStep.adopt(scheduledKey, periodic))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("no longer current");
-
-            GroupStart confinedStart = runtime.group("scheduled-confined-start", TIMEOUT);
-            GroupStep confinedStep =
-                    runtime.group("scheduled-confined-step", TIMEOUT).adopt(FIRST, SettableFuture.create());
-            AtomicReference<Throwable> fromStart = new AtomicReference<>();
-            AtomicReference<Throwable> fromStep = new AtomicReference<>();
+            AtomicReference<Throwable> failure = new AtomicReference<>();
             Thread other = new Thread(() -> {
                 try {
-                    GroupStep unused = confinedStart.adopt(scheduledKey, periodic);
-                } catch (Throwable failure) {
-                    fromStart.set(failure);
-                }
-                try {
-                    GroupStep unused = confinedStep.adopt(scheduledKey, periodic);
-                } catch (Throwable failure) {
-                    fromStep.set(failure);
+                    GroupStep unused = declare.apply(SECOND, source);
+                } catch (Throwable thrown) {
+                    failure.set(thrown);
                 }
             });
             other.start();
             other.join(TIMEOUT.toMillis());
-            assertThat(fromStart.get())
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("thread");
-            assertThat(fromStep.get()).isInstanceOf(IllegalStateException.class).hasMessageContaining("thread");
+            assertThat(other.isAlive()).isFalse();
+            assertThat(failure.get()).isInstanceOf(UnsupportedOperationException.class);
+            GroupStep next = later
+                    ? stage.adopt(SECOND, Futures.immediateFuture("second"))
+                    : start.adopt(SECOND, Futures.immediateFuture("second"));
+            assertThat(next).isNotNull();
+            assertThatThrownBy(() -> declare.apply(SECOND, source)).isInstanceOf(UnsupportedOperationException.class);
+            assertThat(source.isCancelled()).isFalse();
         } finally {
-            periodic.cancel(true);
+            source.cancel(true);
         }
     }
 
-    /** Null checks have stable precedence and leave both the key and source available. */
+    /** Null arguments still yield unsupported-operation rejection and leave the draft unchanged. */
     @ParameterizedTest
     @CsvSource({"false,false", "false,true", "true,false", "true,true"})
     @SuppressWarnings("NullAway")
-    void scheduledNullChecksPreserveTheDraft(boolean later, boolean attributed) {
+    void scheduledNullArgumentsPreserveTheDraft(boolean later, boolean attributed) {
         ParRuntime runtime = runtime(pool(1));
         GroupStart start = runtime.group("scheduled-nulls", TIMEOUT);
         GroupStep stage = later ? start.adopt(FIRST, Futures.immediateFuture("first")) : null;
@@ -662,48 +647,39 @@ class TaskGroupAdoptedFutureTest {
                 scheduledDeclaration(start, stage, attributed, io(runtime));
         ListenableScheduledFuture<String> source = scheduledPool().schedule(() -> "value", 1, TimeUnit.DAYS);
         try {
-            assertThatThrownBy(() -> declare.apply(null, null))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessage("key cannot be null");
-            assertThatThrownBy(() -> declare.apply(SECOND, null))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessage("source cannot be null");
-            assertThatThrownBy(() -> declare.apply(SECOND, source)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> declare.apply(null, null)).isInstanceOf(UnsupportedOperationException.class);
+            assertThatThrownBy(() -> declare.apply(null, source)).isInstanceOf(UnsupportedOperationException.class);
+            assertThatThrownBy(() -> declare.apply(SECOND, null)).isInstanceOf(UnsupportedOperationException.class);
+            assertThatThrownBy(() -> declare.apply(SECOND, source)).isInstanceOf(UnsupportedOperationException.class);
             ListenableFuture<String> oneShot = source;
             GroupStep next = later ? stage.adopt(SECOND, oneShot) : start.adopt(SECOND, oneShot);
             assertThat(next).isNotNull();
             assertThat(source.isCancelled()).isFalse();
-            assertThatThrownBy(() -> declare.apply(null, null))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("no longer current");
+            assertThatThrownBy(() -> declare.apply(null, null)).isInstanceOf(UnsupportedOperationException.class);
         } finally {
             source.cancel(true);
         }
     }
 
-    /** Producer nullness precedes stage and argument validation on both declaration views. */
+    /** Null producer attribution cannot change the unconditional unsupported-operation rejection. */
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     @SuppressWarnings("NullAway")
-    void scheduledProducerNullCheckPrecedesStaleStage(boolean later) {
+    void scheduledNullProducerIsUnsupportedRegardlessOfStage(boolean later) {
         ParRuntime runtime = runtime(pool(1));
         GroupStart start = runtime.group("scheduled-null-producer", TIMEOUT);
         GroupStep stage = later ? start.adopt(FIRST, Futures.immediateFuture("first")) : null;
         BiFunction<TaskKey<String>, ListenableScheduledFuture<String>, GroupStep> declare =
                 scheduledDeclaration(start, stage, true, null);
-        assertThatThrownBy(() -> declare.apply(null, null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessage("producer cannot be null");
+        assertThatThrownBy(() -> declare.apply(null, null)).isInstanceOf(UnsupportedOperationException.class);
         GroupStep next = later
                 ? stage.adopt(SECOND, Futures.immediateFuture("second"))
                 : start.adopt(SECOND, Futures.immediateFuture("second"));
         assertThat(next).isNotNull();
-        assertThatThrownBy(() -> declare.apply(null, null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessage("producer cannot be null");
+        assertThatThrownBy(() -> declare.apply(null, null)).isInstanceOf(UnsupportedOperationException.class);
     }
 
-    /** Selects one scheduled overload, retaining nullable arguments for validation tests. */
+    /** Selects one scheduled overload, retaining nullable arguments for rejection tests. */
     @SuppressWarnings({"DoNotCall", "deprecation"})
     private static BiFunction<TaskKey<String>, ListenableScheduledFuture<String>, GroupStep> scheduledDeclaration(
             GroupStart start, GroupStep stage, boolean attributed, Par producer) {

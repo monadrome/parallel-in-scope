@@ -75,13 +75,12 @@ public interface GroupStep {
      * scheduler application-owned and structure each tick as its own group instead.
      *
      * <p>Error Prone reports calls to this method through {@link DoNotCall}. Without Error Prone, a
-     * call on a live stage throws before advancing the draft and leaves the source caller-owned.
+     * call always throws without inspecting arguments, the calling thread, or the draft stage,
+     * and leaves the source caller-owned.
      *
-     * @throws NullPointerException if {@code key} or {@code source} is null
      * @deprecated This overload must not be called. Use a {@code ListenableFuture}-typed reference
      *     only for a one-shot source; keep periodic work outside the group.
-     * @throws IllegalArgumentException if a non-null scheduled source is declared on a live stage
-     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @throws UnsupportedOperationException always
      * @param <T> member result type declared by the key
      * @param key declaration key
      * @param source rejected scheduled source
@@ -111,13 +110,12 @@ public interface GroupStep {
     /**
      * Rejects a scheduled source with producer attribution. See {@link #adopt(TaskKey,
      * ListenableScheduledFuture)} for the one-shot migration and the prohibition on periodic sources.
-     * This overload likewise throws before advancing a live draft and leaves the source caller-owned.
+     * This overload likewise always throws without inspecting arguments, the calling thread, or the
+     * draft stage, and leaves the source caller-owned.
      *
-     * @throws NullPointerException if any argument is null
      * @deprecated This overload must not be called. Use a {@code ListenableFuture}-typed reference
      *     only for a one-shot source; keep periodic work outside the group.
-     * @throws IllegalArgumentException if a non-null scheduled source is declared on a live stage
-     * @throws IllegalStateException if this stage is stale or used from another thread
+     * @throws UnsupportedOperationException always
      * @param <T> member result type declared by the key
      * @param key declaration key
      * @param producer rejected producer attribution
