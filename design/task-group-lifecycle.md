@@ -146,12 +146,13 @@ for each member and the combine"; a preparation failure records nothing, and mem
 a wait. Recording does not go through TTL and does not depend on any scope on the submitting
 thread; no group TTL MUST be added. The rules are in [task-graph.md](task-graph.md).
 
-### 4.8 TTL boundaries
+### 4.8 Application-context boundaries
 
-Members still use `TtlCallable.get(callable, true, true)`, so the `TransmittableThreadLocal`s
-the application already has at submission are captured and restored per TTL rules. The framework
-does not promise to propagate ordinary `ThreadLocal`s or to configure MDC automatically. A
-queued task holds a TTL snapshot — that is TTL's own retention semantics.
+Members and terminal combines capture the runtime's application provider at preparation, before
+handoff. The default retains `TtlCallable.get(callable, true, true)` and TTL's copy/retention rules.
+Ordinary `ThreadLocal`s and MDC are not automatically propagated; an explicit application provider
+may own them. Restoration, failure precedence, and capture rollback follow the
+[application-context contract](context-propagation.md), independently of framework task bindings.
 
 ## 5. Structural parent, cancellation parent, and deadline ceiling must be decoupled
 

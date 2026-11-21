@@ -596,6 +596,7 @@ final class TaskGroup<R> implements AutoCloseable {
                         .record(structuralParent.node(), group.membersAndTerminal.size(), group::awaitedUnitAt);
             }
         } catch (Throwable failure) {
+            groupToken.cancel();
             cancelPrepared(states, terminal);
             throw failure;
         }

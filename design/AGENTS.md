@@ -95,7 +95,8 @@ Related decisions:
 
 | Document | Summary |
 |---|---|
-| [extension-and-wrapping.md](extension-and-wrapping.md) | The extension boundary contract: the only user extension point is task code itself (self-wrapping — no decorator SPI, with the deferral rationale and re-entry conditions), the three premises and three invariants (I1 structure / I2 synchronous dynamic scope / I3 detection only), the three objects users can wrap (thread pool/Callable/FutureTask), the 14 problem classes to avoid, self-wrapping rules (MDC/tracing/metrics/retry), and the contract and verification matrix |
+| [context-propagation.md](context-propagation.md) | Application-context provider SPI, reusable snapshots, thread-bound LIFO installation, failure precedence, preparation timing, and default TTL compatibility |
+| [extension-and-wrapping.md](extension-and-wrapping.md) | Task-code wrapping without a general decorator SPI, the structure and dynamic-scope invariants, TTL executor detection, and the wrapping verification matrix |
 | [interruption-contract.md](interruption-contract.md) | The cross-layer interruption-handling rules: the general rule and the three owner classes, P1–P4, the core design (cancellation is the semantics, caller interruption is not a cancellation signal plus user duties, borrowed-thread isolation as the only lossy exception, delivery stays in bounds and the delivery marker), per-role rules (including the checkpoint cancellation confirmation's source marker), and the verification matrix; the P1–P4 summary lives in core/AGENTS.md |
 | [runner-interrupt-delivery.md](runner-interrupt-delivery.md) | The runner exit and cancellation interrupt-delivery handshake, the volatile-ordering proof, and the regression-verification and independent-review records |
 | [execution-future-simplification.md](execution-future-simplification.md) | The execution-phase non-blocking query contract, the cancellation/terminality race, the trade-offs and migration of moving automatic purge to an experimental branch, and the verification and review records |
@@ -136,7 +137,6 @@ Related decisions and engineering entries:
 ## In-flight proposals
 | Proposal | Summary |
 |---|---|
-| [proposal/P0040-scoped-context-crr.md](proposal/P0040-scoped-context-crr.md) | Provider-neutral application-context snapshots and thread-bound LIFO scopes; preserves default TTL capture boundaries and keeps framework bindings separate |
 | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | Unify Future/Result result handling with `FuturePath`'s staged API, hiding state queries and guaranteeing exhaustive handling of the four terminal stages (success, user failure, submission rejection, cancellation) through compile-time chained stages |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | Complexity attention-routing evidence in gray evaluation; no quality score and no CI gate |
 | [proposal/P0002-api-surface-reduction.md](proposal/P0002-api-surface-reduction.md) | Public API reduction candidates and later counter-evidence; re-verify the historical inventory by downstream capability and migration cost |

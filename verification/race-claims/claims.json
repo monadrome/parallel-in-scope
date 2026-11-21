@@ -1,6 +1,22 @@
 {
   "claims": [
     {
+      "id": "application-restore-before-execution-exit",
+      "protocol": "Application context restoration and execution lifetime",
+      "claim": "Physical exit and observation must wait for application restoration even after cancellation settles the result.",
+      "method": "mutation",
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+      "mutations": [
+        {
+          "find": "            releaseDelegate();\n            taskContext.markEnded(ticker.read());",
+          "replace": "            releaseDelegate();\n            if (taskContext.executionState() != null) { taskContext.executionState().exited(); }\n            taskContext.markEnded(ticker.read());"
+        }
+      ],
+      "tests": "ContextPropagationRuntimeTest#restorationPrecedesExecutionExitEvenAfterCancellation",
+      "expect": "failure",
+      "note": "PreparedStates.contextTask creates the tracked configured-provider topology; restoration is held while the future is cancelled. The test asserts observation remains incomplete until restoration finishes."
+    },
+    {
       "id": "cancel-commit-before-cancel",
       "protocol": "CancellationToken bind",
       "claim": "Committing FAIL_FAST before cancelBoundWork preserves a listener's chance to fix the cause; reversing the order changes attribution.",

@@ -69,9 +69,8 @@ class ScopedCallableEntryTest {
 
     @Test
     void theExecutionExitIsPublishedBeforeTheFutureSettles() throws Exception {
-        // The tracker's signal completes inside the scoped wrapper's finally, before the future's
-        // own settlement listeners can run: a listener that observes settlement already observes a
-        // released execution slot.
+        // The tracker's signal completes after context restoration and before normal settlement
+        // listeners run: a listener that observes settlement already observes a released execution slot.
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);

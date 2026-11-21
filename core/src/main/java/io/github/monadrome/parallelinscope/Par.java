@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
@@ -21,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -235,11 +233,7 @@ public final class Par {
             Combiner<List<@Nullable R>, C> combiner) {
         ImmutableList<T> list = snapshotInputs(elements, unit);
         ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size() + 1);
-        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
-                .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
-                        callableMapper.apply(list.get(index))))
-                .collect(toImmutableList());
+        List<ExecutionPhaseHintFuture<R>> tasks = prepareTasks(list, callableMapper, unit, executionExit);
         MultiTaskContext terminalUnit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, TaskType.UNKNOWN, false), 1)
                         .structuralParent(unit)
@@ -249,8 +243,13 @@ public final class Par {
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
         TaskExecutionContext terminalContext =
                 new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), executionExit.register(terminalUnit));
-        ExecutionPhaseHintFuture<C> terminalFuture =
-                TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
+        ExecutionPhaseHintFuture<C> terminalFuture;
+        try {
+            terminalFuture = TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
+        } catch (RuntimeException | Error failure) {
+            abandonPrepared(tasks, unit);
+            throw failure;
+        }
         if (combinePar.executorRuntime().threadPoolBacked()) {
             terminalFuture.forbidInlineExecution();
         }
@@ -395,11 +394,7 @@ public final class Par {
         ImmutableList<T> list = snapshotInputs(elements, unit);
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size());
-        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
-                .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
-                        callableMapper.apply(list.get(index))))
-                .collect(toImmutableList());
+        List<ExecutionPhaseHintFuture<R>> tasks = prepareTasks(list, callableMapper, unit, executionExit);
         SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
                 executorRuntime.submissionExecutor(),
                 unit,
@@ -413,6 +408,34 @@ public final class Par {
         TaskBatch<R> result = submitter.submitAll(tasks, views);
         submitCanceller.setFuture(result.submitCanceller());
         return result;
+    }
+
+    /** Captures every element before handoff and releases earlier preparations if capture fails. */
+    private static <T, R> List<ExecutionPhaseHintFuture<R>> prepareTasks(
+            List<T> elements,
+            Function<T, Callable<R>> callableMapper,
+            MultiTaskContext unit,
+            ExecutionExitTracker executionExit) {
+        List<ExecutionPhaseHintFuture<R>> tasks = new ArrayList<>(elements.size());
+        try {
+            for (int index = 0; index < elements.size(); index++) {
+                tasks.add(TaskSubmissions.prepare(
+                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
+                        callableMapper.apply(elements.get(index))));
+            }
+            return tasks;
+        } catch (RuntimeException | Error failure) {
+            abandonPrepared(tasks, unit);
+            throw failure;
+        }
+    }
+
+    /** Abandons unsubmitted snapshots and severs the failed unit's cancellation-parent link. */
+    private static void abandonPrepared(List<? extends ExecutionPhaseHintFuture<?>> tasks, MultiTaskContext unit) {
+        unit.cancellationToken().cancel();
+        for (ExecutionPhaseHintFuture<?> task : tasks) {
+            task.cancel(true);
+        }
     }
 
     /**

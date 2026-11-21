@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
@@ -64,6 +65,24 @@ final class PreparedStates {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout(name, Duration.ofSeconds(30)).spec(), 1));
         return ExecutionExitTracker.create(1).register(unit);
+    }
+
+    /** Prepares a runtime-configured context task without handing it to an executor. */
+    static <V> ExecutionPhaseHintFuture<V> contextTask(Par par, Callable<V> callable) {
+        MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
+                        BatchOptions.timeout("context-task", Duration.ofSeconds(30))
+                                .spec(),
+                        1)
+                .executor(par));
+        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+        ExecutionPhaseHintFuture<V> future = TaskSubmissions.prepare(
+                new TaskExecutionContext(unit, 0, System.nanoTime(), tracker.register(unit)), callable);
+        unit.cancellationToken()
+                .bind(
+                        Collections.singletonList(future),
+                        Futures.immediateVoidFuture(),
+                        par.runtime().timeoutScheduler());
+        return future;
     }
 
     /** A parent token and its linked child. */
