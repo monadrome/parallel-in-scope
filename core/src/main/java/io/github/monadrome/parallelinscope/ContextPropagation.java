@@ -1,5 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.alibaba.ttl.TransmittableThreadLocal.Transmitter;
@@ -69,7 +70,9 @@ final class ContextPropagation {
     }
 
     /**
-     * Runs a command with an already captured snapshot, restoring the calling thread afterwards.
+     * Runs a command synchronously with an already captured snapshot, restoring the calling thread
+     * afterwards, including when the command or a scope close fails. A command failure remains primary
+     * and close failures are suppressed on it; a close failure after a successful command is rethrown.
      * Unlike a prepared task, a command executor may install the same snapshot for many commands.
      */
     static void run(ContextPropagator.Snapshot snapshot, Runnable command) {
@@ -98,11 +101,8 @@ final class ContextPropagation {
     }
 
     private static <T> T requireStage(@Nullable T stage, Object owner, String problem) {
-        if (stage == null) {
-            throw new NullPointerException(
-                    "context propagator stage " + owner.getClass().getName() + ": " + problem);
-        }
-        return stage;
+        return checkNotNull(
+                stage, "context propagator stage %s: %s", owner.getClass().getName(), problem);
     }
 
     /**

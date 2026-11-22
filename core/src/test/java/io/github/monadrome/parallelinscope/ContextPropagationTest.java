@@ -89,7 +89,7 @@ class ContextPropagationTest {
 
     @Test
     void nestedInlineExecutionCapturesCurrentValueAndRestoresOuterScope() {
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+        ExecutorService direct = directExecutor();
         ParRuntime runtime = runtime(direct, propagator(VALUE));
         Par par = runtime.par(ParId.of("worker"));
         VALUE.set("outer-request");
@@ -114,8 +114,8 @@ class ContextPropagationTest {
     }
 
     @Test
-    void groupMembersAndTerminalCombineShareTheSameProtocol() throws Exception {
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+    void groupMembersAndTerminalCombinePropagateCallerValueAndRestoreIt() throws Exception {
+        ExecutorService direct = directExecutor();
         ParRuntime runtime = runtime(direct, propagator(VALUE));
         Par par = runtime.par(ParId.of("worker"));
         TaskKey<String> member = TaskKey.named("member");
@@ -284,7 +284,7 @@ class ContextPropagationTest {
     @Test
     void registrationRejectsNullAndFreezesEachRuntimeSet() {
         assertThatThrownBy(() -> ParRuntime.builder().propagate(null)).isInstanceOf(NullPointerException.class);
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+        ExecutorService direct = directExecutor();
         ParRuntime.Builder builder =
                 ParRuntime.builder().register(ParId.of("worker"), direct).propagate(propagator(VALUE));
         ParRuntime first = runtime(builder.build());
@@ -320,7 +320,7 @@ class ContextPropagationTest {
 
     @Test
     void captureFailureCancelsEarlierPreparedElementsWithoutRunningTaskCode() {
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+        ExecutorService direct = directExecutor();
         AtomicInteger captures = new AtomicInteger();
         AtomicInteger runs = new AtomicInteger();
         IllegalStateException failure = new IllegalStateException("capture");
@@ -347,7 +347,7 @@ class ContextPropagationTest {
 
     @Test
     void captureFailureInGroupPreparationDoesNotRunMembers() {
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+        ExecutorService direct = directExecutor();
         AtomicInteger captures = new AtomicInteger();
         AtomicInteger runs = new AtomicInteger();
         IllegalStateException failure = new IllegalStateException("group-capture");
@@ -378,7 +378,7 @@ class ContextPropagationTest {
 
     @Test
     void installFailureIsAUserFailureOnTheRealBatchPath() {
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+        ExecutorService direct = directExecutor();
         IllegalStateException failure = new IllegalStateException("install");
         ContextPropagator propagator = () -> () -> {
             throw failure;
@@ -394,7 +394,7 @@ class ContextPropagationTest {
 
     @Test
     void closeFailureAfterSuccessIsVisibleOnTheRealBatchPath() {
-        ExecutorService direct = pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
+        ExecutorService direct = directExecutor();
         IllegalStateException failure = new IllegalStateException("close");
         ContextPropagator propagator = () -> () -> () -> {
             throw failure;
@@ -406,6 +406,10 @@ class ContextPropagationTest {
 
         assertThatThrownBy(result::valuesOrThrow).isSameAs(failure);
         TerminationAssertions.assertUserFailure(result.completions().get(0).termination());
+    }
+
+    private ExecutorService directExecutor() {
+        return pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
     }
 
     private ParRuntime runtime(ExecutorService executor, ContextPropagator propagator) {
