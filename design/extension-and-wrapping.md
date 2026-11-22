@@ -121,8 +121,9 @@ TTL's own transmittee failure behavior.
 The protocol covers single submissions, batch elements (including deferred elements), group members,
 and both terminal combines through `TaskSubmissions.prepare`. It does not cover escaped asynchronous
 work, adopted members (which run no task code), library-owned completion listeners, or the two static
-`ContextExecutors` beyond their existing TTL behavior. Context close occurs after the execution-exit
-signal and before result settlement, as the former TTL restore did.
+`ContextExecutors` beyond their existing TTL behavior. Context close occurs before the execution-exit
+signal and before result settlement, so a blocking or failing participant close remains inside the
+execution's structured lifetime.
 
 ## 3. The three objects a user can wrap
 

@@ -408,6 +408,29 @@ class ContextPropagationTest {
         TerminationAssertions.assertUserFailure(result.completions().get(0).termination());
     }
 
+    @Test
+    void cancellationDoesNotPublishExecutionExitBeforeContextClose() throws Exception {
+        ExecutorService pool = pool(Executors.newSingleThreadExecutor());
+        CountDownLatch closeStarted = new CountDownLatch(1);
+        CountDownLatch releaseClose = new CountDownLatch(1);
+        ContextPropagator propagator = () -> () -> () -> {
+            closeStarted.countDown();
+            awaitUninterruptibly(releaseClose);
+        };
+        ParRuntime runtime = runtime(pool, propagator);
+        TaskFuture<String> task =
+                runtime.par(ParId.of("worker")).submit("close-order", () -> "value", TaskOptions.timeout(TIMEOUT));
+        assertThat(closeStarted.await(2, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(task.cancel(true)).isTrue();
+        assertThat(task.state()).isNotEqualTo(TaskState.EXITED);
+        assertThat(task.completionFuture().isDone()).isFalse();
+
+        releaseClose.countDown();
+        assertThat(task.completionFuture().get(2, TimeUnit.SECONDS)).isNotNull();
+        assertThat(task.state()).isEqualTo(TaskState.EXITED);
+    }
+
     private ExecutorService directExecutor() {
         return pool(com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService());
     }
@@ -458,6 +481,24 @@ class ContextPropagationTest {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new AssertionError(interrupted);
+        }
+    }
+
+    private static void awaitUninterruptibly(CountDownLatch latch) {
+        boolean interrupted = false;
+        try {
+            while (true) {
+                try {
+                    latch.await();
+                    return;
+                } catch (InterruptedException ignored) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

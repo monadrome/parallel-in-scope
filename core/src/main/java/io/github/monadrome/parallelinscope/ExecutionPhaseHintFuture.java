@@ -253,14 +253,20 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         boolean inlineViolation = inlineForbidden && submittingThread == Thread.currentThread();
         try {
             if (inlineViolation) {
+                releaseExecution();
                 setException(new SubmissionException(new RejectedExecutionException(
                         "task '" + taskLabel() + "' was run on the submitting thread by its executor's"
                                 + " RejectedExecutionHandler, but its contract permits only a worker of its"
                                 + " target Par; the pool was saturated at submission")));
             } else if (!skipped && !cancelled && taskCode != null) {
-                set(taskCode.call());
+                V result = taskCode.call();
+                /* Context scopes have closed by now; publish exit before exposing the result. */
+                releaseExecution();
+                set(result);
             }
         } catch (Throwable failure) {
+            /* Also covers an install failure before ScopedCallable was entered. */
+            releaseExecution();
             if (!setException(failure) && isCancelled()) {
                 try {
                     LOGGER.log(

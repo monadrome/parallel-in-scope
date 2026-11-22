@@ -151,8 +151,8 @@ thread; no group TTL MUST be added. The rules are in [task-graph.md](task-graph.
 Members are prepared through `TaskSubmissions.prepare`, which captures the unit's application context
 on the admitting thread. The built-in TTL participant is always first; `ContextPropagator`s registered
 on the owning `ParRuntime` follow in registration order. Installation occurs on the executing thread
-outside `ScopedCallable`, and scopes close in reverse order after task code exits and before result
-settlement. The framework does not propagate unregistered ordinary `ThreadLocal`s or configure MDC
+outside `ScopedCallable`, and scopes close in reverse order after task code exits, before execution-exit
+publication and result settlement. The framework does not propagate unregistered ordinary `ThreadLocal`s or configure MDC
 automatically. A queued task holds its snapshot until it runs or is cancelled — that is the context
 layer's retention semantics; no snapshot release callback is provided. Adopted members run no task code
 and install no application context. The full protocol and failure precedence are in
