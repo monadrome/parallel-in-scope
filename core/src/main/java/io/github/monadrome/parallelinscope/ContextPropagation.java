@@ -93,11 +93,21 @@ final class ContextPropagation {
         try {
             value = taskCode.call();
         } catch (Throwable taskFailure) {
-            closeInReverse(new ContextPropagator.Scope[] {scope}, 1, taskFailure);
+            closeAfterTask(scope, taskFailure);
             throw taskFailure;
         }
         scope.close();
         return value;
+    }
+
+    /** Keeps every participant close failure directly suppressed on the task failure. */
+    private static void closeAfterTask(ContextPropagator.Scope scope, Throwable taskFailure) {
+        if (scope instanceof CompositeScope) {
+            CompositeScope composite = (CompositeScope) scope;
+            closeInReverse(composite.scopes, composite.scopes.length, taskFailure);
+        } else {
+            closeInReverse(new ContextPropagator.Scope[] {scope}, 1, taskFailure);
+        }
     }
 
     private static <T> T requireStage(@Nullable T stage, Object owner, String problem) {

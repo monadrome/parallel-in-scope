@@ -235,6 +235,30 @@ class ContextPropagationTest {
     }
 
     @Test
+    void everyCloseFailureIsDirectlySuppressedOnTaskFailure() {
+        IllegalStateException taskFailure = new IllegalStateException("task");
+        IllegalStateException firstClose = new IllegalStateException("first-close");
+        IllegalStateException secondClose = new IllegalStateException("second-close");
+        ContextPropagator first = () -> () -> () -> {
+            throw firstClose;
+        };
+        ContextPropagator second = () -> () -> () -> {
+            throw secondClose;
+        };
+        Callable<String> task = ContextPropagation.ttlThen(Arrays.asList(first, second))
+                .capturing(() -> {
+                    throw taskFailure;
+                });
+
+        assertThatThrownBy(task::call).satisfies(thrown -> {
+            assertThat(thrown).isSameAs(taskFailure);
+            assertThat(thrown.getSuppressed()).containsExactly(secondClose, firstClose);
+            assertThat(secondClose.getSuppressed()).isEmpty();
+            assertThat(firstClose.getSuppressed()).isEmpty();
+        });
+    }
+
+    @Test
     void successfulTaskWithCloseFailureFailsAndClosesEveryScope() {
         List<String> events = new ArrayList<>();
         IllegalStateException firstClose = new IllegalStateException("first-close");

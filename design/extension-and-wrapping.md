@@ -512,6 +512,11 @@ exit after context close and before result settlement; the regression blocks clo
 and reverse verification fails when the fix is removed. The follow-up independent round found no new
 blocking finding. Open-world review has no recall metric.
 
+A later full-diff round confirmed that composite close failures were nested when task code also failed.
+The task-failure path now closes the individual participant scopes against the primary throwable, so every
+close failure is directly suppressed on it; the regression asserts both direct entries and no nested
+aggregation. Reverse verification fails when that path is replaced by composite-first closing.
+
 
 ## 12. References
 
