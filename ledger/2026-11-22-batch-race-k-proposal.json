@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-22-batch-race-k-proposal",
+  "date": "2026-11-22",
+  "topic": "batch-race-k-proposal",
+  "routes": [
+    "docs"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: propose a first-k-success batch race"
+    ],
+    "files": 2,
+    "insertions": 124,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 1,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "In-flight proposal only; no live contract or Java change. GLM-5.3 independently reviewed both complete paths of the proposal commit, including the cancellation and inline interleavings; no defects found. Documentation gates passed. Implementation awaits maintainer direction on first-k-success semantics."
+}
