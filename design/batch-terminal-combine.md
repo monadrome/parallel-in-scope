@@ -9,7 +9,7 @@ the batch combine's mechanism invariants.
 ## Lifecycle invariants
 
 - MUST: the combine task is prepared in the same admission as all elements (token,
-  TaskExecutionContext, and TTL capture all complete on the calling thread), and bound before
+  TaskExecutionContext, and application-context capture all complete on the calling thread), and bound before
   submission; no lazy preparation.
 - MUST: the combine view wraps the real prepared future from creation and joins the batch
   token's bind set; the batch token MUST NOT commit SUCCESS before the combine is terminal, and
@@ -63,7 +63,7 @@ the batch combine's mechanism invariants.
 
 ## Verification baseline
 
-`ParMapAndCombineTest`: exactly-once, failure/timeout/rejection paths, null elements, TTL
+`ParMapAndCombineTest`: exactly-once, failure/timeout/rejection paths, null elements, application-context
 capture, nested inherited budgets, validation rejections, and 50 race rounds; the external Java
 8 consumer covers the public entry. Reverse verification: a variant submitting the combine
 unconditionally at admission fails 9 of 10 tests.

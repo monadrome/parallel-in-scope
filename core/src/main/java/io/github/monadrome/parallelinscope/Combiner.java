@@ -10,8 +10,9 @@ import org.jspecify.annotations.Nullable;
  * and read member values through their declaration {@link TaskKey} objects. The input exposes
  * values, not task handles for cancellation or orchestration.
  *
- * <p>The combine shares the group's deadline, cooperative cancellation, execution context, TTL
- * replay, and final observation. Its TTL context is captured when the group is admitted. It is
+ * <p>The combine shares the group's deadline, cooperative cancellation, application context, and
+ * final observation. Its context is captured when the group is admitted and installed around the
+ * combiner on its executing thread. It is
  * submitted to its declared {@link Par}; a rejected handoff is recorded as {@link
  * FailureCause.Kind#SUBMISSION_REJECTED}. For a recognized {@link
  * java.util.concurrent.ThreadPoolExecutor}, execution on the submitting thread during the handoff,

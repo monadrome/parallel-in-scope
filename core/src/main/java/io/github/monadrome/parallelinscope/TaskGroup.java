@@ -46,7 +46,7 @@ import org.jspecify.annotations.Nullable;
  * GroupValues} snapshot in declaration order.
  *
  * <p>A group may declare one terminal combine: a real scoped task that depends on every member. Its
- * execution context and TTL snapshot are prepared at submission like a member's, but it is
+ * execution context and application-context snapshot are prepared at submission like a member's, but it is
  * submitted to its own {@code Par} only after all members succeed, and the group completes only
  * when its future is terminal. Its execution receives the assembled member values as {@link GroupValues}; its own
  * value is reached through {@link #terminalFuture()} and is not a slot in {@link GroupValues}.
@@ -537,7 +537,7 @@ final class TaskGroup<R> implements AutoCloseable {
 
     /**
      * Prepares one complete run inside a single {@link ParRuntime#whileOpen} admission. Resolves
-     * nesting, deadline, and TTL context from the calling thread and takes ownership of this run's
+     * nesting, deadline, and application context from the calling thread and takes ownership of this run's
      * executions from {@code payloads}. No execution executes until preparation succeeds.
      *
      * <p>The terminal combine's execution is wrapped to receive the assembled member values. On any

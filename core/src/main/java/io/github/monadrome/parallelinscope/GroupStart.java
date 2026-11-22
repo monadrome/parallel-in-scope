@@ -16,7 +16,7 @@ import java.util.concurrent.Callable;
  * member's name, its {@link Par}, its declared result type, and <em>this run's</em> execution. Building
  * the chain neither executes work nor captures the execution context. Each {@link #adopt} instead
  * states a member whose result is a future already in flight, which the group owns from {@code
- * runAll} on. Execution budgets and TTL
+ * runAll} on. Execution budgets and application
  * context are resolved only when {@code runAll} admits the group. {@link #runAll()} is the only
  * admission and submission boundary, and it may be called exactly once: the chain is consumed by
  * the submission and cannot be retried, extended, or reused.
@@ -72,8 +72,8 @@ public interface GroupStart {
      *
      * <p>The member succeeds with the source's value and fails with its failure as a {@link
      * FailureCause.Kind#USER_CODE_FAILURE}; cancellation is attributed through the group like
-     * any member's. The library runs no execution for it: no executor submission, TTL replay, task-type
-     * diagnostic, or workload-fit timing applies. Its execution-exit slot is released when the source
+     * any member's. The library runs no execution for it: no executor submission, application-context
+     * installation, task-type diagnostic, or workload-fit timing applies. Its execution-exit slot is released when the source
      * settles, so {@link TaskGroupResult#executionExitConfirmed()} also confirms that every adopted
      * source settled. A source that ignores cancellation keeps the group's bounded cleanup wait
      * waiting and is reported among the unfinished executions.

@@ -4,6 +4,14 @@
 
 ### Added
 
+- Add `ContextPropagator` and `ParRuntime.Builder.propagate` for runtime-scoped application context
+  propagation. A propagator captures on the admitting thread, installs around task code on the executing
+  thread, and closes in reverse order with the previous state restored. TTL remains a required, always-on
+  built-in participant; registered mechanisms additionally cover MDC and application-owned ordinary
+  `ThreadLocal`s across single tasks, deferred batch elements, group members, and terminal combines.
+  Capture failure aborts admission, install failure skips task code, and close failures follow
+  try-with-resources precedence using the existing task-failure vocabulary. Existing applications need no
+  migration; `ContextExecutors` intentionally remain TTL-only.
 - Add `adopt` overloads for statically typed `ListenableScheduledFuture` sources. Error Prone reports
   these calls through `@DoNotCall` with migration guidance; `@Deprecated` also warns callers using
   ordinary Java tooling. Every call throws `UnsupportedOperationException`, including null arguments,

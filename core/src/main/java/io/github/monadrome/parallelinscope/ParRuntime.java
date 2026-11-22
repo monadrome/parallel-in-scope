@@ -78,6 +78,7 @@ public final class ParRuntime implements AutoCloseable {
     private final Set<ListenableFuture<@Nullable Void>> liveExecutionSignals = Sets.newConcurrentHashSet();
     private final TaskTypeMismatches taskTypeMismatches = new TaskTypeMismatches();
     private final WorkloadClock workloadClock;
+    private final ContextPropagation contextPropagation;
 
     private final Monitor.Guard quiescent = new Monitor.Guard(quiescenceMonitor) {
         @Override
@@ -100,6 +101,7 @@ public final class ParRuntime implements AutoCloseable {
     private ParRuntime(Builder builder) {
         this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
         this.workloadClock = builder.workloadClock == null ? SystemWorkloadClock.INSTANCE : builder.workloadClock;
+        this.contextPropagation = ContextPropagation.ttlThen(builder.propagators);
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("ParRuntime-services-%d")
                 .setDaemon(true)
@@ -282,6 +284,11 @@ public final class ParRuntime implements AutoCloseable {
         return executorWaits;
     }
 
+    /** The context layer shared by every execution admitted through this runtime. */
+    ContextPropagation contextPropagation() {
+        return contextPropagation;
+    }
+
     /** Returns the immutable id-to-entry topology; ids are the registration keys. */
     public Map<ParId, Par> pars() {
         return pars;
@@ -337,7 +344,7 @@ public final class ParRuntime implements AutoCloseable {
      * Opens a one-shot task-group declaration with an explicit group timeout.
      *
      * <p>The chain accepts only {@link Par}s belonging to this {@code ParRuntime}, and building it
-     * neither executes work nor captures the execution context. Execution budgets and TTL context
+     * neither executes work nor captures the execution context. Execution budgets and application context
      * are resolved only at {@link GroupStep#runAll()} or {@link GroupStart#runAll()}. The group
      * timeout is a forced explicit choice: use this entry for an explicit budget, or {@link
      * #groupInheriting(String)} for a nested group that inherits an enclosing scoped task's
@@ -395,7 +402,7 @@ public final class ParRuntime implements AutoCloseable {
      * through the futures and {@link TaskGroupResult}, not by throwing from here.
      *
      * <p>The admission boundary is the submission boundary: the submit start — structural parent,
-     * deadline ceiling, TTL and observation snapshots — is resolved here, so a slow declaration
+     * deadline ceiling, application context and observation snapshots — is resolved here, so a slow declaration
      * never consumes the group's execution budget and inherited-deadline errors surface before any
      * execution can run.
      *
@@ -736,6 +743,7 @@ public final class ParRuntime implements AutoCloseable {
     public static final class Builder {
         private final Map<ParId, ExecutorService> executors = new LinkedHashMap<>();
         private final Map<ParId, TaskType> taskTypes = new LinkedHashMap<>();
+        private final List<ContextPropagator> propagators = new ArrayList<>();
         private @Nullable ParId defaultId;
         private @Nullable Ticker ticker;
         private @Nullable ScheduledExecutorService timeoutScheduler;
@@ -784,6 +792,25 @@ public final class ParRuntime implements AutoCloseable {
             checkNotNull(taskType, "taskType cannot be null");
             executors.put(id, executor);
             taskTypes.put(id, taskType);
+            return this;
+        }
+
+        /**
+         * Adds one application context mechanism to every execution admitted through the runtime.
+         *
+         * <p>Propagators are captured when each task is prepared, installed around its task code in
+         * registration order after the built-in TransmittableThreadLocal context, and closed in the
+         * reverse order on the same thread. The set is frozen by {@link #build()}; adding a
+         * propagator after a runtime has been built affects only a later runtime built by this
+         * builder.
+         *
+         * @param propagator the context mechanism to carry; it must be safe for concurrent use
+         * @return this builder
+         * @throws NullPointerException if {@code propagator} is null
+         * @see ContextPropagator
+         */
+        public Builder propagate(ContextPropagator propagator) {
+            propagators.add(checkNotNull(propagator, "propagator cannot be null"));
             return this;
         }
 

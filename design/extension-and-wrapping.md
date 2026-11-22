@@ -10,14 +10,16 @@
 > Relationship to [first-principles.md](first-principles.md): this document concretizes
 > criterion 2 (can existing mechanisms be parameterized) and criterion 4 (does it introduce a
 > second execution pipeline) on the subject of "wrapping".
-> **No task decorator SPI; the only user extension point is task code itself (§10 has the
-> deferral rationale and re-entry conditions).** The TTL wrapper detection contract is §6.
+> **No task decorator SPI; task code itself remains the only extension point for task behavior
+> (§10 has the deferral rationale and re-entry conditions).** Application context mechanisms use
+> the runtime-registered `ContextPropagator` protocol. The TTL wrapper detection contract is §6.
 
 ## 0. The one-sentence conclusion
 
-**The only user extension point is task code itself**: users wrap their own `Callable`s before
+**Task code remains the only extension point for task behavior**: users wrap their own `Callable`s before
 submitting (§5); the library's context replay is guaranteed by construction to sit outside all
-user code, and neither needs nor provides a decorator SPI.
+user code, and neither needs nor provides a decorator SPI. Application context mechanisms are a
+separate, bounded extension point: register a `ContextPropagator` on `ParRuntime.Builder` (proposal:P0040).
 
 The guarantees have explicit boundaries:
 
@@ -46,7 +48,7 @@ the library are all outside the guarantees (I2/I3 in §2).
 - No executor wrapping SPI (the JDK's `ExecutorService` is already that extension point);
 - No future-level wrapping (extend in-library types for future-level capabilities);
 - **No promise to cover code task code escapes to other threads/other moments**;
-- **No promise to propagate arbitrary `ThreadLocal`s** (the propagation set is closed, see §2);
+- **No promise to propagate arbitrary `ThreadLocal`s without registration** (the propagation set is closed per runtime, see §2); a registered `ContextPropagator` is the supported way to carry an application-owned ordinary `ThreadLocal` or MDC;
 - No new `TaskTermination` vocabulary.
 
 ## 2. Premises, boundaries, and invariants
@@ -57,7 +59,7 @@ the library are all outside the guarantees (I2/I3 in §2).
 |---|---|
 | A1 | **Pools are user-owned**: the library only calls `Executor.execute()` — it creates, closes, and assumes nothing about implementation classes |
 | A2 | **User executors honor the `Executor` contract**: invoke the passed object's `run()` exactly once — no dropping, no duplication, no thread switching |
-| A3 | **The propagation set is closed**: context = the library-registered transmittable carriers (the `TransmittableThreadLocal` registration set); Java 8 cannot enumerate arbitrary `ThreadLocal`s |
+| A3 | **The propagation set is closed per runtime**: context = the `TransmittableThreadLocal` registration set plus the `ContextPropagator`s frozen at `ParRuntime.build()`; Java 8 cannot enumerate arbitrary `ThreadLocal`s, and an unregistered ordinary `ThreadLocal` still does not propagate |
 
 ### 2.2 The two boundaries
 
@@ -66,7 +68,7 @@ The real call stack on a worker thread (current, implemented):
 ```
 executor.execute(future)                    ← submitting thread; SubmissionScope installed
   └─ [worker] future.run()                  ← ExecutionPhaseHintFuture: phase CAS, current state via phase()
-      └─ TtlCallable.call()                 ← the library's last wrap: replay(captured) … restore(backup)
+      └─ ContextPropagation.install()         ← the library's last wrap: capture at prepare, install … close
           └─ ScopedCallable.call()          ← install TaskExecutionContext → checkpoint → delegate
               └─ user Callable / lambda      ← the only user extension point: self-wrapping goes here (§5)
 ```
@@ -92,6 +94,35 @@ appears on the path.
 (`CompletableFuture.supplyAsync`, a new thread, another pool), or saves it for execution after
 return, context replay cannot cover that code. **Every "outermost" design discussion refers to
 I1; treating I2/I3 as guaranteed invariants is a design error.**
+
+### 2.4 The context propagation protocol (proposal:P0040)
+
+`ContextPropagator` is a three-stage capture–replay–restore protocol, named `capture()` →
+`Snapshot.install()` → `Scope.close()`. Capture runs once per prepared task on the admitting thread;
+install runs on the executing thread outside `ScopedCallable`; close runs on that same thread after
+task code exits and before the result settles. Snapshots are values with no thread affinity and no
+release callback; a task cancelled or rejected before execution drops its snapshot without installing
+it. A registration-time callback executor may install one snapshot repeatedly, but this does not copy
+mutable values.
+
+Participants are registered with `ParRuntime.Builder.propagate` and frozen at `build()`. The built-in
+TTL participant is always first and cannot be disabled; registered participants install in registration
+order and close in reverse order. A later participant may read the context installed by an earlier one.
+Framework-owned `TaskExecutionContext`, `SubmissionScope`, and interrupt state are not participants and
+never cross threads through this protocol.
+
+Failures follow try-with-resources. A capture failure escapes the admission call and no task code in
+that unit runs. An install failure closes scopes already opened, skips task code, and becomes the task's
+failure. A task-code failure remains primary, with close failures suppressed; if task code succeeds and
+close fails, the task fails with the close failure. Every scope is attempted even when an earlier close
+fails. These failures use the existing user-code failure vocabulary. The built-in TTL participant keeps
+TTL's own transmittee failure behavior.
+
+The protocol covers single submissions, batch elements (including deferred elements), group members,
+and both terminal combines through `TaskSubmissions.prepare`. It does not cover escaped asynchronous
+work, adopted members (which run no task code), library-owned completion listeners, or the two static
+`ContextExecutors` beyond their existing TTL behavior. Context close occurs after the execution-exit
+signal and before result settlement, as the former TTL restore did.
 
 ## 3. The three objects a user can wrap
 
@@ -200,6 +231,33 @@ logic MUST NOT rely on "future terminal ⇒ my `finally` has run".
 
 ### 5.2 MDC / ordinary ThreadLocal
 
+For a mechanism shared by all entries, prefer one runtime registration over repeating the wrapper at
+every call site. This propagator captures MDC on the admitting thread, installs it on the executing
+thread, and restores the previous map on close:
+
+```java
+ContextPropagator mdc = () -> {
+    Map<String, String> captured = MDC.getCopyOfContextMap();
+    return () -> {
+        Map<String, String> previous = MDC.getCopyOfContextMap();
+        if (captured != null) MDC.setContextMap(captured); else MDC.clear();
+        return () -> {
+            if (previous != null) MDC.setContextMap(previous); else MDC.clear();
+        };
+    };
+};
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("worker"), pool)
+        .propagate(mdc)
+        .build();
+```
+
+The runtime applies it to batch elements, group members, and terminal combines, including inline
+execution. Capture failure aborts admission; install and close failures follow the precedence in §2.4.
+The snapshot does not deep-copy a mutable map, so use immutable or copy-on-write values when needed.
+Self-wrapping remains useful for a one-off execution or for code outside a `ParRuntime`; its rules are
+unchanged:
+
 ```java
 Map<String, String> mdc = MDC.getCopyOfCurrentContextMap();   // captured on the submitting thread (R1)
 par.map(elements, item -> {
@@ -291,7 +349,9 @@ Calling `TtlRunnable.get` inside `execute` is excluded, as that would defer the 
 after the current command has already started executing.
 This API covers application callbacks only and does not replace the library's internal
 framework direct callbacks, avoiding expanding application context over the future's
-bookkeeping and completion notification.
+bookkeeping and completion notification. Both static executors carry the TTL registration set only;
+they do not discover a runtime's registered `ContextPropagator`s. Use a propagator-aware task entry
+when that context must reach library-managed task code.
 
 If an asynchronous future's listener belongs to the registrant rather than the completing
 thread, use the explicit registration-context executor:
@@ -376,7 +436,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 
 | # | Contract |
 |---|---|
-| L1 | **Single construction point**: only `TaskSubmissions.wrapScoped` calls `TtlCallable.get` library-wide; `Par`'s batch elements and terminals and `TaskGroup`'s members and terminals all call `TaskSubmissions.prepare` directly, sharing this point |
+| L1 | **Single construction point**: only `TaskSubmissions.wrapScoped` calls `ContextPropagation.capturing` library-wide; `Par`'s batch elements and terminals and `TaskGroup`'s members and terminals all call `TaskSubmissions.prepare` directly, sharing this point |
 | L2 | **Ordering and encapsulation**: `Context( ScopedCallable( user ) )`, with user code fixed innermost by construction; public API accepts only `Callable`/`Function` — no "prepared objects"; prepared objects' types and construction entries are package-private (anti-bypass, P7) |
 | L3 | **Single wrapping**: each task passes through the library's context layer and lifecycle layer exactly once each |
 | L4 | **Not configurable**: no option disables or replaces context wrapping |
@@ -392,7 +452,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 | U1 | MUST NOT wrap another layer around Runnables outside `run()` through executor wrapping (especially `TtlExecutors`) |
 | U2 | A registered executor MUST honor the `Executor` contract: invoke `run()` exactly once — no dropping, no duplication, no thread switching |
 | U3 | MUST NOT build private execution pipelines by depending on package-private kernel classes through reflection or similar means |
-| U4 | MUST NOT expect context to propagate ordinary `ThreadLocal`s or MDC — the propagation set is closed (A3); capture and replay yourself per §5 when needed |
+| U4 | MUST NOT expect an unregistered ordinary `ThreadLocal` or MDC to propagate; register a `ContextPropagator` for that mechanism, or capture and replay yourself per §5 when needed |
 
 ## 8. Invariants
 
@@ -402,7 +462,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 | INV-2 | Replay takes effect inside task code's synchronous same-thread dynamic scope (I2) | In-execution context reads == submitting thread values; escape negative cases |
 | INV-3 | Precise restoration: success, exception, Error, interruption, rejection, and inline all restore the worker's original state | Single-thread pool running polluting/failing/successor tasks in sequence; interruption and inline locked by `InlineSubmissionLivenessTest` (with a pooled-path control), see [ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md) |
 | INV-4 | Independent snapshots: each prepare captures independently, never reused across tasks | Concurrent submissions with different context values |
-| INV-5 | Closed propagation set: only registered `TransmittableThreadLocal`s propagate | Registered/unregistered control tests |
+| INV-5 | Closed propagation set: registered `TransmittableThreadLocal`s plus the runtime's registered `ContextPropagator`s propagate; unregistered ordinary `ThreadLocal`s do not | Registered/unregistered control tests; runtime isolation tests |
 | INV-6 | Unique prepared-future identity: what is submitted to the executor is the instance prepare produced; the view returned to the caller wraps that instance from creation, identical inside and outside the window — no placeholders, no `bind` bridge | Spy executor reference-equality assertions |
 | INV-7 | Attribution unchanged: execution exceptions → `USER_FAILURE`, no new vocabulary | Exceptional executions → batch/group outcome assertions |
 | INV-8 | Cancellation/deadline/fail-fast semantics independent of whether the user self-wraps | Cancellation/fail-fast/timeout tests with self-wrapping |
@@ -435,6 +495,13 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 | Promising to cover code task code escapes asynchronously | Java 8 cannot stop user code from switching threads; only rules + negative tests can expose it (P4) |
 | Promising to propagate arbitrary `ThreadLocal`s/MDC | The propagation set is closed (A3) |
 | Optional Listening wrapping | `ListenableFuture` is an internal implementation detail; the external contract is `TaskBatchResult`/`TaskGroupResult` |
+| TTL's global `Transmitter.registerTransmittee` as the public extension point | Rejected for the library protocol: the registry is JVM-global rather than runtime-scoped, and TTL logs and ignores participant capture/replay/restore failures, allowing missing context or a polluted worker to look successful. `ContextPropagator` keeps registration and failure semantics library-owned (proposal:P0040) |
+| A general task decorator SPI for context | Rejected: a propagator cannot observe or alter a task, so it does not reopen the deferred task-decorator decision; self-wrapping remains the task-behavior extension point |
+| Per-entry or per-call propagators | Rejected: no demand, and a set varying per call would no longer be closed at runtime build |
+| Snapshot release callbacks | Rejected: a second lifecycle to forget; a task that never runs drops its snapshot without a release step |
+| Optional or removed TTL dependency | Not selected in this change: TTL remains required and always-on, so existing applications keep automatic TTL propagation and wrapper detection without migration |
+| TTL-style swallow-and-log for registered propagators | Rejected: it hides missing context and failed restoration behind successful task results; the protocol uses try-with-resources precedence |
+| Runtime-bound `ContextExecutors` carrying registered propagators | Not selected: the static executors retain their TTL-only behavior and explicitly document that boundary; no additional executor API is needed for task propagation |
 
 ## 11. References
 
@@ -442,8 +509,8 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 - [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md): rejection records
 - [task-group-submission.md](task-group-submission.md) §7.3, §9: the single-task submission
   kernel's reuse boundary
-- [task-group-lifecycle.md](task-group-lifecycle.md) §4.8: TTL boundaries
-- Root package-private implementations: `TaskSubmissions`, `ScopedCallable`,
+- [task-group-lifecycle.md](task-group-lifecycle.md) §4.8: application-context boundaries
+- Root package-private implementations: `TaskSubmissions`, `ContextPropagation`, `ScopedCallable`,
   `ExecutionPhaseHintFuture`, `ExecutorRuntime`, `ExecutorIdentity`
-- TTL 2.14.5: `TtlCallable` (`get`'s idempotent semantics,
-  `releaseTtlValueReferenceAfterCall`), `TtlExecutors` (agent short-circuit), `TtlUnwrap`
+- TTL 2.14.5: `Transmitter` (capture/replay/restore and transmittee failure behavior),
+  `TtlExecutors` (agent short-circuit), `TtlUnwrap`

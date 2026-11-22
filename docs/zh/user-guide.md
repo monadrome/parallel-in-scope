@@ -472,8 +472,8 @@ future 级跟踪加诊断作用域，不是仍在用户代码里的执行。运�
 
 ## 取消与嵌套批次
 
-嵌套 map/runAll 自动继承取消与最小 deadline。TTL 在准备任务时捕获、worker 上恢复；
-普通 ThreadLocal 不传播。执行使用 checkpoint 与有限 IO 超时。没有运行句柄提供
+嵌套 map/runAll 自动继承取消与最小 deadline。TTL 和 runtime 注册的 ContextPropagator 在准备任务时捕获、worker 上安装并恢复；
+未注册的普通 ThreadLocal 不传播。执行使用 checkpoint 与有限 IO 超时。没有运行句柄提供
 成员直消或异步提交；需同时执行的业务放入同一组。应用自行包装的异步执行有自己的生命周期，
 取消外层 future 不能证明内部同步调用已经退出。
 
@@ -593,10 +593,34 @@ Par.map 在准入前拒绝 null mapping function，即使输入为空或 null。
 
 ### 与 MDC（SLF4J）协作
 
-库的上下文传播基于 Alibaba TransmittableThreadLocal：准备任务时捕获，worker 上恢复。MDC 是
-普通 ThreadLocal，既不跨池传播，也不会被库自动捕获。用一个 TTL 持有诊断 Map，在执行入口
-写入 MDC、在 finally 恢复原值。与其在每个调用点重写保存/恢复样板，不如把下面的应用侧助手
-复制一份：
+库默认通过 Alibaba TransmittableThreadLocal 传播上下文：准备任务时捕获，worker 上恢复。MDC 是
+普通 ThreadLocal，不会被自动捕获。若某个机制要覆盖所有执行入口，在 runtime 上注册一次
+`ContextPropagator` 即可：准入线程捕获，执行线程安装，退出时恢复原值：
+
+```java
+ContextPropagator mdc = () -> {
+    Map<String, String> captured = MDC.getCopyOfContextMap();
+    return () -> {
+        Map<String, String> previous = MDC.getCopyOfContextMap();
+        if (captured != null) MDC.setContextMap(captured); else MDC.clear();
+        return () -> {
+            if (previous != null) MDC.setContextMap(previous); else MDC.clear();
+        };
+    };
+};
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("worker"), pool)
+        .propagate(mdc)
+        .build();
+```
+
+参与者覆盖单任务、批次元素（包括等待并行槽位的元素）、组成员和末端汇总；按注册顺序在 TTL 之后安装，
+关闭时逆序执行。捕获失败会中止准入；安装失败不会运行任务代码；任务失败保持为主异常，关闭失败挂为
+suppressed；任务成功但关闭失败时任务失败。快照不深拷贝可变值。静态 `ContextExecutors` 仍只携带 TTL，
+不会自动发现 runtime 注册的参与者。
+
+对于一次性执行或不经 runtime 的代码，仍可用一个 TTL 持有诊断 Map，在执行入口写入 MDC、在 finally
+恢复原值。与其在每个调用点重写保存/恢复样板，不如把下面的应用侧助手复制一份：
 
 ```java
 import com.alibaba.ttl.TransmittableThreadLocal;
