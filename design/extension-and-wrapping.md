@@ -504,7 +504,16 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 | TTL-style swallow-and-log for registered propagators | Rejected: it hides missing context and failed restoration behind successful task results; the protocol uses try-with-resources precedence |
 | Runtime-bound `ContextExecutors` carrying registered propagators | Not selected: the static executors retain their TTL-only behavior and explicitly document that boundary; no additional executor API is needed for task propagation |
 
-## 11. References
+## 11. Review residue
+
+Independent review on 2026-11-22 confirmed that publishing execution exit from `ScopedCallable` allowed a
+blocking registered scope close to outlive the execution-exit signal. The prepared future now publishes
+exit after context close and before result settlement; the regression blocks close during cancellation,
+and reverse verification fails when the fix is removed. The follow-up independent round found no new
+blocking finding. Open-world review has no recall metric.
+
+
+## 12. References
 
 - [first-principles.md](first-principles.md): axioms and evaluation criteria
 - [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md): rejection records
