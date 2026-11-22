@@ -96,8 +96,10 @@ public final class ParRuntime implements AutoCloseable {
     private final Executor announcements;
 
     private final ScheduledExecutorService timeoutScheduler;
+    private final ContextPropagation contextPropagation;
 
     private ParRuntime(Builder builder) {
+        this.contextPropagation = builder.contextPropagation;
         this.ticker = builder.ticker == null ? Ticker.systemTicker() : builder.ticker;
         this.workloadClock = builder.workloadClock == null ? SystemWorkloadClock.INSTANCE : builder.workloadClock;
         ThreadFactory factory = new ThreadFactoryBuilder()
@@ -189,6 +191,11 @@ public final class ParRuntime implements AutoCloseable {
     /** Returns a mutable builder for a runtime topology. */
     public static Builder builder() {
         return new Builder();
+    }
+
+    /** Returns the immutable application-context provider; framework bindings are managed separately. */
+    public ContextPropagation contextPropagation() {
+        return contextPropagation;
     }
 
     /**
@@ -741,6 +748,23 @@ public final class ParRuntime implements AutoCloseable {
         private @Nullable ScheduledExecutorService timeoutScheduler;
         private @Nullable WorkloadClock workloadClock;
         private @Nullable Executor announcements;
+        private ContextPropagation contextPropagation = ContextPropagation.ttl();
+
+        /**
+         * Selects the application-context provider captured during task preparation.
+         *
+         * <p>The default is {@link ContextPropagation#ttl()}. Replacing it does not change framework
+         * task identity, cancellation, deadlines, or submission policy. Use explicit composition to
+         * retain TTL alongside another provider. Callback helpers select their providers separately.
+         *
+         * @param propagation thread-safe provider with reusable snapshots
+         * @return this builder
+         * @throws NullPointerException if the provider is null
+         */
+        public Builder contextPropagation(ContextPropagation propagation) {
+            this.contextPropagation = checkNotNull(propagation, "context propagation cannot be null");
+            return this;
+        }
 
         /**
          * Registers a logical entry with one exact executor object and no declared {@link

@@ -258,7 +258,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                                 + " RejectedExecutionHandler, but its contract permits only a worker of its"
                                 + " target Par; the pool was saturated at submission")));
             } else if (!skipped && !cancelled && taskCode != null) {
-                set(taskCode.call());
+                set(callAndRelease(taskCode));
             }
         } catch (Throwable failure) {
             if (!setException(failure) && isCancelled()) {
@@ -287,6 +287,16 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
             } finally {
                 phase.set(ExecutionPhase.TERMINAL);
             }
+        }
+    }
+
+    /** Restores application bindings and releases execution ownership before settlement listeners run. */
+    private V callAndRelease(Callable<V> taskCode) throws Exception {
+        try {
+            return taskCode.call();
+        } finally {
+            releaseCallable();
+            releaseExecution();
         }
     }
 

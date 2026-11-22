@@ -10,14 +10,15 @@
 > Relationship to [first-principles.md](first-principles.md): this document concretizes
 > criterion 2 (can existing mechanisms be parameterized) and criterion 4 (does it introduce a
 > second execution pipeline) on the subject of "wrapping".
-> **No task decorator SPI; the only user extension point is task code itself (§10 has the
-> deferral rationale and re-entry conditions).** The TTL wrapper detection contract is §6.
+> **No general task decorator SPI (§10 has the deferral rationale and re-entry conditions).**
+> Application-context transport has the narrow [CRR provider contract](context-propagation.md).
+> The TTL wrapper detection contract is §6.
 
 ## 0. The one-sentence conclusion
 
-**The only user extension point is task code itself**: users wrap their own `Callable`s before
-submitting (§5); the library's context replay is guaranteed by construction to sit outside all
-user code, and neither needs nor provides a decorator SPI.
+**Cross-cutting task behavior stays in task code**: users wrap their own `Callable`s before
+submitting (§5). Application-context providers parameterize only capture and restoration outside
+the scoped callable; they do not supply a general decorator or a second execution pipeline.
 
 The guarantees have explicit boundaries:
 
@@ -66,7 +67,7 @@ The real call stack on a worker thread (current, implemented):
 ```
 executor.execute(future)                    ← submitting thread; SubmissionScope installed
   └─ [worker] future.run()                  ← ExecutionPhaseHintFuture: phase CAS, current state via phase()
-      └─ TtlCallable.call()                 ← the library's last wrap: replay(captured) … restore(backup)
+      └─ application-context callable      ← default TtlCallable, or configured CRR snapshot
           └─ ScopedCallable.call()          ← install TaskExecutionContext → checkpoint → delegate
               └─ user Callable / lambda      ← the only user extension point: self-wrapping goes here (§5)
 ```
@@ -376,7 +377,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
 
 | # | Contract |
 |---|---|
-| L1 | **Single construction point**: only `TaskSubmissions.wrapScoped` calls `TtlCallable.get` library-wide; `Par`'s batch elements and terminals and `TaskGroup`'s members and terminals all call `TaskSubmissions.prepare` directly, sharing this point |
+| L1 | **Single construction point**: `TaskSubmissions.wrapScoped` selects the runtime's provider through `ContextPropagationSupport`; `Par`'s batch elements and terminals and `TaskGroup`'s members and terminals share `TaskSubmissions.prepare`. The default retains `TtlCallable.get` at this inner callable boundary. |
 | L2 | **Ordering and encapsulation**: `Context( ScopedCallable( user ) )`, with user code fixed innermost by construction; public API accepts only `Callable`/`Function` — no "prepared objects"; prepared objects' types and construction entries are package-private (anti-bypass, P7) |
 | L3 | **Single wrapping**: each task passes through the library's context layer and lifecycle layer exactly once each |
 | L4 | **Not configurable**: no option disables or replaces context wrapping |

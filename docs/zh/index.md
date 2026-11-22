@@ -44,6 +44,7 @@
 | [测试使用本库的代码](testing/testing-your-code.md) | 确定性超时、清理、预算与结果测试 |
 | [TaskBatchResult 测试设计](testing/task-batch-result-report-test-design.md) | 稳定契约与并发断言 |
 | [AI 并发审查误报复盘](case-studies/ai-concurrency-review-false-positive.md) | 一次误报审查与可执行的验证方法 |
+| [不想把上下文传播绑死在 TTL 上，我们改了什么？](case-studies/crr-context-propagation.md) | 从请求身份、失败清理和任务结束顺序理解 CRR 改造 |
 
 ## 文档角色
 

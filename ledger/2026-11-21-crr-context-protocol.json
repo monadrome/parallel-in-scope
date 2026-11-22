@@ -1,0 +1,485 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-21-crr-context-protocol",
+  "date": "2026-11-21",
+  "topic": "crr-context-protocol",
+  "routes": [
+    "concurrency",
+    "contract",
+    "defect"
+  ],
+  "implementer": {
+    "agent": "codex",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "feat: add provider-neutral application context CRR",
+      "refactor: centralize context capture and cleanup policy",
+      "test: close CRR enhancement and admission coverage gaps",
+      "fix: release execution slots after failed context capture",
+      "docs: explain the CRR implementation through user problems",
+      "docs: clarify provider resource and TTL error boundaries",
+      "chore: record delivery crr-problem-driven-article",
+      "test: verify CRR worker bindings across execution boundaries",
+      "fix: unwind CRR on checked provider failures",
+      "refactor: clarify CRR failure rethrow contract"
+    ],
+    "files": 30,
+    "insertions": 2181,
+    "deletions": 344
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "parallel-in-scope-new-2fc4c7af-20261121-094952-97cdca",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 56137,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 0,
+              "rejected": 1,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 37106,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 0,
+          "rejected": 1,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 37106,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-9540a69e-20261121-100147-7a9365",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 33825,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 22603,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 22603,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-a744d8cf-20261121-111410-7d83d9",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 14467,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 4430,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 4430,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-a744d8cf-20261121-112056-067963",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 40855,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 51999,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 51999,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "parallel-in-scope-new-895f2f20-20261121-113738-626066",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 23017,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 10244,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 10244,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "crr-implementation-refactoring",
+        "head": "4f78ced1e9e74c4fd172d11efa74d7623f762b9a",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "C02"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "D02"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R8",
+            "rules": [
+              "V04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R9",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      },
+      {
+        "run": "crr-boundaries-refactoring",
+        "head": "a744d8cf4c22d98733bf9c917c118631b11acb9f",
+        "incompleteAgents": 0,
+        "findings": []
+      },
+      {
+        "run": "crr-checked-provider-refactoring",
+        "head": "52c2464f3aa4b90c2a251d73ce80104a570cbe8e",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "compilation": 4,
+      "mvn test": 3,
+      "refactoring structural verification": 1,
+      "PIT setup safety check": 1,
+      "PIT coverage startup": 1,
+      "local consumer artifact identity": 1,
+      "benchmark invocation": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "crr-production-audit/head-context.xml",
+      "statuses": {
+        "KILLED": 93,
+        "TIMED_OUT": 1
+      },
+      "total": 94,
+      "inconclusive": 1,
+      "inconclusiveRate": 0.0106
+    },
+    {
+      "source": "crr-production-audit/lifecycle.xml",
+      "statuses": {
+        "KILLED": 267,
+        "NO_COVERAGE": 3,
+        "SURVIVED": 11,
+        "TIMED_OUT": 5
+      },
+      "total": 286,
+      "inconclusive": 5,
+      "inconclusiveRate": 0.0175
+    },
+    {
+      "source": "crr-production-audit/admission.xml",
+      "statuses": {
+        "KILLED": 521,
+        "NO_COVERAGE": 8,
+        "RUN_ERROR": 1,
+        "SURVIVED": 28,
+        "TIMED_OUT": 19
+      },
+      "total": 577,
+      "inconclusive": 20,
+      "inconclusiveRate": 0.0347
+    },
+    {
+      "source": "crr-production-audit/head-focal.xml",
+      "statuses": {
+        "KILLED": 168,
+        "NO_COVERAGE": 161,
+        "SURVIVED": 63,
+        "TIMED_OUT": 6
+      },
+      "total": 398,
+      "inconclusive": 6,
+      "inconclusiveRate": 0.0151
+    },
+    {
+      "source": "crr-production-audit/head-handoff.xml",
+      "statuses": {
+        "KILLED": 12,
+        "NO_COVERAGE": 3,
+        "SURVIVED": 2
+      },
+      "total": 17,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "crr-production-audit/combine-attribution.xml",
+      "statuses": {
+        "KILLED": 3
+      },
+      "total": 3,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    },
+    {
+      "source": "crr-production-audit/interrupt-attribution.xml",
+      "statuses": {
+        "KILLED": 27,
+        "NO_COVERAGE": 4,
+        "SURVIVED": 10,
+        "TIMED_OUT": 6
+      },
+      "total": 47,
+      "inconclusive": 6,
+      "inconclusiveRate": 0.1277
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 3
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Includes the implementation and its tests after the initial design delivery. The article has its own delivery record. Usage remains unreported when unavailable."
+}
