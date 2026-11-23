@@ -249,7 +249,7 @@ final class TaskGroup<R> implements AutoCloseable {
         ImmutableMap.Builder<String, ImmediateResult<?>> results =
                 ImmutableMap.builderWithExpectedSize(orderedMembers.size());
         ImmutableMap.Builder<TaskKey<?>, ImmediateResult<?>> keyedResults =
-                ImmutableMap.builderWithExpectedSize(orderedMembers.size() + (terminal == null ? 0 : 1));
+                ImmutableMap.builderWithExpectedSize(membersAndTerminal.size());
         ImmutableMap.Builder<String, TaskExitObservation<?>> observations =
                 ImmutableMap.builderWithExpectedSize(orderedMembers.size());
         for (MemberState member : orderedMembers) {
