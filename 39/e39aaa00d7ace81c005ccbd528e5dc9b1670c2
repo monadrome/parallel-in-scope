@@ -1,0 +1,19 @@
+ledger/2026-11-23-delivery-command-routing.json
+  s_29f90af3a2c4db::t_d6bfa01a21a765 1-319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "39e39aaa00d7ace81c005ccbd528e5dc9b1670c2",
+  "prompts": {},
+  "sessions": {
+    "s_29f90af3a2c4db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a207b2-ba91-7c03-a92c-e14df241281f",
+        "model": "kimi-code/k3.1-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
