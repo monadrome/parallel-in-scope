@@ -1,0 +1,29 @@
+.agents/skills/project-delivery/references/commands.md
+  s_29f90af3a2c4db::t_a2374a30de939c 5-6,45-49,51-52
+  s_29f90af3a2c4db::t_a37baef4f7fe2a 28,50
+  s_29f90af3a2c4db::t_1ad0514f6f3f61 25
+  s_29f90af3a2c4db::t_29bef7f6eb0fc1 53-56
+verification/delivery-ledger.md
+  s_29f90af3a2c4db::t_a2374a30de939c 13-15,46
+  s_29f90af3a2c4db::t_31cc70e0ec86a6 42
+  s_29f90af3a2c4db::t_29bef7f6eb0fc1 47-50
+verification/pit.md
+  s_29f90af3a2c4db::t_3631623ba12c0a 62,68,94
+  s_29f90af3a2c4db::t_29bef7f6eb0fc1 126-128,130-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a81cfbe950114be36b0d1a3d51e8539504e4e0dd",
+  "prompts": {},
+  "sessions": {
+    "s_29f90af3a2c4db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a207b2-ba91-7c03-a92c-e14df241281f",
+        "model": "kimi-code/k3.1-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}

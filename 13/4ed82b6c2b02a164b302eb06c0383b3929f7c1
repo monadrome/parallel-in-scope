@@ -1,0 +1,20 @@
+.agents/skills/project-delivery/references/workflow.md
+  s_29f90af3a2c4db::t_e2be8e45055881 16,19
+  s_29f90af3a2c4db::t_bc9376ab314bd2 13,17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "134ed82b6c2b02a164b302eb06c0383b3929f7c1",
+  "prompts": {},
+  "sessions": {
+    "s_29f90af3a2c4db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a207b2-ba91-7c03-a92c-e14df241281f",
+        "model": "kimi-code/k3.1-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
