@@ -14,10 +14,11 @@ REQUIRED_FILES = (
     "contract.md",
     "contract-gaps.md",
     "candidate-status.csv",
+    "promotion-status.csv",
     "verification-summary.md",
     "report.md",
 )
-REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
+REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "promotions", "reverse-verification")
 VALID_STATUSES = {"pass", "fail", "blocked", "inconclusive", "skipped"}
 FINAL_GATE_RUN_STATUSES = {
     "PASS": "pass",
@@ -238,6 +239,13 @@ def verify(run_dir: Path) -> list[str]:
         for required in REQUIRED_FILES:
             if required not in artifacts:
                 errors.append(f"artifacts does not hash required file: {required}")
+        promotions = run_dir / "promotions"
+        if promotions.is_dir():
+            for path in sorted(promotions.rglob("*")):
+                if path.is_file():
+                    relative = path.relative_to(run_dir).as_posix()
+                    if relative not in artifacts:
+                        errors.append(f"artifacts does not hash promoted test copy: {relative}")
 
     commands = manifest.get("commands", [])
     if not isinstance(commands, list):

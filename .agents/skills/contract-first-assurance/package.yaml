@@ -1,6 +1,6 @@
 package:
   name: contract-first-assurance
-  version: 1.3.0
+  version: 1.4.0
   schema: 1
   entrypoint: SKILL.md
   layout: sibling-skills
@@ -9,16 +9,16 @@ package:
 components:
   - path: ../contract-extract
     kind: phase
-    version: 1.3.0
+    version: 1.4.0
   - path: ../isolated-test-generation
     kind: phase
-    version: 1.3.0
+    version: 1.4.0
   - path: ../contract-diff
     kind: phase
-    version: 1.3.0
+    version: 1.4.0
   - path: ../assurance-report
     kind: phase
-    version: 1.3.0
+    version: 1.4.0
 
 references:
   invocation: references/invocation-modes.md
@@ -29,7 +29,7 @@ references:
 host_adapters:
   - path: adapters/vformation.yaml
     applies_to: parallel-in-scope
-    version: 1.3.0
+    version: 1.4.0
 
 runtime:
   required:
@@ -49,6 +49,8 @@ outputs:
     - contract-gaps.md
     - candidates/
     - candidate-status.csv
+    - promotions/
+    - promotion-status.csv
     - reverse-verification/
     - verification-summary.md
     - report.md

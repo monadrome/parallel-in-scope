@@ -1,15 +1,16 @@
 {
   "skill_name": "contract-first-assurance",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "evals": [
     {
       "id": 1,
       "name": "concurrency-contract-assurance",
       "prompt": "独立检查一个包含取消、deadline 和 execution exit 语义的 PR。请冻结可执行 contract，使用 fresh context 生成候选测试，在真实实现上分类验证结果，并给出反向验证和未决契约缺口。",
-      "expected_output": "A report with stable contract IDs, isolated candidate tests, explicit result classifications, reverse-verification status, and contract gaps.",
+      "expected_output": "A report with stable contract IDs, isolated candidate tests, explicit result classifications, reverse-verification status, promoted hidden regressions, and contract gaps.",
       "assertions": [
         "Does not treat an unresolved timeout or partial PIT run as passing, while allowing a fully evidenced and approved mutation exception to pass the gate without changing the raw status",
         "Separates implementation defects from test assumptions and missing oracle details",
+        "Promotes only new-coverage candidates that passed real implementation verification and reverse verification",
         "Records the same run directory and adapter inputs across phases"
       ]
     },

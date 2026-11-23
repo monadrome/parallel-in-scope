@@ -15,10 +15,10 @@ manifest has this shape:
   "schemaVersion": "contract-assurance-run/v2",
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
-  "package": {"name": "contract-first-assurance", "version": "1.3.0"},
+  "package": {"name": "contract-first-assurance", "version": "1.4.0"},
   "adapter": {
     "name": "vformation",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
     "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
   },
@@ -66,7 +66,8 @@ Rules:
 - `adapter.requiredGates` is the resolved route's required-gate list; the top-level
   `requiredGates` must match it, and `checks` must contain a result for every gate;
 - a dirty workspace must include its binary patch under `inputs/`;
-- every copied contract, API view, adapter, command log, and report is hashed;
+- every copied contract, API view, adapter, command log, promotion record, promoted test copy,
+  and report is hashed;
 - command records preserve the exact argv, exit code, stdout path, and stderr path;
 - paths in the manifest are relative to `${RUN_DIR}` and must not contain `..`;
 - a timeout, missing log, missing hash, or hash mismatch makes the run
@@ -91,6 +92,8 @@ ${RUN_DIR}/
 ├── contract-gaps.md
 ├── candidates/
 ├── candidate-status.csv
+├── promotions/
+├── promotion-status.csv
 ├── reverse-verification/
 ├── verification-summary.md
 └── report.md

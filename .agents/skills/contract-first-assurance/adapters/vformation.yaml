@@ -1,5 +1,5 @@
 name: vformation
-version: 1.3.0
+version: 1.4.0
 workspace_root: repository-root
 base_ref: origin/dev/v0.5.0
 artifact_root: .contract-first-assurance
@@ -20,6 +20,11 @@ build_commands:
   compile: mvn -DskipTests compile
   targeted_tests: mvn test -Dtest='<ClassName>#<methodName>'
   full_suite: mvn test
+
+regression_suite:
+  path: verification/contract-tests/
+  check_command: python3 scripts/check-contract-tests.py
+  test_command: mvn -Pcontract-tests -pl verification/contract-tests -am test
 
 format_commands:
   - mvn spotless:check

@@ -180,6 +180,40 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  hidden-contract-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up build JDK 25
+        uses: actions/setup-java@v6
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+
+      - name: Check hidden contract test metadata
+        run: python3 scripts/check-contract-tests.py
+
+      - name: Check hidden contract test formatting
+        run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests spotless:check
+
+      - name: Run hidden contract regression suite
+        run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests -am test
+
+      - name: Upload hidden contract test reports
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: hidden-contract-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: verification/contract-tests/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 7
+
   runtime-consumer:
     runs-on: ubuntu-latest
     timeout-minutes: 30

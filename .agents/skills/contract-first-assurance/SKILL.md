@@ -2,7 +2,7 @@
 name: contract-first-assurance
 description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
 compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
-version: "1.3.0"
+version: "1.4.0"
 ---
 
 # Contract-First Independent Assurance
@@ -19,9 +19,9 @@ then resolve the host configuration in this order:
 4. the generic rules in `SKILL_ROOT/references/host-adapter.md`.
 
 The host adapter supplies the workspace, change scope, baseline, build commands, format checks,
-mutation policy, and output directories; this skill assumes nothing about Java, Maven, Gradle,
-npm, or PIT. When a required adapter input is missing, keep `BLOCKED` or `INCONCLUSIVE`
-evidence instead of guessing commands. Mutation raw statuses and verification conclusions must
+mutation policy, regression-suite promotion commands, and output directories; this skill assumes
+nothing about Java, Maven, Gradle, npm, or PIT. When a required adapter input is missing, keep
+`BLOCKED` or `INCONCLUSIVE` evidence instead of guessing commands. Mutation raw statuses and verification conclusions must
 be recorded separately. Read
 [references/mutation-dispositions.md](references/mutation-dispositions.md) for how to accept
 well-evidenced mutation-induced liveness failures while preserving the `TIMED_OUT` raw status.
@@ -184,7 +184,8 @@ paths or tools:
 - the main agent's analysis, judgments, and conversation history;
 - the implementation agent's prompts, reasoning, code drafts, or fix records;
 - method bodies and private fields of the real production source;
-- existing tests, test reports, PIT reports, and previous failure classifications;
+- existing tests, the hidden regression suite, test reports, PIT reports, and previous failure
+  classifications;
 - other agents' candidate tests, assumptions, or `candidate-status.csv`;
 - Git history, the parent worktree, the main checkout, or unfrozen material in hidden
   directories.
@@ -323,7 +324,42 @@ memory errors, missing XML, or partial runs must not be reported as passing; onl
 satisfying the disposition rules and explicitly accepted may enter `PASS` at the gate layer,
 with the raw status and exception record preserved.
 
-## Phase seven: output improvement suggestions
+## Phase seven: promote confirmed regressions
+
+The main assurance agent owns promotion. Neither the isolated test generator nor the implementation
+agent receives the resolved regression suite. If the main assurance agent also implemented the
+change, a fresh assurance or maintenance context must own promotion; otherwise record it as
+`BLOCKED`. Resolve `regression_suite` from the host adapter. If an otherwise eligible candidate
+cannot be promoted because its path or commands are missing, record the promotion as `BLOCKED`
+rather than guessing a repository layout or build command.
+
+A candidate is eligible only when all of these hold:
+
+- its final classification is `new coverage`;
+- it passed on the real implementation;
+- reverse verification produced the expected failure and restored the production source exactly;
+- its frozen contract provides a decidable public observable expectation.
+
+For each eligible candidate:
+
+1. Allocate the next unused four-digit contract ID in the resolved suite. Record the candidate ID,
+   run-local contract ID, allocated `C-nnnn`, target path, status, and reason in
+   `${RUN_DIR}/promotion-status.csv`.
+2. Adapt only package and build integration. Preserve the precondition state, operation sequence,
+   observation window, and assertions. Save the adapted test under `${RUN_DIR}/promotions/` and
+   copy it to the suite, applying the suite's scoped contract-ID metadata convention. Contract IDs
+   are unique within the persistent suite.
+3. Run the suite's configured metadata check and test command after all additions. A candidate is
+   `promoted` only when both pass. Otherwise retain its adapted copy and failure evidence under
+   `RUN_DIR`, and remove the unconfirmed new target file so the checkout contains no partial
+   promotion.
+
+Keep the sealed candidates unchanged and retain the adaptation diff for audit. When no candidate is eligible,
+write the header-only promotion CSV, create an empty `promotions/` directory, and report the phase
+as `SKIPPED` with the reason. Do not promote duplicate, unstable, wrong-assumption, or unverified
+candidates to make the suite grow.
+
+## Phase eight: output improvement suggestions
 
 Finally produce:
 
@@ -335,8 +371,8 @@ The report must answer:
 
 1. which contracts the PR actually commits to;
 2. which contracts lack exception, boundary, lifecycle, or concurrency details;
-3. which candidate tests provided new evidence;
-4. which tests are duplicate, wrong, or unstable;
+3. which candidate tests provided new evidence, and which promoted `C-nnnn` preserves each one;
+4. which tests are duplicate, wrong, unstable, or ineligible for promotion;
 5. which failures are implementation defects and which are test or documentation problems;
 6. what the code needs fixed;
 7. what the documentation/contract needs added;
@@ -364,6 +400,7 @@ Once the skill is invoked:
 - automatically run compilation, target tests, full tests, applicable PIT, and reverse
   verification;
 - automatically save intermediate artifacts and failure logs;
+- automatically promote confirmed regressions and run the persistent suite's configured checks;
 - check processes, logs, and output every 1–2 minutes during long tasks;
 - report and handle per the one-retry rule when finding no CPU, no output, or obvious stalls;
 - report results and open items once at the end.
@@ -390,6 +427,8 @@ ${RUN_DIR}/
 ├── contract-gaps.md
 ├── candidates/
 ├── candidate-status.csv
+├── promotions/
+├── promotion-status.csv
 ├── reverse-verification/
 ├── verification-summary.md
 └── report.md

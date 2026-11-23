@@ -1,7 +1,7 @@
 ---
 name: contract-diff
 description: Contract diff merging: compares candidate tests, existing tests, and real-implementation results, identifying contract gaps and behavioral-evidence differences. Invoked only by the contract-first-assurance main entry or explicitly by the user.
-version: "1.3.0"
+version: "1.4.0"
 disable-model-invocation: true
 ---
 # Contract Diff

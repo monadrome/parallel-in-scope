@@ -18,12 +18,13 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         run = Path(temp.name)
-        for directory in ("inputs", "logs", "candidates", "reverse-verification"):
+        for directory in ("inputs", "logs", "candidates", "promotions", "reverse-verification"):
             (run / directory).mkdir()
         for relative in (
             "contract.md",
             "contract-gaps.md",
             "candidate-status.csv",
+            "promotion-status.csv",
             "verification-summary.md",
             "report.md",
             "inputs/pit-audit.md",
@@ -50,6 +51,7 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
                     "contract.md",
                     "contract-gaps.md",
                     "candidate-status.csv",
+                    "promotion-status.csv",
                     "verification-summary.md",
                     "report.md",
                 )
@@ -184,6 +186,12 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
         self.update_manifest(run, requiredGates=["docs"])
         errors = verify_run.verify(run)
         self.assertIn("requiredGates does not match adapter.requiredGates", errors)
+
+    def test_requires_hashes_for_promoted_test_copies(self):
+        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
+        (run / "promotions/C0001ContractTest.java").write_text("class C0001ContractTest {}\n", encoding="utf-8")
+        errors = verify_run.verify(run)
+        self.assertTrue(any("artifacts does not hash promoted test copy" in error for error in errors))
 
 
 if __name__ == "__main__":

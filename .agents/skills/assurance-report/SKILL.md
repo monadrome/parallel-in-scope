@@ -1,7 +1,7 @@
 ---
 name: assurance-report
 description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
-version: "1.3.0"
+version: "1.4.0"
 disable-model-invocation: true
 ---
 # Assurance Report
@@ -11,8 +11,10 @@ This phase is dispatched only by `contract-first-assurance`. Use the
 or read other runs' intermediate artifacts.
 
 Read this round's frozen contract, candidate statuses, real-implementation verification,
-reverse verification, and contract gaps, and produce `${RUN_DIR}/report.md`. If a phase did not
-run, the report must keep the `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status and the reason.
+reverse verification, promotion statuses, and contract gaps, and produce `${RUN_DIR}/report.md`.
+Name each promoted `C-nnnn` and its candidate origin, or record why promotion was skipped or
+blocked. If a phase did not run, the report must keep the `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE`
+status and the reason.
 
 The report must distinguish:
 

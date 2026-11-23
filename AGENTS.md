@@ -46,6 +46,9 @@ test, and migration path. Existing usage informs the impact assessment but does 
 Defect fixes and behavior-preservation requests treat reproduced behavior and its contracts as
 requirements from the outset. A blanket documentation ban is rejected: deferred evidence is
 mandatory before a decision.
+Implementation and production-fixing agents keep `verification/contract-tests/` unread by default.
+Its scoped instructions define the assurance-promotion, independent-review, and maintenance routes
+that may load it.
 
 ## Task Routes
 
@@ -170,6 +173,7 @@ Load only the matching row, then follow that document's subject-specific routes.
 | Planned release work | `BACKLOG.md`; verify entries against current sources; remove landed entries |
 | Issue automation | `design/issue-automation.md` before changing the runner, labels, or issue workflows |
 | Delivery record | `verification/delivery-ledger.md` before delivery or process-metrics changes |
+| Hidden contract regression promotion or maintenance | `verification/contract-tests/AGENTS.md`; other implementation routes keep the suite unread |
 | Java convention gate | `verification/java-conventions.md` when changing the gate or diagnosing a finding |
 | Verification integrity gate | `verification/verification-integrity.md` when changing tests or verification infrastructure, or diagnosing a finding |
 

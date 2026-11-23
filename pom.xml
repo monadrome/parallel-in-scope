@@ -96,4 +96,13 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <id>contract-tests</id>
+            <modules>
+                <module>verification/contract-tests</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>
