@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "agent-reading-isolation-b1e9ba3b-20261123-085621-b42082",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T08:56:22.158Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/agent-reading-isolation",
+    "name": "agent-reading-isolation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "head": "b1e9ba3b58d8ecf19efc99d2e2e6348566c76376",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "to": "b1e9ba3b58d8ecf19efc99d2e2e6348566c76376",
+    "label": "fee072e2..b1e9ba3b"
+  },
+  "objective": {
+    "subject": "docs: parse magpie reviewer fields",
+    "body": "MUST: Extract only the final token from labelled Magpie model and effort output, derive the provider at the first slash, and preserve the complete model token.\nMUST NOT: Copy the human-readable Magpie label into the systems file or forward it as the reviewer model.\nReview disposition: Confirmed C01 by running both Magpie queries; the documented example now matches their actual output and the adapter input."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "e9cb4bfaed754be1bee219af126c5e2bd23289b37c715247229be4904cd64cd2",
+    "bytes": 2476,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "95036488d0222f01a1f0da6ca5c55fd131d88f7d6fd083d1937ef3774ec0a59c",
+    "bytes": 2503,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "b1e9ba3b58d8ecf19efc99d2e2e6348566c76376",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

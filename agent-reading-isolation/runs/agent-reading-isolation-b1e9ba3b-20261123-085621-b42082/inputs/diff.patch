@@ -1,0 +1,44 @@
+diff --git a/.agents/skills/multi-review/SKILL.md b/.agents/skills/multi-review/SKILL.md
+index 08c910f9..f5fbd98a 100644
+--- a/.agents/skills/multi-review/SKILL.md
++++ b/.agents/skills/multi-review/SKILL.md
+@@ -51,10 +51,20 @@ By default, available real CLIs on `PATH` are auto-selected; fixtures are never
+ 
+ When `magpie` is on `PATH`, start with `magpie ls`: it is the default source of truth for the
+ agents and models it manages. For each selected managed agent, query `magpie <agent> model` and
+-`magpie <agent> effort`; write the returned model and its provider prefix into the systems file.
+-Set `effort` to `null` when Magpie reports `default`. If it reports no concrete model, use
+-`model: null` so the agent inherits its configuration. This preserves per-run provenance without
+-overriding Magpie with a stale hardcoded model.
++`magpie <agent> effort`. These commands print labelled lines, not bare values:
++
++```console
++$ magpie codex model
++Codex model ctrip-ada/claude-auto[1M]
++$ magpie codex effort
++Codex effort default
++```
++
++Copy only the final whitespace-delimited token, never the label. Split the model token at its
++first `/` to obtain the provider prefix, and keep the complete token as `model`. Set `effort` to
++`null` when the final token is `default`. If Magpie reports no concrete model, use `model: null`
++so the agent inherits its configuration. This preserves per-run provenance without overriding
++Magpie with a stale hardcoded model.
+ 
+ For agents outside Magpie, pin models and efforts by current CLI availability. The `claude`
+ adapter is unavailable for now — do not put `claude` in a systems file.
+@@ -65,12 +75,12 @@ adapter is unavailable for now — do not put `claude` in a systems file.
+ | `kiro` | `gpt-5.6-terra` or `kimi-k3` | `max` | Choose one Kiro model per run; pass the Kiro effort via `extraArgs: ["--effort", "max"]`. |
+ | `zcode` | `glm-5.4` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
+ 
+-Example systems file for a Magpie-managed Codex:
++Example systems file for the Magpie-managed Codex above:
+ 
+ ```json
+ {
+   "systems": [
+-    {"agent": "codex", "provider": "<provider from magpie>", "model": "<model from magpie>", "effort": null}
++    {"agent": "codex", "provider": "ctrip-ada", "model": "ctrip-ada/claude-auto[1M]", "effort": null}
+   ]
+ }
+ ```

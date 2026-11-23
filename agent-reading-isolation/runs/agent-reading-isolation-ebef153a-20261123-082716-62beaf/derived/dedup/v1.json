@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "agent-reading-isolation-ebef153a-20261123-082716-62beaf",
+  "version": 1,
+  "createdAt": "2026-11-23T08:41:32.274Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

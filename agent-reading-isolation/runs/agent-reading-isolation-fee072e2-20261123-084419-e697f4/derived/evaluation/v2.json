@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "agent-reading-isolation-fee072e2-20261123-084419-e697f4",
+  "version": 2,
+  "createdAt": "2026-11-23T08:55:17.106Z",
+  "inputs": {
+    "dedupVersion": 2,
+    "adjudicationVersion": 1,
+    "goldVersion": 1,
+    "reviews": [
+      {
+        "agent": "codex",
+        "attempt": 1,
+        "sha256": "aa5caffa170087f288f051b3779190a34de18ebeb49a2fc6cf8abc445c79c824"
+      }
+    ]
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 211798,
+    "systemsWithUsage": 1,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "codex": {
+      "identity": {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "ctrip-ada",
+        "model": "ctrip-ada/claude-auto[1M]",
+        "revision": null,
+        "effort": null
+      },
+      "status": "completed",
+      "durationMs": 578163,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 1,
+        "adjudicated": 1,
+        "confirmed": 1,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": 1,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": 211798,
+        "cost": null,
+        "currency": null
+      },
+      "error": null
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 1,
+      "adjudicated": 1,
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "findings": {
+      "total": 1,
+      "adjudicated": 1,
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "rates": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "findingRates": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "macro": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "systemsAdjudicated": 1
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values"
+  ]
+}

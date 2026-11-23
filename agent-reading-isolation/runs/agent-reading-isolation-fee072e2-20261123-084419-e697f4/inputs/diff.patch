@@ -1,0 +1,129 @@
+diff --git a/.agents/skills/multi-review/SKILL.md b/.agents/skills/multi-review/SKILL.md
+index 89f87538..08c910f9 100644
+--- a/.agents/skills/multi-review/SKILL.md
++++ b/.agents/skills/multi-review/SKILL.md
+@@ -47,24 +47,30 @@ fi
+ Use `--systems <file>` to pin reviewer provenance; use `--agents` to run a subset of reviewers.
+ By default, available real CLIs on `PATH` are auto-selected; fixtures are never used.
+ 
+-### Currently available reviewer combination
++### Reviewer selection
+ 
+-Pin models and efforts by availability on the current machine; the Claude family is unavailable
+-for now — do not put `claude` in a systems file.
++When `magpie` is on `PATH`, start with `magpie ls`: it is the default source of truth for the
++agents and models it manages. For each selected managed agent, query `magpie <agent> model` and
++`magpie <agent> effort`; write the returned model and its provider prefix into the systems file.
++Set `effort` to `null` when Magpie reports `default`. If it reports no concrete model, use
++`model: null` so the agent inherits its configuration. This preserves per-run provenance without
++overriding Magpie with a stale hardcoded model.
++
++For agents outside Magpie, pin models and efforts by current CLI availability. The `claude`
++adapter is unavailable for now — do not put `claude` in a systems file.
+ 
+ | adapter | model | effort | Notes |
+ |---|---|---|---|
+-| `codex` | `gpt-6.1-terra` | `medium` | Codex's reasoning effort is passed to the CLI. |
++| `codex` | Magpie's selected model, otherwise `gpt-6.1-terra` | Magpie's selected effort, otherwise `medium` | Codex's reasoning effort is passed to the CLI. |
+ | `kiro` | `gpt-5.6-terra` or `kimi-k3` | `max` | Choose one Kiro model per run; pass the Kiro effort via `extraArgs: ["--effort", "max"]`. |
+ | `zcode` | `glm-5.4` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
+ 
+-Example systems file:
++Example systems file for a Magpie-managed Codex:
+ 
+ ```json
+ {
+   "systems": [
+-    {"agent": "codex", "provider": "openai", "model": "gpt-6.1-terra", "effort": "medium"},
+-    {"agent": "kiro", "provider": "kiro", "model": "gpt-5.6-terra", "effort": "max", "extraArgs": ["--effort", "max"]}
++    {"agent": "codex", "provider": "<provider from magpie>", "model": "<model from magpie>", "effort": null}
+   ]
+ }
+ ```
+diff --git a/AGENTS.md b/AGENTS.md
+index 3329bd6d..e042f383 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -28,6 +28,24 @@ delivery sequence and its completion criteria. Read-only questions use the subje
+ Required project skills are tracked in `.worktreeinclude.yaml`; a new worktree must pass
+ `python3 scripts/check-worktree-skills.py` before invoking a skill.
+ 
++### Exploratory Design Loading
++
++For option generation in a large refactor, removal, or dependency redesign, start with the
++requested end state, explicit requirements, first principles, and live correctness/safety
++invariants. Treat current APIs and implementations as candidates for change, not defaults that
++a proposal must preserve.
++
++Load current-usage and historical-preference evidence for candidate evaluation, after options
++exist: usage examples and selling points, implementation/test structure, adoption and migration
++costs, and historical rejection records. Scoped `AGENTS.md` files own directory-specific timing.
++Before recommending or implementing, account for every affected user-visible behavior, document,
++test, and migration path. Existing usage informs the impact assessment but does not veto a better
++`0.x` design; unknown usage remains unknown.
++
++Defect fixes and behavior-preservation requests treat reproduced behavior and its contracts as
++requirements from the outset. A blanket documentation ban is rejected: deferred evidence is
++mandatory before a decision.
++
+ ## Task Routes
+ 
+ Classify by the smallest change satisfying the request. Routes are cumulative; the more
+@@ -144,7 +162,7 @@ Load only the matching row, then follow that document's subject-specific routes.
+ | Races or ordering claims | `verification/race-claims/README.md`; run `python3 scripts/check-race-claims.py` for registered claims |
+ | Lincheck tests | `verification/lincheck.md` before changing `*LincheckTest` |
+ | PIT or SpotBugs | `verification/pit.md` or `verification/spotbugs.md` before selecting/running the respective scope |
+-| User-facing behavior | Update `docs/en/user-guide.md`; canonical dev quickstart is `docs/{en,zh}/quickstart.md` |
++| User-facing behavior | Follow `docs/AGENTS.md`; update `docs/en/user-guide.md`; canonical dev quickstart is `docs/{en,zh}/quickstart.md` |
+ | Demo/integrations | Their scoped `AGENTS.md`; integrations is standalone, outside root tests/CI |
+ | Site pages | `mkdocs/mkdocs.yml` navigation, locales, redirects when adding/renaming/moving docs pages |
+ | Planned release work | `BACKLOG.md`; verify entries against current sources; remove landed entries |
+diff --git a/demo/AGENTS.md b/demo/AGENTS.md
+index e6dd485b..a59c4077 100644
+--- a/demo/AGENTS.md
++++ b/demo/AGENTS.md
+@@ -36,6 +36,14 @@ mvn verify -Prun-all-demos                               # run all demos
+ - Run `mvn test` before finishing changes that affect the demo module (a
+   targeted test suffices while iterating).
+ 
++## Exploratory Design
++
++Reserve this module's README selling points, articles, runnable examples, and usage patterns for
++the candidate-evaluation load defined under `Exploratory Design Loading` in
++[root AGENTS.md](../AGENTS.md), rather than using them as constraints on option generation. Before
++recommendation or implementation, inventory the observable behavior, article/test changes, and
++migration impact of surviving candidates.
++
+ ## Reference Documents
+ 
+ - `architecture-constraints.md` - Read before changing dependencies, package
+diff --git a/docs/AGENTS.md b/docs/AGENTS.md
+new file mode 100644
+index 00000000..5d332f82
+--- /dev/null
++++ b/docs/AGENTS.md
+@@ -0,0 +1,12 @@
++# Documentation Routes
++
++## Exploratory Design
++
++For option generation, use this directory only for explicit requirements and design principles
++routed by the task. Quickstarts, user guides, examples, feature claims, and current usage patterns
++belong to the candidate-evaluation load defined under `Exploratory Design Loading` in
++[root AGENTS.md](../AGENTS.md).
++
++Before recommendation or implementation, inspect every page affected by surviving candidates and
++record observable-behavior, navigation, example, and migration impacts. Current documentation is
++an impact inventory, not a requirement to preserve the current design.
+diff --git a/mkdocs/mkdocs.yml b/mkdocs/mkdocs.yml
+index 180df858..add687f3 100644
+--- a/mkdocs/mkdocs.yml
++++ b/mkdocs/mkdocs.yml
+@@ -2,6 +2,7 @@ site_name: parallel-in-scope
+ site_description: A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, deadlock detection, and sliding-window scheduling
+ site_url: https://monadrome.github.io/parallel-in-scope/
+ docs_dir: ../docs
++exclude_docs: AGENTS.md
+ 
+ repo_name: monadrome/parallel-in-scope
+ repo_url: https://github.com/monadrome/parallel-in-scope

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "agent-reading-isolation-b1e9ba3b-20261123-085621-b42082",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T08:56:22.182Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/agent-reading-isolation",
+    "name": "agent-reading-isolation"
+  },
+  "commits": {
+    "base": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "head": "b1e9ba3b58d8ecf19efc99d2e2e6348566c76376",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "ctrip-ada",
+        "model": "ctrip-ada/claude-auto[1M]",
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 3060,
+      "reviewSeconds": 2700,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "95036488d0222f01a1f0da6ca5c55fd131d88f7d6fd083d1937ef3774ec0a59c",
+    "contextJsonSha256": "18ed0173a401fd82a4a8fbcb79ce05da1883cd4a39f725f05a35971ecdc5f4ff",
+    "diffSha256": "e9cb4bfaed754be1bee219af126c5e2bd23289b37c715247229be4904cd64cd2",
+    "caseManifestSha256": "3fcdf5db55e9b28da101e62679c582e3037c952f30f3a290d90bf66296951ed2",
+    "promptSha256": "eeb25d80a752d0c96303df07581ac57a22b27a08e8c0c61c8a8d84197f186c5f"
+  },
+  "promptPath": "inputs/prompt.md"
+}

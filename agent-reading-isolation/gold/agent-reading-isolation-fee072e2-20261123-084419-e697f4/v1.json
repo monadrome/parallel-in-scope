@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "agent-reading-isolation-fee072e2-20261123-084419-e697f4",
+  "version": 1,
+  "createdAt": "2026-11-23T08:53:58.439Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "fee072e20d82016db5d44b4bd19a2b2f341b5f65"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

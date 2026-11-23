@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "agent-reading-isolation-ebef153a-20261123-082716-62beaf",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T08:27:17.103Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/agent-reading-isolation",
+    "name": "agent-reading-isolation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "ebef153a95b039406a3e8b286c34451da3b61502",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "ebef153a95b039406a3e8b286c34451da3b61502",
+    "label": "10141117..ebef153a"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "c01834a7daa1dc651a7ea73229193bd5a54b843dae79a06783d1f247cd74cbc4",
+    "bytes": 6697,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 13,
+        "deletions": 7
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 19,
+        "deletions": 1
+      },
+      {
+        "path": "demo/AGENTS.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 0
+      },
+      {
+        "path": "docs/AGENTS.md",
+        "status": "A",
+        "additions": 12,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "5c289507b600b47e36195e419234e5aa911567907fe333ae687537731ef9301e",
+    "bytes": 2562,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "ed78b8c968adb2eafd0d1f54ec9ca7d1c7497cf9150a28fcbf2b82753df29b01",
+    "bytes": 2331
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "ebef153a95b039406a3e8b286c34451da3b61502",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

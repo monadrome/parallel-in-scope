@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "agent-reading-isolation-fee072e2-20261123-084419-e697f4",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-23T08:55:17.087Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi-code/k3.1-pro",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Reproduced with magpie codex model and magpie codex effort: both return labelled text, and the adapter forwards the configured model unchanged.",
+      "confidence": 1
+    }
+  ]
+}

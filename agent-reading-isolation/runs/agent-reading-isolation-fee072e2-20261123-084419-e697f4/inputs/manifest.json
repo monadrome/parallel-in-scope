@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "agent-reading-isolation-fee072e2-20261123-084419-e697f4",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T08:44:19.977Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/agent-reading-isolation",
+    "name": "agent-reading-isolation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "label": "10141117..fee072e2"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "b12a61cee39bc4a2eb7bfbe86fe3bca515e27353d99d16e6b24eb8d7dc10c429",
+    "bytes": 7262,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 13,
+        "deletions": 7
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 19,
+        "deletions": 1
+      },
+      {
+        "path": "demo/AGENTS.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 0
+      },
+      {
+        "path": "docs/AGENTS.md",
+        "status": "A",
+        "additions": 12,
+        "deletions": 0
+      },
+      {
+        "path": "mkdocs/mkdocs.yml",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "a4b2f30a51e8c3d316834bccc222f59b74b07e705d29b80f2ca0750ea222f3d8",
+    "bytes": 2593,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "d1d6168bb0b14c5dd0f0d983de30491d65284f84f7da458414416ccb097be4fd",
+    "bytes": 2453
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "fee072e20d82016db5d44b4bd19a2b2f341b5f65",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
