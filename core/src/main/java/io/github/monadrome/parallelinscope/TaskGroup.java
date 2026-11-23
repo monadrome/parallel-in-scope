@@ -159,11 +159,12 @@ final class TaskGroup<R> implements AutoCloseable {
         this.totalTasks = this.membersAndTerminal.size();
         this.completionTask = Task.of(
                 groupName, groupToken, completion, TaskObservation.of(() -> groupSummary(completion), completion));
-        Map<String, TaskFuture<?>> publicMembers = new LinkedHashMap<>();
+        ImmutableMap.Builder<String, TaskFuture<?>> publicMembers =
+                ImmutableMap.builderWithExpectedSize(this.orderedMembers.size());
         for (MemberState member : this.orderedMembers) {
             publicMembers.put(member.name, member.view);
         }
-        this.members = ImmutableMap.copyOf(publicMembers);
+        this.members = publicMembers.build();
     }
 
     public TaskId.GroupRun groupId() {
@@ -245,9 +246,12 @@ final class TaskGroup<R> implements AutoCloseable {
             ExecutionExitTracker.awaitSettledUninterruptibly(
                     member.view.observationView(), budget, start, "member observation signal");
         }
-        Map<String, ImmediateResult<?>> results = new LinkedHashMap<>();
-        Map<TaskKey<?>, ImmediateResult<?>> keyedResults = new LinkedHashMap<>();
-        Map<String, TaskExitObservation<?>> observations = new LinkedHashMap<>();
+        ImmutableMap.Builder<String, ImmediateResult<?>> results =
+                ImmutableMap.builderWithExpectedSize(orderedMembers.size());
+        ImmutableMap.Builder<TaskKey<?>, ImmediateResult<?>> keyedResults =
+                ImmutableMap.builderWithExpectedSize(orderedMembers.size() + (terminal == null ? 0 : 1));
+        ImmutableMap.Builder<String, TaskExitObservation<?>> observations =
+                ImmutableMap.builderWithExpectedSize(orderedMembers.size());
         for (MemberState member : orderedMembers) {
             ImmediateResult<Object> immediate = freezeResult(member);
             results.put(member.name, immediate);
@@ -266,9 +270,9 @@ final class TaskGroup<R> implements AutoCloseable {
         return new TaskGroupResult<>(
                 report,
                 memberNames,
-                results,
-                keyedResults,
-                observations,
+                results.build(),
+                keyedResults.build(),
+                observations.build(),
                 frozenValues,
                 terminalResult,
                 terminal == null
@@ -1116,7 +1120,8 @@ final class TaskGroup<R> implements AutoCloseable {
     }
 
     private TaskGroupReport snapshot(ScopeTermination decided, @Nullable String failedName) {
-        Map<String, TaskExitObservation<?>> snapshots = new LinkedHashMap<>();
+        ImmutableMap.Builder<String, TaskExitObservation<?>> snapshots =
+                ImmutableMap.builderWithExpectedSize(orderedMembers.size());
         for (MemberState member : orderedMembers) {
             snapshots.put(member.name, memberSnapshot(member));
         }
@@ -1129,7 +1134,7 @@ final class TaskGroup<R> implements AutoCloseable {
                 System.nanoTime(),
                 deadlineNanos,
                 failedName,
-                snapshots,
+                snapshots.build(),
                 terminal == null ? null : memberSnapshot(terminal),
                 aggregate);
     }

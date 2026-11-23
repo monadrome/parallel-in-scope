@@ -31,7 +31,7 @@ final class TaskGroupReport {
             long endTimeNanos,
             long deadlineNanos,
             @Nullable String failedTaskName,
-            Map<String, TaskExitObservation<?>> members,
+            ImmutableMap<String, TaskExitObservation<?>> members,
             @Nullable TaskExitObservation<?> terminal,
             ScopeTermination termination) {
         this.groupId = checkNotNull(groupId, "groupId cannot be null");
@@ -40,7 +40,7 @@ final class TaskGroupReport {
         this.endTimeNanos = endTimeNanos;
         this.deadlineNanos = deadlineNanos;
         this.failedTaskName = failedTaskName;
-        this.members = ImmutableMap.copyOf(members);
+        this.members = members;
         this.terminal = terminal;
         this.termination = checkNotNull(termination, "termination cannot be null");
     }

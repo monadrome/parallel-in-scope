@@ -44,9 +44,9 @@ public final class TaskGroupResult<R> {
     TaskGroupResult(
             TaskGroupReport report,
             ImmutableList<String> names,
-            Map<String, ImmediateResult<?>> results,
-            Map<TaskKey<?>, ImmediateResult<?>> keyedResults,
-            Map<String, TaskExitObservation<?>> members,
+            ImmutableMap<String, ImmediateResult<?>> results,
+            ImmutableMap<TaskKey<?>, ImmediateResult<?>> keyedResults,
+            ImmutableMap<String, TaskExitObservation<?>> members,
             ImmediateResult<GroupValues> values,
             @Nullable ImmediateResult<R> terminalResult,
             @Nullable TaskExitObservation<?> terminal,
@@ -54,9 +54,9 @@ public final class TaskGroupResult<R> {
         this.report = report;
         this.names = names;
 
-        this.results = ImmutableMap.copyOf(results);
-        this.keyedResults = ImmutableMap.copyOf(keyedResults);
-        this.members = ImmutableMap.copyOf(members);
+        this.results = results;
+        this.keyedResults = keyedResults;
+        this.members = members;
         this.values = values;
         this.terminalResult = terminalResult;
         this.terminal = terminal;

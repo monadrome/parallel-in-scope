@@ -121,8 +121,9 @@ public final class ParRuntime implements AutoCloseable {
         this.defaultId = builder.defaultId;
         Executor announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
         this.announcements = announcements;
-        Map<ParId, Par> builtPars = new LinkedHashMap<>();
-        Map<ParId, ExecutorRuntime> builtRuntimes = new LinkedHashMap<>();
+        ImmutableMap.Builder<ParId, Par> builtPars = ImmutableMap.builderWithExpectedSize(builder.executors.size());
+        ImmutableMap.Builder<ParId, ExecutorRuntime> builtRuntimes =
+                ImmutableMap.builderWithExpectedSize(builder.executors.size());
         Map<ExecutorIdentity, ExecutorRuntime> identityRuntimes = new LinkedHashMap<>();
         ImmutableSetMultimap.Builder<ExecutorIdentity, ParId> aliases = ImmutableSetMultimap.builder();
         for (Map.Entry<ParId, ExecutorService> entry : builder.executors.entrySet()) {
@@ -134,9 +135,9 @@ public final class ParRuntime implements AutoCloseable {
             TaskType taskType = verifyNotNull(builder.taskTypes.get(entry.getKey()), "task type of %s", entry.getKey());
             builtPars.put(entry.getKey(), Par.forRuntime(this, entry.getKey(), runtime, taskType));
         }
-        this.runtimes = ImmutableMap.copyOf(builtRuntimes);
+        this.runtimes = builtRuntimes.build();
         this.runtimesByIdentity = ImmutableMap.copyOf(identityRuntimes);
-        this.pars = ImmutableMap.copyOf(builtPars);
+        this.pars = builtPars.build();
         this.executorWaits = new ExecutorWaitGraph(aliases.build(), announcements);
     }
 
