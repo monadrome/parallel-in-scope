@@ -58,13 +58,14 @@ for the specialized check or maintenance task being performed.
 Read [Local Verification](references/workflow.md#local-verification) for the code/docs branch.
 Reproduce defects before fixing them; use the selected route's regression and concurrency gates.
 For public API/documented-contract or concurrency routes, apply
-[assurance routing](references/assurance.md): run the required bundle to a passing report, or
-record a skip-eligible classification for independent-review confirmation.
+[assurance routing](references/assurance.md) and record the run-required or skip-eligible
+classification. Required assurance runs in Commit And Review so its report can include the
+post-commit review evidence required by its adapter.
 
 **Done:** each requested change and its documentation/changelog obligations are accounted for,
-all applicable local checks pass, every required regression is reverse-verified, and required
-assurance passes or its skip rationale is recorded. Fix change-caused failures before the first
-commit; report unrelated failures or blockers.
+all applicable local checks pass, every required regression is reverse-verified, and the
+assurance classification is recorded. Fix change-caused failures before the first commit;
+report unrelated failures or blockers.
 
 ### 3. Commit And Review
 
@@ -76,12 +77,15 @@ For every non-empty change, read Independent Review in [review](references/revie
 For a high-risk route, also follow its Adversarial Review section through the project
 multi-review skill. Workflow contracts take that full-review route even when Markdown-only.
 The reviewer confirms any skip-eligible assurance classification against the complete diff;
-a question or disagreement makes the run required. Fix confirmed findings in follow-up commits
-and apply the review's re-review/stop rules.
+a question or disagreement makes the run required. Run required assurance after the initial
+commit and collect the independent-review evidence required by its adapter before finalizing
+the report. Fix confirmed findings in follow-up commits and apply the review's re-review/stop
+and assurance rerun rules.
 
 **Done:** the committed tree passes applicable preflight; the review evidence covers every
-changed path, including metadata; and no required review or confirmed blocking finding remains
-unresolved. A failed, timed-out, or unreadable review is blocked, not clean.
+changed path, including metadata; any required assurance run has a passing report; and no
+required review or confirmed blocking finding remains unresolved. A failed, timed-out, or
+unreadable review is blocked, not clean.
 
 ### 4. Record And Deliver
 

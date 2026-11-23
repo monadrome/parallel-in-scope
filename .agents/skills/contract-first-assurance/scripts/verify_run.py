@@ -19,6 +19,14 @@ REQUIRED_FILES = (
 )
 REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
 VALID_STATUSES = {"pass", "fail", "blocked", "inconclusive", "skipped"}
+FINAL_GATE_RUN_STATUSES = {
+    "PASS": "pass",
+    "PASS WITH ACCEPTED EXCEPTIONS": "pass",
+    "FAIL": "fail",
+    "BLOCKED": "blocked",
+    "INCONCLUSIVE": "inconclusive",
+}
+PASSING_FINAL_GATES = {"PASS", "PASS WITH ACCEPTED EXCEPTIONS"}
 ACCEPTED_EXCEPTION_FIELDS = ("phase", "rawStatus", "disposition", "accepted", "evidence", "approvedBy")
 
 
@@ -52,7 +60,19 @@ def verify(run_dir: Path) -> list[str]:
 
     if manifest.get("schemaVersion") != "contract-assurance-run/v1":
         errors.append("unsupported or missing run manifest schemaVersion")
-    for key in ("runId", "createdAt", "package", "adapter", "workspace", "inputs", "commands", "artifacts"):
+    for key in (
+        "runId",
+        "createdAt",
+        "package",
+        "adapter",
+        "workspace",
+        "inputs",
+        "commands",
+        "artifacts",
+        "status",
+        "requiredGates",
+        "checks",
+    ):
         if key not in manifest:
             errors.append(f"run manifest is missing {key}")
     workspace = manifest.get("workspace", {})
@@ -65,11 +85,18 @@ def verify(run_dir: Path) -> list[str]:
         errors.append("finalHead does not match workspace.head")
 
     status = manifest.get("status")
-    if status is not None and status not in VALID_STATUSES:
+    if status not in VALID_STATUSES:
         errors.append(f"unsupported run status: {status}")
 
     adapter = manifest.get("adapter", {})
     accepted_policy = adapter.get("acceptedDispositions") if isinstance(adapter, dict) else None
+    adapter_required_gates = adapter.get("requiredGates") if isinstance(adapter, dict) else None
+    if (
+        not isinstance(adapter_required_gates, list)
+        or not adapter_required_gates
+        or any(not isinstance(gate, str) for gate in adapter_required_gates)
+    ):
+        errors.append("adapter.requiredGates must be a non-empty list of strings")
     accepted_exceptions = manifest.get("acceptedExceptions", [])
     if not isinstance(accepted_exceptions, list):
         errors.append("acceptedExceptions must be a list")
@@ -120,8 +147,12 @@ def verify(run_dir: Path) -> list[str]:
     if not isinstance(required_gates, list) or not isinstance(checks, dict):
         errors.append("requiredGates must be a list and checks must be an object")
     else:
-        if any(not isinstance(gate, str) for gate in required_gates):
-            errors.append("requiredGates entries must be strings")
+        if not required_gates or any(not isinstance(gate, str) for gate in required_gates):
+            errors.append("requiredGates must be a non-empty list of strings")
+        if not checks:
+            errors.append("checks must contain the resolved gate results")
+        if isinstance(adapter_required_gates, list) and required_gates != adapter_required_gates:
+            errors.append("requiredGates does not match adapter.requiredGates")
         for gate, gate_status in checks.items():
             if gate_status not in VALID_STATUSES:
                 errors.append(f"unsupported gate status for {gate}: {gate_status}")
@@ -149,6 +180,40 @@ def verify(run_dir: Path) -> list[str]:
     for relative in REQUIRED_DIRECTORIES:
         if not (run_dir / relative).is_dir():
             errors.append(f"missing required directory: {relative}")
+
+    report_path = run_dir / "report.md"
+    if report_path.is_file():
+        try:
+            report_lines = report_path.read_text(encoding="utf-8").splitlines()
+        except OSError as error:
+            errors.append(f"cannot read report.md: {error}")
+        else:
+            final_gate_indexes = [
+                index for index, line in enumerate(report_lines) if line.startswith("Final gate: ")
+            ]
+            if len(final_gate_indexes) != 1:
+                errors.append("report.md must contain exactly one final-gate line")
+            else:
+                index = final_gate_indexes[0]
+                final_gate = report_lines[index][len("Final gate: "):]
+                expected_status = FINAL_GATE_RUN_STATUSES.get(final_gate)
+                if expected_status is None:
+                    errors.append(f"unsupported report final gate: {final_gate}")
+                else:
+                    if final_gate not in PASSING_FINAL_GATES:
+                        errors.append(f"report final gate is not delivery-passing: {final_gate}")
+                    if status != expected_status:
+                        errors.append(
+                            f"report final gate {final_gate} does not match run status {status}"
+                        )
+                    if final_gate == "PASS" and accepted_exceptions:
+                        errors.append("report final gate PASS requires no accepted exceptions")
+                    if final_gate == "PASS WITH ACCEPTED EXCEPTIONS" and not accepted_exceptions:
+                        errors.append(
+                            "report final gate PASS WITH ACCEPTED EXCEPTIONS requires an accepted exception"
+                        )
+                if any(line.strip() for line in report_lines[index + 1:]):
+                    errors.append("report final-gate line must be the last non-empty line")
 
     def verify_hashes(field: str) -> None:
         values = manifest.get(field, {})

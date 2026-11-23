@@ -30,6 +30,7 @@ rewritten.
 End the report with exactly one `Final gate: <STATUS>` line. Use `PASS` when every required
 check passes without accepted exceptions, and `PASS WITH ACCEPTED EXCEPTIONS` when every other
 required check passes and one or more exceptions are recorded, evidenced, and approved in the
-manifest. Use `FAIL`, `BLOCKED`, or
-`INCONCLUSIVE` for the corresponding unresolved outcome. A host delivery gate may accept only
-`PASS` or `PASS WITH ACCEPTED EXCEPTIONS`; never rewrite an unresolved outcome to satisfy it.
+manifest. Use `FAIL`, `BLOCKED`, or `INCONCLUSIVE` for the corresponding unresolved outcome;
+a skipped required phase is `BLOCKED` or `INCONCLUSIVE` according to its cause, not a passing
+final gate. A host delivery gate may accept only `PASS` or `PASS WITH ACCEPTED EXCEPTIONS`;
+never rewrite an unresolved outcome to satisfy it.

@@ -17,12 +17,22 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
   "adapter": {
     "name": "vformation",
     "version": "1.3.0",
+    "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
     "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
   },
   "workspace": {
     "base": "<resolved commit>",
     "head": "<resolved commit>",
     "dirty": false
+  },
+  "status": "pass",
+  "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
+  "checks": {
+    "full-suite": "pass",
+    "consumer": "pass",
+    "pit": "pass",
+    "independent-review": "pass",
+    "docs": "pass"
   },
   "inputs": {"inputs/contract-source.md": "<sha256>"},
   "commands": [
@@ -51,6 +61,8 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
 Rules:
 
 - `base` and `head` are resolved commit IDs, never symbolic refs alone;
+- `adapter.requiredGates` is the resolved route's required-gate list; the top-level
+  `requiredGates` must match it, and `checks` must contain a result for every gate;
 - a dirty workspace must include its binary patch under `inputs/`;
 - every copied contract, API view, adapter, command log, and report is hashed;
 - command records preserve the exact argv, exit code, stdout path, and stderr path;
@@ -83,4 +95,6 @@ ${RUN_DIR}/
 
 Run `scripts/verify_run.py --run-dir <run-dir>` after the final report. The
 verifier checks required artifacts, relative paths, command logs, input hashes,
-and output hashes without contacting a remote service.
+output hashes, and the report's final-gate consistency without contacting a remote
+service. A report whose final gate is not `PASS` or `PASS WITH ACCEPTED EXCEPTIONS`
+fails this delivery verifier even when its failure evidence is complete.

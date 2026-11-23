@@ -396,10 +396,11 @@ ${RUN_DIR}/
 
 If a step was not executed, the corresponding `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status
 and reason must be kept. The report lists raw status, disposition, whether the exception was
-accepted, and the final gate status separately. Its final gate is `PASS` without accepted
-exceptions or `PASS WITH ACCEPTED EXCEPTIONS` when every exception is accepted; a raw
-`TIMED_OUT` must not be rewritten as `KILLED`.
-Before the final report, run:
+accepted, and the final gate status separately. Its final gate is `PASS` when every required
+check passes without accepted exceptions, or `PASS WITH ACCEPTED EXCEPTIONS` when every other
+required check passes and every exception is accepted; a raw `TIMED_OUT` must not be rewritten
+as `KILLED`.
+After writing the final report, run:
 
 ```bash
 python3 ${SKILL_ROOT}/scripts/verify_run.py --run-dir ${RUN_DIR}

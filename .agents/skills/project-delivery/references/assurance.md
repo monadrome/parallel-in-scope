@@ -31,10 +31,20 @@ change neither library runtime contracts nor their behavioral evidence. A signat
 alters overload resolution, nullability, callback semantics, or any other observable contract is
 not mechanical.
 
-Before delivery, record `assurance: SKIPPED` with the changed scope and the semantic reason no
-required condition holds. The independent reviewer must confirm that classification against the
-complete diff. A reviewer question or disagreement upgrades the change to **Run required**; an
-unreviewed skip does not satisfy the gate.
+Record `assurance: SKIPPED`, the changed scope, and the semantic reason no required condition
+holds in the initial commit message, or in the PR description when an existing PR carries the
+work; copy the same disposition into the delivery ledger note. The independent reviewer records
+confirmation against the complete diff. If either model cannot establish that no required
+condition holds, or a reviewer questions or rejects the skip, upgrade the change to **Run
+required**; an unreviewed or unrecorded skip does not satisfy the gate.
+
+## Delivery Sequence
+
+Classify the change before the initial commit. Execute a required run after that commit so the
+frozen scope is committed and the review gates required by the host adapter are available.
+Independent review and assurance evidence gathering may overlap, but the report cannot finalize
+until its required review evidence exists. Confirmed fixes follow both the review re-review
+rules and the rerun rules below.
 
 ## Passing A Required Run
 
