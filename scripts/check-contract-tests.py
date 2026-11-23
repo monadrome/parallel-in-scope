@@ -11,6 +11,7 @@ from pathlib import Path
 
 CLASS_RE = re.compile(r"^class (C(?P<contract_id>\d{4})[A-Za-z0-9]+ContractTest)\b", re.MULTILINE)
 CONTRACT_TAG_RE = re.compile(r'@Tag\("C-(\d{4})"\)')
+TEST_RE = re.compile(r"^\s*@Test\b", re.MULTILINE)
 
 
 def verify(test_root: Path) -> list[str]:
@@ -43,6 +44,8 @@ def verify(test_root: Path) -> list[str]:
         tags = CONTRACT_TAG_RE.findall(text)
         if tags != [contract_id]:
             errors.append(f"{relative}: expected exactly one contract tag C-{contract_id}")
+        if not TEST_RE.search(text):
+            errors.append(f"{relative}: expected at least one @Test method")
         if contract_id in owners:
             errors.append(f"{relative}: C-{contract_id} is already used by {owners[contract_id]}")
         else:

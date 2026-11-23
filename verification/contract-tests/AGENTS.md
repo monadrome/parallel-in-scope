@@ -17,7 +17,8 @@ The implementation agent works from that report and the owning contract rather t
 The `contract-first-assurance` promotion phase owns eligibility and audit artifacts for additions.
 Assign the next unused four-digit contract ID. Name the class `Cnnnn<Subject>ContractTest`, put
 `@Tag("C-nnnn")` immediately above it, and keep the two IDs equal. Contract IDs are unique across
-classes; one class may contain several tests for its contract. Tests exercise public behavior only.
+classes; one class may contain several tests for its contract and contains at least one JUnit
+`@Test` method. Tests exercise public behavior only.
 
 Keep this module out of the default reactor and core test sources. Run its checks explicitly:
 

@@ -210,7 +210,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hidden-contract-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
-          path: verification/contract-tests/target/surefire-reports/
+          path: |
+            core/target/surefire-reports/
+            verification/contract-tests/target/surefire-reports/
           if-no-files-found: warn
           retention-days: 7
 
