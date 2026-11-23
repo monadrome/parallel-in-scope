@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "contract-assurance-gate-0b390361-20261123-143229-bab1d6",
+  "version": 1,
+  "createdAt": "2026-11-23T14:40:10.479Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+    "head": "0b390361c553237a6460bfc2f04c30b81d4236dc"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

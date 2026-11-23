@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "contract-assurance-gate-07c04263-20261123-093356-caa253",
+  "status": "failed",
+  "createdAt": "2026-11-23T09:33:57.142Z",
+  "updatedAt": "2026-11-23T09:43:48.237Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T09:33:57.167Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-23T09:33:57.172Z",
+            "endedAt": "2026-11-23T09:34:10.828Z",
+            "durationMs": 13434,
+            "exitCode": 1,
+            "timedOut": false,
+            "error": "reviewer exited with code 1",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-23T09:34:10.841Z"
+      },
+      "kiro": {
+        "agent": "kiro",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-23T09:33:57.172Z",
+            "endedAt": "2026-11-23T09:43:47.989Z",
+            "durationMs": 590563,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "reviewer modified the read-only snapshot; refusing the result",
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-23T09:43:48.000Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T09:43:48.089Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T09:43:48.148Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T09:43:48.213Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-23T09:33:57.142Z",
+      "error": null
+    }
+  },
+  "eventSeq": 56
+}

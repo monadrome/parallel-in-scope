@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "external-review/v1",
+  "reviewer": {
+    "agent": "zcode",
+    "model": "default (exact model ID not exposed by CLI)"
+  },
+  "sessionId": "sess_5be0d36a-a24d-4fa0-9510-149cd87bd473",
+  "round": 2,
+  "summary": "Reviewed the round2 fix (commit 7cb93aa, five files read in full: contract-first-assurance/SKILL.md, references/host-adapter.md, references/reproducible-runs.md, scripts/verify_run.py, scripts/tests/test_verify_run.py) and re-inspected the composed final.diff (8e6d3f3..7cb93aa, 15 files) plus the current clone at 7cb93aa. Dispositions of the settled round-one findings: (1) manifest lifecycle contradiction — resolved; reproducible-runs.md now initializes the manifest before phase one with frozen metadata and input hashes only, appends status/requiredGates/checks/acceptedExceptions/command results/final-artifact hashes at finalization including for failed or inconclusive runs, and SKILL.md step 4 and the finalization paragraph state the same split without contradicting the never-rewrite rule for frozen inputs. (2) mandatory adapter.requiredGates versus optional route_gates and the unchanged schema — resolved; host-adapter.md now lists route_gates as a required input, defines the gate-less-host BLOCKED/INCONCLUSIVE disposition, and the schema is bumped to contract-assurance-run/v2 in the doc, the example, the verifier, and the tests, with an explicit v1-rejection test; the only remaining v1 string in the repository is that negative test. (3) missing regression tests — resolved; test_rejects_non_pass_required_gate and test_rejects_status_checks_mismatch assert the two previously unguarded error messages and test_rejects_v1_schema pins the schema bump, with the fix commit recording per-test reverse-mutation evidence. I also checked for new defects: the v2 example manifest satisfies every verifier-required key, the verifier's only code change is the schema constant, assertion strings match the implementation exactly, the claimed sixteen-test count matches the file, and a repository-wide grep found no stale schema-version or route_gates-optionality references; the pre-existing five-field exception example in references/mutation-dispositions.md (missing phase) predates this change and is outside the diff. No new or remaining blocking defect found; findings is empty.",
+  "findings": [],
+  "usage": {
+    "source": "provider",
+    "modelRequestCount": 9,
+    "inputTokens": 956280,
+    "outputTokens": 7389,
+    "totalTokens": 963669,
+    "cacheReadTokens": 929728,
+    "cacheWriteTokens": 0,
+    "reasoningTokens": 0,
+    "webFetchRequests": 0,
+    "webSearchRequests": 0
+  },
+  "disposition": "No new or remaining blocking finding; review complete."
+}

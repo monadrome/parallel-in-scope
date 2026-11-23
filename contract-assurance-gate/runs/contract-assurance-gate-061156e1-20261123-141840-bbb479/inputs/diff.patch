@@ -1,0 +1,635 @@
+diff --git a/.agents/skills/assurance-report/SKILL.md b/.agents/skills/assurance-report/SKILL.md
+index 4c3b701b..b5a652c3 100644
+--- a/.agents/skills/assurance-report/SKILL.md
++++ b/.agents/skills/assurance-report/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: assurance-report
+ description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Assurance Report
+@@ -26,3 +26,11 @@ review separately. PIT must report raw status, disposition, and the final gate t
+ unaccepted or incompletely evidenced timeout remains `INCONCLUSIVE`; a well-evidenced,
+ approved mutation exception may make the PIT gate `PASS`, but the raw status must not be
+ rewritten.
++
++End the report with exactly one `Final gate: <STATUS>` line. Use `PASS` when every required
++check passes without accepted exceptions, and `PASS WITH ACCEPTED EXCEPTIONS` when every other
++required check passes and one or more exceptions are recorded, evidenced, and approved in the
++manifest. Use `FAIL`, `BLOCKED`, or `INCONCLUSIVE` for the corresponding unresolved outcome;
++a skipped required phase is `BLOCKED` or `INCONCLUSIVE` according to its cause, not a passing
++final gate. A host delivery gate may accept only `PASS` or `PASS WITH ACCEPTED EXCEPTIONS`;
++never rewrite an unresolved outcome to satisfy it.
+diff --git a/.agents/skills/contract-diff/SKILL.md b/.agents/skills/contract-diff/SKILL.md
+index 2a1ae9a2..52667a72 100644
+--- a/.agents/skills/contract-diff/SKILL.md
++++ b/.agents/skills/contract-diff/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-diff
+ description: Contract diff merging: compares candidate tests, existing tests, and real-implementation results, identifying contract gaps and behavioral-evidence differences. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Contract Diff
+diff --git a/.agents/skills/contract-extract/SKILL.md b/.agents/skills/contract-extract/SKILL.md
+index ddfc10e2..fc0147aa 100644
+--- a/.agents/skills/contract-extract/SKILL.md
++++ b/.agents/skills/contract-extract/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-extract
+ description: Contract extraction: organizes frozen, executable behavioral contracts from a PR or worktree changes. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Contract Extract
+diff --git a/.agents/skills/contract-first-assurance/SKILL.md b/.agents/skills/contract-first-assurance/SKILL.md
+index 51c124ed..afcb0d77 100644
+--- a/.agents/skills/contract-first-assurance/SKILL.md
++++ b/.agents/skills/contract-first-assurance/SKILL.md
+@@ -2,7 +2,7 @@
+ name: contract-first-assurance
+ description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
+ compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
+-version: "1.2.0"
++version: "1.3.0"
+ ---
+ 
+ # Contract-First Independent Assurance
+@@ -68,7 +68,7 @@ requires a human decision.
+ 
+ ## Invocation modes
+ 
+-This entry allows two invocation modes:
++This entry allows three invocation modes:
+ 
+ - **Autonomous invocation**: when the user asks to check PR quality, independently verify an
+   implementation, generate tests from requirements or contracts, or find behavioral gaps
+@@ -77,6 +77,9 @@ This entry allows two invocation modes:
+   independent-verification, contract-gap, or isolated-testing intent is explicitly present.
+ - **Manual invocation**: the user types `/contract-first-assurance`; the full flow runs
+   regardless of the current request's wording.
++- **Required route invocation**: a host workflow explicitly dispatches this entry when its
++  assurance policy marks the change as requiring independent verification; the full flow and
++  passing-report gate apply.
+ 
+ This skill's sub-flow skills have autonomous invocation off by default; they can only be
+ dispatched explicitly by this entry or invoked by the user typing their commands directly.
+@@ -393,9 +396,11 @@ ${RUN_DIR}/
+ 
+ If a step was not executed, the corresponding `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status
+ and reason must be kept. The report lists raw status, disposition, whether the exception was
+-accepted, and the final gate status separately; `PASS` may include accepted exceptions, but a
+-raw `TIMED_OUT` must not be rewritten as `KILLED`.
+-Before the final report, run:
++accepted, and the final gate status separately. Its final gate is `PASS` when every required
++check passes without accepted exceptions, or `PASS WITH ACCEPTED EXCEPTIONS` when every other
++required check passes and every exception is accepted; a raw `TIMED_OUT` must not be rewritten
++as `KILLED`.
++After writing the final report, run:
+ 
+ ```bash
+ python3 ${SKILL_ROOT}/scripts/verify_run.py --run-dir ${RUN_DIR}
+diff --git a/.agents/skills/contract-first-assurance/adapters/vformation.yaml b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+index c5a0bad0..562a76cc 100644
+--- a/.agents/skills/contract-first-assurance/adapters/vformation.yaml
++++ b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+@@ -1,5 +1,5 @@
+ name: vformation
+-version: 1.2.0
++version: 1.3.0
+ workspace_root: repository-root
+ base_ref: origin/dev/v0.5.0
+ artifact_root: .contract-first-assurance
+diff --git a/.agents/skills/contract-first-assurance/evals/evals.json b/.agents/skills/contract-first-assurance/evals/evals.json
+index a1c6bdc4..f810cec6 100644
+--- a/.agents/skills/contract-first-assurance/evals/evals.json
++++ b/.agents/skills/contract-first-assurance/evals/evals.json
+@@ -1,6 +1,6 @@
+ {
+   "skill_name": "contract-first-assurance",
+-  "version": "1.2.0",
++  "version": "1.3.0",
+   "evals": [
+     {
+       "id": 1,
+diff --git a/.agents/skills/contract-first-assurance/package.yaml b/.agents/skills/contract-first-assurance/package.yaml
+index 1387804e..9fe35cb5 100644
+--- a/.agents/skills/contract-first-assurance/package.yaml
++++ b/.agents/skills/contract-first-assurance/package.yaml
+@@ -1,6 +1,6 @@
+ package:
+   name: contract-first-assurance
+-  version: 1.2.0
++  version: 1.3.0
+   schema: 1
+   entrypoint: SKILL.md
+   layout: sibling-skills
+@@ -9,16 +9,16 @@ package:
+ components:
+   - path: ../contract-extract
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+   - path: ../isolated-test-generation
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+   - path: ../contract-diff
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+   - path: ../assurance-report
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+ 
+ references:
+   invocation: references/invocation-modes.md
+@@ -29,7 +29,7 @@ references:
+ host_adapters:
+   - path: adapters/vformation.yaml
+     applies_to: parallel-in-scope
+-    version: 1.2.0
++    version: 1.3.0
+ 
+ runtime:
+   required:
+diff --git a/.agents/skills/contract-first-assurance/references/invocation-modes.md b/.agents/skills/contract-first-assurance/references/invocation-modes.md
+index b1d6dc41..6a7d7a65 100644
+--- a/.agents/skills/contract-first-assurance/references/invocation-modes.md
++++ b/.agents/skills/contract-first-assurance/references/invocation-modes.md
+@@ -14,7 +14,9 @@ policy:
+ ```
+ 
+ This lets the model decide from the description whether to enter the workflow, while the user
+-can still use `/contract-first-assurance`.
++can still use `/contract-first-assurance`. A host delivery workflow may also explicitly dispatch
++the entry when its assurance routing marks a run as required; this uses the same full flow and
++passing-report gate rather than creating a fourth invocation mode.
+ 
+ ## The manual-only entry
+ 
+diff --git a/.agents/skills/contract-first-assurance/references/reproducible-runs.md b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+index 4cf12d92..f1a2fc00 100644
+--- a/.agents/skills/contract-first-assurance/references/reproducible-runs.md
++++ b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+@@ -13,10 +13,11 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
+   "schemaVersion": "contract-assurance-run/v1",
+   "runId": "2026-11-12-example",
+   "createdAt": "2026-11-12T12:00:00Z",
+-  "package": {"name": "contract-first-assurance", "version": "1.2.0"},
++  "package": {"name": "contract-first-assurance", "version": "1.3.0"},
+   "adapter": {
+     "name": "vformation",
+-    "version": "1.2.0",
++    "version": "1.3.0",
++    "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
+     "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
+   },
+   "workspace": {
+@@ -24,6 +25,15 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
+     "head": "<resolved commit>",
+     "dirty": false
+   },
++  "status": "pass",
++  "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
++  "checks": {
++    "full-suite": "pass",
++    "consumer": "pass",
++    "pit": "pass",
++    "independent-review": "pass",
++    "docs": "pass"
++  },
+   "inputs": {"inputs/contract-source.md": "<sha256>"},
+   "commands": [
+     {
+@@ -51,6 +61,8 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
+ Rules:
+ 
+ - `base` and `head` are resolved commit IDs, never symbolic refs alone;
++- `adapter.requiredGates` is the resolved route's required-gate list; the top-level
++  `requiredGates` must match it, and `checks` must contain a result for every gate;
+ - a dirty workspace must include its binary patch under `inputs/`;
+ - every copied contract, API view, adapter, command log, and report is hashed;
+ - command records preserve the exact argv, exit code, stdout path, and stderr path;
+@@ -83,4 +95,6 @@ ${RUN_DIR}/
+ 
+ Run `scripts/verify_run.py --run-dir <run-dir>` after the final report. The
+ verifier checks required artifacts, relative paths, command logs, input hashes,
+-and output hashes without contacting a remote service.
++output hashes, and the report's final-gate consistency without contacting a remote
++service. A report whose final gate is not `PASS` or `PASS WITH ACCEPTED EXCEPTIONS`
++fails this delivery verifier even when its failure evidence is complete.
+diff --git a/.agents/skills/contract-first-assurance/scripts/verify_run.py b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+index b986e1df..9bcc7b87 100644
+--- a/.agents/skills/contract-first-assurance/scripts/verify_run.py
++++ b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+@@ -19,6 +19,14 @@ REQUIRED_FILES = (
+ )
+ REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
+ VALID_STATUSES = {"pass", "fail", "blocked", "inconclusive", "skipped"}
++FINAL_GATE_RUN_STATUSES = {
++    "PASS": "pass",
++    "PASS WITH ACCEPTED EXCEPTIONS": "pass",
++    "FAIL": "fail",
++    "BLOCKED": "blocked",
++    "INCONCLUSIVE": "inconclusive",
++}
++PASSING_FINAL_GATES = {"PASS", "PASS WITH ACCEPTED EXCEPTIONS"}
+ ACCEPTED_EXCEPTION_FIELDS = ("phase", "rawStatus", "disposition", "accepted", "evidence", "approvedBy")
+ 
+ 
+@@ -52,7 +60,19 @@ def verify(run_dir: Path) -> list[str]:
+ 
+     if manifest.get("schemaVersion") != "contract-assurance-run/v1":
+         errors.append("unsupported or missing run manifest schemaVersion")
+-    for key in ("runId", "createdAt", "package", "adapter", "workspace", "inputs", "commands", "artifacts"):
++    for key in (
++        "runId",
++        "createdAt",
++        "package",
++        "adapter",
++        "workspace",
++        "inputs",
++        "commands",
++        "artifacts",
++        "status",
++        "requiredGates",
++        "checks",
++    ):
+         if key not in manifest:
+             errors.append(f"run manifest is missing {key}")
+     workspace = manifest.get("workspace", {})
+@@ -65,11 +85,18 @@ def verify(run_dir: Path) -> list[str]:
+         errors.append("finalHead does not match workspace.head")
+ 
+     status = manifest.get("status")
+-    if status is not None and status not in VALID_STATUSES:
++    if status not in VALID_STATUSES:
+         errors.append(f"unsupported run status: {status}")
+ 
+     adapter = manifest.get("adapter", {})
+     accepted_policy = adapter.get("acceptedDispositions") if isinstance(adapter, dict) else None
++    adapter_required_gates = adapter.get("requiredGates") if isinstance(adapter, dict) else None
++    if (
++        not isinstance(adapter_required_gates, list)
++        or not adapter_required_gates
++        or any(not isinstance(gate, str) for gate in adapter_required_gates)
++    ):
++        errors.append("adapter.requiredGates must be a non-empty list of strings")
+     accepted_exceptions = manifest.get("acceptedExceptions", [])
+     if not isinstance(accepted_exceptions, list):
+         errors.append("acceptedExceptions must be a list")
+@@ -120,8 +147,12 @@ def verify(run_dir: Path) -> list[str]:
+     if not isinstance(required_gates, list) or not isinstance(checks, dict):
+         errors.append("requiredGates must be a list and checks must be an object")
+     else:
+-        if any(not isinstance(gate, str) for gate in required_gates):
+-            errors.append("requiredGates entries must be strings")
++        if not required_gates or any(not isinstance(gate, str) for gate in required_gates):
++            errors.append("requiredGates must be a non-empty list of strings")
++        if not checks:
++            errors.append("checks must contain the resolved gate results")
++        if isinstance(adapter_required_gates, list) and required_gates != adapter_required_gates:
++            errors.append("requiredGates does not match adapter.requiredGates")
+         for gate, gate_status in checks.items():
+             if gate_status not in VALID_STATUSES:
+                 errors.append(f"unsupported gate status for {gate}: {gate_status}")
+@@ -150,6 +181,40 @@ def verify(run_dir: Path) -> list[str]:
+         if not (run_dir / relative).is_dir():
+             errors.append(f"missing required directory: {relative}")
+ 
++    report_path = run_dir / "report.md"
++    if report_path.is_file():
++        try:
++            report_lines = report_path.read_text(encoding="utf-8").splitlines()
++        except OSError as error:
++            errors.append(f"cannot read report.md: {error}")
++        else:
++            final_gate_indexes = [
++                index for index, line in enumerate(report_lines) if line.startswith("Final gate: ")
++            ]
++            if len(final_gate_indexes) != 1:
++                errors.append("report.md must contain exactly one final-gate line")
++            else:
++                index = final_gate_indexes[0]
++                final_gate = report_lines[index][len("Final gate: "):]
++                expected_status = FINAL_GATE_RUN_STATUSES.get(final_gate)
++                if expected_status is None:
++                    errors.append(f"unsupported report final gate: {final_gate}")
++                else:
++                    if final_gate not in PASSING_FINAL_GATES:
++                        errors.append(f"report final gate is not delivery-passing: {final_gate}")
++                    if status != expected_status:
++                        errors.append(
++                            f"report final gate {final_gate} does not match run status {status}"
++                        )
++                    if final_gate == "PASS" and accepted_exceptions:
++                        errors.append("report final gate PASS requires no accepted exceptions")
++                    if final_gate == "PASS WITH ACCEPTED EXCEPTIONS" and not accepted_exceptions:
++                        errors.append(
++                            "report final gate PASS WITH ACCEPTED EXCEPTIONS requires an accepted exception"
++                        )
++                if any(line.strip() for line in report_lines[index + 1:]):
++                    errors.append("report final-gate line must be the last non-empty line")
++
+     def verify_hashes(field: str) -> None:
+         values = manifest.get(field, {})
+         if not isinstance(values, dict):
+diff --git a/.agents/skills/isolated-test-generation/SKILL.md b/.agents/skills/isolated-test-generation/SKILL.md
+index 118ee2a6..c148b094 100644
+--- a/.agents/skills/isolated-test-generation/SKILL.md
++++ b/.agents/skills/isolated-test-generation/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: isolated-test-generation
+ description: Isolated test generation: generates candidate tests solely from the frozen contract and sanitized APIs. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Isolated Test Generation
+diff --git a/.agents/skills/project-delivery/SKILL.md b/.agents/skills/project-delivery/SKILL.md
+index 4be9473f..3055b28e 100644
+--- a/.agents/skills/project-delivery/SKILL.md
++++ b/.agents/skills/project-delivery/SKILL.md
+@@ -57,10 +57,15 @@ for the specialized check or maintenance task being performed.
+ 
+ Read [Local Verification](references/workflow.md#local-verification) for the code/docs branch.
+ Reproduce defects before fixing them; use the selected route's regression and concurrency gates.
++For public API/documented-contract or concurrency routes, apply
++[assurance routing](references/assurance.md) and record the run-required or skip-eligible
++classification. Required assurance runs in Commit And Review so its report can include the
++post-commit review evidence required by its adapter.
+ 
+ **Done:** each requested change and its documentation/changelog obligations are accounted for,
+-all applicable local checks pass, and every required regression is reverse-verified. Fix
+-change-caused failures before the first commit; report unrelated failures or blockers.
++all applicable local checks pass, every required regression is reverse-verified, and the
++assurance classification is recorded. Fix change-caused failures before the first commit;
++report unrelated failures or blockers.
+ 
+ ### 3. Commit And Review
+ 
+@@ -71,11 +76,16 @@ independent review; its planner decides applicability and detector scope.
+ For every non-empty change, read Independent Review in [review](references/review.md).
+ For a high-risk route, also follow its Adversarial Review section through the project
+ multi-review skill. Workflow contracts take that full-review route even when Markdown-only.
+-Fix confirmed findings in follow-up commits and apply the review's re-review/stop rules.
++The reviewer confirms any skip-eligible assurance classification against the complete diff;
++a question or disagreement makes the run required. Run required assurance after the initial
++commit and collect the independent-review evidence required by its adapter before finalizing
++the report. Fix confirmed findings in follow-up commits and apply the review's re-review/stop
++and assurance rerun rules.
+ 
+ **Done:** the committed tree passes applicable preflight; the review evidence covers every
+-changed path, including metadata; and no required review or confirmed blocking finding remains
+-unresolved. A failed, timed-out, or unreadable review is blocked, not clean.
++changed path, including metadata; any required assurance run has a passing report; and no
++required review or confirmed blocking finding remains unresolved. A failed, timed-out, or
++unreadable review is blocked, not clean.
+ 
+ ### 4. Record And Deliver
+ 
+@@ -90,9 +100,11 @@ existing PR, an external contributor, or the unattended issue runner, as applica
+ 
+ **Done:** delivery followed the authorized route, required CI for the pushed tip is terminal
+ and passing, and every check has its own pass/fail/blocked/inconclusive/skipped status with
+-a reason for each non-pass. Behavior tests, external consumers, review, and mutation coverage
+-are distinct results. Required pending or blocked checks mean delivery remains incomplete.
++a reason for each non-pass. Behavior tests, external consumers, review, mutation coverage, and
++assurance are distinct results; any required assurance run has a passing report, and every skip
++is independently confirmed. Required pending or blocked checks mean delivery remains incomplete.
+ 
+ Use the existing dependency-audit, refactoring-review, and multi-review skills only when the
+-selected route calls for them. Assurance remains an optional, separately versioned bundle;
+-this skill must not copy its algorithms or host-adapter assumptions.
++selected route calls for them. Assurance remains a separately versioned bundle whose routing
++is owned by [assurance routing](references/assurance.md); this skill must not copy its
++algorithms or host-adapter assumptions.
+diff --git a/.agents/skills/project-delivery/references/assurance.md b/.agents/skills/project-delivery/references/assurance.md
+new file mode 100644
+index 00000000..cd3fef01
+--- /dev/null
++++ b/.agents/skills/project-delivery/references/assurance.md
+@@ -0,0 +1,74 @@
++# Contract-First Assurance Routing
++
++Use this policy for the root public API/documented-contract and concurrency routes. It decides
++when to invoke the separately versioned `contract-first-assurance` bundle; the other gates for
++the selected routes still apply.
++
++## Threshold
++
++Classify the semantic effect of the complete diff, not its number of files, lines, or methods.
++
++### Run required
++
++Invoke `contract-first-assurance` when any condition holds:
++
++- observable behavior or requirements change, including preconditions, outcomes, exceptions,
++  ordering, lifecycle, resource ownership, cancellation, deadline, context, executor, queue,
++  visibility, or interleaving semantics;
++- implementation changes affect those behaviors or a shared mechanism behind them, including
++  behavior-preserving refactors of concurrency-sensitive code;
++- test or oracle changes weaken, remove, or replace evidence for those behaviors;
++- the implementing or reviewing model identifies an unresolved contract gap, inadequate
++  behavioral evidence, possible silent false success, or another reason independent
++  contract-derived verification would add signal.
++
++### Skip eligible
++
++A run may be skipped only when none of the required conditions holds. Examples include a
++mechanical public method signature change with unchanged behavioral and concurrency semantics,
++documentation edits that leave library requirements unchanged, or agent-workflow edits that
++change neither library runtime contracts nor their behavioral evidence. A signature change that
++alters overload resolution, nullability, callback semantics, or any other observable contract is
++not mechanical.
++
++Record `assurance: SKIPPED`, the changed scope, and the semantic reason no required condition
++holds in the initial commit message, or in the PR description when an existing PR carries the
++work; copy the same disposition into the delivery ledger note. The independent reviewer records
++confirmation against the complete diff. If either model cannot establish that no required
++condition holds, or a reviewer questions or rejects the skip, upgrade the change to **Run
++required**; an unreviewed or unrecorded skip does not satisfy the gate.
++
++## Delivery Sequence
++
++Classify the change before the initial commit. Execute a required run after that commit so the
++frozen scope is committed and the review gates required by the host adapter are available.
++Independent review and assurance evidence gathering may overlap, but the report cannot finalize
++until its required review evidence exists. Confirmed fixes follow both the review re-review
++rules and the rerun rules below.
++
++## Passing A Required Run
++
++Run the bundle against the frozen base, head, and change scope, then run its `verify_run.py`.
++A required run passes delivery only when verification succeeds and `${RUN_DIR}/report.md`
++contains exactly one final-gate line with one of these values:
++
++```text
++Final gate: PASS
++Final gate: PASS WITH ACCEPTED EXCEPTIONS
++```
++
++Use `PASS WITH ACCEPTED EXCEPTIONS` only when the manifest records every accepted exception and
++its required evidence and approval. Preserve raw check statuses separately. `FAIL`, `BLOCKED`,
++`INCONCLUSIVE`, a missing report, a failed verifier, or `SKIPPED` for a required run leaves
++delivery incomplete.
++
++An earlier report remains valid after later commits only when its frozen scope still covers the
++semantic diff and every later change is independently confirmed skip-eligible. Otherwise rerun
++the bundle; never rewrite the frozen inputs or hashes to make an old report cover a new head.
++
++## Rejected Alternatives
++
++Running assurance for every mechanical API or documentation edit was rejected because its cost
++buys no new behavioral evidence. Letting diff size or the implementer alone waive the run was
++rejected because small semantic changes can be high-risk and correlated implementation and test
++assumptions are the blind spot this gate addresses.
+diff --git a/AGENTS.md b/AGENTS.md
+index 17159eb3..27c03bc3 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -56,8 +56,8 @@ restrictive gate wins. If the task crosses into a gated route, stop and reclassi
+ |---|---|---|
+ | Mechanical, non-behavioral one-file edit | Edit, narrow check, commit, lightweight independent review | Write a proposal or run full adversarial review |
+ | Reproducible behavior defect | Reproduce first, fix the root cause, regression test, reverse verification | Fix by inspection or finish without a failing case |
+-| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and owning contract; write/update a proposal; stop for maintainer direction | Implement before direction is settled |
+-| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State invariants/interleavings; test every race using shared fixtures; run registered race-claim checks, full suite, and adversarial review | Treat compilation or one green run as proof |
++| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and owning contract; apply [assurance routing](.agents/skills/project-delivery/references/assurance.md); write/update a proposal; stop for maintainer direction | Implement before direction is settled |
++| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State invariants/interleavings; test every race using shared fixtures; run registered race-claim checks, full suite, and adversarial review; apply [assurance routing](.agents/skills/project-delivery/references/assurance.md) | Treat compilation or one green run as proof |
+ | Documentation/site only | Check diff, referenced paths and commands; run `python3 scripts/check-doc-refs.py`; lightweight independent review | Run Java tests or formatting unless another route applies |
+ | Dependency/build | Patch/minor: dependency-audit skill, `mvn test`, local runtime-consumer matrix | Add a dependency or take a major upgrade without asking |
+ | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 44f3c103..de9dc698 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -14,7 +14,7 @@ spec.loader.exec_module(verify_run)
+ 
+ 
+ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+-    def make_run(self, exception, policy):
++    def make_run(self, exception, policy, final_gate="PASS WITH ACCEPTED EXCEPTIONS"):
+         temp = tempfile.TemporaryDirectory()
+         self.addCleanup(temp.cleanup)
+         run = Path(temp.name)
+@@ -31,7 +31,8 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         ):
+             path = run / relative
+             path.parent.mkdir(parents=True, exist_ok=True)
+-            path.write_text("evidence\n", encoding="utf-8")
++            content = f"evidence\nFinal gate: {final_gate}\n" if relative == "report.md" else "evidence\n"
++            path.write_text(content, encoding="utf-8")
+ 
+         digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+         manifest = {
+@@ -39,7 +40,7 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+             "runId": "test",
+             "createdAt": "2026-01-01T00:00:00Z",
+             "package": {},
+-            "adapter": {"acceptedDispositions": policy},
++            "adapter": {"acceptedDispositions": policy, "requiredGates": ["pit"]},
+             "workspace": {"base": "a", "head": "a", "dirty": False},
+             "inputs": {"inputs/pit-audit.md": digest(run / "inputs/pit-audit.md")},
+             "commands": [],
+@@ -56,11 +57,25 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+             "status": "pass",
+             "requiredGates": ["pit"],
+             "checks": {"pit": "pass"},
+-            "acceptedExceptions": [exception],
++            "acceptedExceptions": [] if exception is None else [exception],
+         }
+         (run / "run-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+         return run
+ 
++    def set_report(self, run, content):
++        report = run / "report.md"
++        report.write_text(content, encoding="utf-8")
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["artifacts"]["report.md"] = hashlib.sha256(report.read_bytes()).hexdigest()
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++
++    def update_manifest(self, run, **updates):
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest.update(updates)
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++
+     def exception(self, raw_status="TIMED_OUT", disposition="EXPECTED_MUTATION_LIVENESS"):
+         return {
+             "phase": "pit",
+@@ -85,6 +100,64 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         errors = verify_run.verify(run)
+         self.assertTrue(any("disposition is not allowed by adapter" in error for error in errors))
+ 
++    def test_accepts_pass_without_exceptions(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.assertEqual(verify_run.verify(run), [])
++
++    def test_rejects_missing_final_gate(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_report(run, "evidence\n")
++        errors = verify_run.verify(run)
++        self.assertIn("report.md must contain exactly one final-gate line", errors)
++
++    def test_rejects_duplicate_final_gate(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_report(run, "Final gate: PASS\nevidence\nFinal gate: PASS\n")
++        errors = verify_run.verify(run)
++        self.assertIn("report.md must contain exactly one final-gate line", errors)
++
++    def test_rejects_failing_final_gate(self):
++        run = self.make_run(None, {}, final_gate="FAIL")
++        errors = verify_run.verify(run)
++        self.assertIn("report final gate is not delivery-passing: FAIL", errors)
++        self.assertIn("report final gate FAIL does not match run status pass", errors)
++
++    def test_rejects_pass_with_accepted_exceptions_without_exceptions(self):
++        run = self.make_run(None, {})
++        errors = verify_run.verify(run)
++        self.assertIn(
++            "report final gate PASS WITH ACCEPTED EXCEPTIONS requires an accepted exception",
++            errors,
++        )
++
++    def test_rejects_pass_with_unreported_exceptions(self):
++        run = self.make_run(
++            self.exception(),
++            {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]},
++            final_gate="PASS",
++        )
++        errors = verify_run.verify(run)
++        self.assertIn("report final gate PASS requires no accepted exceptions", errors)
++
++    def test_rejects_content_after_final_gate(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_report(run, "evidence\nFinal gate: PASS\nlater evidence\n")
++        errors = verify_run.verify(run)
++        self.assertIn("report final-gate line must be the last non-empty line", errors)
++
++    def test_rejects_empty_required_gates_and_checks(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, requiredGates=[], checks={})
++        errors = verify_run.verify(run)
++        self.assertIn("requiredGates must be a non-empty list of strings", errors)
++        self.assertIn("checks must contain the resolved gate results", errors)
++
++    def test_rejects_adapter_required_gate_mismatch(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, requiredGates=["docs"])
++        errors = verify_run.verify(run)
++        self.assertIn("requiredGates does not match adapter.requiredGates", errors)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

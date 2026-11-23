@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "contract-assurance-gate-07c04263-20261123-093356-caa253",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:33:57.124Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-gate",
+    "name": "contract-assurance-gate",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "07c042638a9468084b02ec2a38c88fd9210c1ac2",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "07c042638a9468084b02ec2a38c88fd9210c1ac2",
+    "label": "10141117..07c04263"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "9bf9a2981dac54e0ab6392523aec4c97f4c0cee082362e07277d2eefdee323a0",
+    "bytes": 18042,
+    "files": [
+      {
+        "path": ".agents/skills/assurance-report/SKILL.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-diff/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-extract/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/SKILL.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 4
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/package.yaml",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/isolated-test-generation/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/project-delivery/SKILL.md",
+        "status": "M",
+        "additions": 15,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/assurance.md",
+        "status": "A",
+        "additions": 64,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "c9fbfe1bbc2db2d764de33b9d83e8fba59e073bbeb3a216047160efcb021a305",
+    "bytes": 3222,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "42c1029ba7b7a940b508b2f70503d6b051bc60b51eb9ff1c339e6516630eeb29",
+    "bytes": 3719
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "07c042638a9468084b02ec2a38c88fd9210c1ac2",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "contract-assurance-gate-5abdbd08-20261123-094153-76d00f",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:41:54.392Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-gate",
+    "name": "contract-assurance-gate",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "head": "5abdbd081df6e1b012ad5562247b96f8763dd44b",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "to": "5abdbd081df6e1b012ad5562247b96f8763dd44b",
+    "label": "20b2c58b..5abdbd08"
+  },
+  "objective": {
+    "subject": "docs: require threshold-based contract assurance",
+    "body": "MUST: Run contract-first-assurance for semantic contract and concurrency changes and accept only PASS or PASS WITH ACCEPTED EXCEPTIONS for required runs.\n\nMUST: Record skip-eligible mechanical changes and obtain independent-review confirmation; model uncertainty upgrades a change to a required run.\n\nMUST NOT: Use diff size, an unreviewed skip, or an unresolved assurance outcome to satisfy the delivery gate."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "d8360e9fac8d17ed58557b175fca43dde3d11cd1819b9ae43ad7a742f4f510d8",
+    "bytes": 18042,
+    "files": [
+      {
+        "path": ".agents/skills/assurance-report/SKILL.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-diff/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-extract/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/SKILL.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 4
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/package.yaml",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/isolated-test-generation/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/project-delivery/SKILL.md",
+        "status": "M",
+        "additions": 15,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/assurance.md",
+        "status": "A",
+        "additions": 64,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "341a342f01a7406cbec696f63c45ca9b2559cfc56b9c014959470b4de3c7a723",
+    "bytes": 3222,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "5abdbd081df6e1b012ad5562247b96f8763dd44b",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

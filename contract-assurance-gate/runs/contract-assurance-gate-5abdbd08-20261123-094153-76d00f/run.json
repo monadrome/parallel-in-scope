@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "contract-assurance-gate-5abdbd08-20261123-094153-76d00f",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:41:54.618Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-gate",
+    "name": "contract-assurance-gate"
+  },
+  "commits": {
+    "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "head": "5abdbd081df6e1b012ad5562247b96f8763dd44b",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "ctrip-ada",
+        "model": "ctrip-ada/claude-auto[1M]",
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "341a342f01a7406cbec696f63c45ca9b2559cfc56b9c014959470b4de3c7a723",
+    "contextJsonSha256": "a1f7a7a0e47a765943a0ffb477213933b20dccec26084ff5a0f179d5dce33a54",
+    "diffSha256": "d8360e9fac8d17ed58557b175fca43dde3d11cd1819b9ae43ad7a742f4f510d8",
+    "caseManifestSha256": "c310cf49ca5a554d29124d33cb78716b7593c44d6ee16d2bf450bf8d31d5a2d6",
+    "promptSha256": "801fc05175b5c48813bd769ef5c8e9c698be9c0ba847aba736f7ab054ab8271e"
+  },
+  "promptPath": "inputs/prompt.md"
+}

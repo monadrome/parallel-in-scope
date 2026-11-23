@@ -1,0 +1,322 @@
+diff --git a/.agents/skills/assurance-report/SKILL.md b/.agents/skills/assurance-report/SKILL.md
+index 4c3b701b..ffbfb6d2 100644
+--- a/.agents/skills/assurance-report/SKILL.md
++++ b/.agents/skills/assurance-report/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: assurance-report
+ description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Assurance Report
+@@ -26,3 +26,10 @@ review separately. PIT must report raw status, disposition, and the final gate t
+ unaccepted or incompletely evidenced timeout remains `INCONCLUSIVE`; a well-evidenced,
+ approved mutation exception may make the PIT gate `PASS`, but the raw status must not be
+ rewritten.
++
++End the report with exactly one `Final gate: <STATUS>` line. Use `PASS` when every required
++check passes without accepted exceptions, and `PASS WITH ACCEPTED EXCEPTIONS` when every other
++required check passes and one or more exceptions are recorded, evidenced, and approved in the
++manifest. Use `FAIL`, `BLOCKED`, or
++`INCONCLUSIVE` for the corresponding unresolved outcome. A host delivery gate may accept only
++`PASS` or `PASS WITH ACCEPTED EXCEPTIONS`; never rewrite an unresolved outcome to satisfy it.
+diff --git a/.agents/skills/contract-diff/SKILL.md b/.agents/skills/contract-diff/SKILL.md
+index 2a1ae9a2..52667a72 100644
+--- a/.agents/skills/contract-diff/SKILL.md
++++ b/.agents/skills/contract-diff/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-diff
+ description: Contract diff merging: compares candidate tests, existing tests, and real-implementation results, identifying contract gaps and behavioral-evidence differences. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Contract Diff
+diff --git a/.agents/skills/contract-extract/SKILL.md b/.agents/skills/contract-extract/SKILL.md
+index ddfc10e2..fc0147aa 100644
+--- a/.agents/skills/contract-extract/SKILL.md
++++ b/.agents/skills/contract-extract/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-extract
+ description: Contract extraction: organizes frozen, executable behavioral contracts from a PR or worktree changes. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Contract Extract
+diff --git a/.agents/skills/contract-first-assurance/SKILL.md b/.agents/skills/contract-first-assurance/SKILL.md
+index 51c124ed..b432b2af 100644
+--- a/.agents/skills/contract-first-assurance/SKILL.md
++++ b/.agents/skills/contract-first-assurance/SKILL.md
+@@ -2,7 +2,7 @@
+ name: contract-first-assurance
+ description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
+ compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
+-version: "1.2.0"
++version: "1.3.0"
+ ---
+ 
+ # Contract-First Independent Assurance
+@@ -68,7 +68,7 @@ requires a human decision.
+ 
+ ## Invocation modes
+ 
+-This entry allows two invocation modes:
++This entry allows three invocation modes:
+ 
+ - **Autonomous invocation**: when the user asks to check PR quality, independently verify an
+   implementation, generate tests from requirements or contracts, or find behavioral gaps
+@@ -77,6 +77,9 @@ This entry allows two invocation modes:
+   independent-verification, contract-gap, or isolated-testing intent is explicitly present.
+ - **Manual invocation**: the user types `/contract-first-assurance`; the full flow runs
+   regardless of the current request's wording.
++- **Required route invocation**: a host workflow explicitly dispatches this entry when its
++  assurance policy marks the change as requiring independent verification; the full flow and
++  passing-report gate apply.
+ 
+ This skill's sub-flow skills have autonomous invocation off by default; they can only be
+ dispatched explicitly by this entry or invoked by the user typing their commands directly.
+@@ -393,8 +396,9 @@ ${RUN_DIR}/
+ 
+ If a step was not executed, the corresponding `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status
+ and reason must be kept. The report lists raw status, disposition, whether the exception was
+-accepted, and the final gate status separately; `PASS` may include accepted exceptions, but a
+-raw `TIMED_OUT` must not be rewritten as `KILLED`.
++accepted, and the final gate status separately. Its final gate is `PASS` without accepted
++exceptions or `PASS WITH ACCEPTED EXCEPTIONS` when every exception is accepted; a raw
++`TIMED_OUT` must not be rewritten as `KILLED`.
+ Before the final report, run:
+ 
+ ```bash
+diff --git a/.agents/skills/contract-first-assurance/adapters/vformation.yaml b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+index c5a0bad0..562a76cc 100644
+--- a/.agents/skills/contract-first-assurance/adapters/vformation.yaml
++++ b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+@@ -1,5 +1,5 @@
+ name: vformation
+-version: 1.2.0
++version: 1.3.0
+ workspace_root: repository-root
+ base_ref: origin/dev/v0.5.0
+ artifact_root: .contract-first-assurance
+diff --git a/.agents/skills/contract-first-assurance/evals/evals.json b/.agents/skills/contract-first-assurance/evals/evals.json
+index a1c6bdc4..f810cec6 100644
+--- a/.agents/skills/contract-first-assurance/evals/evals.json
++++ b/.agents/skills/contract-first-assurance/evals/evals.json
+@@ -1,6 +1,6 @@
+ {
+   "skill_name": "contract-first-assurance",
+-  "version": "1.2.0",
++  "version": "1.3.0",
+   "evals": [
+     {
+       "id": 1,
+diff --git a/.agents/skills/contract-first-assurance/package.yaml b/.agents/skills/contract-first-assurance/package.yaml
+index 1387804e..9fe35cb5 100644
+--- a/.agents/skills/contract-first-assurance/package.yaml
++++ b/.agents/skills/contract-first-assurance/package.yaml
+@@ -1,6 +1,6 @@
+ package:
+   name: contract-first-assurance
+-  version: 1.2.0
++  version: 1.3.0
+   schema: 1
+   entrypoint: SKILL.md
+   layout: sibling-skills
+@@ -9,16 +9,16 @@ package:
+ components:
+   - path: ../contract-extract
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+   - path: ../isolated-test-generation
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+   - path: ../contract-diff
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+   - path: ../assurance-report
+     kind: phase
+-    version: 1.2.0
++    version: 1.3.0
+ 
+ references:
+   invocation: references/invocation-modes.md
+@@ -29,7 +29,7 @@ references:
+ host_adapters:
+   - path: adapters/vformation.yaml
+     applies_to: parallel-in-scope
+-    version: 1.2.0
++    version: 1.3.0
+ 
+ runtime:
+   required:
+diff --git a/.agents/skills/contract-first-assurance/references/reproducible-runs.md b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+index 4cf12d92..5b05fd03 100644
+--- a/.agents/skills/contract-first-assurance/references/reproducible-runs.md
++++ b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+@@ -13,10 +13,10 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
+   "schemaVersion": "contract-assurance-run/v1",
+   "runId": "2026-11-12-example",
+   "createdAt": "2026-11-12T12:00:00Z",
+-  "package": {"name": "contract-first-assurance", "version": "1.2.0"},
++  "package": {"name": "contract-first-assurance", "version": "1.3.0"},
+   "adapter": {
+     "name": "vformation",
+-    "version": "1.2.0",
++    "version": "1.3.0",
+     "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
+   },
+   "workspace": {
+diff --git a/.agents/skills/isolated-test-generation/SKILL.md b/.agents/skills/isolated-test-generation/SKILL.md
+index 118ee2a6..c148b094 100644
+--- a/.agents/skills/isolated-test-generation/SKILL.md
++++ b/.agents/skills/isolated-test-generation/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: isolated-test-generation
+ description: Isolated test generation: generates candidate tests solely from the frozen contract and sanitized APIs. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.2.0"
++version: "1.3.0"
+ disable-model-invocation: true
+ ---
+ # Isolated Test Generation
+diff --git a/.agents/skills/project-delivery/SKILL.md b/.agents/skills/project-delivery/SKILL.md
+index 4be9473f..97721c7a 100644
+--- a/.agents/skills/project-delivery/SKILL.md
++++ b/.agents/skills/project-delivery/SKILL.md
+@@ -57,10 +57,14 @@ for the specialized check or maintenance task being performed.
+ 
+ Read [Local Verification](references/workflow.md#local-verification) for the code/docs branch.
+ Reproduce defects before fixing them; use the selected route's regression and concurrency gates.
++For public API/documented-contract or concurrency routes, apply
++[assurance routing](references/assurance.md): run the required bundle to a passing report, or
++record a skip-eligible classification for independent-review confirmation.
+ 
+ **Done:** each requested change and its documentation/changelog obligations are accounted for,
+-all applicable local checks pass, and every required regression is reverse-verified. Fix
+-change-caused failures before the first commit; report unrelated failures or blockers.
++all applicable local checks pass, every required regression is reverse-verified, and required
++assurance passes or its skip rationale is recorded. Fix change-caused failures before the first
++commit; report unrelated failures or blockers.
+ 
+ ### 3. Commit And Review
+ 
+@@ -71,7 +75,9 @@ independent review; its planner decides applicability and detector scope.
+ For every non-empty change, read Independent Review in [review](references/review.md).
+ For a high-risk route, also follow its Adversarial Review section through the project
+ multi-review skill. Workflow contracts take that full-review route even when Markdown-only.
+-Fix confirmed findings in follow-up commits and apply the review's re-review/stop rules.
++The reviewer confirms any skip-eligible assurance classification against the complete diff;
++a question or disagreement makes the run required. Fix confirmed findings in follow-up commits
++and apply the review's re-review/stop rules.
+ 
+ **Done:** the committed tree passes applicable preflight; the review evidence covers every
+ changed path, including metadata; and no required review or confirmed blocking finding remains
+@@ -90,9 +96,11 @@ existing PR, an external contributor, or the unattended issue runner, as applica
+ 
+ **Done:** delivery followed the authorized route, required CI for the pushed tip is terminal
+ and passing, and every check has its own pass/fail/blocked/inconclusive/skipped status with
+-a reason for each non-pass. Behavior tests, external consumers, review, and mutation coverage
+-are distinct results. Required pending or blocked checks mean delivery remains incomplete.
++a reason for each non-pass. Behavior tests, external consumers, review, mutation coverage, and
++assurance are distinct results; any required assurance run has a passing report, and every skip
++is independently confirmed. Required pending or blocked checks mean delivery remains incomplete.
+ 
+ Use the existing dependency-audit, refactoring-review, and multi-review skills only when the
+-selected route calls for them. Assurance remains an optional, separately versioned bundle;
+-this skill must not copy its algorithms or host-adapter assumptions.
++selected route calls for them. Assurance remains a separately versioned bundle whose routing
++is owned by [assurance routing](references/assurance.md); this skill must not copy its
++algorithms or host-adapter assumptions.
+diff --git a/.agents/skills/project-delivery/references/assurance.md b/.agents/skills/project-delivery/references/assurance.md
+new file mode 100644
+index 00000000..33ecde1c
+--- /dev/null
++++ b/.agents/skills/project-delivery/references/assurance.md
+@@ -0,0 +1,64 @@
++# Contract-First Assurance Routing
++
++Use this policy for the root public API/documented-contract and concurrency routes. It decides
++when to invoke the separately versioned `contract-first-assurance` bundle; the other gates for
++the selected routes still apply.
++
++## Threshold
++
++Classify the semantic effect of the complete diff, not its number of files, lines, or methods.
++
++### Run required
++
++Invoke `contract-first-assurance` when any condition holds:
++
++- observable behavior or requirements change, including preconditions, outcomes, exceptions,
++  ordering, lifecycle, resource ownership, cancellation, deadline, context, executor, queue,
++  visibility, or interleaving semantics;
++- implementation changes affect those behaviors or a shared mechanism behind them, including
++  behavior-preserving refactors of concurrency-sensitive code;
++- test or oracle changes weaken, remove, or replace evidence for those behaviors;
++- the implementing or reviewing model identifies an unresolved contract gap, inadequate
++  behavioral evidence, possible silent false success, or another reason independent
++  contract-derived verification would add signal.
++
++### Skip eligible
++
++A run may be skipped only when none of the required conditions holds. Examples include a
++mechanical public method signature change with unchanged behavioral and concurrency semantics,
++documentation edits that leave library requirements unchanged, or agent-workflow edits that
++change neither library runtime contracts nor their behavioral evidence. A signature change that
++alters overload resolution, nullability, callback semantics, or any other observable contract is
++not mechanical.
++
++Before delivery, record `assurance: SKIPPED` with the changed scope and the semantic reason no
++required condition holds. The independent reviewer must confirm that classification against the
++complete diff. A reviewer question or disagreement upgrades the change to **Run required**; an
++unreviewed skip does not satisfy the gate.
++
++## Passing A Required Run
++
++Run the bundle against the frozen base, head, and change scope, then run its `verify_run.py`.
++A required run passes delivery only when verification succeeds and `${RUN_DIR}/report.md`
++contains exactly one final-gate line with one of these values:
++
++```text
++Final gate: PASS
++Final gate: PASS WITH ACCEPTED EXCEPTIONS
++```
++
++Use `PASS WITH ACCEPTED EXCEPTIONS` only when the manifest records every accepted exception and
++its required evidence and approval. Preserve raw check statuses separately. `FAIL`, `BLOCKED`,
++`INCONCLUSIVE`, a missing report, a failed verifier, or `SKIPPED` for a required run leaves
++delivery incomplete.
++
++An earlier report remains valid after later commits only when its frozen scope still covers the
++semantic diff and every later change is independently confirmed skip-eligible. Otherwise rerun
++the bundle; never rewrite the frozen inputs or hashes to make an old report cover a new head.
++
++## Rejected Alternatives
++
++Running assurance for every mechanical API or documentation edit was rejected because its cost
++buys no new behavioral evidence. Letting diff size or the implementer alone waive the run was
++rejected because small semantic changes can be high-risk and correlated implementation and test
++assumptions are the blind spot this gate addresses.
+diff --git a/AGENTS.md b/AGENTS.md
+index 3329bd6d..b5b3829a 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -37,8 +37,8 @@ restrictive gate wins. If the task crosses into a gated route, stop and reclassi
+ |---|---|---|
+ | Mechanical, non-behavioral one-file edit | Edit, narrow check, commit, lightweight independent review | Write a proposal or run full adversarial review |
+ | Reproducible behavior defect | Reproduce first, fix the root cause, regression test, reverse verification | Fix by inspection or finish without a failing case |
+-| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and owning contract; write/update a proposal; stop for maintainer direction | Implement before direction is settled |
+-| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State invariants/interleavings; test every race using shared fixtures; run registered race-claim checks, full suite, and adversarial review | Treat compilation or one green run as proof |
++| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and owning contract; apply [assurance routing](.agents/skills/project-delivery/references/assurance.md); write/update a proposal; stop for maintainer direction | Implement before direction is settled |
++| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State invariants/interleavings; test every race using shared fixtures; run registered race-claim checks, full suite, and adversarial review; apply [assurance routing](.agents/skills/project-delivery/references/assurance.md) | Treat compilation or one green run as proof |
+ | Documentation/site only | Check diff, referenced paths and commands; run `python3 scripts/check-doc-refs.py`; lightweight independent review | Run Java tests or formatting unless another route applies |
+ | Dependency/build | Patch/minor: dependency-audit skill, `mvn test`, local runtime-consumer matrix | Add a dependency or take a major upgrade without asking |
+ | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |

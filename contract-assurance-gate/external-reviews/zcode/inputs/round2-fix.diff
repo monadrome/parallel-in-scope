@@ -1,0 +1,136 @@
+diff --git a/.agents/skills/contract-first-assurance/SKILL.md b/.agents/skills/contract-first-assurance/SKILL.md
+index afcb0d77..fba734df 100644
+--- a/.agents/skills/contract-first-assurance/SKILL.md
++++ b/.agents/skills/contract-first-assurance/SKILL.md
+@@ -40,7 +40,8 @@ Before starting phase one:
+    worktree patch (if any) into `${RUN_DIR}/inputs/`;
+ 3. create `${RUN_DIR}/logs/`, saving every command's exact argv, exit code, and stdout/stderr
+    paths;
+-4. write `run-manifest.json`, computing SHA-256 for the inputs and final artifacts.
++4. write the initial `run-manifest.json` with frozen metadata and SHA-256 for the inputs;
++   result fields and final-artifact hashes are added at finalization.
+ 
+ ## Goal
+ 
+@@ -400,7 +401,9 @@ accepted, and the final gate status separately. Its final gate is `PASS` when ev
+ check passes without accepted exceptions, or `PASS WITH ACCEPTED EXCEPTIONS` when every other
+ required check passes and every exception is accepted; a raw `TIMED_OUT` must not be rewritten
+ as `KILLED`.
+-After writing the final report, run:
++After writing the final report, finalize `run-manifest.json` with the run status, resolved
++required gates and check results, accepted exceptions, command records, and final-artifact
++hashes without changing frozen inputs or their hashes. Then run:
+ 
+ ```bash
+ python3 ${SKILL_ROOT}/scripts/verify_run.py --run-dir ${RUN_DIR}
+diff --git a/.agents/skills/contract-first-assurance/references/host-adapter.md b/.agents/skills/contract-first-assurance/references/host-adapter.md
+index 0c736a5f..5285a278 100644
+--- a/.agents/skills/contract-first-assurance/references/host-adapter.md
++++ b/.agents/skills/contract-first-assurance/references/host-adapter.md
+@@ -18,6 +18,7 @@ maintenance instructions:
+ | `build_commands` | Commands for compile checks, target tests, and the full suite. |
+ | `format_commands` | Required formatting or static checks. |
+ | `mutation_policy` | Whether mutation testing applies and which command owns its scope. |
++| `route_gates` | Required gates for each route; the resolved `adapter.requiredGates` must be non-empty for a passing run. |
+ | `artifact_root` | Run directory; defaults to `.contract-first-assurance`. |
+ 
+ The adapter may also provide `contract_paths`, `public_api_paths`,
+@@ -53,10 +54,11 @@ The package version and artifact schema are independent of the host adapter.
+ Changing a repository command or path is an adapter change; changing candidate
+ status values, required artifacts, or phase hand-off rules is a package change.
+ 
+-An adapter may also provide `route_gates`, `status_policy`, and
+-`execution_policy` for a host orchestrator. These values configure the
+-repository workflow; they do not create a second run manifest or replace the
+-portable `contract-assurance-run/v1` schema.
++An adapter may also provide `status_policy` and `execution_policy` for a host orchestrator.
++Together with the required `route_gates`, these values configure the repository workflow; they
++do not create a second run manifest or replace the portable `contract-assurance-run/v2` schema.
++A host without a resolved non-empty required-gate list records `BLOCKED` or `INCONCLUSIVE`
++rather than a passing assurance gate.
+ 
+ For mutation-enabled repositories, `mutation_policy` may define
+ `accepted_dispositions`. Each disposition names the evidence required before a
+diff --git a/.agents/skills/contract-first-assurance/references/reproducible-runs.md b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+index f1a2fc00..18715f2c 100644
+--- a/.agents/skills/contract-first-assurance/references/reproducible-runs.md
++++ b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+@@ -6,11 +6,13 @@ manifest is an incomplete result.
+ 
+ ## Run manifest
+ 
+-Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
++Initialize `${RUN_DIR}/run-manifest.json` before phase one with the schema, package, adapter,
++workspace, and frozen input hashes. Result fields are appended at finalization; the completed
++manifest has this shape:
+ 
+ ```json
+ {
+-  "schemaVersion": "contract-assurance-run/v1",
++  "schemaVersion": "contract-assurance-run/v2",
+   "runId": "2026-11-12-example",
+   "createdAt": "2026-11-12T12:00:00Z",
+   "package": {"name": "contract-first-assurance", "version": "1.3.0"},
+@@ -74,8 +76,9 @@ Rules:
+   disposition is allowed by the resolved host adapter; copy the adapter's
+   `acceptedDispositions` policy into the manifest so `verify_run.py` can enforce
+   the same allowlist without reading a mutable parent checkout;
+-- the manifest and input snapshots are written before tests run and are not
+-  rewritten after a failure to make a green result appear reproducible.
++- frozen metadata, input snapshots, and their hashes are written before tests run and are never
++  rewritten; `status`, `requiredGates`, `checks`, `acceptedExceptions`, command results, and
++  final-artifact hashes are appended at finalization, including for failed or inconclusive runs.
+ 
+ ## Required layout
+ 
+diff --git a/.agents/skills/contract-first-assurance/scripts/verify_run.py b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+index 9b26cde8..274a4815 100644
+--- a/.agents/skills/contract-first-assurance/scripts/verify_run.py
++++ b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+@@ -58,7 +58,7 @@ def verify(run_dir: Path) -> list[str]:
+     except (OSError, json.JSONDecodeError) as error:
+         return [f"cannot read run manifest: {error}"]
+ 
+-    if manifest.get("schemaVersion") != "contract-assurance-run/v1":
++    if manifest.get("schemaVersion") != "contract-assurance-run/v2":
+         errors.append("unsupported or missing run manifest schemaVersion")
+     for key in (
+         "runId",
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index ac7c8b85..9f1562fa 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -36,7 +36,7 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+ 
+         digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+         manifest = {
+-            "schemaVersion": "contract-assurance-run/v1",
++            "schemaVersion": "contract-assurance-run/v2",
+             "runId": "test",
+             "createdAt": "2026-01-01T00:00:00Z",
+             "package": {},
+@@ -148,6 +148,24 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         errors = verify_run.verify(run)
+         self.assertIn("report final-gate line must be the last non-empty line", errors)
+ 
++    def test_rejects_non_pass_required_gate(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, checks={"pit": "fail"})
++        errors = verify_run.verify(run)
++        self.assertIn("required gate is not pass: pit (fail)", errors)
++
++    def test_rejects_status_checks_mismatch(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, checks={"pit": "inconclusive"})
++        errors = verify_run.verify(run)
++        self.assertIn("run status pass does not match checks status inconclusive", errors)
++
++    def test_rejects_v1_schema(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, schemaVersion="contract-assurance-run/v1")
++        errors = verify_run.verify(run)
++        self.assertIn("unsupported or missing run manifest schemaVersion", errors)
++
+     def test_rejects_non_utf8_report(self):
+         run = self.make_run(None, {}, final_gate="PASS")
+         self.set_report(run, b"\xff")

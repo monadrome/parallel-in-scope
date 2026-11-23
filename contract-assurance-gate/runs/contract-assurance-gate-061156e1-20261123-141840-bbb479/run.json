@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "contract-assurance-gate-061156e1-20261123-141840-bbb479",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T14:18:41.567Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-gate",
+    "name": "contract-assurance-gate"
+  },
+  "commits": {
+    "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+    "head": "061156e1abb994b8fd5fda7f8e75727b13c4fd08",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "kimi-k3",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "38e10c7e05fd1ea0dfc6dc934f0b6c2dd2f472fec7ccc2de5dd55e1bd4c83592",
+    "contextJsonSha256": "57a6d5284ffa1ecbfae2fd2fa04d5ee8f8dec7ed290ff19631c3998c17a5522c",
+    "diffSha256": "683de74610cadd25d6abe429b84743c47c34211271ff651a25cd3bc5a5c5b856",
+    "caseManifestSha256": "383f8653c0ed47139e2e117ebf2c713a5fc2cac6e1b90784a9d1df64d8afa70f",
+    "promptSha256": "c58dbfcbf055b9afa6ee7a747f312b3050788ddb0641e512c698eb44a7098414"
+  },
+  "promptPath": "inputs/prompt.md"
+}

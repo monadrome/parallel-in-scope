@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "contract-assurance-gate-07c04263-20261123-093356-caa253",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:33:57.137Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-gate",
+    "name": "contract-assurance-gate"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "07c042638a9468084b02ec2a38c88fd9210c1ac2",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "openai",
+        "model": "gpt-6.1-terra",
+        "revision": null,
+        "effort": "medium",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "c9fbfe1bbc2db2d764de33b9d83e8fba59e073bbeb3a216047160efcb021a305",
+    "contextJsonSha256": "42c1029ba7b7a940b508b2f70503d6b051bc60b51eb9ff1c339e6516630eeb29",
+    "diffSha256": "9bf9a2981dac54e0ab6392523aec4c97f4c0cee082362e07277d2eefdee323a0",
+    "caseManifestSha256": "187300abb49ed013db4baac5987bd0b253403d441badcb2f9d8e7c7079c48f29",
+    "promptSha256": "0c63d35906c85af84a63586b12e6406830a64d55eb3b3fa73070797338f1da53"
+  },
+  "promptPath": "inputs/prompt.md"
+}

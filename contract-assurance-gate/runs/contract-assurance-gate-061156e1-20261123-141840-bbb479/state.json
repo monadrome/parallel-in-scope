@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "contract-assurance-gate-061156e1-20261123-141840-bbb479",
+  "status": "failed",
+  "createdAt": "2026-11-23T14:18:41.575Z",
+  "updatedAt": "2026-11-23T14:24:11.906Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T14:18:41.601Z",
+      "error": null
+    },
+    "reviews": {
+      "kiro": {
+        "agent": "kiro",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-23T14:18:41.609Z",
+            "endedAt": "2026-11-23T14:24:11.704Z",
+            "durationMs": 329908,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "reviewer modified the read-only snapshot; refusing the result",
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-23T14:24:11.713Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T14:24:11.782Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T14:24:11.825Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T14:24:11.888Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-23T14:18:41.575Z",
+      "error": null
+    }
+  },
+  "eventSeq": 36
+}

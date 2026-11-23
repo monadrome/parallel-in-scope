@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "external-review/v1",
+  "reviewer": {
+    "agent": "zcode",
+    "model": "default (exact model ID not exposed by CLI)"
+  },
+  "sessionId": "sess_5be0d36a-a24d-4fa0-9510-149cd87bd473",
+  "round": 1,
+  "summary": "Reviewed the complete 8e6d3f3..0b390361 diff and every changed file in full — assurance-report, contract-diff, contract-extract, isolated-test-generation, and contract-first-assurance SKILL.md files; package.yaml, evals/evals.json, adapters/vformation.yaml, references/invocation-modes.md, references/reproducible-runs.md, scripts/verify_run.py; project-delivery SKILL.md with the new references/assurance.md; root AGENTS.md; and scripts/tests/test_verify_run.py — plus the surrounding contracts they cite (host-adapter.md, review.md, delivery-ledger.md, .worktreeinclude.yaml, verify_run.py's pre-existing gate loops). The final-gate vocabulary, status mapping, adapter-gate matching, exception cross-checks, and the new non-UTF-8/duplicate/trailing-content error paths in verify_run.py are consistent with assurance-report/SKILL.md, contract-first-assurance/SKILL.md, and reproducible-runs.md, and the added tests cover the new parsing branches; the diff patch matches git diff --name-only for the range, so coverage is complete. Three minor P3 findings remain: a manifest-lifecycle wording contradiction introduced by making run-result fields mandatory, host-contract drift around adapter.requiredGates plus an unchanged v1 schemaVersion, and a test gap for the enforcement this change makes mandatory. The agent-workflow-only assurance skip is justified for this change: the diff touches no Java source or library test, changes no library runtime contract and no library behavioral evidence — only agent workflow, the assurance bundle's own verifier, and routing documentation — which matches assurance.md's skip-eligible class, and the change instead took the workflow-contract full adversarial-review route (bench review rounds plus this independent external review).",
+  "findings": [
+    {
+      "file": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+      "lineStart": 28,
+      "lineEnd": 36,
+      "title": "Manifest template now requires run-result fields it cannot contain at its mandated creation time",
+      "trigger": "A run author follows the document literally: 'Create ${RUN_DIR}/run-manifest.json before phase one' (line 9) and 'the manifest and input snapshots are written before tests run and are not rewritten after a failure' (lines 77-78), but the template the same section requires (lines 28-36) now includes status, requiredGates, and checks — values that only exist after the run finishes.",
+      "consequence": "A manifest created as instructed is missing the now-required keys and verify_run.py fails with 'run manifest is missing status/requiredGates/checks'; satisfying the verifier instead requires an undocumented finalize-time rewrite of the manifest, which sits next to an anti-rewrite rule an author may read as forbidding it, tempting placeholder values frozen before any check ran.",
+      "evidence": "reproducible-runs.md line 9 mandates creation before phase one and lines 77-78 forbid post-failure rewrites, while commit 061156e made status/requiredGates/checks required keys in verify_run.py (lines 63-77) and added them to the same template; before this change those keys were optional, so the tension (already latent for acceptedExceptions) could be avoided.",
+      "severity": "P3",
+      "confidence": 0.55,
+      "suggestedFix": "Split the lifecycle in reproducible-runs.md: input hashes and frozen values are written before phase one and never change; status, requiredGates, checks, acceptedExceptions, and final artifact hashes are appended only at finalization; state that the anti-rewrite rule protects frozen inputs and hashes, not the appending of final results."
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 63,
+      "lineEnd": 99,
+      "title": "Mandatory adapter.requiredGates conflicts with host-adapter.md's optional route_gates and the unchanged v1 schemaVersion",
+      "trigger": "A host adapter without route_gates — explicitly permitted by references/host-adapter.md ('An adapter may also provide route_gates', lines 56-59, and the required-inputs table lists no gates) — has no value to copy into adapter.requiredGates, so every run it produces, including a fully passing one, fails with 'adapter.requiredGates must be a non-empty list of strings'; separately, re-verifying a 1.2.0-era run directory carrying the same 'contract-assurance-run/v1' schemaVersion now yields new 'missing status/requiredGates/checks' errors with no version signal distinguishing old from new v1.",
+      "consequence": "The portable bundle becomes permanently unverifiable on gate-less hosts (the documented BLOCKED/INCONCLUSIVE fallback covers missing phase inputs, not this manifest-level requirement), and older v1 manifests silently stop verifying — a contract drift inside one package between reproducible-runs.md/verify_run.py and the unchanged host-adapter.md.",
+      "evidence": "verify_run.py lines 93-99 newly require a non-empty adapter.requiredGates and lines 63-77 newly require status/requiredGates/checks, while host-adapter.md was not updated and still describes route_gates as optional; the manifest schemaVersion checked at line 61 is still 'contract-assurance-run/v1' although its required-key set changed (the in-repo vformation adapter is unaffected because it defines route_gates for every route).",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Either update host-adapter.md to make the resolved required-gate list a required adapter input with a defined no-gates disposition (for example allowing an explicitly empty gate list recorded as BLOCKED), or provide a documented fallback in the verifier; and bump the manifest schemaVersion (or record a package-version constraint) whenever its required-key set changes so old and new v1 manifests are distinguishable."
+    },
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "lineStart": 157,
+      "lineEnd": 168,
+      "title": "No regression tests for the now-mandatory per-gate and status-aggregation enforcement",
+      "trigger": "This change makes status/requiredGates/checks required and adapter-matched, which turns verify_run.py lines 159-170 — every required gate must have checks value 'pass', and run status must equal the precedence-maximum of checks — into a hard gate for every run, but no test exercises those paths: nothing asserts 'required gate is not pass: …' or 'run status … does not match checks status …'.",
+      "consequence": "A future edit that weakens those loops (for example changing checks.get(gate) != 'pass' to gate not in checks, or dropping the precedence aggregation) still passes the whole suite, leaving the delivery rule 'every required gate passes with a consistent run status' unguarded even though this change is what makes it mandatory.",
+      "evidence": "The tests added by this change (lines 106-168) cover final-gate parsing, exception cross-checks, empty/mismatched gate lists, and decoding errors only; verify_run.py lines 159-170 predate the range but only became load-bearing for every manifest with this change's required keys, and scripts/tests/test_verify_run.py contains no test naming either error message.",
+      "severity": "P3",
+      "confidence": 0.75,
+      "suggestedFix": "Add tests such as test_rejects_non_pass_required_gate (checks={'pit': 'fail'} asserts 'required gate is not pass: pit (fail)') and test_rejects_status_checks_mismatch (checks={'pit': 'inconclusive'} with status 'pass' asserts 'run status pass does not match checks status inconclusive')."
+    }
+  ],
+  "usage": {
+    "source": "provider",
+    "modelRequestCount": 26,
+    "inputTokens": 1260446,
+    "outputTokens": 34419,
+    "totalTokens": 1294865,
+    "cacheReadTokens": 1167360,
+    "cacheWriteTokens": 0,
+    "reasoningTokens": 0,
+    "webFetchRequests": 0,
+    "webSearchRequests": 0
+  },
+  "disposition": "All three findings confirmed and fixed; round two verified every resolution."
+}

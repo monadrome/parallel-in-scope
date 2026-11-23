@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "contract-assurance-gate-5abdbd08-20261123-094153-76d00f",
+  "version": 1,
+  "createdAt": "2026-11-23T09:50:07.011Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}
