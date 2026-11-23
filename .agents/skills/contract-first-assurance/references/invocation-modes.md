@@ -14,9 +14,9 @@ policy:
 ```
 
 This lets the model decide from the description whether to enter the workflow, while the user
-can still use `/contract-first-assurance`. A host delivery workflow may also explicitly dispatch
-the entry when its assurance routing marks a run as required; this uses the same full flow and
-passing-report gate rather than creating a fourth invocation mode.
+can still use `/contract-first-assurance`. The third invocation mode is required-route dispatch:
+a host delivery workflow explicitly dispatches the entry when its assurance routing marks a run
+as required, using the same full flow and passing-report gate.
 
 ## The manual-only entry
 

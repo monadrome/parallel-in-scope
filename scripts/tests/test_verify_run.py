@@ -64,7 +64,10 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
 
     def set_report(self, run, content):
         report = run / "report.md"
-        report.write_text(content, encoding="utf-8")
+        if isinstance(content, bytes):
+            report.write_bytes(content)
+        else:
+            report.write_text(content, encoding="utf-8")
         manifest_path = run / "run-manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["artifacts"]["report.md"] = hashlib.sha256(report.read_bytes()).hexdigest()
@@ -144,6 +147,12 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
         self.set_report(run, "evidence\nFinal gate: PASS\nlater evidence\n")
         errors = verify_run.verify(run)
         self.assertIn("report final-gate line must be the last non-empty line", errors)
+
+    def test_rejects_non_utf8_report(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.set_report(run, b"\xff")
+        errors = verify_run.verify(run)
+        self.assertTrue(any("cannot read report.md" in error for error in errors))
 
     def test_rejects_empty_required_gates_and_checks(self):
         run = self.make_run(None, {}, final_gate="PASS")

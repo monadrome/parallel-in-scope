@@ -185,7 +185,7 @@ def verify(run_dir: Path) -> list[str]:
     if report_path.is_file():
         try:
             report_lines = report_path.read_text(encoding="utf-8").splitlines()
-        except OSError as error:
+        except (OSError, UnicodeDecodeError) as error:
             errors.append(f"cannot read report.md: {error}")
         else:
             final_gate_indexes = [
