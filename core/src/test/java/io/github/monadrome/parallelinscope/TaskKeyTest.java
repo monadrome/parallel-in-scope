@@ -165,7 +165,8 @@ class TaskKeyTest {
         assertThat(result.resultOf(total)).isSameAs(result.terminalResult());
         assertThat(result.resultOf(total).valueOrThrow()).isEqualTo(5);
         assertThatThrownBy(() -> result.valuesOrThrow().valueOf(total)).isInstanceOf(IllegalArgumentException.class);
-        assertThat(result.results()).containsOnlyKeys("user", "orders");
+        assertThat(result.results().keySet()).containsExactly("user", "orders");
+        assertThat(result.members().keySet()).containsExactly("user", "orders");
         assertThat(result.terminationKindCounts()).containsEntry(TaskTermination.Kind.SUCCESS, 3);
     }
 

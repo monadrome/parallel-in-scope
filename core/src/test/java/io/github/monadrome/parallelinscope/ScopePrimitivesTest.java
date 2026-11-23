@@ -74,7 +74,9 @@ class ScopePrimitivesTest {
                 .register(ParId.of("db"), io)
                 .build();
         try {
-            assertThat(global.pars()).containsOnlyKeys(ParId.of(" db "), ParId.of("db"));
+            assertThat(global.pars().keySet()).containsExactly(ParId.of(" db "), ParId.of("db"));
+            assertThat(global.runtimes().keySet()).containsExactly(ParId.of(" db "), ParId.of("db"));
+            assertThat(global.runtimesByIdentity().keySet()).containsExactly(new ExecutorIdentity(io));
             assertThat(global.par(ParId.of(" db "))).isNotSameAs(global.par(ParId.of("db")));
             assertThat(global.par(ParId.of(" db ")).id()).isEqualTo(ParId.of(" db "));
             assertThatThrownBy(() -> global.par(null)).isInstanceOf(NullPointerException.class);
