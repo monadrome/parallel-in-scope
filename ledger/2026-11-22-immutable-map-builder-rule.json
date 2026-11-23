@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-22-immutable-map-builder-rule",
+  "date": "2026-11-22",
+  "topic": "immutable-map-builder-rule",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "docs: require builders for pure immutable map construction",
+      "docs: preserve validation boundaries in builder rule",
+      "docs: require proven unique entries in builder rule",
+      "docs: neutralize validation timing wording in builder rule"
+    ],
+    "files": 1,
+    "insertions": 18,
+    "deletions": 0
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "immutable-map-builder-rule-e883c014-20261123-043308-9c0b12",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 205346,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "immutable-map-builder-rule-a691e47f-20261123-043757-6c4dc9",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 366274,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "fixture detector setup": 3
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "S11 covers only put-only, proven unique and non-null temporary maps; a Claude fixture produced S11/T0 without flagging legal copyOf, and final ZCode review found no defects."
+}
