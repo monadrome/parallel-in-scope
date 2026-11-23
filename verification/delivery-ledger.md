@@ -10,9 +10,11 @@ first candidate for a mechanical check.
 
 The raw evidence stays where the tools write it: llm-review-bench runs under
 `.review-benchmark/runs/` or `.agents/reviews/`, refactoring-review runs under
-`.agents/reviews/`, PIT reports under `target/`. All of it is git-ignored, and
-much of it is deleted with its worktree, so the record copies the counts at
-delivery time.
+`.agents/reviews/`, PIT reports under `target/`. PIT reports are local build
+output and die with their worktree. Review run directories are different:
+delivery commits them to the `llm-ledger` branch before removing the worktree
+(Checkout Isolation in the project-delivery workflow), so the review audit
+trail survives cleanup. The record still copies the counts at delivery time.
 
 `scripts/process-metrics.py` writes and reads the records. Its tests are
 `scripts/tests/test_process_metrics.py`.

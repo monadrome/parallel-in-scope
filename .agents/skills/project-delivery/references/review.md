@@ -60,8 +60,10 @@ fixes can continue in later sessions:
 - Reproduce every finding against the working tree; retain, downgrade, or reject
   it explicitly. Record findings, dispositions (including rejections), and each
   fix's actual effect in the change's `design/` document, or in the fix commit
-  message when no `design/` document covers the change. Leave the review
-  workspace or run directory in place as an audit trail.
+  message when no `design/` document covers the change. The review workspace or
+  run directory is the audit trail; delivery commits it to the `llm-ledger`
+  branch before removing the worktree (Checkout Isolation in
+  [workflow](workflow.md)), so the evidence outlives the cleanup.
 - Reverse-verify every regression test: temporarily revert only the fix, observe
   the new test fail, then restore the fix.
 - For executable production changes (including refactors), mutation-relevant

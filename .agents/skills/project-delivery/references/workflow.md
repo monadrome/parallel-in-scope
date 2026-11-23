@@ -15,8 +15,12 @@ git worktree add -b <topic> .worktrees/<topic> <upstream-ref>
 Carry over only your own changes as a patch of your paths, then return those paths in the
 shared checkout to their committed state. Verify, commit, and deliver from the owned worktree.
 Leave others' files and commits intact: do not commit, stash, reset, rebase, or switch branches
-in the shared checkout, and never push their commits. After delivery, remove the worktree and
-delete its branch.
+in the shared checkout, and never push their commits. After delivery, preserve the review
+evidence, then remove the worktree and delete its branch: commit the delivery's review run
+directories (`.review-benchmark/runs/`, `.agents/reviews/`) to the `llm-ledger` branch under
+the topic name and push it, creating that branch from an orphan root when it does not exist
+yet. The run directories are git-ignored and would otherwise die with the worktree; on
+`llm-ledger` they stay available as the audit trail the review procedure requires.
 
 ## Local Verification
 

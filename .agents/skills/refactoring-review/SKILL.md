@@ -121,7 +121,9 @@ Write `<runDir>/report.md` per [refactoring-review/report-template.md](../../../
 each detector's status, each finding's disposition with reasons (including rejections), each
 check's status, proposed checks for mechanizable rules, and T2 destinations (`BACKLOG.md`,
 `design/proposal/`, or open items).
-Keep the run directory as the audit record.
+Keep the run directory as the audit record; delivery preserves it on the
+`llm-ledger` branch before removing the worktree (Checkout Isolation in the
+project-delivery workflow).
 
 ## 8. Hand over to code review
 
