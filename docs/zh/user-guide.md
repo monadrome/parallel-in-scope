@@ -263,6 +263,11 @@ TaskGroupResult<Page> result = global
   外层作用域——都以 `cancel(true)` 取消它；`runAll()` 准入失败时取消全部被收养的 future（阶段过期或
   线程不符的拒绝不触及它们）。不要自己取消它：那是直接成员取消，会取消整组。每个 future 在一个组里只能收养一次。
 - future 成功的终止分支是 `SUCCESS`；失败是 `FAILED`，以 `FailureCause` 保留它自己的异常。
+- 周期调度 future 不代表一次有限操作，禁止收养。静态类型为 `ListenableScheduledFuture` 的调用总是抛出
+  `UnsupportedOperationException`；通用 future 重载也会拒绝运行类型为 `RunnableScheduledFuture` 且
+  `isPeriodic()` 为 true 的 source，在修改 draft 或取消 source 之前立即抛出。一次性 scheduled 结果仍可通过
+  `ListenableFuture` 类型的引用收养。任意包装都可能隐藏周期性，因此把周期 source 转换为 `ListenableFuture`
+  后传入并不会使其获得支持：调度器应由应用持有，每个 tick 单独构组。
 - 组从不关闭 source 的值，包括组失败时已成功的兄弟值和取消之后才产生的迟到值。资源生命周期由 source 自己的
   管道或读取该值的接收方管理。`executionExitConfirmed()` 只确认所有被收养的 future 已落定，不确认外部机制的
   异步清理已经完成。忽略取消的 future 在落定前出现在 `unexitedExecutions()` 中。

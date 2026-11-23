@@ -51,12 +51,17 @@ public interface GroupStep {
     /**
      * Declares another member as an adopted future. The group owns and cancels the source from
      * {@code runAll()} onward; it does not submit work for this member. The source must represent
-     * one finite operation. Do not adopt a periodic scheduled future, including through a {@code
-     * ListenableFuture}-typed reference: successful ticks never settle the member, so {@code runAll()}
-     * waits until the group deadline and then cancels the loop.
+     * one finite operation. A {@link java.util.concurrent.RunnableScheduledFuture} whose {@code
+     * isPeriodic()} returns {@code true} is rejected before it is registered, leaving this draft and
+     * the source untouched. A non-periodic scheduled future remains supported through this overload.
+     * Other wrappers can hide periodicity, so do not adopt a periodic scheduled future through any
+     * {@code ListenableFuture}-typed reference: successful ticks never settle the member, so {@code
+     * runAll()} waits until the group deadline and then cancels the loop.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
+     * @throws UnsupportedOperationException if the source is a periodic {@code
+     *     RunnableScheduledFuture}
      * @throws IllegalStateException if this stage is stale or used from another thread
      * @param <T> member result type
      * @param key declaration key
@@ -98,6 +103,8 @@ public interface GroupStep {
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
      *     the producer belongs to another runtime
+     * @throws UnsupportedOperationException if the source is a periodic {@code
+     *     RunnableScheduledFuture}
      * @throws IllegalStateException if this stage is stale or used from another thread
      * @param <T> member result type
      * @param key declaration key

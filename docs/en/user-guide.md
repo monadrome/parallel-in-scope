@@ -301,6 +301,13 @@ TaskGroupResult<Page> result = global
   future once per group.
 - A successful future's termination is `SUCCESS`; a failed one's is `FAILED` with a `FailureCause`
   retaining its own throwable.
+- A periodic scheduled future is not one finite operation and must not be adopted. A statically typed
+  `ListenableScheduledFuture` call always throws `UnsupportedOperationException`; the general future
+  overloads also reject a runtime `RunnableScheduledFuture` whose `isPeriodic()` is true, before
+  changing the draft or cancelling the source. A one-shot scheduled result remains supported through
+  a `ListenableFuture`-typed reference. An arbitrary wrapper can hide periodicity, so widening a
+  periodic source does not make it supported: keep the scheduler application-owned and structure each
+  tick as its own group.
 - The group never closes a source's value, including a successful sibling's value in a failed group or a value
   produced after cancellation. Resource lifetime belongs to the source's own pipeline or the recipient that reads
   the value. `executionExitConfirmed()` confirms that every adopted future settled, not that an external mechanism's

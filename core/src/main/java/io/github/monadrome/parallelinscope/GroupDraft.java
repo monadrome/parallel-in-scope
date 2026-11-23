@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.RunnableScheduledFuture;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -33,6 +34,9 @@ final class GroupDraft {
     private static final String SCHEDULED_ADOPTION_MESSAGE = "ListenableScheduledFuture cannot be adopted;"
             + " use a ListenableFuture reference for a one-shot source"
             + " and keep periodic work outside the group";
+
+    private static final String PERIODIC_ADOPTION_MESSAGE = "periodic scheduled futures cannot be adopted;"
+            + " keep periodic work outside the group and structure each tick as its own group";
 
     private final ParRuntime owner;
     private final String name;
@@ -130,6 +134,9 @@ final class GroupDraft {
                 !adoptedSources.contains(source),
                 "the future adopted as '%s' is already adopted by this group; adopt each future once",
                 key.name());
+        if (source instanceof RunnableScheduledFuture<?> && ((RunnableScheduledFuture<?>) source).isPeriodic()) {
+            throw new UnsupportedOperationException(PERIODIC_ADOPTION_MESSAGE);
+        }
         seenNames.add(key.name());
         adoptedSources.add(source);
         members.add(new MemberDecl(key, producer, new AdoptedSource(key.name(), source)));

@@ -24,11 +24,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Delayed;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -126,6 +128,45 @@ class TaskGroupAdoptedFutureTest {
 
         boolean complete(T value) {
             return set(value);
+        }
+    }
+
+    /** A listenable source exposing the JDK's periodicity query to the general adoption overload. */
+    private static final class RunnableScheduledListenableFuture<T> extends AbstractFuture<T>
+            implements RunnableScheduledFuture<T> {
+        private final boolean periodic;
+        private final AtomicInteger listeners = new AtomicInteger();
+
+        private RunnableScheduledListenableFuture(boolean periodic) {
+            this.periodic = periodic;
+        }
+
+        boolean complete(T value) {
+            return set(value);
+        }
+
+        @Override
+        public void addListener(Runnable listener, Executor executor) {
+            listeners.incrementAndGet();
+            super.addListener(listener, executor);
+        }
+
+        @Override
+        public void run() {}
+
+        @Override
+        public boolean isPeriodic() {
+            return periodic;
+        }
+
+        @Override
+        public long getDelay(TimeUnit unit) {
+            return 0;
+        }
+
+        @Override
+        public int compareTo(Delayed other) {
+            return 0;
         }
     }
 
@@ -689,6 +730,16 @@ class TaskGroupAdoptedFutureTest {
         return attributed ? (key, source) -> stage.adopt(key, producer, source) : stage::adopt;
     }
 
+    /** Selects a general future overload, whose runtime source can expose periodicity. */
+    @SuppressWarnings("NullAway")
+    private static BiFunction<TaskKey<String>, ListenableFuture<String>, GroupStep> futureDeclaration(
+            GroupStart start, GroupStep stage, boolean attributed, Par producer) {
+        if (stage == null) {
+            return attributed ? (key, source) -> start.adopt(key, producer, source) : start::adopt;
+        }
+        return attributed ? (key, source) -> stage.adopt(key, producer, source) : stage::adopt;
+    }
+
     /** Widening a one-shot source preserves its supported result and ownership semantics. */
     @ParameterizedTest
     @CsvSource({
@@ -739,11 +790,61 @@ class TaskGroupAdoptedFutureTest {
         assertThat(result.executionExitConfirmed()).isTrue();
     }
 
-    /** Successful periodic ticks do not complete a widened source; its unsupported adoption times out. */
+    /** Detectably periodic sources are rejected through every general-future declaration path. */
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    @SuppressWarnings("NullAway")
+    void periodicRunnableScheduledSourcesAreRejectedWithoutAdvancingOrCancelling(boolean later, boolean attributed) {
+        ParRuntime runtime = runtime(pool(1));
+        RunnableScheduledListenableFuture<String> source = new RunnableScheduledListenableFuture<>(true);
+        GroupStart start = runtime.group("runtime-periodic", TIMEOUT);
+        GroupStep stage = later ? start.adopt(SECOND, Futures.immediateFuture("second")) : null;
+        BiFunction<TaskKey<String>, ListenableFuture<String>, GroupStep> declare =
+                futureDeclaration(start, stage, attributed, io(runtime));
+
+        assertThatThrownBy(() -> declare.apply(FIRST, source))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("periodic")
+                .hasMessageContaining("outside the group");
+        assertThat(source.isCancelled()).isFalse();
+        assertThat(source.listeners).hasValue(0);
+
+        GroupStep next = later
+                ? stage.adopt(FIRST, Futures.immediateFuture("first"))
+                : start.adopt(FIRST, Futures.immediateFuture("first"));
+        TaskGroupResult<Void> result = next.runAll();
+        TerminationAssertions.assertScopeSucceeded(result.termination());
+        assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("first");
+        assertThat(source.isCancelled()).isFalse();
+        assertThat(source.listeners).hasValue(0);
+    }
+
+    /** A non-periodic RunnableScheduledFuture remains a finite adoptable operation. */
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    @SuppressWarnings("NullAway")
+    void nonPeriodicRunnableScheduledSourcesRemainAdoptable(boolean later, boolean attributed) {
+        ParRuntime runtime = runtime(pool(1));
+        RunnableScheduledListenableFuture<String> source = new RunnableScheduledListenableFuture<>(false);
+        assertThat(source.complete("one-shot")).isTrue();
+        GroupStart start = runtime.group("runtime-one-shot", TIMEOUT);
+        GroupStep stage = later ? start.adopt(SECOND, Futures.immediateFuture("second")) : null;
+
+        GroupStep next =
+                futureDeclaration(start, stage, attributed, io(runtime)).apply(FIRST, source);
+        TaskGroupResult<Void> result = next.runAll();
+
+        TerminationAssertions.assertScopeSucceeded(result.termination());
+        assertThat(result.valuesOrThrow().valueOf(FIRST)).isEqualTo("one-shot");
+        assertThat(source.isCancelled()).isFalse();
+        assertThat(result.executionExitConfirmed()).isTrue();
+        assertThat(source.listeners).hasValue(1);
+    }
+
+    /** An opaque periodic wrapper hides the runtime query; its unsupported adoption still times out. */
     @ParameterizedTest
     @CsvSource({"1,true", "1,false", "25,true", "25,false", "100,true", "100,false"})
-    void wideningAPeriodicSourceBypassesTheGuardButDoesNotMakeItFinite(long timeoutMillis, boolean fixedRate)
-            throws Exception {
+    void anOpaquePeriodicWrapperRemainsUnsupportedAndTimesOut(long timeoutMillis, boolean fixedRate) throws Exception {
         ParRuntime runtime = runtime(pool(1));
         ListeningScheduledExecutorService scheduler = scheduledPool();
         CountDownLatch ticked = new CountDownLatch(1);

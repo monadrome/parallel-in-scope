@@ -14,6 +14,12 @@
 
 ### Fixed
 
+- Reject a periodic `RunnableScheduledFuture` immediately through every general `adopt` overload
+  instead of registering a member that cannot settle successfully and waiting for the group deadline.
+  Rejection leaves the draft unchanged and the source caller-owned; non-periodic scheduled sources
+  remain adoptable through a `ListenableFuture`-typed reference. Arbitrary wrappers can hide
+  periodicity, so periodic work must remain application-owned with each tick structured as its own
+  group.
 - Route the `ParRuntime` registration warnings (opaque executor and TTL-wrapper diagnostics) through the guarded announcements delivery like every other log station: a user JUL handler that throws can no longer alter what `build()` observes, and the warnings are delivered on the runtime's announcements executor instead of the registering thread.
 
 ### Build

@@ -54,15 +54,23 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
   including for a one-shot source. The overload MUST carry `@DoNotCall` with actionable migration
   guidance and `@Deprecated` for tools without Error Prone support. These annotations discourage
   calls; the runtime guard does not depend on the caller enabling either diagnostic.
-- Rejection MUST leave the draft stage, member names, and adopted-source registry unchanged and
-  MUST NOT cancel or connect the source. All four scheduled overloads MUST unconditionally throw
-  `UnsupportedOperationException`, including null arguments, stale stages, and foreign-thread calls.
-  They MUST NOT validate arguments, producer attribution, the owner thread, or the draft stage:
-  the operation itself is unsupported, so validation must not replace rejection with an argument
-  or lifecycle exception. Validation remains unchanged for the supported `ListenableFuture` overloads.
-- One-shot scheduled results remain supported through a `ListenableFuture`-typed reference. This
-  is a static overload guard, not runtime detection of periodicity: widening a periodic source
-  also bypasses the rejecting overload but remains a caller contract violation.
+- Scheduled-overload rejection MUST leave the draft stage, member names, and adopted-source registry
+  unchanged and MUST NOT cancel or connect the source. All four scheduled overloads MUST
+  unconditionally throw `UnsupportedOperationException`, including null arguments, stale stages, and
+  foreign-thread calls. They MUST NOT validate arguments, producer attribution, the owner thread, or
+  the draft stage: the operation itself is unsupported, so validation must not replace rejection with
+  an argument or lifecycle exception.
+- After the existing argument, owner-thread, and draft-stage validation succeeds, every general
+  `ListenableFuture` overload MUST reject a source whose runtime type implements
+  `RunnableScheduledFuture` and whose `isPeriodic()` returns true, throwing
+  `UnsupportedOperationException` before changing the draft stage, member names, or adopted-source
+  registry and without cancelling or connecting the source. A non-periodic
+  `RunnableScheduledFuture` MUST remain adoptable.
+- One-shot scheduled results remain supported through a `ListenableFuture`-typed reference. An
+  arbitrary future wrapper can hide `RunnableScheduledFuture` and its periodicity query; the static
+  and runtime guards do not prove that an arbitrary external future is finite. Adopting an opaque
+  periodic wrapper remains a caller contract violation, with deadline cancellation as the residual
+  behavior.
 
 **Ownership and cancellation**
 
@@ -150,8 +158,13 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
 
 - **Rejecting all runtime instances of `ListenableScheduledFuture`**: one-shot and periodic sources
   share that interface, which exposes no periodicity query. Such a check would also reject the
-  supported one-shot migration path. The static guard makes a common mistake conspicuous without
-  claiming to prove that an arbitrary external future eventually completes.
+  supported one-shot migration path. The static and `RunnableScheduledFuture` guards make common
+  mistakes conspicuous without claiming to prove that an arbitrary external future eventually
+  completes.
+- **Unwrapping implementation-specific scheduled wrappers**: there is no general public delegate
+  query, and reflection into JDK or Guava internals would bind the library to private implementation
+  details without covering arbitrary user wrappers. Only the standard periodicity interface is
+  inspected; an opaque wrapper retains the finite-operation caller obligation.
 - **Copying immutable-collection rejection semantics wholesale**: Guava's immutable mutators
   override inherited operations, so widening the receiver does not bypass runtime rejection.
   Here argument overload selection is static. Keep the existing draft validation order and
@@ -194,11 +207,13 @@ starvation observation both being visible when the source is queued on the waite
 `AdoptedSourceTest` covers abandoning a prepared source and abandonment after connection.
 `verification/maven-central-consumer` covers adopted members on the Java 8 runtime.
 
-The scheduled-source cases cover start and later stages, producer attribution, one-shot and
-periodic rejection, unconditional rejection of null, stale-stage, and foreign-thread calls, source
-ownership, and one-shot adoption through the general future type. After compiling core, run
-`python3 scripts/check-adopt-compile-contract.py` to verify Java 8 consumer snippets against the
-built API: every scheduled overload produces an Error Prone `DoNotCall` diagnostic with migration
-guidance, ordinary javac emits deprecation diagnostics, and the supported general-future calls
-compile under both configurations. The check reuses the core Maven compiler configuration in a
-temporary project and writes its command logs under `target/adopt-compile-contract/`.
+The scheduled-source cases cover start and later stages, producer attribution, unconditional
+rejection of null, stale-stage, and foreign-thread calls through scheduled overloads, runtime
+rejection of periodic `RunnableScheduledFuture` sources without draft mutation or source
+cancellation, continued adoption of non-periodic scheduled sources, and the residual timeout for an
+opaque periodic wrapper. After compiling core, run `python3 scripts/check-adopt-compile-contract.py`
+to verify Java 8 consumer snippets against the built API: every scheduled overload produces an Error
+Prone `DoNotCall` diagnostic with migration guidance, ordinary javac emits deprecation diagnostics,
+and the supported general-future calls compile under both configurations. The check reuses the core
+Maven compiler configuration in a temporary project and writes its command logs under
+`target/adopt-compile-contract/`.

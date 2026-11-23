@@ -83,16 +83,22 @@ public interface GroupStart {
      * pipeline can join through {@code finishToFuture()}; cancelling the adopted future cancels the
      * pipeline, but source settlement does not wait for the pipeline's asynchronous close.
      *
-     * <p>The source must represent one finite operation. Do not adopt a periodic scheduled future,
-     * including through a {@code ListenableFuture}-typed reference: successful ticks never settle
-     * the member, so an otherwise successful group waits until its deadline and then cancels the loop.
-     * Keep the scheduler application-owned and structure each tick as its own group instead.
+     * <p>The source must represent one finite operation. A {@link
+     * java.util.concurrent.RunnableScheduledFuture} whose {@code isPeriodic()} returns {@code true}
+     * is rejected before it is registered, leaving this draft and the source untouched. A
+     * non-periodic scheduled future remains supported through this overload. Other wrappers can hide
+     * periodicity, so do not adopt a periodic scheduled future through any {@code
+     * ListenableFuture}-typed reference: successful ticks never settle the member, so an otherwise
+     * successful group waits until its deadline and then cancels the loop. Keep the scheduler
+     * application-owned and structure each tick as its own group instead.
      *
      * <p>An unattributed source records no executor wait. Use {@link #adopt(TaskKey, Par,
      * ListenableFuture)} when a registered executor completes the source.
      *
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated or the source is already adopted
+     * @throws UnsupportedOperationException if the source is a periodic {@code
+     *     RunnableScheduledFuture}
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
     <T> GroupStep adopt(TaskKey<T> key, ListenableFuture<? extends T> source);
@@ -131,6 +137,8 @@ public interface GroupStart {
      * @throws NullPointerException if any argument is null
      * @throws IllegalArgumentException if the name is duplicated, the source is already adopted, or
      *     {@code producer} belongs to another runtime
+     * @throws UnsupportedOperationException if the source is a periodic {@code
+     *     RunnableScheduledFuture}
      * @throws IllegalStateException if this stage is stale or used from another thread
      */
     <T> GroupStep adopt(TaskKey<T> key, Par producer, ListenableFuture<? extends T> source);
