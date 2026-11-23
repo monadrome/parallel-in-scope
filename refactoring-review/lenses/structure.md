@@ -97,9 +97,9 @@ public or protected `T2`.
 - Suppress: `get`, `computeIfAbsent`, `merge`, iteration, or failure cleanup needs the mutable map;
   the map is long-lived mutable state; duplicate keys need last-write-wins semantics; or the boundary
   accepts a caller-supplied or otherwise unknown `Map` and needs a defensive copy; or moving the
-  builder's earlier null or duplicate validation would cross a catch, cleanup, or other observable
-  failure boundary. `copyOf` also remains valid when the argument may already be immutable and reuse
-  is intentional.
+  builder's null or duplicate validation would cross a catch, cleanup, or other observable failure
+  boundary. `copyOf` also remains valid when the argument may already be immutable and reuse is
+  intentional.
 - Tier: `T0` for a local-only replacement; `T1` when a package-private signature or multiple files
   change; `T2` for a public signature.
 - mechanizable: partly (the construction pair is syntactically detectable; reads, escapes, duplicate
