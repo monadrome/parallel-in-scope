@@ -37,6 +37,7 @@ A user-level skill of the same name still exists on this machine, but in-project
 Run from the repository root; build first when `dist/` is missing:
 
 ```bash
+set -e
 if [ ! -f tools/llm-review-bench/dist/cli.js ]; then
   npm --prefix tools/llm-review-bench ci && npm --prefix tools/llm-review-bench run build
 fi

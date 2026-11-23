@@ -66,6 +66,7 @@ clustering approximated by file+line, and vote results unusable as auditable mea
 Run from the repository root; build first when `dist/` is missing:
 
 ```bash
+set -e
 if [ ! -f tools/llm-review-bench/dist/cli.js ]; then
   npm --prefix tools/llm-review-bench ci && npm --prefix tools/llm-review-bench run build
 fi

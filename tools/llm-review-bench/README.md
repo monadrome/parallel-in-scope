@@ -54,6 +54,7 @@ effort, prompt, repository, and commit all form the measured system.
 ## Build and test
 
 ```bash
+set -e
 cd tools/llm-review-bench
 npm ci
 npm run build       # tsc -> dist/
