@@ -88,25 +88,26 @@ public or protected `T2`.
   lifecycle safety are judgement)
 
 ### S11 Temporary mutable collection for an immutable result
-- Smell: the change creates a fresh mutable collection (`HashMap`, `LinkedHashMap`, `HashSet`,
-  `LinkedHashSet`, `ArrayList`, or another `java.util` collection), adds only entries the matching
-  Guava immutable type accepts (non-null and, for a map or set, no duplicate keys or elements), and
-  then freezes it with that type's `copyOf`, although no code reads, queries, or passes the mutable
-  collection to another consumer before the freeze.
+- Smell: the change creates a fresh mutable collection or map (`HashMap`, `LinkedHashMap`,
+  `HashSet`, `LinkedHashSet`, `ArrayList`, or another mutable container such as a Guava `Multimap`),
+  adds only entries the matching Guava immutable builder accepts (all non-null, and no key written
+  to a map twice), and then freezes it with that type's `copyOf`, although no code reads, queries,
+  or passes the mutable container to another consumer before the freeze.
 - Move: accumulate into the matching builder (`ImmutableMap.builder()`, `ImmutableSet.builder()`,
-  `ImmutableList.builder()`, or another `ImmutableXxx` builder, with `builderWithExpectedSize()`
-  when the size is known), add entries in the same order, and pass the built collection directly;
-  tighten a package-private boundary to the immutable type when needed.
-- Suppress: lookup (`get`, `contains`), conditional replacement (`merge`, `computeIfAbsent`, or a
-  `put` that overwrites), removal, sorting, iteration, or failure cleanup needs the mutable
-  collection; it is long-lived mutable state; duplicates rely on last-write-wins or deduplication
-  rather than being impossible; the frozen order differs from the order entries are produced and
-  that order is observable (`HashMap` and `HashSet` iterate in hash order, a builder in
-  accumulation order); or the boundary accepts a caller-supplied or otherwise unknown collection
-  and needs a defensive copy; or moving the builder's null or duplicate validation would cross a
-  catch, cleanup, or other observable failure boundary. `copyOf` also remains valid when the
-  argument may already be immutable and reuse is intentional.
+  `ImmutableList.builder()`, or another `ImmutableXxx` builder, sorted variants included, with
+  `builderWithExpectedSize()` when the size is known), add entries in the same order, and pass the
+  built collection directly; tighten a package-private boundary to the immutable type when needed.
+- Suppress: lookup (`get`, `contains`), conditional replacement (`merge`, `computeIfAbsent`),
+  removal, indexed insertion, sorting, iteration, or failure cleanup needs the mutable collection;
+  it is long-lived mutable state; a key is written more than once and the last write must win; the
+  frozen order differs from the order entries are produced and that order is observable (`HashMap`
+  and `HashSet` iterate in hash order, a builder in accumulation order); or the boundary accepts a
+  caller-supplied or otherwise unknown collection and needs a defensive copy; or moving the
+  builder's null or duplicate-key validation would cross a catch, cleanup, or other observable
+  failure boundary. `copyOf` also remains valid when the argument may already be immutable and
+  reuse is intentional.
 - Tier: `T0` for a local-only replacement; `T1` when a package-private signature or multiple files
   change; `T2` for a public signature.
 - mechanizable: partly (the container, the accumulation calls, and the freeze are syntactically
-  detectable; reads, escapes, duplicates, ordering, and lifecycle use require def-use judgement)
+  detectable; reads, escapes, duplicate keys, ordering, and lifecycle use require def-use
+  judgement)
