@@ -48,6 +48,7 @@ REQUIRED_CODEOWNERS = (
     "/verification/verification-integrity.md",
 )
 REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset()
+NON_EXCEPTIBLE_RULES = frozenset({"V6"})
 
 SKIPPED_DIRECTORIES = {
     ".agents",
@@ -84,7 +85,6 @@ class TestCase:
 
 @dataclasses.dataclass(frozen=True)
 class TestFile:
-    text: str
     digest: str
     tests: tuple[TestCase, ...]
     markers: tuple[Violation, ...]
@@ -207,6 +207,16 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
     return spans
 
 
+def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[str], int]:
+    close_index = matching_delimiter(source.code, open_index)
+    if close_index < 0:
+        return [], [], -1
+    arguments = split_arguments(source.code, open_index, close_index)
+    values = [normalize(source.code[start:end]) for start, end in arguments]
+    original = [normalize(source.text[start:end]) for start, end in arguments]
+    return values, original, close_index
+
+
 def skip_space(code: str, index: int) -> int:
     while index < len(code) and code[index].isspace():
         index += 1
@@ -280,12 +290,9 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
         if name not in {"assertTrue", "assertFalse", "assertEquals", "assertSame", "assertThat"}:
             continue
         open_index = match.end() - 1
-        close_index = matching_delimiter(code, open_index)
+        values, original, close_index = call_arguments(source, open_index)
         if close_index < 0:
             continue
-        arguments = split_arguments(code, open_index, close_index)
-        values = [normalize(code[start:end]) for start, end in arguments]
-        original = [normalize(source.text[start:end]) for start, end in arguments]
         noop = False
         end = close_index + 1
         if name == "assertTrue" and values and (values[0] == "true" or values[-1] == "true"):
@@ -305,11 +312,9 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
 
 def java_assumptions(source: Source, path: str) -> Iterator[Violation]:
     for match in JAVA_ASSUMPTION.finditer(source.code):
-        close_index = matching_delimiter(source.code, match.end() - 1)
+        values, _, close_index = call_arguments(source, match.end() - 1)
         if close_index < 0:
             continue
-        arguments = split_arguments(source.code, match.end() - 1, close_index)
-        values = [normalize(source.code[start:end]) for start, end in arguments]
         rejected = {"false", "Boolean.FALSE"} if match["name"] == "assumeTrue" else {"true", "Boolean.TRUE"}
         if values and (values[0] in rejected or values[-1] in rejected):
             yield violation(source, path, match.start(), close_index + 1, "V3", "new constant-failing test assumption")
@@ -323,7 +328,7 @@ def scan_java(path: str, text: str, digest: str) -> TestFile:
     for match in JAVA_DISABLED.finditer(source.code):
         end = annotation_end(source.code, match.end())
         markers.append(violation(source, path, match.start(), end, "V3", "new @Disabled or @Ignore test annotation"))
-    return TestFile(text, digest, tuple(tests), tuple(markers))
+    return TestFile(digest, tuple(tests), tuple(markers))
 
 
 def dotted_name(node: ast.AST) -> str:
@@ -417,7 +422,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
         if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
             segment = ast.get_source_segment(text, node) or name
             markers.append(Violation(path, node.lineno, "V3", "new runtime test skip or xfail", normalize(segment)))
-    return TestFile(text, digest, tuple(tests), tuple(markers))
+    return TestFile(digest, tuple(tests), tuple(markers))
 
 
 TS_TEST = re.compile(
@@ -466,12 +471,9 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
     )
     for match in TS_ASSERT_CALL.finditer(code):
         open_index = match.end() - 1
-        close_index = matching_delimiter(code, open_index)
+        values, original, close_index = call_arguments(source, open_index)
         if close_index < 0:
             continue
-        arguments = split_arguments(code, open_index, close_index)
-        values = [normalize(code[start:end]) for start, end in arguments]
-        original = [normalize(text[start:end]) for start, end in arguments]
         method = match["method"]
         noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
             method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
@@ -484,7 +486,7 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         violation(source, path, match.start(), match.end(), "V5", "new constant expect assertion")
         for match in TS_EXPECT_NOOP.finditer(code)
     )
-    return TestFile(text, digest, tuple(tests), tuple(markers))
+    return TestFile(digest, tuple(tests), tuple(markers))
 
 
 def repository_files(root: Path) -> Iterator[tuple[str, Path]]:
@@ -681,6 +683,24 @@ def codeowner_regex(pattern: str) -> re.Pattern[str] | None:
     return re.compile("^" + prefix + "".join(translated) + suffix + "$")
 
 
+def parse_codeowner_entries(text: str) -> list[tuple[str, re.Pattern[str], list[str]]]:
+    entries: list[tuple[str, re.Pattern[str], list[str]]] = []
+    for line in text.splitlines():
+        content = line.split("#", 1)[0].strip()
+        if not content:
+            continue
+        fields = content.split()
+        pattern = fields[0]
+        compiled = codeowner_regex(pattern)
+        if compiled is not None:
+            entries.append((pattern, compiled, fields[1:]))
+    return entries
+
+
+def last_match_retains_owner(matching: list[tuple[str, re.Pattern[str], list[str]]]) -> bool:
+    return bool(matching and CODEOWNER in matching[-1][2])
+
+
 def codeowner_violations(root: Path) -> list[Violation]:
     path = root / CODEOWNERS_PATH
     try:
@@ -693,26 +713,17 @@ def codeowner_violations(root: Path) -> list[Violation]:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as error:
         return [Violation(CODEOWNERS_PATH, 0, "V6", f"cannot read required CODEOWNERS: {error}", CODEOWNERS_PATH)]
-    entries: list[tuple[str, re.Pattern[str], list[str]]] = []
-    for line in text.splitlines():
-        content = line.split("#", 1)[0].strip()
-        if not content:
-            continue
-        fields = content.split()
-        pattern = fields[0]
-        compiled = codeowner_regex(pattern)
-        if compiled is not None:
-            entries.append((pattern, compiled, fields[1:]))
+    entries = parse_codeowner_entries(text)
     found = []
     for required in REQUIRED_CODEOWNERS:
         matching = [entry for entry in entries if entry[0] == required]
-        if not matching or CODEOWNER not in matching[-1][2]:
+        if not last_match_retains_owner(matching):
             found.append(Violation(
                 CODEOWNERS_PATH, 0, "V6", f"CODEOWNERS entry {required!r} must retain {CODEOWNER}", required
             ))
     for protected in sorted(protected_files(root)):
         matching = [entry for entry in entries if entry[1].fullmatch(protected)]
-        if not matching or CODEOWNER not in matching[-1][2]:
+        if not last_match_retains_owner(matching):
             found.append(Violation(
                 CODEOWNERS_PATH,
                 0,
@@ -781,7 +792,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         (
             item
             for item in found
-            if item.rule == "V6" or (item.path, item.rule, item.key) not in REVIEWED_EXCEPTIONS
+            if item.rule in NON_EXCEPTIBLE_RULES or (item.path, item.rule, item.key) not in REVIEWED_EXCEPTIONS
         ),
         key=lambda item: (item.path, item.line, item.rule, item.key),
     )

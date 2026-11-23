@@ -59,30 +59,33 @@ def validate_review_config(upstream_ref: object, errors: list[str]) -> None:
             errors.append(f"refactoring-review/config.json defaultBase is {config_base!r}, expected {upstream_ref!r}")
 
 
+def validate_gate_script(gate_path: Path, gate_label: str, upstream_ref: object, errors: list[str]) -> None:
+    gate_text = gate_path.read_text(encoding="utf-8")
+    if f'DEFAULT_UPSTREAM = "{upstream_ref}"' not in gate_text:
+        errors.append(f"{gate_label} does not use {upstream_ref}")
+
+
+def validate_gate_doc(doc_path: Path, doc_label: str, gate_label: str, description: str,
+                      upstream_ref: object, errors: list[str]) -> None:
+    doc_text = doc_path.read_text(encoding="utf-8")
+    if gate_label not in doc_text:
+        errors.append(f"{doc_label} does not document the {description}")
+    if upstream_ref not in doc_text:
+        errors.append(f"{doc_label} does not document {upstream_ref}")
+
+
 def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
-    java_text = JAVA_GATE.read_text(encoding="utf-8")
-    if f'DEFAULT_UPSTREAM = "{upstream_ref}"' not in java_text:
-        errors.append(f"scripts/check-java-conventions.py does not use {upstream_ref}")
+    validate_gate_script(JAVA_GATE, "scripts/check-java-conventions.py", upstream_ref, errors)
 
     complexity_text = COMPLEXITY_SKILL.read_text(encoding="utf-8")
     if upstream_ref not in complexity_text:
         errors.append(f"complexity-review-eval skill does not document {upstream_ref}")
 
-    doc_text = DOC.read_text(encoding="utf-8")
-    if "check-java-conventions.py" not in doc_text:
-        errors.append("verification/java-conventions.md does not document the Java convention gate")
-    if upstream_ref not in doc_text:
-        errors.append(f"verification/java-conventions.md does not document {upstream_ref}")
-
-    integrity_text = INTEGRITY_GATE.read_text(encoding="utf-8")
-    if f'DEFAULT_UPSTREAM = "{upstream_ref}"' not in integrity_text:
-        errors.append(f"scripts/check-verification-integrity.py does not use {upstream_ref}")
-
-    integrity_doc_text = INTEGRITY_DOC.read_text(encoding="utf-8")
-    if "check-verification-integrity.py" not in integrity_doc_text:
-        errors.append("verification/verification-integrity.md does not document the verification integrity gate")
-    if upstream_ref not in integrity_doc_text:
-        errors.append(f"verification/verification-integrity.md does not document {upstream_ref}")
+    validate_gate_doc(DOC, "verification/java-conventions.md", "check-java-conventions.py",
+                      "Java convention gate", upstream_ref, errors)
+    validate_gate_script(INTEGRITY_GATE, "scripts/check-verification-integrity.py", upstream_ref, errors)
+    validate_gate_doc(INTEGRITY_DOC, "verification/verification-integrity.md", "check-verification-integrity.py",
+                      "verification integrity gate", upstream_ref, errors)
 
     adapter_text = ADAPTER.read_text(encoding="utf-8")
     adapter_base = ADAPTER_BASE.search(adapter_text)
