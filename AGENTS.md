@@ -28,6 +28,24 @@ delivery sequence and its completion criteria. Read-only questions use the subje
 Required project skills are tracked in `.worktreeinclude.yaml`; a new worktree must pass
 `python3 scripts/check-worktree-skills.py` before invoking a skill.
 
+### Exploratory Design Loading
+
+For option generation in a large refactor, removal, or dependency redesign, start with the
+requested end state, explicit requirements, first principles, and live correctness/safety
+invariants. Treat current APIs and implementations as candidates for change, not defaults that
+a proposal must preserve.
+
+Load current-usage and historical-preference evidence for candidate evaluation, after options
+exist: usage examples and selling points, implementation/test structure, adoption and migration
+costs, and historical rejection records. Scoped `AGENTS.md` files own directory-specific timing.
+Before recommending or implementing, account for every affected user-visible behavior, document,
+test, and migration path. Existing usage informs the impact assessment but does not veto a better
+`0.x` design; unknown usage remains unknown.
+
+Defect fixes and behavior-preservation requests treat reproduced behavior and its contracts as
+requirements from the outset. A blanket documentation ban is rejected: deferred evidence is
+mandatory before a decision.
+
 ## Task Routes
 
 Classify by the smallest change satisfying the request. Routes are cumulative; the more
@@ -144,7 +162,7 @@ Load only the matching row, then follow that document's subject-specific routes.
 | Races or ordering claims | `verification/race-claims/README.md`; run `python3 scripts/check-race-claims.py` for registered claims |
 | Lincheck tests | `verification/lincheck.md` before changing `*LincheckTest` |
 | PIT or SpotBugs | `verification/pit.md` or `verification/spotbugs.md` before selecting/running the respective scope |
-| User-facing behavior | Update `docs/en/user-guide.md`; canonical dev quickstart is `docs/{en,zh}/quickstart.md` |
+| User-facing behavior | Follow `docs/AGENTS.md`; update `docs/en/user-guide.md`; canonical dev quickstart is `docs/{en,zh}/quickstart.md` |
 | Demo/integrations | Their scoped `AGENTS.md`; integrations is standalone, outside root tests/CI |
 | Site pages | `mkdocs/mkdocs.yml` navigation, locales, redirects when adding/renaming/moving docs pages |
 | Planned release work | `BACKLOG.md`; verify entries against current sources; remove landed entries |

@@ -36,6 +36,14 @@ mvn verify -Prun-all-demos                               # run all demos
 - Run `mvn test` before finishing changes that affect the demo module (a
   targeted test suffices while iterating).
 
+## Exploratory Design
+
+Reserve this module's README selling points, articles, runnable examples, and usage patterns for
+the candidate-evaluation load defined under `Exploratory Design Loading` in
+[root AGENTS.md](../AGENTS.md), rather than using them as constraints on option generation. Before
+recommendation or implementation, inventory the observable behavior, article/test changes, and
+migration impact of surviving candidates.
+
 ## Reference Documents
 
 - `architecture-constraints.md` - Read before changing dependencies, package
