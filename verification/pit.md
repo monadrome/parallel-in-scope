@@ -114,18 +114,23 @@ dependency invalidation.
 For this multi-module build, a core PIT run writes `core/target/pit-reports/mutations.xml`
 and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
 That path is build output: a clean, a rebuild, or worktree removal deletes it, so a focused
-inline run MUST copy the XML and its log to durable evidence at that point, and the archived
-XML is what later evidence and the delivery ledger cite.
+inline run MUST capture the full command output into a log (redirect or `tee` the Maven
+invocation; the plugin writes only XML and HTML) and copy the XML and that log to durable
+evidence at that point. The archived XML is what later evidence and the delivery ledger cite.
 The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
 may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
 Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside
 the PIT log. Record the source
 revision and any uncommitted input changes, command, JDK, scope, mutators, and
 exclusions beside the results; report timestamps alone do not prove freshness.
-The repeatable core runner is [scripts/run-pit-core.sh](../scripts/run-pit-core.sh);
-durable evidence is kept under
+The repeatable core runner is [scripts/run-pit-core.sh](../scripts/run-pit-core.sh), the
+default for core partitions because it archives each batch's XML, log, monitor data, and run
+metadata; durable evidence is kept under
 [verification/pit-audit/](pit-audit/2026-10-31/README.md) with its per-batch XML,
-logs, checksums, and run metadata.
+logs, checksums, and run metadata. Its A–E class patterns are a fixed list, and root-package
+classes added after the partition inventory may be absent from every batch. Confirm the
+patterns cover every changed class, and cover an omitted class with explicit `targetClasses`
+in a focused run; a batch set that never mutated a changed class is not evidence for it.
 
 ## Interpret every raw status
 

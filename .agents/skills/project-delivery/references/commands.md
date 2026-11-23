@@ -22,7 +22,7 @@ python3 scripts/check-java-conventions.py  # new library-source convention viola
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
 python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures
-scripts/run-pit-core.sh --batch <A|B|C|D|E|all> --out <archive-dir>  # default core PIT partition; archives XML, log, monitor data, and metadata
+scripts/run-pit-core.sh --batch <A|B|C|D|E|all> --out <archive-dir>  # default core PIT partition; archives XML, log, monitor, metadata; verify batch coverage of changed classes
 python3 scripts/watch-delivery-ci.py <sha>  # watch the pushed tip's CI runs to a terminal result; attributes runs by head_sha
 python3 .agents/skills/contract-first-assurance/scripts/verify_package.py  # verify the versioned assurance skill bundle
 (cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py)  # verify the new worktree's required skills; run there, not in the shared checkout
@@ -50,8 +50,10 @@ This makes the Git commit the source of truth for worktree availability.
 
 Core PIT partitions go through `scripts/run-pit-core.sh`, the durable default:
 it archives each batch's `mutations.xml`, `pit.log`, `process-monitor.log`, and
-`run-meta.txt` under `<archive-dir>/batch-<name>/`. Procedure, durability, and
-dispositions: [PIT verification](../../../../verification/pit.md).
+`run-meta.txt` under `<archive-dir>/batch-<name>/`. Its batch patterns are
+fixed, so confirm they cover every changed class and fall back to explicit
+`targetClasses` otherwise. Procedure, durability, and dispositions:
+[PIT verification](../../../../verification/pit.md).
 
 The current development line and its upstream ref are declared once in
 `.agents/project-baseline.json`. Review gates and their documentation are

@@ -44,9 +44,10 @@ python3 scripts/process-metrics.py record --topic <topic> --route <route> \
 ```
 
 `--pit` takes durable evidence, preferring the archived XML from
-`scripts/run-pit-core.sh --out <archive-dir>`; run a focused inline PIT only after
-copying its XML and log out of build output. A directory argument reads every
-`mutations.xml` below it, so one multi-batch archive can be passed once.
+`scripts/run-pit-core.sh --out <archive-dir>`; a focused inline PIT supplies its
+XML only after that XML and a captured command log are copied out of build
+output. A directory argument reads every `mutations.xml` below it, so one
+multi-batch archive can be passed once.
 `--base` defaults to `@{upstream}`, which is the development line for a
 worktree branch created from `origin/dev/vX.Y.Z`; pass it explicitly
 otherwise. Name each adversarial review run once, in round order, including
