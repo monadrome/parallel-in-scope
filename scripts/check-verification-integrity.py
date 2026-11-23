@@ -1,0 +1,656 @@
+#!/usr/bin/env python3
+"""Fail when a change weakens existing tests or removes CODEOWNERS protection.
+
+Both the base and head trees are scanned. Existing disable annotations and constant
+assertions are grandfathered by baseline subtraction; a head occurrence fails only
+when its (path, rule, normalized source) count exceeds the base count. Test cases
+are identified by path and name. Exact whole-file moves are aligned by content hash.
+An existing test fails when its assertion count decreases.
+
+Protected verification infrastructure changes are printed for CODEOWNERS review but
+do not fail by themselves: legitimate maintenance must remain possible. The required
+CODEOWNERS entries themselves are mandatory. Narrow reviewed exceptions can be added
+to REVIEWED_EXCEPTIONS in this CODEOWNERS-protected script.
+
+The base is a git revision (default: the merge base of origin/dev/v0.5.0 and HEAD),
+or a repository directory given by --base-root. The head defaults to the working tree.
+Exit status: 0 pass, 1 integrity violations, 2 the check could not run.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import collections
+import dataclasses
+import hashlib
+import io
+import os
+import re
+import subprocess
+import sys
+import tarfile
+import tempfile
+from pathlib import Path
+from typing import Iterable, Iterator, Sequence
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_UPSTREAM = "origin/dev/v0.5.0"
+CODEOWNERS_PATH = ".github/CODEOWNERS"
+CODEOWNER = "@monadrome"
+REQUIRED_CODEOWNERS = (
+    "/.github/CODEOWNERS",
+    "/.github/workflows/",
+    "/scripts/check-*.py",
+    "/scripts/tests/",
+    "/verification/verification-integrity.md",
+)
+REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset()
+
+SKIPPED_DIRECTORIES = {
+    ".agents",
+    ".git",
+    ".idea",
+    ".pytest_cache",
+    ".review-benchmark",
+    ".worktrees",
+    "__pycache__",
+    "node_modules",
+    "target",
+}
+
+
+class CheckError(Exception):
+    """The check could not produce a trustworthy answer."""
+
+
+@dataclasses.dataclass(frozen=True)
+class Violation:
+    path: str
+    line: int
+    rule: str
+    message: str
+    key: str
+
+
+@dataclasses.dataclass(frozen=True)
+class TestCase:
+    name: str
+    line: int
+    assertions: int
+
+
+@dataclasses.dataclass(frozen=True)
+class TestFile:
+    text: str
+    digest: str
+    tests: tuple[TestCase, ...]
+    markers: tuple[Violation, ...]
+
+
+@dataclasses.dataclass(frozen=True)
+class Source:
+    text: str
+    code: str
+
+    def line_of(self, offset: int) -> int:
+        return self.text.count("\n", 0, offset) + 1
+
+
+def normalize(text: str) -> str:
+    return " ".join(text.split())
+
+
+def blank(text: str) -> str:
+    return "".join(char if char == "\n" else " " for char in text)
+
+
+def mask_c_like(text: str) -> Source:
+    """Blank comments and literal contents while preserving offsets and quote delimiters."""
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end < 0 else end
+            out.append(blank(text[i:end]))
+            i = end
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            end = n if end < 0 else end + 2
+            out.append(blank(text[i:end]))
+            i = end
+        elif text[i] in "\"'`":
+            quote = '"""' if text.startswith('"""', i) else text[i]
+            j = i + len(quote)
+            while j < n and not text.startswith(quote, j):
+                if text[j] == "\\":
+                    j += 1
+                elif text[j] == "\n" and len(quote) == 1 and quote != "`":
+                    break
+                j += 1
+            j = min(j, n)
+            closed = text.startswith(quote, j)
+            end = j + len(quote) if closed else j
+            out.append(quote + blank(text[i + len(quote):j]) + (quote if closed else ""))
+            i = end
+        else:
+            out.append(text[i])
+            i += 1
+    code = "".join(out)
+    if len(code) != len(text):
+        raise CheckError("internal error: masking changed the text length")
+    return Source(text, code)
+
+
+def matching_delimiter(code: str, open_index: int, opening: str = "(", closing: str = ")") -> int:
+    depth = 0
+    for index in range(open_index, len(code)):
+        if code[index] == opening:
+            depth += 1
+        elif code[index] == closing:
+            depth -= 1
+            if depth == 0:
+                return index
+    return -1
+
+
+def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[int, int]]:
+    spans, depth, start = [], 0, open_index + 1
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    closings = set(pairs.values())
+    for index in range(open_index + 1, close_index):
+        char = code[index]
+        if char in pairs:
+            depth += 1
+        elif char in closings:
+            depth -= 1
+        elif char == "," and depth == 0:
+            spans.append((start, index))
+            start = index + 1
+    spans.append((start, close_index))
+    return spans
+
+
+def skip_space(code: str, index: int) -> int:
+    while index < len(code) and code[index].isspace():
+        index += 1
+    return index
+
+
+def violation(source: Source, path: str, start: int, end: int, rule: str, message: str) -> Violation:
+    key = normalize(source.text[start:end])
+    return Violation(path, source.line_of(start), rule, message, key)
+
+
+JAVA_TEST = re.compile(
+    r"@(?:[A-Za-z_$][\w$]*\.)*(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\b"
+)
+JAVA_ANNOTATION = re.compile(r"@(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*")
+JAVA_DISABLED = re.compile(r"@(?:[A-Za-z_$][\w$]*\.)*(?:Disabled|Ignore)\b")
+JAVA_ASSERTION = re.compile(
+    r"(?<![\w$])(?P<name>assert[A-Z][\w$]*|fail|verify(?:NoInteractions|NoMoreInteractions)?)\s*\("
+)
+JAVA_NAME_BEFORE_PARAMETERS = re.compile(r"(?P<name>[A-Za-z_$][\w$]*)\s*$")
+
+
+def annotation_end(code: str, end: int) -> int:
+    position = skip_space(code, end)
+    if position < len(code) and code[position] == "(":
+        close = matching_delimiter(code, position)
+        return len(code) if close < 0 else close + 1
+    return end
+
+
+def java_test_at(source: Source, match: re.Match[str]) -> TestCase | None:
+    code = source.code
+    position = annotation_end(code, match.end())
+    while True:
+        position = skip_space(code, position)
+        if position >= len(code) or code[position] != "@":
+            break
+        annotation = JAVA_ANNOTATION.match(code, position)
+        if annotation is None:
+            return None
+        position = annotation_end(code, annotation.end())
+    open_parameters = code.find("(", position)
+    if open_parameters < 0:
+        return None
+    earlier_stop = min((index for index in (code.find("{", position), code.find(";", position)) if index >= 0), default=-1)
+    if 0 <= earlier_stop < open_parameters:
+        return None
+    name = JAVA_NAME_BEFORE_PARAMETERS.search(code, position, open_parameters)
+    if name is None:
+        return None
+    close_parameters = matching_delimiter(code, open_parameters)
+    if close_parameters < 0:
+        return None
+    open_body = code.find("{", close_parameters + 1)
+    semicolon = code.find(";", close_parameters + 1)
+    if open_body < 0 or (0 <= semicolon < open_body):
+        return None
+    close_body = matching_delimiter(code, open_body, "{", "}")
+    if close_body < 0:
+        return None
+    assertions = sum(1 for _ in JAVA_ASSERTION.finditer(code, open_body + 1, close_body))
+    return TestCase(name["name"], source.line_of(name.start("name")), assertions)
+
+
+def java_noops(source: Source, path: str) -> Iterator[Violation]:
+    code = source.code
+    for match in JAVA_ASSERTION.finditer(code):
+        name = match["name"]
+        if name not in {"assertTrue", "assertFalse", "assertEquals", "assertSame", "assertThat"}:
+            continue
+        open_index = match.end() - 1
+        close_index = matching_delimiter(code, open_index)
+        if close_index < 0:
+            continue
+        arguments = split_arguments(code, open_index, close_index)
+        values = [normalize(code[start:end]) for start, end in arguments]
+        original = [normalize(source.text[start:end]) for start, end in arguments]
+        noop = False
+        end = close_index + 1
+        if name == "assertTrue" and values and (values[0] == "true" or values[-1] == "true"):
+            noop = True
+        elif name == "assertFalse" and values and (values[0] == "false" or values[-1] == "false"):
+            noop = True
+        elif name in {"assertEquals", "assertSame"} and len(original) == 2 and original[0] == original[1]:
+            noop = True
+        elif name == "assertThat" and values in (["true"], ["false"]):
+            chain = re.match(r"\s*\.\s*(?P<method>isTrue|isFalse)\s*\(\s*\)", code[end:])
+            if chain and ((values[0] == "true") == (chain["method"] == "isTrue")):
+                noop = True
+                end += chain.end()
+        if noop:
+            yield violation(source, path, match.start(), end, "V5", f"new constant or self-comparing {name} assertion")
+
+
+def scan_java(path: str, text: str, digest: str) -> TestFile:
+    source = mask_c_like(text)
+    tests = [test for match in JAVA_TEST.finditer(source.code) if (test := java_test_at(source, match)) is not None]
+    markers = list(java_noops(source, path))
+    for match in JAVA_DISABLED.finditer(source.code):
+        end = annotation_end(source.code, match.end())
+        markers.append(violation(source, path, match.start(), end, "V3", "new @Disabled or @Ignore test annotation"))
+    return TestFile(text, digest, tuple(tests), tuple(markers))
+
+
+def dotted_name(node: ast.AST) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = dotted_name(node.value)
+        return f"{prefix}.{node.attr}" if prefix else node.attr
+    return ""
+
+
+PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
+
+
+def python_assertion_call(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    name = dotted_name(node.func)
+    final = name.rsplit(".", 1)[-1]
+    return final.startswith("assert") or (name.startswith("pytest.") and final in {"raises", "warns"})
+
+
+def python_noops(tree: ast.AST, path: str, text: str) -> Iterator[Violation]:
+    for node in ast.walk(tree):
+        noop = False
+        name = "assert"
+        if isinstance(node, ast.Assert):
+            if isinstance(node.test, ast.Constant) and node.test.value is True:
+                noop = True
+            elif isinstance(node.test, ast.Compare) and len(node.test.ops) == 1 and isinstance(node.test.ops[0], ast.Eq):
+                noop = len(node.test.comparators) == 1 and ast.dump(node.test.left) == ast.dump(node.test.comparators[0])
+        elif isinstance(node, ast.Call):
+            name = dotted_name(node.func).rsplit(".", 1)[-1]
+            if name in {"assertTrue", "assertFalse"} and node.args:
+                noop = isinstance(node.args[0], ast.Constant) and node.args[0].value is (name == "assertTrue")
+            elif name in {"assertEqual", "assertIs"} and len(node.args) == 2:
+                noop = ast.dump(node.args[0]) == ast.dump(node.args[1])
+            elif name == "assertIsNone" and len(node.args) == 1:
+                noop = isinstance(node.args[0], ast.Constant) and node.args[0].value is None
+        if noop:
+            segment = ast.get_source_segment(text, node) or name
+            yield Violation(path, node.lineno, "V5", f"new constant or self-comparing {name} assertion", normalize(segment))
+
+
+def scan_python(path: str, text: str, digest: str) -> TestFile:
+    try:
+        tree = ast.parse(text, filename=path)
+    except SyntaxError as error:
+        raise CheckError(f"cannot parse {path}: {error}") from error
+    tests: list[TestCase] = []
+
+    def visit(node: ast.AST, prefix: str = "") -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                qualified = prefix + child.name
+                if child.name.startswith("test"):
+                    assertions = sum(isinstance(item, ast.Assert) or python_assertion_call(item) for item in ast.walk(child))
+                    tests.append(TestCase(qualified, child.lineno, assertions))
+                visit(child, qualified + ".")
+            elif isinstance(child, ast.ClassDef):
+                visit(child, prefix + child.name + ".")
+            else:
+                visit(child, prefix)
+
+    visit(tree)
+    markers = list(python_noops(tree, path, text))
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            name = dotted_name(target)
+            if name.rsplit(".", 1)[-1].lower() in PYTHON_DISABLED:
+                segment = ast.get_source_segment(text, decorator) or name
+                markers.append(Violation(path, decorator.lineno, "V3", "new skip, expected-failure, or xfail decorator", normalize(segment)))
+    return TestFile(text, digest, tuple(tests), tuple(markers))
+
+
+TS_TEST = re.compile(
+    r"(?<![\w$])(?:test|it)(?:\s*\.\s*(?:skip|only|todo))?\s*\(\s*(?P<quote>['\"`])"
+)
+TS_SELECTION = re.compile(r"(?<![\w$])(?:test|it|describe)\s*\.\s*(?:skip|only|todo)\b|(?<![\w$])x(?:test|it|describe)\b")
+TS_ASSERTION = re.compile(r"(?<![\w$])(?:assert(?:\s*\.\s*[A-Za-z_$][\w$]*)?|expect)\s*\(")
+TS_ASSERT_CALL = re.compile(
+    r"(?<![\w$])assert(?:\s*\.\s*(?P<method>ok|equal|strictEqual|deepEqual|deepStrictEqual))?\s*\("
+)
+TS_EXPECT_NOOP = re.compile(
+    r"(?<![\w$])expect\s*\(\s*(?P<value>true|false)\s*\)\s*\.\s*toBe\s*\(\s*(?P=value)\s*\)"
+)
+
+
+def scan_typescript(path: str, text: str, digest: str) -> TestFile:
+    source = mask_c_like(text)
+    code = source.code
+    tests: list[TestCase] = []
+    for match in TS_TEST.finditer(code):
+        quote_at = match.end() - 1
+        quote = match["quote"]
+        close_quote = code.find(quote, quote_at + 1)
+        open_call = code.rfind("(", match.start(), quote_at)
+        close_call = matching_delimiter(code, open_call) if open_call >= 0 else -1
+        if close_quote < 0 or close_call < 0:
+            continue
+        title = normalize(text[quote_at + 1:close_quote])
+        assertions = sum(1 for _ in TS_ASSERTION.finditer(code, open_call + 1, close_call))
+        tests.append(TestCase(title, source.line_of(match.start()), assertions))
+    markers = [
+        violation(source, path, match.start(), match.end(), "V3", "new skipped, todo, exclusive, or x-prefixed test selection")
+        for match in TS_SELECTION.finditer(code)
+    ]
+    for match in TS_ASSERT_CALL.finditer(code):
+        open_index = match.end() - 1
+        close_index = matching_delimiter(code, open_index)
+        if close_index < 0:
+            continue
+        arguments = split_arguments(code, open_index, close_index)
+        values = [normalize(code[start:end]) for start, end in arguments]
+        original = [normalize(text[start:end]) for start, end in arguments]
+        method = match["method"]
+        noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
+            method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
+            and len(original) == 2
+            and original[0] == original[1]
+        )
+        if noop:
+            markers.append(violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion"))
+    markers.extend(
+        violation(source, path, match.start(), match.end(), "V5", "new constant expect assertion")
+        for match in TS_EXPECT_NOOP.finditer(code)
+    )
+    return TestFile(text, digest, tuple(tests), tuple(markers))
+
+
+def repository_files(root: Path) -> Iterator[tuple[str, Path]]:
+    if not root.is_dir():
+        raise CheckError(f"repository root {root} is not a directory")
+    for current, directories, files in os.walk(root):
+        directories[:] = sorted(name for name in directories if name not in SKIPPED_DIRECTORIES)
+        for name in sorted(files):
+            path = Path(current) / name
+            yield path.relative_to(root).as_posix(), path
+
+
+def is_test_file(relative: str) -> bool:
+    path = Path(relative)
+    parts = path.parts
+    if path.suffix == ".java" and any(parts[index:index + 2] == ("src", "test") for index in range(len(parts) - 1)):
+        return True
+    if parts[:2] == ("scripts", "tests") and path.name.startswith("test_") and path.suffix == ".py":
+        return True
+    return parts[:3] == ("tools", "llm-review-bench", "test") and path.name.endswith(".test.ts")
+
+
+def is_protected_file(relative: str) -> bool:
+    path = Path(relative)
+    parts = path.parts
+    return (
+        relative in {CODEOWNERS_PATH, "verification/verification-integrity.md"}
+        or parts[:2] == (".github", "workflows")
+        or (len(parts) == 2 and parts[0] == "scripts" and path.name.startswith("check-") and path.suffix == ".py")
+        or parts[:2] == ("scripts", "tests")
+    )
+
+
+def scan_tests(root: Path) -> dict[str, TestFile]:
+    files: dict[str, TestFile] = {}
+    for relative, path in repository_files(root):
+        if not is_test_file(relative):
+            continue
+        try:
+            raw = path.read_bytes()
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            raise CheckError(f"cannot read {path}: {error}") from error
+        digest = hashlib.sha256(raw).hexdigest()
+        if path.suffix == ".java":
+            files[relative] = scan_java(relative, text, digest)
+        elif path.suffix == ".py":
+            files[relative] = scan_python(relative, text, digest)
+        else:
+            files[relative] = scan_typescript(relative, text, digest)
+    return files
+
+
+def exact_moves(base: dict[str, TestFile], head: dict[str, TestFile]) -> dict[str, str]:
+    base_only = set(base) - set(head)
+    head_only = set(head) - set(base)
+    base_hashes: dict[str, list[str]] = collections.defaultdict(list)
+    head_hashes: dict[str, list[str]] = collections.defaultdict(list)
+    for path in sorted(base_only):
+        base_hashes[base[path].digest].append(path)
+    for path in sorted(head_only):
+        head_hashes[head[path].digest].append(path)
+    return {
+        base_paths[0]: head_hashes[digest][0]
+        for digest, base_paths in base_hashes.items()
+        if len(base_paths) == 1 and len(head_hashes.get(digest, [])) == 1
+    }
+
+
+def align_base_files(base: dict[str, TestFile], moves: dict[str, str]) -> dict[str, TestFile]:
+    aligned = {}
+    for path, file in base.items():
+        target = moves.get(path, path)
+        markers = tuple(dataclasses.replace(marker, path=target) for marker in file.markers)
+        aligned[target] = dataclasses.replace(file, markers=markers)
+    return aligned
+
+
+def grouped_tests(file: TestFile) -> dict[str, list[TestCase]]:
+    grouped: dict[str, list[TestCase]] = collections.defaultdict(list)
+    for test in file.tests:
+        grouped[test.name].append(test)
+    return grouped
+
+
+def compare_tests(base: dict[str, TestFile], head: dict[str, TestFile]) -> tuple[list[Violation], dict[str, TestFile]]:
+    moves = exact_moves(base, head)
+    aligned = align_base_files(base, moves)
+    found: list[Violation] = []
+    for path, file in base.items():
+        if path not in head and path not in moves and file.tests:
+            found.append(Violation(path, 0, "V1", f"test file with {len(file.tests)} test case(s) was deleted", path))
+    for path, base_file in aligned.items():
+        head_file = head.get(path)
+        if head_file is None:
+            continue
+        base_tests = grouped_tests(base_file)
+        head_tests = grouped_tests(head_file)
+        for name, base_cases in base_tests.items():
+            head_cases = head_tests.get(name, [])
+            if len(head_cases) < len(base_cases):
+                found.append(Violation(
+                    path,
+                    base_cases[0].line,
+                    "V2",
+                    f"test case {name!r} was removed or renamed ({len(base_cases)} -> {len(head_cases)})",
+                    name,
+                ))
+            for base_case, head_case in zip(base_cases, head_cases):
+                if head_case.assertions < base_case.assertions:
+                    found.append(Violation(
+                        path,
+                        head_case.line,
+                        "V4",
+                        f"test case {name!r} assertion count decreased ({base_case.assertions} -> {head_case.assertions})",
+                        name,
+                    ))
+    return found, aligned
+
+
+def new_markers(base: Iterable[Violation], head: Iterable[Violation]) -> list[Violation]:
+    base_counts = collections.Counter((item.path, item.rule, item.key) for item in base)
+    head = list(head)
+    head_counts = collections.Counter((item.path, item.rule, item.key) for item in head)
+    grown = {key for key, count in head_counts.items() if count > base_counts[key]}
+    return [item for item in head if (item.path, item.rule, item.key) in grown]
+
+
+def protected_files(root: Path) -> dict[str, bytes]:
+    found = {}
+    for relative, path in repository_files(root):
+        if not is_protected_file(relative):
+            continue
+        try:
+            found[relative] = path.read_bytes()
+        except OSError as error:
+            raise CheckError(f"cannot read {path}: {error}") from error
+    return found
+
+
+def protected_changes(base: dict[str, bytes], head: dict[str, bytes]) -> list[str]:
+    changes = []
+    for path in sorted(set(base) | set(head)):
+        if path not in base:
+            changes.append(f"PROTECTED {path}: added; CODEOWNERS review required")
+        elif path not in head:
+            changes.append(f"PROTECTED {path}: deleted; CODEOWNERS review required")
+        elif base[path] != head[path]:
+            changes.append(f"PROTECTED {path}: modified; CODEOWNERS review required")
+    return changes
+
+
+def codeowner_violations(root: Path) -> list[Violation]:
+    path = root / CODEOWNERS_PATH
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return [Violation(CODEOWNERS_PATH, 0, "V6", f"cannot read required CODEOWNERS: {error}", CODEOWNERS_PATH)]
+    entries: dict[str, list[str]] = {}
+    for line in text.splitlines():
+        content = line.split("#", 1)[0].strip()
+        if not content:
+            continue
+        fields = content.split()
+        if len(fields) >= 2:
+            entries[fields[0]] = fields[1:]
+    return [
+        Violation(CODEOWNERS_PATH, 0, "V6", f"CODEOWNERS entry {pattern!r} must retain {CODEOWNER}", pattern)
+        for pattern in REQUIRED_CODEOWNERS
+        if CODEOWNER not in entries.get(pattern, [])
+    ]
+
+
+def git(*args: str) -> bytes:
+    result = subprocess.run(["git", *args], cwd=ROOT, capture_output=True)
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", "replace").strip()
+        raise CheckError(f"git {' '.join(args)} failed: {detail}")
+    return result.stdout
+
+
+def default_base() -> str:
+    return git("merge-base", DEFAULT_UPSTREAM, "HEAD").decode().strip()
+
+
+def extract_base(revision: str, target: Path) -> Path:
+    commit = git("rev-parse", "--verify", f"{revision}^{{commit}}").decode().strip()
+    archive = git("archive", "--format=tar", commit)
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            tar.extractall(target, filter="data")
+    except (tarfile.TarError, OSError) as error:
+        raise CheckError(f"cannot extract repository at {commit[:12]}: {error}") from error
+    return target
+
+
+def revision_argument(value: str) -> str:
+    if not value or value.startswith("-"):
+        raise argparse.ArgumentTypeError(f"not a revision: {value!r}")
+    return value
+
+
+def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    base = parser.add_mutually_exclusive_group()
+    base.add_argument("--base", type=revision_argument, help=f"base revision (default: merge base of {DEFAULT_UPSTREAM} and HEAD)")
+    base.add_argument("--base-root", type=Path, help="base repository directory, instead of a git revision")
+    parser.add_argument("--head-root", type=Path, default=ROOT, help="head repository directory")
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    try:
+        with tempfile.TemporaryDirectory() as scratch:
+            base_root = args.base_root or extract_base(args.base or default_base(), Path(scratch))
+            base_files = scan_tests(base_root)
+            head_files = scan_tests(args.head_root)
+            found, aligned_base = compare_tests(base_files, head_files)
+            base_markers = (marker for file in aligned_base.values() for marker in file.markers)
+            head_markers = (marker for file in head_files.values() for marker in file.markers)
+            found.extend(new_markers(base_markers, head_markers))
+            found.extend(codeowner_violations(args.head_root))
+            changes = protected_changes(protected_files(base_root), protected_files(args.head_root))
+    except CheckError as error:
+        print(f"Verification integrity check could not run: {error}", file=sys.stderr)
+        return 2
+    found = sorted(
+        (
+            item
+            for item in found
+            if item.rule == "V6" or (item.path, item.rule, item.key) not in REVIEWED_EXCEPTIONS
+        ),
+        key=lambda item: (item.path, item.line, item.rule, item.key),
+    )
+    for item in found:
+        location = f"{item.path}:{item.line}" if item.line else item.path
+        print(f"{location}: {item.rule}: {item.message}")
+    for change in changes:
+        print(change)
+    if found:
+        print(f"{len(found)} verification integrity violation(s); see verification/verification-integrity.md", file=sys.stderr)
+        return 1
+    print(f"Verification integrity: no new violations; {len(changes)} protected change(s) reported")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

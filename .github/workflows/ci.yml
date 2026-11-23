@@ -63,6 +63,28 @@ jobs:
       - name: Build documentation strictly
         run: mkdocs build --strict --config-file mkdocs/mkdocs.yml
 
+  verification-integrity:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Check verification integrity
+        run: |
+          BASE="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
+          python3 scripts/check-verification-integrity.py --base "$BASE"
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 35

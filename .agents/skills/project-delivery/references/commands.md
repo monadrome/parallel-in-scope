@@ -19,6 +19,7 @@ python3 scripts/check-proposal.py     # proposal abstracts, id uniqueness across
 python3 scripts/check-local-links.py  # relative Markdown links resolve; no live links into design/archive/
 python3 scripts/check-english-docs.py  # English locations contain no Han characters
 python3 scripts/check-java-conventions.py  # new library-source convention violations; see verification/java-conventions.md
+python3 scripts/check-verification-integrity.py  # test weakening and verification-infrastructure protection; see verification/verification-integrity.md
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
 python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures

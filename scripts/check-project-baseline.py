@@ -14,8 +14,10 @@ BASELINE = ROOT / ".agents" / "project-baseline.json"
 AGENTS = ROOT / "AGENTS.md"
 CONFIG = ROOT / "refactoring-review" / "config.json"
 JAVA_GATE = ROOT / "scripts" / "check-java-conventions.py"
+INTEGRITY_GATE = ROOT / "scripts" / "check-verification-integrity.py"
 COMPLEXITY_SKILL = ROOT / ".agents" / "skills" / "complexity-review-eval" / "SKILL.md"
 DOC = ROOT / "verification" / "java-conventions.md"
+INTEGRITY_DOC = ROOT / "verification" / "verification-integrity.md"
 ADAPTER = ROOT / ".agents" / "skills" / "contract-first-assurance" / "adapters" / "vformation.yaml"
 DEVELOPMENT_REF = re.compile(r"origin/dev/v\d+\.\d+\.\d+")
 ADAPTER_BASE = re.compile(r'''(?m)^base_ref:\s*(?:(['"])(.*?)\1|([^#\s]+))(?:\s+#.*)?\s*$''')
@@ -72,6 +74,16 @@ def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
     if upstream_ref not in doc_text:
         errors.append(f"verification/java-conventions.md does not document {upstream_ref}")
 
+    integrity_text = INTEGRITY_GATE.read_text(encoding="utf-8")
+    if f'DEFAULT_UPSTREAM = "{upstream_ref}"' not in integrity_text:
+        errors.append(f"scripts/check-verification-integrity.py does not use {upstream_ref}")
+
+    integrity_doc_text = INTEGRITY_DOC.read_text(encoding="utf-8")
+    if "check-verification-integrity.py" not in integrity_doc_text:
+        errors.append("verification/verification-integrity.md does not document the verification integrity gate")
+    if upstream_ref not in integrity_doc_text:
+        errors.append(f"verification/verification-integrity.md does not document {upstream_ref}")
+
     adapter_text = ADAPTER.read_text(encoding="utf-8")
     adapter_base = ADAPTER_BASE.search(adapter_text)
     if not adapter_base:
@@ -85,7 +97,7 @@ def validate_script_and_docs(upstream_ref: object, errors: list[str]) -> None:
 def validate_stale_references(upstream_ref: object, errors: list[str]) -> None:
     if not isinstance(upstream_ref, str):
         return
-    live_files = (AGENTS, CONFIG, JAVA_GATE, COMPLEXITY_SKILL, DOC, ADAPTER)
+    live_files = (AGENTS, CONFIG, JAVA_GATE, INTEGRITY_GATE, COMPLEXITY_SKILL, DOC, INTEGRITY_DOC, ADAPTER)
     seen: set[tuple[Path, str]] = set()
     for path in live_files:
         text = path.read_text(encoding="utf-8")

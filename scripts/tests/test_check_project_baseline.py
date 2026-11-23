@@ -28,13 +28,17 @@ class ProjectBaselineTest(unittest.TestCase):
             root = Path(directory)
             paths = {
                 "JAVA_GATE": root / "java-conventions.py",
+                "INTEGRITY_GATE": root / "verification-integrity.py",
                 "COMPLEXITY_SKILL": root / "complexity.md",
                 "DOC": root / "java-conventions.md",
+                "INTEGRITY_DOC": root / "verification-integrity.md",
                 "ADAPTER": root / "vformation.yaml",
             }
             paths["JAVA_GATE"].write_text('DEFAULT_UPSTREAM = "origin/dev/v0.5.0"\n', encoding="utf-8")
+            paths["INTEGRITY_GATE"].write_text('DEFAULT_UPSTREAM = "origin/dev/v0.5.0"\n', encoding="utf-8")
             paths["COMPLEXITY_SKILL"].write_text("origin/dev/v0.5.0\n", encoding="utf-8")
             paths["DOC"].write_text("check-java-conventions.py\norigin/dev/v0.5.0\n", encoding="utf-8")
+            paths["INTEGRITY_DOC"].write_text("check-verification-integrity.py\norigin/dev/v0.5.0\n", encoding="utf-8")
             paths["ADAPTER"].write_text(adapter_text, encoding="utf-8")
             errors = []
             with mock.patch.multiple(baseline, **paths):
@@ -56,7 +60,7 @@ class ProjectBaselineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             files = []
-            for index in range(6):
+            for index in range(8):
                 path = root / f"live-{index}.md"
                 path.write_text("origin/dev/v0.6.0\n", encoding="utf-8")
                 files.append(path)
@@ -66,12 +70,14 @@ class ProjectBaselineTest(unittest.TestCase):
                     mock.patch.object(baseline, "AGENTS", files[0]), \
                     mock.patch.object(baseline, "CONFIG", files[1]), \
                     mock.patch.object(baseline, "JAVA_GATE", files[2]), \
-                    mock.patch.object(baseline, "COMPLEXITY_SKILL", files[3]), \
-                    mock.patch.object(baseline, "DOC", files[4]), \
-                    mock.patch.object(baseline, "ADAPTER", files[5]):
+                    mock.patch.object(baseline, "INTEGRITY_GATE", files[3]), \
+                    mock.patch.object(baseline, "COMPLEXITY_SKILL", files[4]), \
+                    mock.patch.object(baseline, "DOC", files[5]), \
+                    mock.patch.object(baseline, "INTEGRITY_DOC", files[6]), \
+                    mock.patch.object(baseline, "ADAPTER", files[7]):
                 baseline.validate_stale_references("origin/dev/v0.5.0", errors)
 
-            self.assertEqual(len(errors), 6)
+            self.assertEqual(len(errors), 8)
             self.assertTrue(all("origin/dev/v0.6.0" in error for error in errors))
 
 

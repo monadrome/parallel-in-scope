@@ -171,6 +171,7 @@ Load only the matching row, then follow that document's subject-specific routes.
 | Issue automation | `design/issue-automation.md` before changing the runner, labels, or issue workflows |
 | Delivery record | `verification/delivery-ledger.md` before delivery or process-metrics changes |
 | Java convention gate | `verification/java-conventions.md` when changing the gate or diagnosing a finding |
+| Verification integrity gate | `verification/verification-integrity.md` when changing tests or verification infrastructure, or diagnosing a finding |
 
 For design work, check `git status --short design/` for uncommitted analysis and follow the
 analysis/proposal lifecycle in documentation maintenance before committing or retiring drafts.

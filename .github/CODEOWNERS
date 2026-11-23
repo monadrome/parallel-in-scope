@@ -1,0 +1,5 @@
+/.github/CODEOWNERS @monadrome
+/.github/workflows/ @monadrome
+/scripts/check-*.py @monadrome
+/scripts/tests/ @monadrome
+/verification/verification-integrity.md @monadrome
