@@ -64,13 +64,18 @@ with the shell capturing the Maven console log that the plugin does not write:
 
 ```bash
 EVID=tmp/pit-evidence/execution-phase-hint && mkdir -p "$EVID"
+rm -f core/target/pit-reports/mutations.xml
 mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture*' \
   '-DtargetTests=io.github.monadrome.parallelinscope.TaskTerminationTest*,io.github.monadrome.parallelinscope.CallableReferenceReleaseTest*' \
   '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS' \
   > "$EVID/pit.log" 2>&1; rc=$?
-cp core/target/pit-reports/mutations.xml "$EVID/" 2>/dev/null; echo "exit=$rc"
+if [ -f core/target/pit-reports/mutations.xml ]; then cp core/target/pit-reports/mutations.xml "$EVID/"; else echo "no mutations.xml; partition inconclusive"; fi
+echo "exit=$rc"
 ```
+
+Deleting the prior report first is what keeps a failed compile or PIT startup
+from being archived as this partition's result.
 
 Do not run Maven or PIT concurrently in one checkout. Archive the command and
 raw counts before starting the next partition, and report the aggregate as
@@ -93,16 +98,19 @@ tests. Include every relevant contract test, not just the new regression test.
 
 ```bash
 EVID=tmp/pit-evidence/<label> && mkdir -p "$EVID"
+rm -f core/target/pit-reports/mutations.xml
 mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.TouchedClass*' \
   '-DtargetTests=io.github.monadrome.parallelinscope.TouchedTest*,io.github.monadrome.parallelinscope.OtherContractTest*' \
   '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS' \
   > "$EVID/pit.log" 2>&1; rc=$?
-cp core/target/pit-reports/mutations.xml "$EVID/" 2>/dev/null; echo "exit=$rc"
+if [ -f core/target/pit-reports/mutations.xml ]; then cp core/target/pit-reports/mutations.xml "$EVID/"; else echo "no mutations.xml; partition inconclusive"; fi
+echo "exit=$rc"
 ```
 
-The redirect writes the log the plugin never produces, and the `cp` keeps the
-raw XML only when PIT wrote one; both live in `$EVID` regardless of `rc`.
+The redirect writes the log the plugin never produces. The removed report and
+the conditional copy guarantee `$EVID` holds only this run's XML, so a failure
+surfaces as missing evidence instead of an earlier partition's numbers.
 
 The explicit goal is required: `mvn -Ppitest` alone runs no mutation analysis.
 The command is offline-safe when dependencies are already installed.
@@ -125,7 +133,9 @@ For this multi-module build, a core PIT run writes `core/target/pit-reports/muta
 and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
 That path is build output: a clean, a rebuild, or worktree removal deletes it, so a focused
 inline run MUST copy the XML and the captured command log to durable evidence at that point,
-as the examples above do. The archived XML is what later evidence and the delivery ledger cite.
+as the examples above do. It MUST delete the previous report first and copy only a report the
+current run produced; a missing XML is `inconclusive`, never the stale file. The archived XML
+is what later evidence and the delivery ledger cite.
 The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
 may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
 Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside
