@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "review-evidence-llm-ledger-9fc1db93-20261123-071235-04cb99",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T07:12:35.678Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/review-evidence-llm-ledger",
+    "name": "review-evidence-llm-ledger",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "8858900107c7d6b81988014ec3d00b5c52f9cf90",
+    "head": "9fc1db93210b97ba969df30edf936644c1b03d52",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "8858900107c7d6b81988014ec3d00b5c52f9cf90",
+    "to": "9fc1db93210b97ba969df30edf936644c1b03d52",
+    "label": "88589001..9fc1db93"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "fc231b8ea0c69c7909fc0d2ab9ebf353484c53c292d8341b4dea7f6d227b3137",
+    "bytes": 4421,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/refactoring-review/SKILL.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 1
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 3
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "10b8d05571109a2f0914bbd4affa11812d964df78f4c0c93178999b118e21040",
+    "bytes": 2721,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "815b83049ee61b50e0f6ff4b5ef3f46b1fd6954eafe16c995d2e221209f6f6eb",
+    "bytes": 2493
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "9fc1db93210b97ba969df30edf936644c1b03d52",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

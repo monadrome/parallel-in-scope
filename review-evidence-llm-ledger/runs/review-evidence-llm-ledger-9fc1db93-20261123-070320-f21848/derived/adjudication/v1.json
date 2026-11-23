@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "review-evidence-llm-ledger-9fc1db93-20261123-070320-f21848",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-23T07:14:45.677Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi-for-coding",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "design/llm-review-benchmark.md section 10 Local data states raw logs may contain sensitive fragments and must not be committed; the new rule committed runs/ including logs/",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "README directory protocol and design section 4.3 place gold at .review-benchmark/gold/<run-id>/ outside runs/; report and rescore reload it",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "the new rule specified no fetch/rebase/retry for the shared llm-ledger branch; concurrent deliveries would hit non-fast-forward rejections",
+      "confidence": 1
+    }
+  ]
+}

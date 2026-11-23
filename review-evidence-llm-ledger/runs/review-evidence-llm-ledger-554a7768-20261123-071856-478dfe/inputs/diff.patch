@@ -1,0 +1,83 @@
+diff --git a/.agents/skills/project-delivery/references/review.md b/.agents/skills/project-delivery/references/review.md
+index 18364775..a5bfd9c8 100644
+--- a/.agents/skills/project-delivery/references/review.md
++++ b/.agents/skills/project-delivery/references/review.md
+@@ -61,9 +61,10 @@ fixes can continue in later sessions:
+   it explicitly. Record findings, dispositions (including rejections), and each
+   fix's actual effect in the change's `design/` document, or in the fix commit
+   message when no `design/` document covers the change. The review workspace or
+-  run directory is the audit trail; delivery commits it to the `llm-ledger`
+-  branch before removing the worktree (Checkout Isolation in
+-  [workflow](workflow.md)), so the evidence outlives the cleanup.
++  run directory is the audit trail; delivery commits its audit records (raw
++  logs and agent output excluded) to the `llm-ledger` branch before removing
++  the worktree (Checkout Isolation in [workflow](workflow.md)), so the evidence
++  outlives the cleanup.
+ - Reverse-verify every regression test: temporarily revert only the fix, observe
+   the new test fail, then restore the fix.
+ - For executable production changes (including refactors), mutation-relevant
+diff --git a/.agents/skills/project-delivery/references/workflow.md b/.agents/skills/project-delivery/references/workflow.md
+index 4e476f32..396d2547 100644
+--- a/.agents/skills/project-delivery/references/workflow.md
++++ b/.agents/skills/project-delivery/references/workflow.md
+@@ -16,11 +16,21 @@ Carry over only your own changes as a patch of your paths, then return those pat
+ shared checkout to their committed state. Verify, commit, and deliver from the owned worktree.
+ Leave others' files and commits intact: do not commit, stash, reset, rebase, or switch branches
+ in the shared checkout, and never push their commits. After delivery, preserve the review
+-evidence, then remove the worktree and delete its branch: commit the delivery's review run
+-directories (`.review-benchmark/runs/`, `.agents/reviews/`) to the `llm-ledger` branch under
+-the topic name and push it, creating that branch from an orphan root when it does not exist
+-yet. The run directories are git-ignored and would otherwise die with the worktree; on
+-`llm-ledger` they stay available as the audit trail the review procedure requires.
++evidence, then remove the worktree and delete its branch:
++
++- Archive each review run under the topic name on the `llm-ledger` branch:
++  `.review-benchmark/runs/<run-id>` becomes `<topic>/runs/<run-id>`, the matching
++  `.review-benchmark/gold/<run-id>` becomes `<topic>/gold/<run-id>`, and a refactoring-review
++  run under `.agents/reviews/` becomes `<topic>/refactoring-reviews/<run>`. Exclude `logs/`,
++  `agent-output/`, and `snapshot/`: raw logs and agent output may contain sensitive fragments
++  and must not be committed (the benchmark security boundary), and the snapshot is a nested
++  worktree. The rest is the audit trail the review procedure requires, and `report`/`rescore`
++  still work against the archive with `--output <ledger-checkout>/<topic>`.
++- Work in a dedicated ledger worktree: fetch `origin/llm-ledger` and check it out there,
++  creating the branch from an orphan root when absent; copy the runs into the paths above,
++  `git add` (an orphan root carries no ignore rules), commit, and push. On a non-fast-forward
++  rejection, rebase onto the fetched tip and retry; topic-named directories keep concurrent
++  appends disjoint. Remove the delivery worktree only once the pushed tip contains the topic.
+ 
+ ## Local Verification
+ 
+diff --git a/design/llm-review-benchmark.md b/design/llm-review-benchmark.md
+index 737301c1..8fb2daab 100644
+--- a/design/llm-review-benchmark.md
++++ b/design/llm-review-benchmark.md
+@@ -316,7 +316,9 @@ JSON's `note`).
+   required `--trust-all-tools` exists only inside the adapter and is recorded as a risk.
+ - **Local data**: the benchmark root defaults to `.review-benchmark/`, already in the root
+   `.gitignore`; raw logs may contain model output or sensitive fragments and must not be
+-  committed.
++  committed. Delivery archives run audit records (excluding `logs/`, `agent-output/`, and
++  `snapshot/`) with their gold to the `llm-ledger` branch per Checkout Isolation in the
++  project-delivery workflow.
+ - **Tests call no real models**: tests use temporary git repositories and fixture adapters;
+   real CLIs are triggered only by explicit runs.
+ - **Concurrency**: only one runner process per run; state updates serialize in-process, there
+diff --git a/verification/delivery-ledger.md b/verification/delivery-ledger.md
+index fda17138..a8a9189a 100644
+--- a/verification/delivery-ledger.md
++++ b/verification/delivery-ledger.md
+@@ -12,9 +12,11 @@ The raw evidence stays where the tools write it: llm-review-bench runs under
+ `.review-benchmark/runs/` or `.agents/reviews/`, refactoring-review runs under
+ `.agents/reviews/`, PIT reports under `target/`. PIT reports are local build
+ output and die with their worktree. Review run directories are different:
+-delivery commits them to the `llm-ledger` branch before removing the worktree
+-(Checkout Isolation in the project-delivery workflow), so the review audit
+-trail survives cleanup. The record still copies the counts at delivery time.
++delivery commits their audit records (raw logs, agent output, and snapshots
++excluded) with matching gold to the `llm-ledger` branch before removing the
++worktree (Checkout Isolation in the project-delivery workflow), so the review
++audit trail survives cleanup. The record still copies the counts at delivery
++time.
+ 
+ `scripts/process-metrics.py` writes and reads the records. Its tests are
+ `scripts/tests/test_process_metrics.py`.

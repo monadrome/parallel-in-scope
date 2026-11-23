@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "review-evidence-llm-ledger-554a7768-20261123-071856-478dfe",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-23T07:27:39.390Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi-for-coding",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "review.md named only raw logs and agent output while the canonical rule also excludes snapshot/; fixed in the follow-up commit",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "scripts/refactoring-review.py run_detector writes agents/<id>/attempt-N.stdout.log/.stderr.log/.last-message.txt; the exclusion list missed them. Fixed by dropping the agents/ subtree from refactoring-review archives",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "contract sections 2, 3.3 and the README promised raw-log auditability without scoping it to the local run directory; reworded so the durable audit record is the sanitized archive",
+      "confidence": 1
+    }
+  ]
+}

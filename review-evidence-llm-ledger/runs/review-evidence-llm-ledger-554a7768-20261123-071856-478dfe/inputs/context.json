@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "review-evidence-llm-ledger-554a7768-20261123-071856-478dfe",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T07:18:57.677Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/review-evidence-llm-ledger",
+    "name": "review-evidence-llm-ledger",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "9fc1db93210b97ba969df30edf936644c1b03d52",
+    "head": "554a7768adb74c9abbc340463554adce7698d2b3",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "9fc1db93210b97ba969df30edf936644c1b03d52",
+    "to": "554a7768adb74c9abbc340463554adce7698d2b3",
+    "label": "9fc1db93..554a7768"
+  },
+  "objective": {
+    "subject": "docs: bound llm-ledger archiving to sanitized audit records",
+    "body": "MUST: archive review runs as audit records only — exclude logs/, agent-output/,\nand snapshot/, which carry raw model output that the benchmark security\nboundary forbids committing, or a nested worktree — and archive the matching\n.review-benchmark/gold/<run-id>/ so report and rescore still recompute from the\narchive.\nMUST: stage and push from a dedicated ledger worktree after fetching\norigin/llm-ledger, creating the branch from an orphan root only when absent;\non non-fast-forward rejection rebase onto the fetched tip and retry; remove\nthe delivery worktree only once the pushed tip contains the topic.\nMUST NOT: commit raw reviewer logs or agent output to any branch, or drop the\ngold tree from the archive.\n\nAddresses the first two review rounds: raw-log security conflict, missing\ngold, missing append protocol, git-ignored staging, and the omitted\nledger-checkout step."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "8759f4803cb55375034cdeea68cbc6c12d6ac05e26e1f7a537a1de9c88c7ba5d",
+    "bytes": 5755,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 3
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 15,
+        "deletions": 5
+      },
+      {
+        "path": "design/llm-review-benchmark.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 1
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 3
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "f47599158fdad039ff12f65076a69ccaaf43bc6377dc365e8b388d21cd29c053",
+    "bytes": 3189,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "554a7768adb74c9abbc340463554adce7698d2b3",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

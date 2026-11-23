@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "review-evidence-llm-ledger-554a7768-20261123-071856-478dfe",
+  "version": 2,
+  "createdAt": "2026-11-23T07:27:39.354Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "review.md summary omitted the snapshot exclusion"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "refactoring-review agents/ subtree holds raw detector output"
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "raw-log retention promises needed scoping to the local run directory"
+    }
+  ]
+}

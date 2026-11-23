@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "review-evidence-llm-ledger-9fc1db93-20261123-070320-f21848",
+  "status": "partial",
+  "createdAt": "2026-11-23T07:03:20.880Z",
+  "updatedAt": "2026-11-23T07:14:45.740Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T07:03:20.906Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-23T07:03:20.915Z",
+            "endedAt": "2026-11-23T07:03:35.026Z",
+            "durationMs": 13788,
+            "exitCode": 1,
+            "timedOut": false,
+            "error": "reviewer exited with code 1",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-23T07:03:35.041Z"
+      },
+      "kiro": {
+        "agent": "kiro",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-23T07:03:20.915Z",
+            "endedAt": "2026-11-23T07:11:52.139Z",
+            "durationMs": 511004,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-23T07:11:52.161Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T07:11:52.243Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T07:11:52.304Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T07:11:52.378Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-23T07:03:20.880Z",
+      "error": null
+    }
+  },
+  "eventSeq": 55
+}

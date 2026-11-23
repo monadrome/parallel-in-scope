@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "review-evidence-llm-ledger-9fc1db93-20261123-070320-f21848",
+  "version": 2,
+  "createdAt": "2026-11-23T07:14:45.655Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "raw-log commit conflicts with the benchmark security boundary"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "gold tree lives outside run directories"
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "kiro:2"
+      ],
+      "note": "no append protocol for concurrent ledger pushes"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "review-evidence-llm-ledger-9fc1db93-20261123-071235-04cb99",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-23T07:18:49.563Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi-for-coding",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": ".gitignore covers .review-benchmark/ and most of .agents/; a naive git add in the delivery worktree stages nothing. Fixed by copying into a dedicated llm-ledger worktree whose orphan root carries no ignore rules",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "the original text named no checkout step, so a literal reading could commit evidence onto the topic branch. Fixed by the explicit dedicated-ledger-worktree sequence",
+      "confidence": 1
+    }
+  ]
+}
