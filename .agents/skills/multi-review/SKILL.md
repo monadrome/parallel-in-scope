@@ -47,24 +47,30 @@ fi
 Use `--systems <file>` to pin reviewer provenance; use `--agents` to run a subset of reviewers.
 By default, available real CLIs on `PATH` are auto-selected; fixtures are never used.
 
-### Currently available reviewer combination
+### Reviewer selection
 
-Pin models and efforts by availability on the current machine; the Claude family is unavailable
-for now — do not put `claude` in a systems file.
+When `magpie` is on `PATH`, start with `magpie ls`: it is the default source of truth for the
+agents and models it manages. For each selected managed agent, query `magpie <agent> model` and
+`magpie <agent> effort`; write the returned model and its provider prefix into the systems file.
+Set `effort` to `null` when Magpie reports `default`. If it reports no concrete model, use
+`model: null` so the agent inherits its configuration. This preserves per-run provenance without
+overriding Magpie with a stale hardcoded model.
+
+For agents outside Magpie, pin models and efforts by current CLI availability. The `claude`
+adapter is unavailable for now — do not put `claude` in a systems file.
 
 | adapter | model | effort | Notes |
 |---|---|---|---|
-| `codex` | `gpt-6.1-terra` | `medium` | Codex's reasoning effort is passed to the CLI. |
+| `codex` | Magpie's selected model, otherwise `gpt-6.1-terra` | Magpie's selected effort, otherwise `medium` | Codex's reasoning effort is passed to the CLI. |
 | `kiro` | `gpt-5.6-terra` or `kimi-k3` | `max` | Choose one Kiro model per run; pass the Kiro effort via `extraArgs: ["--effort", "max"]`. |
 | `zcode` | `glm-5.4` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
 
-Example systems file:
+Example systems file for a Magpie-managed Codex:
 
 ```json
 {
   "systems": [
-    {"agent": "codex", "provider": "openai", "model": "gpt-6.1-terra", "effort": "medium"},
-    {"agent": "kiro", "provider": "kiro", "model": "gpt-5.6-terra", "effort": "max", "extraArgs": ["--effort", "max"]}
+    {"agent": "codex", "provider": "<provider from magpie>", "model": "<model from magpie>", "effort": null}
   ]
 }
 ```
