@@ -66,7 +66,10 @@ clustering approximated by file+line, and vote results unusable as auditable mea
 Run from the repository root; build first when `dist/` is missing:
 
 ```bash
-test -f tools/llm-review-bench/dist/cli.js || npm --prefix tools/llm-review-bench run build
+if [ ! -f tools/llm-review-bench/dist/cli.js ]; then
+  npm --prefix tools/llm-review-bench ci
+  npm --prefix tools/llm-review-bench run build
+fi
 
 # Daily: review uncommitted changes (open-world, no gold)
 node tools/llm-review-bench/dist/cli.js review --working --json
@@ -370,6 +373,9 @@ JSON's `note`).
     score.
 23. Tests MUST NOT call real models; protocol and process behavior MUST be verified with
     temporary git repositories and fixture adapters.
+24. When `dist/cli.js` is absent, the build sequence MUST install the locked build dependencies
+    with `npm ci` before compiling; it MUST NOT rely on another checkout's ignored
+    `node_modules/` or `dist/`.
 
 ## 12. Explicit non-goals
 
@@ -384,6 +390,12 @@ JSON's `note`).
 - No automatic cross-run gold inference; `link` only relates a later fix to a stored review.
 
 ## 13. Rejected alternatives
+
+**Installing review dependencies in worktree skill checks.** The worktree manifest verifies
+that required skills are tracked; making it install ignored Node dependencies would add network
+and mutation side effects to a presence check used by unrelated tasks. The point-of-use build
+sequence owns this bootstrap instead. Reconsideration condition: a general worktree dependency
+manager replaces that manifest's narrow provenance role.
 
 **Pure Skill / Hook orchestration.** Skills or hooks alone cannot stably own process groups
 with a 51-minute lifecycle, hard timeouts, per-attempt logs, input-hash verification, and

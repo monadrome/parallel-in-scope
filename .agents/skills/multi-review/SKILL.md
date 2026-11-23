@@ -37,7 +37,10 @@ A user-level skill of the same name still exists on this machine, but in-project
 Run from the repository root; build first when `dist/` is missing:
 
 ```bash
-test -f tools/llm-review-bench/dist/cli.js || npm --prefix tools/llm-review-bench run build
+if [ ! -f tools/llm-review-bench/dist/cli.js ]; then
+  npm --prefix tools/llm-review-bench ci
+  npm --prefix tools/llm-review-bench run build
+fi
 ```
 
 Use `--systems <file>` to pin reviewer provenance; use `--agents` to run a subset of reviewers.
