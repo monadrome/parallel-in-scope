@@ -55,7 +55,7 @@ effort, prompt, repository, and commit all form the measured system.
 
 ```bash
 cd tools/llm-review-bench
-npm install
+npm ci
 npm run build       # tsc -> dist/
 npm run typecheck   # tsc --noEmit over src and test
 npm test            # builds, compiles tests, runs node:test

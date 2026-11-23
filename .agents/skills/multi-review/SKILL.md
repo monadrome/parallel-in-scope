@@ -38,8 +38,7 @@ Run from the repository root; build first when `dist/` is missing:
 
 ```bash
 if [ ! -f tools/llm-review-bench/dist/cli.js ]; then
-  npm --prefix tools/llm-review-bench ci
-  npm --prefix tools/llm-review-bench run build
+  npm --prefix tools/llm-review-bench ci && npm --prefix tools/llm-review-bench run build
 fi
 ```
 
