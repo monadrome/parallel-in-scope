@@ -40,7 +40,8 @@ Before starting phase one:
    worktree patch (if any) into `${RUN_DIR}/inputs/`;
 3. create `${RUN_DIR}/logs/`, saving every command's exact argv, exit code, and stdout/stderr
    paths;
-4. write `run-manifest.json`, computing SHA-256 for the inputs and final artifacts.
+4. write the initial `run-manifest.json` with frozen metadata and SHA-256 for the inputs;
+   result fields and final-artifact hashes are added at finalization.
 
 ## Goal
 
@@ -400,7 +401,9 @@ accepted, and the final gate status separately. Its final gate is `PASS` when ev
 check passes without accepted exceptions, or `PASS WITH ACCEPTED EXCEPTIONS` when every other
 required check passes and every exception is accepted; a raw `TIMED_OUT` must not be rewritten
 as `KILLED`.
-After writing the final report, run:
+After writing the final report, finalize `run-manifest.json` with the run status, resolved
+required gates and check results, accepted exceptions, command records, and final-artifact
+hashes without changing frozen inputs or their hashes. Then run:
 
 ```bash
 python3 ${SKILL_ROOT}/scripts/verify_run.py --run-dir ${RUN_DIR}

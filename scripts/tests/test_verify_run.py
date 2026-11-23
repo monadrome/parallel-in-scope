@@ -36,7 +36,7 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
 
         digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
         manifest = {
-            "schemaVersion": "contract-assurance-run/v1",
+            "schemaVersion": "contract-assurance-run/v2",
             "runId": "test",
             "createdAt": "2026-01-01T00:00:00Z",
             "package": {},
@@ -147,6 +147,24 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
         self.set_report(run, "evidence\nFinal gate: PASS\nlater evidence\n")
         errors = verify_run.verify(run)
         self.assertIn("report final-gate line must be the last non-empty line", errors)
+
+    def test_rejects_non_pass_required_gate(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.update_manifest(run, checks={"pit": "fail"})
+        errors = verify_run.verify(run)
+        self.assertIn("required gate is not pass: pit (fail)", errors)
+
+    def test_rejects_status_checks_mismatch(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.update_manifest(run, checks={"pit": "inconclusive"})
+        errors = verify_run.verify(run)
+        self.assertIn("run status pass does not match checks status inconclusive", errors)
+
+    def test_rejects_v1_schema(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.update_manifest(run, schemaVersion="contract-assurance-run/v1")
+        errors = verify_run.verify(run)
+        self.assertIn("unsupported or missing run manifest schemaVersion", errors)
 
     def test_rejects_non_utf8_report(self):
         run = self.make_run(None, {}, final_gate="PASS")

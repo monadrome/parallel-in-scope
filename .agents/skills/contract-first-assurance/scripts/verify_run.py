@@ -58,7 +58,7 @@ def verify(run_dir: Path) -> list[str]:
     except (OSError, json.JSONDecodeError) as error:
         return [f"cannot read run manifest: {error}"]
 
-    if manifest.get("schemaVersion") != "contract-assurance-run/v1":
+    if manifest.get("schemaVersion") != "contract-assurance-run/v2":
         errors.append("unsupported or missing run manifest schemaVersion")
     for key in (
         "runId",

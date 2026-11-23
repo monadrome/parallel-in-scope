@@ -18,6 +18,7 @@ maintenance instructions:
 | `build_commands` | Commands for compile checks, target tests, and the full suite. |
 | `format_commands` | Required formatting or static checks. |
 | `mutation_policy` | Whether mutation testing applies and which command owns its scope. |
+| `route_gates` | Required gates for each route; the resolved `adapter.requiredGates` must be non-empty for a passing run. |
 | `artifact_root` | Run directory; defaults to `.contract-first-assurance`. |
 
 The adapter may also provide `contract_paths`, `public_api_paths`,
@@ -53,10 +54,11 @@ The package version and artifact schema are independent of the host adapter.
 Changing a repository command or path is an adapter change; changing candidate
 status values, required artifacts, or phase hand-off rules is a package change.
 
-An adapter may also provide `route_gates`, `status_policy`, and
-`execution_policy` for a host orchestrator. These values configure the
-repository workflow; they do not create a second run manifest or replace the
-portable `contract-assurance-run/v1` schema.
+An adapter may also provide `status_policy` and `execution_policy` for a host orchestrator.
+Together with the required `route_gates`, these values configure the repository workflow; they
+do not create a second run manifest or replace the portable `contract-assurance-run/v2` schema.
+A host without a resolved non-empty required-gate list records `BLOCKED` or `INCONCLUSIVE`
+rather than a passing assurance gate.
 
 For mutation-enabled repositories, `mutation_policy` may define
 `accepted_dispositions`. Each disposition names the evidence required before a

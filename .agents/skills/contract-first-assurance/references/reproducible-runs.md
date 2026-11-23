@@ -6,11 +6,13 @@ manifest is an incomplete result.
 
 ## Run manifest
 
-Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
+Initialize `${RUN_DIR}/run-manifest.json` before phase one with the schema, package, adapter,
+workspace, and frozen input hashes. Result fields are appended at finalization; the completed
+manifest has this shape:
 
 ```json
 {
-  "schemaVersion": "contract-assurance-run/v1",
+  "schemaVersion": "contract-assurance-run/v2",
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
   "package": {"name": "contract-first-assurance", "version": "1.3.0"},
@@ -74,8 +76,9 @@ Rules:
   disposition is allowed by the resolved host adapter; copy the adapter's
   `acceptedDispositions` policy into the manifest so `verify_run.py` can enforce
   the same allowlist without reading a mutable parent checkout;
-- the manifest and input snapshots are written before tests run and are not
-  rewritten after a failure to make a green result appear reproducible.
+- frozen metadata, input snapshots, and their hashes are written before tests run and are never
+  rewritten; `status`, `requiredGates`, `checks`, `acceptedExceptions`, command results, and
+  final-artifact hashes are appended at finalization, including for failed or inconclusive runs.
 
 ## Required layout
 
