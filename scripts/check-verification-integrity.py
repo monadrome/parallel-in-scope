@@ -38,11 +38,13 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_UPSTREAM = "origin/dev/v0.5.0"
 CODEOWNERS_PATH = ".github/CODEOWNERS"
 CODEOWNER = "@monadrome"
+CODEOWNERS_MAX_BYTES = 3_000_000
 REQUIRED_CODEOWNERS = (
     "/.github/CODEOWNERS",
     "/.github/workflows/",
     "/scripts/check-*.py",
     "/scripts/tests/",
+    "/scripts/**/test_*.py",
     "/verification/verification-integrity.md",
 )
 REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset()
@@ -191,6 +193,7 @@ JAVA_DISABLED = re.compile(r"@(?:[A-Za-z_$][\w$]*\.)*(?:Disabled|Ignore)\b")
 JAVA_ASSERTION = re.compile(
     r"(?<![\w$])(?P<name>assert[A-Z][\w$]*|fail|verify(?:NoInteractions|NoMoreInteractions)?)\s*\("
 )
+JAVA_ASSUMPTION = re.compile(r"(?<![\w$])(?P<name>assumeTrue|assumeFalse)\s*\(")
 JAVA_NAME_BEFORE_PARAMETERS = re.compile(r"(?P<name>[A-Za-z_$][\w$]*)\s*$")
 
 
@@ -202,8 +205,9 @@ def annotation_end(code: str, end: int) -> int:
     return end
 
 
-def java_test_at(source: Source, match: re.Match[str]) -> TestCase | None:
+def java_test_at(source: Source, path: str, match: re.Match[str]) -> TestCase | None:
     code = source.code
+    location = f"{path}:{source.line_of(match.start())}"
     position = annotation_end(code, match.end())
     while True:
         position = skip_space(code, position)
@@ -214,24 +218,24 @@ def java_test_at(source: Source, match: re.Match[str]) -> TestCase | None:
             return None
         position = annotation_end(code, annotation.end())
     open_parameters = code.find("(", position)
-    if open_parameters < 0:
-        return None
     earlier_stop = min((index for index in (code.find("{", position), code.find(";", position)) if index >= 0), default=-1)
-    if 0 <= earlier_stop < open_parameters:
+    if earlier_stop >= 0 and (open_parameters < 0 or earlier_stop < open_parameters):
         return None
+    if open_parameters < 0:
+        raise CheckError(f"cannot parse Java test method at {location}")
     name = JAVA_NAME_BEFORE_PARAMETERS.search(code, position, open_parameters)
     if name is None:
-        return None
+        raise CheckError(f"cannot parse Java test method at {location}")
     close_parameters = matching_delimiter(code, open_parameters)
     if close_parameters < 0:
-        return None
+        raise CheckError(f"cannot parse Java test method at {location}")
     open_body = code.find("{", close_parameters + 1)
     semicolon = code.find(";", close_parameters + 1)
     if open_body < 0 or (0 <= semicolon < open_body):
-        return None
+        raise CheckError(f"cannot parse Java test method at {location}")
     close_body = matching_delimiter(code, open_body, "{", "}")
     if close_body < 0:
-        return None
+        raise CheckError(f"cannot parse Java test method at {location}")
     assertions = sum(1 for _ in JAVA_ASSERTION.finditer(code, open_body + 1, close_body))
     return TestCase(name["name"], source.line_of(name.start("name")), assertions)
 
@@ -266,10 +270,23 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
             yield violation(source, path, match.start(), end, "V5", f"new constant or self-comparing {name} assertion")
 
 
+def java_assumptions(source: Source, path: str) -> Iterator[Violation]:
+    for match in JAVA_ASSUMPTION.finditer(source.code):
+        close_index = matching_delimiter(source.code, match.end() - 1)
+        if close_index < 0:
+            continue
+        arguments = split_arguments(source.code, match.end() - 1, close_index)
+        values = [normalize(source.code[start:end]) for start, end in arguments]
+        rejected = {"false", "Boolean.FALSE"} if match["name"] == "assumeTrue" else {"true", "Boolean.TRUE"}
+        if values and (values[0] in rejected or values[-1] in rejected):
+            yield violation(source, path, match.start(), close_index + 1, "V3", "new constant-failing test assumption")
+
+
 def scan_java(path: str, text: str, digest: str) -> TestFile:
     source = mask_c_like(text)
-    tests = [test for match in JAVA_TEST.finditer(source.code) if (test := java_test_at(source, match)) is not None]
+    tests = [test for match in JAVA_TEST.finditer(source.code) if (test := java_test_at(source, path, match)) is not None]
     markers = list(java_noops(source, path))
+    markers.extend(java_assumptions(source, path))
     for match in JAVA_DISABLED.finditer(source.code):
         end = annotation_end(source.code, match.end())
         markers.append(violation(source, path, match.start(), end, "V3", "new @Disabled or @Ignore test annotation"))
@@ -286,6 +303,7 @@ def dotted_name(node: ast.AST) -> str:
 
 
 PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
+PYTHON_RUNTIME_DISABLED = {"pytest.skip", "pytest.xfail", "pytest.importorskip"}
 
 
 def python_assertion_call(node: ast.AST) -> bool:
@@ -340,15 +358,25 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
 
     visit(tree)
     markers = list(python_noops(tree, path, text))
+    decorator_calls: set[int] = set()
     for node in ast.walk(tree):
         if not isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Call):
+                decorator_calls.add(id(decorator))
             target = decorator.func if isinstance(decorator, ast.Call) else decorator
             name = dotted_name(target)
             if name.rsplit(".", 1)[-1].lower() in PYTHON_DISABLED:
                 segment = ast.get_source_segment(text, decorator) or name
                 markers.append(Violation(path, decorator.lineno, "V3", "new skip, expected-failure, or xfail decorator", normalize(segment)))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or id(node) in decorator_calls:
+            continue
+        name = dotted_name(node.func)
+        if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
+            segment = ast.get_source_segment(text, node) or name
+            markers.append(Violation(path, node.lineno, "V3", "new runtime test skip or xfail", normalize(segment)))
     return TestFile(text, digest, tuple(tests), tuple(markers))
 
 
@@ -356,6 +384,7 @@ TS_TEST = re.compile(
     r"(?<![\w$])(?:test|it)(?:\s*\.\s*(?:skip|only|todo))?\s*\(\s*(?P<quote>['\"`])"
 )
 TS_SELECTION = re.compile(r"(?<![\w$])(?:test|it|describe)\s*\.\s*(?:skip|only|todo)\b|(?<![\w$])x(?:test|it|describe)\b")
+TS_RUNTIME_SELECTION = re.compile(r"(?<![\w$])(?:t|context)\s*\.\s*(?:skip|only|todo)\s*\(")
 TS_ASSERTION = re.compile(r"(?<![\w$])(?:assert(?:\s*\.\s*[A-Za-z_$][\w$]*)?|expect)\s*\(")
 TS_ASSERT_CALL = re.compile(
     r"(?<![\w$])assert(?:\s*\.\s*(?P<method>ok|equal|strictEqual|deepEqual|deepStrictEqual))?\s*\("
@@ -384,6 +413,10 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         violation(source, path, match.start(), match.end(), "V3", "new skipped, todo, exclusive, or x-prefixed test selection")
         for match in TS_SELECTION.finditer(code)
     ]
+    markers.extend(
+        violation(source, path, match.start(), match.end(), "V3", "new runtime test skip, todo, or exclusive selection")
+        for match in TS_RUNTIME_SELECTION.finditer(code)
+    )
     for match in TS_ASSERT_CALL.finditer(code):
         open_index = match.end() - 1
         close_index = matching_delimiter(code, open_index)
@@ -422,7 +455,7 @@ def is_test_file(relative: str) -> bool:
     parts = path.parts
     if path.suffix == ".java" and any(parts[index:index + 2] == ("src", "test") for index in range(len(parts) - 1)):
         return True
-    if parts[:2] == ("scripts", "tests") and path.name.startswith("test_") and path.suffix == ".py":
+    if parts[:1] == ("scripts",) and path.name.startswith("test_") and path.suffix == ".py":
         return True
     return parts[:3] == ("tools", "llm-review-bench", "test") and path.name.endswith(".test.ts")
 
@@ -435,6 +468,7 @@ def is_protected_file(relative: str) -> bool:
         or parts[:2] == (".github", "workflows")
         or (len(parts) == 2 and parts[0] == "scripts" and path.name.startswith("check-") and path.suffix == ".py")
         or parts[:2] == ("scripts", "tests")
+        or (parts[:1] == ("scripts",) and path.name.startswith("test_") and path.suffix == ".py")
     )
 
 
@@ -557,25 +591,89 @@ def protected_changes(base: dict[str, bytes], head: dict[str, bytes]) -> list[st
     return changes
 
 
+def codeowner_regex(pattern: str) -> re.Pattern[str] | None:
+    if pattern.startswith("!") or "[" in pattern or "]" in pattern:
+        return None
+    anchored = pattern.startswith("/")
+    body = pattern[1:] if anchored else pattern
+    directory = body.endswith("/")
+    body = body[:-1] if directory else body
+    if not body:
+        return None
+    prefix = "" if anchored or "/" in body else "(?:.*/)?"
+    last_segment = body.rsplit("/", 1)[-1]
+    translated: list[str] = []
+    index = 0
+    while index < len(body):
+        char = body[index]
+        if char == "*" and index + 1 < len(body) and body[index + 1] == "*":
+            if (index == 0 or body[index - 1] == "/") and index + 2 < len(body) and body[index + 2] == "/":
+                translated.append("(?:.*/)?")
+                index += 3
+            else:
+                translated.append(".*")
+                index += 2
+        elif char == "*":
+            translated.append("[^/]*")
+            index += 1
+        elif char == "?":
+            translated.append("[^/]")
+            index += 1
+        elif char == "\\" and index + 1 < len(body):
+            translated.append(re.escape(body[index + 1]))
+            index += 2
+        else:
+            translated.append(re.escape(char))
+            index += 1
+    if directory:
+        suffix = "/.*"
+    elif "*" in last_segment or "?" in last_segment:
+        suffix = ""
+    else:
+        suffix = "(?:/.*)?"
+    return re.compile("^" + prefix + "".join(translated) + suffix + "$")
+
+
 def codeowner_violations(root: Path) -> list[Violation]:
     path = root / CODEOWNERS_PATH
     try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as error:
+        raw = path.read_bytes()
+    except OSError as error:
         return [Violation(CODEOWNERS_PATH, 0, "V6", f"cannot read required CODEOWNERS: {error}", CODEOWNERS_PATH)]
-    entries: dict[str, list[str]] = {}
+    if len(raw) >= CODEOWNERS_MAX_BYTES:
+        return [Violation(CODEOWNERS_PATH, 0, "V6", "CODEOWNERS must stay below GitHub's 3 MB loading limit", "size")]
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        return [Violation(CODEOWNERS_PATH, 0, "V6", f"cannot read required CODEOWNERS: {error}", CODEOWNERS_PATH)]
+    entries: list[tuple[str, re.Pattern[str], list[str]]] = []
     for line in text.splitlines():
         content = line.split("#", 1)[0].strip()
         if not content:
             continue
         fields = content.split()
-        if len(fields) >= 2:
-            entries[fields[0]] = fields[1:]
-    return [
-        Violation(CODEOWNERS_PATH, 0, "V6", f"CODEOWNERS entry {pattern!r} must retain {CODEOWNER}", pattern)
-        for pattern in REQUIRED_CODEOWNERS
-        if CODEOWNER not in entries.get(pattern, [])
-    ]
+        pattern = fields[0]
+        compiled = codeowner_regex(pattern)
+        if compiled is not None:
+            entries.append((pattern, compiled, fields[1:]))
+    found = []
+    for required in REQUIRED_CODEOWNERS:
+        matching = [entry for entry in entries if entry[0] == required]
+        if not matching or CODEOWNER not in matching[-1][2]:
+            found.append(Violation(
+                CODEOWNERS_PATH, 0, "V6", f"CODEOWNERS entry {required!r} must retain {CODEOWNER}", required
+            ))
+    for protected in sorted(protected_files(root)):
+        matching = [entry for entry in entries if entry[1].fullmatch(protected)]
+        if not matching or CODEOWNER not in matching[-1][2]:
+            found.append(Violation(
+                CODEOWNERS_PATH,
+                0,
+                "V6",
+                f"effective CODEOWNERS coverage for {protected!r} must retain {CODEOWNER}",
+                f"coverage:{protected}",
+            ))
+    return found
 
 
 def git(*args: str) -> bytes:

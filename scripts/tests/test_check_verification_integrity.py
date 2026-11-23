@@ -30,10 +30,12 @@ CODEOWNERS = """/.github/CODEOWNERS @monadrome
 /.github/workflows/ @monadrome
 /scripts/check-*.py @monadrome
 /scripts/tests/ @monadrome
+/scripts/**/test_*.py @monadrome
 /verification/verification-integrity.md @monadrome
 """
 JAVA_PATH = "core/src/test/java/io/example/SampleTest.java"
 PYTHON_PATH = "scripts/tests/test_sample.py"
+ISSUE_AGENT_PYTHON_PATH = "scripts/issue_agent/tests/test_sample.py"
 TS_PATH = "tools/llm-review-bench/test/sample.test.ts"
 JAVA_TEST = """class SampleTest {
     @Test
@@ -144,6 +146,15 @@ class JavaIntegrityTest(TreeTest):
         self.assertEqual(code, 1)
         self.assertIn(": V3:", out)
 
+    def test_constant_failing_assumption_fails(self):
+        base = self.tree("base", {JAVA_PATH: JAVA_TEST})
+        weakened = JAVA_TEST.replace("assertTrue(value)", "assertNotNull(value); assumeTrue(false)")
+        head = self.tree("head", {JAVA_PATH: weakened})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new constant-failing test assumption", out)
+        self.assertNotIn(": V4:", out)
+
     def test_disable_text_in_comments_and_strings_is_ignored(self):
         decorated = JAVA_TEST.replace(
             "    @Test\n",
@@ -179,6 +190,19 @@ class JavaIntegrityTest(TreeTest):
         self.assertEqual(code, 1)
         self.assertIn("1 test case(s)", out)
 
+    def test_unparseable_java_test_fails_closed(self):
+        base = self.tree("base", {})
+        head = self.tree("head", {JAVA_PATH: "class SampleTest {\n    @Test\n    void broken() {\n"})
+        code, out, err = self.run_check(base, head)
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("cannot parse Java test method", err)
+
+    def test_test_meta_annotation_is_not_a_method_parse_failure(self):
+        source = "@Test\n@interface MyTest {\n}\n"
+        base = self.tree("base", {JAVA_PATH: source})
+        head = self.tree("head", {JAVA_PATH: source})
+        self.assertEqual(self.run_check(base, head)[0], 0)
+
     def test_a_reviewed_exact_exception_permits_intentional_deletion(self):
         base = self.tree("base", {JAVA_PATH: JAVA_TEST})
         head = self.tree("head", {})
@@ -189,11 +213,13 @@ class JavaIntegrityTest(TreeTest):
 
 class PythonIntegrityTest(TreeTest):
     def test_deleting_a_python_test_file_fails(self):
-        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
-        head = self.tree("head", {})
-        code, out, _ = self.run_check(base, head)
-        self.assertEqual(code, 1)
-        self.assertIn(f"{PYTHON_PATH}: V1:", out)
+        for path in (PYTHON_PATH, ISSUE_AGENT_PYTHON_PATH):
+            with self.subTest(path=path):
+                base = self.tree("base", {path: PYTHON_TEST})
+                head = self.tree("head", {})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(f"{path}: V1:", out)
 
     def test_python_skip_decorators_fail(self):
         for decorator in ("@unittest.skip('reason')", "@pytest.mark.skipif(True, reason='reason')", "@unittest.expectedFailure"):
@@ -203,6 +229,17 @@ class PythonIntegrityTest(TreeTest):
                 code, out, _ = self.run_check(base, head)
                 self.assertEqual(code, 1)
                 self.assertIn(": V3:", out)
+
+    def test_runtime_python_skips_fail(self):
+        for call in ("self.skipTest('reason')", "pytest.skip('reason')", "pytest.importorskip('missing')"):
+            with self.subTest(call=call):
+                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+                weakened = PYTHON_TEST.replace("self.assertTrue(value)", f"self.assertNotNull(value)\n        {call}")
+                head = self.tree("head", {PYTHON_PATH: weakened})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V3: new runtime test skip or xfail", out)
+                self.assertNotIn(": V4:", out)
 
     def test_python_assertion_reduction_and_noops_fail(self):
         weakened = PYTHON_TEST.replace("        self.assertTrue(value)\n", "")
@@ -250,6 +287,15 @@ class TypeScriptIntegrityTest(TreeTest):
                 self.assertIn(": V3:", out)
                 self.assertNotIn(": V2:", out)
 
+    def test_runtime_typescript_skip_fails(self):
+        base = self.tree("base", {TS_PATH: TS_TEST})
+        weakened = TS_TEST.replace("assert.ok(value)", "assert.notOk(value);\n  t.skip()")
+        head = self.tree("head", {TS_PATH: weakened})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new runtime test skip, todo, or exclusive selection", out)
+        self.assertNotIn(": V4:", out)
+
     def test_typescript_assertion_reduction_and_noops_fail(self):
         weakened = TS_TEST.replace("  assert.ok(value);\n", "")
         noop = TS_TEST.replace("assert.ok(value)", "assert.ok(true)")
@@ -284,6 +330,33 @@ class InfrastructureTest(TreeTest):
                 code, out, _ = self.run_check(base, head)
                 self.assertEqual(code, 1)
                 self.assertIn(".github/CODEOWNERS: V6:", out)
+
+    def test_later_codeowners_overrides_cannot_remove_repository_owner(self):
+        workflow = ".github/workflows/ci.yml"
+        for override in ("/.github/workflows/ci.yml @someone-else\n", "/.github/workflows/ci.yml\n"):
+            with self.subTest(override=override):
+                base = self.tree("base", {workflow: "name: CI\n"})
+                head = self.tree("head", {workflow: "name: CI\n"}, codeowners=CODEOWNERS + override)
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn("effective CODEOWNERS coverage", out)
+
+    def test_later_codeowners_override_can_retain_repository_owner(self):
+        workflow = ".github/workflows/ci.yml"
+        base = self.tree("base", {workflow: "name: CI\n"})
+        head = self.tree(
+            "head",
+            {workflow: "name: CI\n"},
+            codeowners=CODEOWNERS + "/.github/workflows/ci.yml @monadrome\n",
+        )
+        self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_codeowners_at_github_size_limit_fails(self):
+        base = self.tree("base", {})
+        head = self.tree("head", {}, codeowners=CODEOWNERS + " " * 3_000_000)
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn("3 MB loading limit", out)
 
     def test_codeowners_violations_cannot_use_reviewed_exceptions(self):
         base = self.tree("base", {})

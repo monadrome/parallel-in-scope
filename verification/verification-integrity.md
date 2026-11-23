@@ -8,17 +8,17 @@ change also removed the tests or their assertions.
 ## Scope and rules
 
 The gate scans Java tests under every `src/test` directory, Python
-`test_*.py` files under `scripts/tests`, and TypeScript `*.test.ts` files under
+`test_*.py` files under `scripts`, and TypeScript `*.test.ts` files under
 `tools/llm-review-bench/test`.
 
 | Rule | Violation |
 |---|---|
 | V1 test-file deletion | A base file containing recognized test cases no longer exists in the head. A unique, byte-identical whole-file move is aligned by content hash and passes. |
 | V2 test-case deletion | An existing Java test method, Python test function, or TypeScript test title is removed or renamed. Deleting a whole file reports V1 instead of one V2 per case. |
-| V3 new test suppression | The head adds Java `@Disabled`/`@Ignore`, Python skip/expected-failure/xfail decorators, or TypeScript `skip`, `todo`, `only`, or x-prefixed test selection. Existing occurrences are grandfathered by baseline subtraction. |
+| V3 new test suppression | The head adds Java `@Disabled`/`@Ignore` or a constant-failing assumption; Python skip/expected-failure/xfail decorators or runtime skip calls; or TypeScript `skip`, `todo`, `only`, x-prefixed, or runtime test-context selection. Existing occurrences are grandfathered by baseline subtraction. |
 | V4 assertion reduction | An existing test case has fewer assertions than in the base. Changing an assertion while keeping the count is allowed. |
 | V5 constant assertion | The head adds a constant-true/false or self-comparing assertion. Existing occurrences are grandfathered by baseline subtraction. |
-| V6 owner-protection loss | A required `.github/CODEOWNERS` entry is absent or no longer contains `@monadrome`. This rule has no exception mechanism. |
+| V6 owner-protection loss | A required `.github/CODEOWNERS` entry is absent or no longer contains `@monadrome`, a later matching rule removes that owner's effective coverage of a protected file (including an ownerless rule), or the file reaches GitHub's 3 MB loading limit. This rule has no exception mechanism. |
 
 Java assertions are `assertXxx`, `fail`, and Mockito `verify` calls. Python uses
 the AST to count `assert` statements, `assertXxx` calls, and `pytest.raises` or
@@ -37,7 +37,8 @@ Additions, modifications, and deletions under these paths print a `PROTECTED`
 line in CI and require code-owner review through `.github/CODEOWNERS`:
 
 - the CODEOWNERS file itself and every `.github/workflows/` file;
-- every top-level `scripts/check-*.py` gate and all of `scripts/tests/`;
+- every top-level `scripts/check-*.py` gate, all of `scripts/tests/`, and every
+  `scripts/**/test_*.py` test;
 - this contract.
 
 Infrastructure changes do not fail merely because they changed; that would make
@@ -50,6 +51,10 @@ are the trust boundary for those attacks.
 
 The required CODEOWNERS patterns and owner are duplicated in the checker so its
 initial introduction can be validated and later removal of an entry fails V6.
+The checker also evaluates the last matching rule for every protected file,
+because CODEOWNERS gives that rule precedence; an ownerless match removes
+coverage just as surely as a match naming only another owner. GitHub-unsupported
+negation and character-range rules are skipped the same way GitHub skips them.
 Changing the repository owner requires a reviewed update to both sources.
 
 ## Intentional weakening and exceptions
@@ -77,7 +82,8 @@ Findings use `path:line: V<n>: message`; file-level findings omit the line.
 Protected changes are informational lines beginning with `PROTECTED`.
 
 Exit status: 0 no integrity violation, 1 integrity violations, 2 the check could
-not run (unknown revision, missing root, unreadable source, or invalid Python).
+not run (unknown revision, missing root, unreadable source, invalid Python, or a
+recognized Java test annotation whose method cannot be parsed).
 The unit tests are `scripts/tests/test_check_verification_integrity.py`.
 
 CI runs the gate in the `verification-integrity` job of

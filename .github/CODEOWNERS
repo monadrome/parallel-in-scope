@@ -2,4 +2,5 @@
 /.github/workflows/ @monadrome
 /scripts/check-*.py @monadrome
 /scripts/tests/ @monadrome
+/scripts/**/test_*.py @monadrome
 /verification/verification-integrity.md @monadrome
