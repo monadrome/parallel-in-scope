@@ -95,19 +95,20 @@ public or protected `T2`.
   passes the mutable container to another consumer before the freeze.
 - Move: accumulate into the matching builder (`ImmutableMap.builder()`, `ImmutableSet.builder()`,
   `ImmutableList.builder()`, or another `ImmutableXxx` builder, sorted variants included, using
-  `builderWithExpectedSize()` where the type offers it), add entries in the same order, and pass
-  the built collection directly; tighten a package-private boundary to the immutable type when
-  needed.
+  `builderWithExpectedSize()` where the type offers it), add entries in the order the frozen result
+  shows, and pass the built collection directly; tighten a package-private boundary to the
+  immutable type when needed.
 - Suppress: lookup (`get`, `contains`), conditional replacement (`merge`, `computeIfAbsent`),
-  removal, indexed insertion, sorting, iteration, or failure cleanup needs the mutable collection;
-  it is long-lived mutable state; the container can drop entries without an explicit operation
-  (`WeakHashMap` or another weak- or soft-reference-backed collection); a key is written more than
-  once and the last write must win; the frozen order differs from the order entries are produced
-  and that order is observable (`HashMap` and `HashSet` iterate in hash order, a builder in
-  accumulation order); or the boundary accepts a caller-supplied or otherwise unknown collection
-  and needs a defensive copy; or moving the builder's null or duplicate-key validation would cross
-  a catch, cleanup, or other observable failure boundary. `copyOf` also remains valid when the
-  argument may already be immutable and reuse is intentional.
+  removal, indexed insertion, sorting, iteration over the accumulated entries, or failure cleanup
+  needs the mutable collection; it is long-lived mutable state; the container can drop entries
+  without an explicit operation (`WeakHashMap` or another weak- or soft-reference-backed
+  collection); a key is written more than once and the last write must win; the frozen order
+  differs from the order entries are produced and that order is observable (`HashMap` and
+  `HashSet` iterate in hash order, a builder in accumulation order); or the boundary accepts a
+  caller-supplied or otherwise unknown collection and needs a defensive copy; or moving the
+  builder's null or duplicate-key validation would cross a catch, cleanup, or other observable
+  failure boundary. `copyOf` also remains valid when the argument may already be immutable and
+  reuse is intentional.
 - Tier: `T0` for a local-only replacement; `T1` when a package-private signature or multiple files
   change; `T2` for a public signature.
 - mechanizable: partly (the container, the accumulation calls, and the freeze are syntactically
