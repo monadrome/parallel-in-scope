@@ -63,7 +63,7 @@ For example, a focused partition can be run with the same explicit mutator set,
 with the shell capturing the Maven console log that the plugin does not write:
 
 ```bash
-EVID=tmp/pit-evidence/execution-phase-hint && mkdir -p "$EVID"
+EVID="tmp/pit-evidence/execution-phase-hint-$(date -u +%Y%m%dT%H%M%SZ)" && mkdir -p "$EVID"
 rm -f core/target/pit-reports/mutations.xml
 mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture*' \
@@ -74,8 +74,9 @@ if [ -f core/target/pit-reports/mutations.xml ]; then cp core/target/pit-reports
 echo "exit=$rc"
 ```
 
-Deleting the prior report first is what keeps a failed compile or PIT startup
-from being archived as this partition's result.
+Deleting the prior report first keeps a failed compile or PIT startup from being
+archived as this partition's result, and the timestamped directory keeps a retry
+from reusing an earlier run's XML.
 
 Do not run Maven or PIT concurrently in one checkout. Archive the command and
 raw counts before starting the next partition, and report the aggregate as
@@ -97,7 +98,7 @@ includes nested classes; comma-separated patterns allow multiple classes and
 tests. Include every relevant contract test, not just the new regression test.
 
 ```bash
-EVID=tmp/pit-evidence/<label> && mkdir -p "$EVID"
+EVID="tmp/pit-evidence/<label>-$(date -u +%Y%m%dT%H%M%SZ)" && mkdir -p "$EVID"
 rm -f core/target/pit-reports/mutations.xml
 mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.TouchedClass*' \
@@ -108,9 +109,10 @@ if [ -f core/target/pit-reports/mutations.xml ]; then cp core/target/pit-reports
 echo "exit=$rc"
 ```
 
-The redirect writes the log the plugin never produces. The removed report and
-the conditional copy guarantee `$EVID` holds only this run's XML, so a failure
-surfaces as missing evidence instead of an earlier partition's numbers.
+The redirect writes the log the plugin never produces. A timestamped directory,
+the removed build report, and the conditional copy together guarantee `$EVID`
+holds only this run's XML, so a failure surfaces as missing evidence instead of
+an earlier run's numbers.
 
 The explicit goal is required: `mvn -Ppitest` alone runs no mutation analysis.
 The command is offline-safe when dependencies are already installed.
@@ -133,9 +135,10 @@ For this multi-module build, a core PIT run writes `core/target/pit-reports/muta
 and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
 That path is build output: a clean, a rebuild, or worktree removal deletes it, so a focused
 inline run MUST copy the XML and the captured command log to durable evidence at that point,
-as the examples above do. It MUST delete the previous report first and copy only a report the
-current run produced; a missing XML is `inconclusive`, never the stale file. The archived XML
-is what later evidence and the delivery ledger cite.
+as the examples above do. Each run MUST use its own evidence directory, delete the previous
+build report first, and copy only a report the current run produced; a missing XML is
+`inconclusive`, never the stale file. The archived XML is what later evidence and the delivery
+ledger cite.
 The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
 may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
 Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside
