@@ -2,6 +2,7 @@ site_name: parallel-in-scope
 site_description: A structured-concurrency toolkit for Java 8+ with cooperative cancellation, fail-fast execution, context propagation, deadlock detection, and sliding-window scheduling
 site_url: https://monadrome.github.io/parallel-in-scope/
 docs_dir: ../docs
+exclude_docs: AGENTS.md
 
 repo_name: monadrome/parallel-in-scope
 repo_url: https://github.com/monadrome/parallel-in-scope
