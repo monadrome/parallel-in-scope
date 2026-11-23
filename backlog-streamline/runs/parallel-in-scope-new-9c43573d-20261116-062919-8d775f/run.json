@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-16T06:29:20.521Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new",
+    "name": "parallel-in-scope-new"
+  },
+  "commits": {
+    "base": "53829493dacdff11a01a57ae488ad824505d1c45",
+    "head": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "claude",
+        "version": "2.1.317 (Claude Code)",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "kimi",
+        "version": "2.6.0",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "ocr",
+        "version": "open-code-review v1.13.7 (b1dcffb0) darwin/arm64",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.3.0",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "fcb6102a185c6cc2d6c5302350aaac7e1f19abf3ef000dbd12da5483ded41fa0",
+    "contextJsonSha256": "2a652111db142e8bc36135424160859d9ec76f78b8248c7eb2f2fd7c8ebad7d9",
+    "diffSha256": "677588243ce26f439d65520b30dd3759cf5288cd73b836127700b3836003dfed",
+    "caseManifestSha256": "eaec459682f1a04053f4cf52984672994dd8516f1f3be087022e37f7dca59261",
+    "promptSha256": "42cbb76dc60c901bd3bd0bf08efb26c2ebdeefba767af3c8e12134a12d0925cd"
+  },
+  "promptPath": "inputs/prompt.md"
+}

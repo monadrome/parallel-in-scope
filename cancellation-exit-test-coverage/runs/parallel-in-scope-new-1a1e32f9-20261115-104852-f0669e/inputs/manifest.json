@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "parallel-in-scope-new-1a1e32f9-20261115-104852-f0669e",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-15T10:48:52.616Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new",
+    "name": "parallel-in-scope-new",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "925bc10234f48ebf28f92350071f9db92614a522",
+    "head": "1a1e32f9cecade5e70134c95730d32e8e9a6f311",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "925bc10234f48ebf28f92350071f9db92614a522",
+    "to": "1a1e32f9cecade5e70134c95730d32e8e9a6f311",
+    "label": "925bc102..1a1e32f9"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "ee0fa5e96c4cc6c8928fdb3385b7d3c32210a3ffaf5c92d2569062f32cd7228a",
+    "bytes": 9765,
+    "files": [
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+        "status": "M",
+        "additions": 66,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java",
+        "status": "M",
+        "additions": 14,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java",
+        "status": "M",
+        "additions": 67,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "23ff8354d3713748888de57a52cec95cab86a05b3319fcee0bf3467f3c750b1c",
+    "bytes": 2905,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "8b5f18b5b73569fa4eb3aaa6289e4e670d8c85ad6e4cc67e3c68bd13cda33d1e",
+    "bytes": 2623
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "1a1e32f9cecade5e70134c95730d32e8e9a6f311",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

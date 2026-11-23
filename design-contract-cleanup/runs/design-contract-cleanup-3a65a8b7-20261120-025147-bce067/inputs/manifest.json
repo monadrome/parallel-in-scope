@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "design-contract-cleanup-3a65a8b7-20261120-025147-bce067",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-20T02:51:48.101Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/design-contract-cleanup",
+    "name": "design-contract-cleanup",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "4c15c595385e4ef1507f00dd17f53d4ca2f534d8",
+    "head": "3a65a8b7a3f54a4fc3ee89e58f3e42bee0d87f38",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "4c15c595385e4ef1507f00dd17f53d4ca2f534d8",
+    "to": "3a65a8b7a3f54a4fc3ee89e58f3e42bee0d87f38",
+    "label": "4c15c595..3a65a8b7"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "489f599cace6bf0cb3c3d6b3ed3d3d7d8eb3f846b2c75fd629fd46ae9aeb2c7b",
+    "bytes": 56210,
+    "files": [
+      {
+        "path": "design/cancellation-propagation.md",
+        "status": "M",
+        "additions": 74,
+        "deletions": 79
+      },
+      {
+        "path": "design/extension-and-wrapping.md",
+        "status": "M",
+        "additions": 33,
+        "deletions": 63
+      },
+      {
+        "path": "design/group-one-shot-api-refactor-codex.md",
+        "status": "M",
+        "additions": 28,
+        "deletions": 61
+      },
+      {
+        "path": "design/sliding-window-refill.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 11
+      },
+      {
+        "path": "design/task-graph.md",
+        "status": "M",
+        "additions": 29,
+        "deletions": 63
+      },
+      {
+        "path": "design/task-group-api-and-options.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 31
+      },
+      {
+        "path": "design/task-group-lifecycle.md",
+        "status": "M",
+        "additions": 33,
+        "deletions": 64
+      },
+      {
+        "path": "design/task-group-submission.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 10
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "e81034cbb72b24245421473dc905ab14d4f8a3c4e459ee1cda261baef73e0c29",
+    "bytes": 2761,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "f85f186362e6fe11f51b034fc41b6d115e25c3c5282142c049b9104411bbc684",
+    "bytes": 2892
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "3a65a8b7a3f54a4fc3ee89e58f3e42bee0d87f38",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

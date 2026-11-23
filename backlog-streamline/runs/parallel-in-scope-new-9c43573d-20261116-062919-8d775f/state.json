@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "status": "partial",
+  "createdAt": "2026-11-16T06:29:20.529Z",
+  "updatedAt": "2026-11-16T06:59:07.619Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-16T06:29:20.563Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-16T06:29:20.572Z",
+            "endedAt": "2026-11-16T06:29:44.194Z",
+            "durationMs": 23399,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "invalid review output: codex attempt 1: produced no review text (exit code 0)",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          },
+          {
+            "attempt": 2,
+            "status": "failed",
+            "startedAt": "2026-11-16T06:44:15.879Z",
+            "endedAt": "2026-11-16T06:44:43.635Z",
+            "durationMs": 27476,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "invalid review output: codex attempt 2: produced no review text (exit code 0)",
+            "recordPath": "reviews/codex/attempt-2.json",
+            "logBase": "logs/codex-attempt-2"
+          }
+        ],
+        "updatedAt": "2026-11-16T06:44:43.648Z"
+      },
+      "claude": {
+        "agent": "claude",
+        "status": "timed_out",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "timed_out",
+            "startedAt": "2026-11-16T06:29:20.572Z",
+            "endedAt": "2026-11-16T06:43:36.394Z",
+            "durationMs": 855512,
+            "exitCode": null,
+            "timedOut": true,
+            "error": "review exceeded the hard timeout of 840s; process group was terminated",
+            "recordPath": "reviews/claude/attempt-1.json",
+            "logBase": "logs/claude-attempt-1"
+          },
+          {
+            "attempt": 2,
+            "status": "timed_out",
+            "startedAt": "2026-11-16T06:44:15.879Z",
+            "endedAt": "2026-11-16T06:58:31.426Z",
+            "durationMs": 855372,
+            "exitCode": null,
+            "timedOut": true,
+            "error": "review exceeded the hard timeout of 840s; process group was terminated",
+            "recordPath": "reviews/claude/attempt-2.json",
+            "logBase": "logs/claude-attempt-2"
+          }
+        ],
+        "updatedAt": "2026-11-16T06:58:31.511Z"
+      },
+      "kimi": {
+        "agent": "kimi",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-16T06:29:20.572Z",
+            "endedAt": "2026-11-16T06:37:19.175Z",
+            "durationMs": 478347,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kimi/attempt-1.json",
+            "logBase": "logs/kimi-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-16T06:37:19.192Z"
+      },
+      "ocr": {
+        "agent": "ocr",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-16T06:29:44.224Z",
+            "endedAt": "2026-11-16T06:30:04.436Z",
+            "durationMs": 20103,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/ocr/attempt-1.json",
+            "logBase": "logs/ocr-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-16T06:30:04.445Z"
+      },
+      "kiro": {
+        "agent": "kiro",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-16T06:30:04.461Z",
+            "endedAt": "2026-11-16T06:36:04.434Z",
+            "durationMs": 359853,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-16T06:36:04.446Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-16T06:43:36.590Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-16T06:43:36.741Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-16T06:43:36.887Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-16T06:59:07.574Z",
+      "error": null
+    }
+  },
+  "eventSeq": 206
+}

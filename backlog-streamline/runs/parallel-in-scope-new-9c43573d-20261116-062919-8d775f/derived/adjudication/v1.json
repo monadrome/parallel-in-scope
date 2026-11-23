@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-16T06:59:02.245Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro",
+    "model": "kimi-k3",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Verified: scripts/check-api-surface.py already diffs the public API surface between merge base and head via javap and fails removals without migration notes; it runs in CI. The backlog entry was stale and was removed in the follow-up commit.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Verified: docs/en/user-guide.md documents that orThrow() rethrows the first recorded execution failure before any cancellation is reported, and that failedTaskResult() returns the first failed element. The pure-timeout semantics are settled and documented, so the open-decision entry was removed in the follow-up commit.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "design/decision-log.md holds conclusions and rejection reasons of retired directions, not open questions. The header now routes open design questions to design/proposal/ only; fixed in the follow-up commit.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C04",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "The refactoring-review T2 row still routed deferred findings to BACKLOG.md generically. The narrowed backlog takes release-gating suggestions only; the routing row was updated in the follow-up commit.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C05",
+      "verdict": "rejected",
+      "goldLabelIds": [],
+      "rationale": "The uncalibrated-threshold concern is recorded in adr/0010 itself ('the always-on WARNING may be noisy in production; the period and thresholds are not calibrated under real load'); the BACKLOG id was only a pointer in a dated decision record that is never rewritten, and the deletion of the old inventory was explicitly directed by the maintainer. The risk remains tracked in the ADR.",
+      "confidence": 1
+    }
+  ]
+}

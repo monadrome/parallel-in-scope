@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "design-contract-cleanup-3a65a8b7-20261120-024419-4375c5",
+  "status": "running",
+  "createdAt": "2026-11-20T02:44:19.905Z",
+  "updatedAt": "2026-11-20T03:01:45.693Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-20T02:44:19.927Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-20T02:44:19.934Z",
+            "endedAt": "2026-11-20T02:44:24.891Z",
+            "durationMs": 4683,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "invalid review output: codex attempt 1: produced no review text (exit code 0)",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-20T02:44:24.958Z"
+      },
+      "kiro": {
+        "agent": "kiro",
+        "status": "running",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "running",
+            "startedAt": "2026-11-20T02:44:19.934Z",
+            "endedAt": null,
+            "durationMs": null,
+            "exitCode": null,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-20T02:44:19.944Z"
+      }
+    },
+    "derivation": {
+      "status": "pending",
+      "updatedAt": "2026-11-20T02:44:19.905Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "pending",
+      "updatedAt": "2026-11-20T02:44:19.905Z",
+      "error": null
+    },
+    "report": {
+      "status": "pending",
+      "updatedAt": "2026-11-20T02:44:19.905Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-20T03:01:45.666Z",
+      "error": null
+    }
+  },
+  "eventSeq": 46
+}

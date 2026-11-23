@@ -1,0 +1,215 @@
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java
+index 62f78f74..1452563d 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java
+@@ -366,6 +366,25 @@ public class CancellationTokenTest {
+         assertAggregateDone(aggregate);
+     }
+ 
++    @Test
++    public void failFastCallbackCancelsSiblingAndSubmissionSynchronously() {
++        CancellationToken token = CancellationToken.create();
++        SettableFuture<String> failed = SettableFuture.create();
++        SettableFuture<String> sibling = SettableFuture.create();
++        SettableFuture<Void> submission = SettableFuture.create();
++
++        token.bind(ImmutableList.of(failed, sibling), submission, TIMER);
++
++        // The binding callback uses directExecutor, so the cancellation cascade is complete when
++        // the triggering failure returns. Keeping this assertion synchronous makes a missing
++        // cascade fail promptly instead of being reported only as a PIT timeout.
++        failed.setException(new RuntimeException("boom"));
++
++        assertThat(token.state()).isEqualTo(CancellationToken.State.FAIL_FAST);
++        assertThat(sibling).isCancelled();
++        assertThat(submission).isCancelled();
++    }
++
+     @Test
+     public void bindReturnsAggregateTrackingAllFuturesAndTheSubmitter() {
+         CancellationToken token = CancellationToken.create();
+@@ -542,6 +561,47 @@ public class CancellationTokenTest {
+         assertAggregateDone(aggregate);
+     }
+ 
++    @Test
++    public void requestCancellationIsDistinguishedFromFrameworkCancellation() {
++        CancellationToken token = CancellationToken.create();
++        SettableFuture<Void> source = SettableFuture.create();
++
++        token.cancelOn(source);
++        source.set(null);
++
++        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
++        assertThat(token.cancelledByCaller()).isTrue();
++
++        CancellationToken timeout = CancellationToken.create();
++        timeout.timeoutCancel();
++        assertThat(timeout.cancelledByCaller()).isFalse();
++
++        CancellationToken failFast = CancellationToken.create();
++        failFast.failFastCancel();
++        assertThat(failFast.cancelledByCaller()).isFalse();
++    }
++
++    @Test
++    public void directCancellationIsNotAttributedToCaller() {
++        CancellationToken token = CancellationToken.create();
++
++        token.cancel();
++
++        assertThat(token.state()).isEqualTo(CancellationToken.State.CANCELLED);
++        assertThat(token.cancelledByCaller()).isFalse();
++    }
++
++    @Test
++    public void timeoutSchedulerReportsTheInjectedDomainScheduler() {
++        ManualClock clock = new ManualClock();
++        ScheduledExecutorService scheduler = clock.scheduler();
++        CancellationToken token =
++                new CancellationToken(null, clock.read() + TimeUnit.MINUTES.toNanos(1), clock.ticker(), scheduler);
++
++        assertThat(token.timeoutScheduler()).isSameAs(scheduler);
++        assertThat(CancellationToken.create().timeoutScheduler()).isNull();
++    }
++
+     @Test
+     public void noArgCancelDelegatesToInterruptingCancel() {
+         CancellationToken token = CancellationToken.create();
+@@ -808,6 +868,12 @@ public class CancellationTokenTest {
+         AtomicBoolean taskStillPending = new AtomicBoolean();
+         token.addStateListener(state -> {
+             observed.set(state);
++            // A losing transition must not run its cancellation aftermath inside the winner's
++            // listener window. The ordering lets group listeners attribute the winner before any
++            // cascade reaches the bound work.
++            if (state == CancellationToken.State.CANCELLED) {
++                token.timeoutCancel();
++            }
+             taskStillPending.set(!task.isDone());
+         });
+ 
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
+index d3e780c3..a54199fa 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionExitTrackerTest.java
+@@ -50,6 +50,20 @@ class ExecutionExitTrackerTest {
+         assertThat(tracker.awaitBounded(-1L)).isTrue();
+     }
+ 
++    @Test
++    void awaitBoundedZeroBudgetDoesNotConsumeAnInterrupt() throws Exception {
++        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
++        tracker.register(context("task"));
++
++        Thread.currentThread().interrupt();
++        try {
++            assertThat(tracker.awaitBounded(0L)).isFalse();
++            assertThat(Thread.currentThread().isInterrupted()).isTrue();
++        } finally {
++            Thread.interrupted();
++        }
++    }
++
+     @Test
+     void awaitBoundedPositiveBudgetWaitsForAndReportsCompletion() throws Exception {
+         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java
+index bb9c348f..5e91ad8b 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java
+@@ -2,6 +2,7 @@ package io.github.monadrome.parallelinscope;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ 
++import com.google.common.util.concurrent.MoreExecutors;
+ import org.junit.jupiter.api.Test;
+ 
+ /** Direct contract test of the per-task execution lifecycle slot's state machine. */
+@@ -27,6 +28,8 @@ class TaskExecutionStateTest {
+         slot.skipped();
+         // The slot is terminal: a late executor invocation must not enter the execution.
+         assertThat(slot.claimRunning()).isFalse();
++        // Skipping publishes the exit observation before releasing the shared tracker.
++        assertThat(slot.terminal().isDone()).isTrue();
+         // A second skip is a no-op; the tracker was released exactly once either way.
+         slot.skipped();
+         assertThat(tracker.isDone()).isTrue();
+@@ -43,6 +46,28 @@ class TaskExecutionStateTest {
+         assertThat(tracker.isDone()).isTrue();
+     }
+ 
++    @Test
++    void skipIfPendingPublishesExitAndWinsOnlyOnce() {
++        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
++        TaskExecutionState slot = tracker.register(context());
++
++        assertThat(slot.skipIfPending()).isTrue();
++        assertThat(slot.terminal().isDone()).isTrue();
++        assertThat(tracker.isDone()).isTrue();
++        assertThat(slot.skipIfPending()).isFalse();
++    }
++
++    @Test
++    void skipIfPendingDoesNotReleaseAClaimedSlot() {
++        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
++        TaskExecutionState slot = tracker.register(context());
++
++        assertThat(slot.claimRunning()).isTrue();
++        assertThat(slot.skipIfPending()).isFalse();
++        assertThat(slot.terminal().isDone()).isFalse();
++        assertThat(tracker.isDone()).isFalse();
++    }
++
+     @Test
+     void terminalSignalCompletesWithTheWinningTransition() {
+         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
+@@ -66,6 +91,48 @@ class TaskExecutionStateTest {
+         assertThat(slot.isOutstanding()).isFalse();
+     }
+ 
++    @Test
++    void stateAndStatusReflectEachLifecyclePhase() {
++        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
++        TaskExecutionState slot = tracker.register(context());
++
++        assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.PENDING);
++        assertThat(slot.status()).isEqualTo(TaskStatus.PENDING);
++        assertThat(slot.claimRunning()).isTrue();
++        assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.RUNNING);
++        assertThat(slot.status()).isEqualTo(TaskStatus.CLAIMED);
++        slot.exited();
++        assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.EXITED);
++        assertThat(slot.status()).isEqualTo(TaskStatus.EXITED);
++
++        ExecutionExitTracker skippedTracker = ExecutionExitTracker.create(1);
++        TaskExecutionState skipped = skippedTracker.register(context());
++        skipped.skipped();
++        assertThat(skipped.stateValue()).isEqualTo(TaskExecutionState.State.SKIPPED);
++        assertThat(skipped.status()).isEqualTo(TaskStatus.EXITED);
++    }
++
++    @Test
++    void skippedPublishesTerminalBeforeTrackerExitListenerRuns() {
++        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
++        TaskExecutionState slot = tracker.register(context());
++
++        tracker.executionExit()
++                .addListener(() -> assertThat(slot.terminal().isDone()).isTrue(), MoreExecutors.directExecutor());
++        slot.skipped();
++    }
++
++    @Test
++    void exitedPublishesTerminalBeforeTrackerExitListenerRuns() {
++        ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
++        TaskExecutionState slot = tracker.register(context());
++        assertThat(slot.claimRunning()).isTrue();
++
++        tracker.executionExit()
++                .addListener(() -> assertThat(slot.terminal().isDone()).isTrue(), MoreExecutors.directExecutor());
++        slot.exited();
++    }
++
+     private static MultiTaskContext context() {
+         return MultiTaskContext.resolve(MultiTaskContext.resolution(
+                 BatchOptions.timeout("task", java.time.Duration.ofSeconds(30)).spec(), 1));

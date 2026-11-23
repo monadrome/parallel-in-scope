@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-16T06:29:20.506Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new",
+    "name": "parallel-in-scope-new",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "53829493dacdff11a01a57ae488ad824505d1c45",
+    "head": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "53829493dacdff11a01a57ae488ad824505d1c45",
+    "to": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "label": "53829493..9c43573d"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "677588243ce26f439d65520b30dd3759cf5288cd73b836127700b3836003dfed",
+    "bytes": 44431,
+    "files": [
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "BACKLOG.md",
+        "status": "M",
+        "additions": 33,
+        "deletions": 477
+      },
+      {
+        "path": "scripts/check-doc-refs.py",
+        "status": "M",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/tests/test_check_doc_refs.py",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "fcb6102a185c6cc2d6c5302350aaac7e1f19abf3ef000dbd12da5483ded41fa0",
+    "bytes": 2703,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "2a652111db142e8bc36135424160859d9ec76f78b8248c7eb2f2fd7c8ebad7d9",
+    "bytes": 2509
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

@@ -1,0 +1,822 @@
+diff --git a/design/cancellation-propagation.md b/design/cancellation-propagation.md
+index 43ee360a..ec158c22 100644
+--- a/design/cancellation-propagation.md
++++ b/design/cancellation-propagation.md
+@@ -2,56 +2,48 @@
+ 
+ > The correctness of `CancellationToken.bind` depends on a set of Guava cancellation-propagation
+ > semantics that are not intuitive. This document records those mechanics and their correct use.
+-> Every conclusion has been verified line by line against the `guava-33.6.0-jre` source, with
+-> source locations appended per section.
++> Every conclusion has been verified line by line against the `guava-33.7.2-jre` source (the
++> version the parent POM pins), with source locations appended per section.
+ > For how the cancellation mechanism's layers connect and which contract owns each question, see
+ > the [cancellation model overview](cancellation-model.md).
+ 
+-## 1. The current bind shape
+-
+-```java
+-public <T> void bind(
+-        List<ListenableFuture<T>> futures, ListenableFuture<?> submitCanceller, ScheduledExecutorService timer) {
+-    // The deadline lives inside the token (min'ed with the parent at construction); bind no
+-    // longer takes a Duration.
+-    // Unified cancel handle: successfulAsList stays pending until every input completes, so at
+-    // the moment "one member has failed" it is still pending, and cancelling it cascades to all
+-    // inputs.
+-    ListenableFuture<?> allFutures =
+-            Futures.successfulAsList(Futures.successfulAsList(futures), submitCanceller);
+-
+-    // Event sources must be distinguished by source, never guessed by exception type: a business
+-    // body may legitimately throw TimeoutException.
+-    // The allAsList callback is the only FAIL_FAST source; the explicitly scheduled timer task is
+-    // the only TIMEOUT source.
+-    ListenableFuture<?> businessOutcome = Futures.allAsList(futures);
+-    // An already-terminal token is not armed: no transition can win anymore and the deadline is
+-    // meaningless; its cancellation still arrives intact through the futureToken/setFuture bridge
+-    // and the onFailure callback. Skipping also keeps a terminal token's bind from touching a
+-    // scheduler that may already be closed with its owning runtime (group start race).
+-    if (deadlineNanos != Long.MAX_VALUE && state() == RUNNING) {
+-        // Fall back to the caller's scheduler when the domain scheduler is retired; when both
+-        // reject, absorb if the token concurrently went terminal (return null — terminal already
+-        // implies cancellation and the timer has nothing to do), and throw only if still RUNNING:
+-        // silently dropping a live deadline violates the timeout contract (§5.2).
+-        @Nullable ScheduledFuture<?> timeoutHandle = scheduleDeadline(domainScheduler, timer, () -> {
+-            transitionTo(TIMEOUT);
+-            cancelBoundWork(allFutures); // always cancel(true): every cancellation interrupts
+-        }, remaining);
+-        // Any terminal path completes futureToken, where the scheduled task is cancelled, so a
+-        // shared timer does not pin a terminal token until its deadline; the absorb path returns
+-        // null and has nothing to attach.
+-        if (timeoutHandle != null) {
+-            futureToken.addListener(() -> timeoutHandle.cancel(false), directExecutor());
+-        }
+-    }
+-    Futures.addCallback(businessOutcome, new FutureCallback<>() {
+-        onSuccess: transitionTo(SUCCESS);
+-        onFailure: transitionTo(FAIL_FAST); cancelBoundWork(allFutures);
+-    }, directExecutor());
+-    futureToken.setFuture(businessOutcome);
+-}
+-```
++## 1. The bind protocol
++
++`bind` connects one already-constructed token to the submitted work and arms its deadline. The
++deadline lives inside the token — min'ed with the parent at construction — so bind takes no
++duration. The protocol assembles four roles:
++
++- **Unified cancel handle**: a still-pending aggregate built as
++  `successfulAsList(successfulAsList(futures), submitCanceller)`. `successfulAsList` stays
++  pending until every input completes, so at the moment "one member has failed" it is still
++  pending, and cancelling it cascades to all inputs, including the submit canceller (§3). Every
++  cancelling transition cancels this one handle with `cancel(true)` — every framework
++  cancellation interrupts (§5.1).
++- **Business outcome**: `allAsList(futures)`, observed through a direct-executor `addCallback`:
++  `onSuccess` commits `SUCCESS`; `onFailure` commits `FAIL_FAST` and cancels the cancel handle.
++  The `allAsList` callback is the only FAIL_FAST source — event sources are distinguished by
++  source, never guessed by exception type, because a business body may legitimately throw
++  `TimeoutException`.
++- **Deadline timer**: when the token has a deadline and is still `RUNNING`, the timeout action
++  (commit `TIMEOUT`, then cancel the handle) is scheduled on the token tree's domain scheduler,
++  with the caller's scheduler as the fallback for tokens that carry no domain scheduler or whose
++  domain retired with its runtime, and the absorb-or-throw rule for a double rejection (§5.2).
++  TIMEOUT attribution is deadline-owned: the already-expired bind check and the scheduled
++  deadline action are the framework TIMEOUT paths, and a business `TimeoutException` is not
++  framework TIMEOUT. An already-expired deadline commits `TIMEOUT` and cancels the bound work
++  synchronously before bind returns, arming no timer. An already-terminal token arms nothing:
++  no transition can win anymore, and its cancellation still arrives intact through the
++  futureToken bridge and the `onFailure` callback; skipping also keeps a terminal token's
++  bind from touching a scheduler that may already be closed with its owning runtime (group start
++  race).
++- **futureToken bridge**: the token's own completion future is connected to the business outcome
++  with `setFuture`, so cancel-before-bind still reaches the chain and a second bind does no
++  collateral damage (§4). Any terminal path completes `futureToken`, where the scheduled timer
++  handle is revoked, so a shared timer does not pin a terminal token until its deadline.
++
++bind runs before submission: a submission can execute inline on the submitting thread, and the
++armed deadline is that path's only source of liveness (the bind-before-submit invariant,
++[ADR 0007](../adr/0007-bind-before-submit-and-borrowed-thread-isolation.md)).
+ 
+ Three shape constraints determine this form (mechanics in §2/§3, rules collected in §7):
+ 
+@@ -61,10 +53,12 @@ Three shape constraints determine this form (mechanics in §2/§3, rules collect
+ 2. **The unified cancel handle must be a still-pending aggregate future (`successfulAsList`)**:
+    `allAsList` goes terminal at the first failure/cancellation, and calling `cancel` on a
+    completed future is a no-op that cannot cascade to inputs (§3).
+-3. **The timer task is the only TIMEOUT source**: historically `allAsList` was wrapped in
+-   `withTimeout` and attribution was done by `instanceof TimeoutException`; a business
+-   `TimeoutException` was misrecorded as a framework TIMEOUT. `withTimeout` is still used in
+-   `Task.withTimeout` derived views; it no longer plays a token-attribution role.
++3. **The armed deadline is the only framework TIMEOUT source**: the already-expired bind check
++   and the scheduled deadline action commit `TIMEOUT`; a business `TimeoutException` is not
++   framework TIMEOUT. Historically `allAsList` was wrapped in `withTimeout` and attribution was
++   done by `instanceof TimeoutException`; a business `TimeoutException` was misrecorded as a
++   framework TIMEOUT. `withTimeout` is still used in `Task.withTimeout` derived views; it no
++   longer plays a token-attribution role.
+ 
+ ## 2. Mechanic one: cancellation and failure travel on two different paths
+ 
+@@ -104,8 +98,9 @@ fallback is dead code on this path.
+ ### 2.2 Bottom-up: cancellation enters the fallback as CancellationException
+ 
+ When a member future is cancelled directly, cancellation travels from the chain base upward:
+-input cancelled → `transform`'s `run()` runs `cancel(false)` on itself for the cancelled input
+-(`AbstractTransformFuture.run()`, source comment "inputFuture is cancelled... cancel(false)")
++input cancelled → `transform`'s `run()` completes the output as cancelled for a cancelled input
++(`AbstractTransformFuture.run()` mirrors the cancelled input through `setFuture`, which
++preserves the cancellation while clearing the interrupt bit)
+ → by the time it reaches catchingAsync the input is cancelled but the output is not →
+ `getDone(input)` throws `CancellationException` → caught by `catch (Throwable t)` (the source
+ comment says *"this includes CancellationException"*) → `exceptionType` is `Throwable.class` →
+@@ -115,10 +110,10 @@ The same fallback: does not run top-down, runs bottom-up. Direction decides beha
+ 
+ ### 2.3 addCallback: cancellation enters onFailure too
+ 
+-`Futures.CallbackListener.run()` calls `getUninterruptibly` on the future; a cancelled future
+-throws `CancellationException` (a RuntimeException) → `catch (RuntimeException | Error e)` →
+-`onFailure(e)` is invoked. **Both directions enter onFailure** — this is the essential
+-difference between addCallback and the catching family.
++`Futures.CallbackListener.run()` reads the future uninterruptibly through `getDone`; a
++cancelled future throws `CancellationException` (a RuntimeException), which lands in the
++catch-all `Throwable` branch → `onFailure(e)` is invoked. **Both directions enter
++onFailure** — this is the essential difference between addCallback and the catching family.
+ 
+ ## 3. Mechanic two: the aggregate future's cancellation cascade (allAsList ≠ successfulAsList)
+ 
+@@ -164,8 +159,9 @@ is preserved along the chain via `wasInterrupted()`:
+   semantics of "completing as cancelled", not "requesting cancellation", and should not carry
+   interruption
+ - The `cancel(false)` contract: the cascade proceeds as usual, but running tasks are not
+-  interrupted. This library's cancellation paths do not use it (§5.1); it appears only inside
+-  the "completing as cancelled" mirror and combiners
++  interrupted. This library's cancellation paths do not use it on work futures (§5.1); inside
++  Guava it appears only in the "completing as cancelled" mirror, in combiners, and to revoke
++  scheduled timer tasks
+ 
+ ## 5.1 Every framework cancellation interrupts
+ 
+@@ -309,30 +305,29 @@ attribution and sealing protocols); requiring immutable options to clear the sou
+ automatically (the source field is held for the request's lifetime anyway).
+ Historical source: `proposal:P0001`; the removal of the interruption parameter is in §5.1.
+ 
+-Claims rejected in review (2026-11-04, the three review rounds of §5.1's interruption-intent
+-removal): counting the second cancellation from a terminal-race loser was requested — the loser
+-only calls `futureToken.cancel(true)` once more; that future's value is never read, its
+-listeners (parent propagation, timer revocation) all re-read state, and with SUCCESS already
+-committed parent propagation is a no-op, equivalent to not calling. Supporting `cancel(false)`
+-for adopted members was requested — the public surface has no member handle and adopted members
+-are not handed to executors, so there is no selectable interruption intent. An earlier
+-clock-domain review rejected "upgrading every ordinary bound direct-cancel or parent-propagated
+-`cancel(false)` to `true`": Guava first cancels the inputs with `wasInterrupted()=false` along
+-the futureToken→allAsList chain, and the aggregate callback's `cancel(true)` landing on an
+-already-terminal future is a no-op — reverse verification passed entirely on the old code; that
+-distinction lost its object with §5.1's intent removal and is not reopened. The same round also
+-rejected "the combine timeout regression must assert token attribution": the review's fault
+-injection wrote the batch decision directly as `TIMEOUT`, which the production path cannot
+-reach (only the timer can commit `TIMEOUT`), while a business `TimeoutException` is always
+-FAILED(USER_CODE_FAILURE) by contract, independent of token state.
++Claims rejected in review: counting the second cancellation from a terminal-race loser was
++requested — the loser only calls `futureToken.cancel(true)` once more; that future's value is
++never read, its listeners (parent propagation, timer revocation) all re-read state, and with
++SUCCESS already committed parent propagation is a no-op, equivalent to not calling. Supporting
++`cancel(false)` for adopted members was requested — the public surface has no member handle and
++adopted members are not handed to executors, so there is no selectable interruption intent.
++Upgrading every ordinary bound direct-cancel or parent-propagated `cancel(false)` to `true` was
++rejected — Guava first cancels the inputs with `wasInterrupted()=false` along the
++futureToken→allAsList chain, and the aggregate callback's `cancel(true)` landing on an
++already-terminal future is a no-op; that distinction lost its object with §5.1's intent removal
++and is not reopened. Requiring the combine timeout regression to assert token attribution was
++rejected — the review's fault injection wrote the batch decision directly as `TIMEOUT`, which
++the production path cannot reach (only the armed deadline can commit `TIMEOUT`), while a
++business `TimeoutException` is always FAILED(USER_CODE_FAILURE) by contract, independent of
++token state.
+ 
+ ## 6. Cheat sheet
+ 
+ | API | Input cancelled | Output cancelled |
+ |---|---|---|
+-| `transform` | `cancel(false)` on itself in `run()`, propagates upward | `afterDone` propagates to the input |
++| `transform` | Output completes as cancelled in `run()` (mirrors the cancelled input, no interruption) | `afterDone` propagates to the input |
+ | `catching` / `catchingAsync` | Output not cancelled: fallback runs with `CancellationException`; output cancelled: early return | Propagates to the input; fallback does not run |
+-| `withTimeout` | Fire → `cancel(false)` | Cancels the delegate + the timer task |
++| `withTimeout` | `Fire` mirrors the cancelled delegate into the output (no interruption) | Cancels the delegate + the timer task |
+ | `addCallback` | `onFailure(CancellationException)` | `onFailure(CancellationException)` |
+ | `allAsList` | Itself becomes cancelled-terminal, no cascade | Cascades to all while pending; no-op once failed |
+ | `successfulAsList` | Stays pending | Cascades to all |
+@@ -393,7 +388,7 @@ runs only while the holder is non-null.
+ - bind-before-submit, first-wins attribution, and deadline-min propagation do not pass through
+   the holder and are unaffected by severing.
+ 
+-## Source index (guava-33.6.0-jre)
++## Source index (guava-33.7.2-jre)
+ 
+ | Conclusion | Location |
+ |---|---|
+@@ -401,7 +396,7 @@ runs only while the holder is non-null.
+ | setFuture cancels its argument on an already-cancelled future | `AbstractFuture#setFuture` |
+ | cancel propagates into DelegatingToFuture | `AbstractFuture#cancel` |
+ | catching's isCancelled early return / catch Throwable includes cancellation | `AbstractCatchingFuture#run` |
+-| transform's cancel(false) for a cancelled input | `AbstractTransformFuture#run` |
++| transform's setFuture mirror of a cancelled input | `AbstractTransformFuture#run` |
+ | Timer cleared when the timeout output is cancelled | `TimeoutFuture#afterDone`, `TimeoutFuture.Fire#run` |
+ | Aggregate future cancellation cascade | `AggregateFuture#afterDone` |
+ | allAsList's self-cancellation for a cancelled input | `AggregateFuture#processAllMustSucceedDoneFuture` |
+diff --git a/design/extension-and-wrapping.md b/design/extension-and-wrapping.md
+index 30590b27..0558b221 100644
+--- a/design/extension-and-wrapping.md
++++ b/design/extension-and-wrapping.md
+@@ -10,9 +10,8 @@
+ > Relationship to [first-principles.md](first-principles.md): this document concretizes
+ > criterion 2 (can existing mechanisms be parameterized) and criterion 4 (does it introduce a
+ > second execution pipeline) on the subject of "wrapping".
+-> **Status: final — no task decorator SPI; the only user extension point is task code itself
+-> (§10 has the deferral rationale and re-entry conditions).** Alibaba TransmittableThreadLocal
+-> (TTL) wrapper detection and the L8 guard have landed (see §6's landing record).
++> **No task decorator SPI; the only user extension point is task code itself (§10 has the
++> deferral rationale and re-entry conditions).** The TTL wrapper detection contract is §6.
+ 
+ ## 0. The one-sentence conclusion
+ 
+@@ -332,20 +331,34 @@ global.group("retry", Duration.ofSeconds(5))
+         .valueOf(flaky);
+ ```
+ 
+-## 6. TTL wrapper detection (landed; see the landing record below)
+-
+-Draft snapshot (the warning's location and wording are governed by the landing record):
+-
+-```java
+-// ExecutorRuntime construction
+-if (TtlUnwrap.isWrapper(suppliedExecutor)) {
+-    LOGGER.warning("Registered executor is a TTL wrapper; register the physical pool instead. "
+-            + "TTL capture will happen twice (executor boundary + prepare), and purge/BlockingRisk "
+-            + "introspection is disabled.");
+-}
+-// Capability probing (purge, BlockingRisk) runs on the unwrapped object
+-ExecutorService introspectable = TtlUnwrap.unwrap(suppliedExecutor);
+-```
++## 6. TTL wrapper detection
++
++Registering an executor wrapped by `TtlExecutors.getTtlExecutorService(pool)` adds a second
++capture point outside `run()` (breaks I3, problem P9). The runtime therefore detects TTL
++wrappers at registration and probes executor capabilities on the unwrapped object:
++
++- **Detection and warning**: when the supplied executor is a TTL wrapper
++  (`TtlUnwrap.isWrapper`), registration logs one `WARNING` naming the Par id, stating the
++  double-capture cost (executor boundary + prepare) and the remedy — register the physical
++  pool. Double capture comes from wrapping at the user's executor boundary, which the library
++  cannot control; the warning is the only remedy. The warning is emitted from `ParRuntime`'s
++  registration path — the message needs the Par id, and `ExecutorRuntime` stays free of logging
++  side effects — and fires at most once per new registered identity, through the guarded log
++  delivery (a throwing handler must not alter what `build()` observes).
++- **Capability probing reads the unwrapped object**: blocking-risk classification, starvation
++  determination, `rejectEnqueue` effectiveness, and the registration-time "opaque" warning all
++  read `TtlUnwrap.unwrap(suppliedExecutor)`, held by `ExecutorRuntime` as its introspectable
++  executor.
++- **Identity stays with the registered object**: `ExecutorIdentity` follows the object passed
++  to `register`, never the unwrapped pool — the same physical pool registered as two objects
++  would otherwise be merged, changing executor-graph semantics (INV-11).
++- **Discarding-policy guards cannot be bypassed by TTL wrapping**: the L8 registration check
++  reads the unwrapped object too, so a `DiscardPolicy` / `DiscardOldestPolicy` pool wrapped in
++  TTL is still refused. Without this, tasks would be accepted and silently discarded, task code
++  would never execute, and the framework would surface only TIMEOUT at the deadline — exactly
++  the failure shape L8 exists to block.
++- **TTL-agent short-circuit**: with the TTL agent loaded, `getTtlExecutorService` returns the
++  original object directly — no wrapper, no double capture, no warning.
+ 
+ Factual basis (verified line by line against the TTL 2.14.5 source):
+ 
+@@ -355,42 +368,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
+ - `ExecutorServiceTtlWrapper` is a package-private class (`implements ExecutorService,
+   TtlEnhanced`) — no external `instanceof`, but `TtlUnwrap.isWrapper/unwrap` is public API;
+ - Guava's `WrappingExecutorService` is package-private with no public unwrap entry, so **only
+-  the TTL side is fixed**;
+-- **Identity does not follow the unwrap**: `ExecutorIdentity` still follows the registered
+-  object (see its Javadoc for the reasons), or the same physical pool registered as two objects
+-  would be merged, changing executor-graph semantics.
+-
+-> **Landing record**: added
+-> `ExecutorRuntime.introspectableExecutor()` = `TtlUnwrap.unwrap(suppliedExecutor)`;
+-> blocking-risk classification, starvation determination, `rejectEnqueue` effectiveness
+-> determination, purge binding, and the registration-time "opaque" warning all now read the
+-> unwrapped object; identity still follows the registered object. Measured root module 644/644
+-> and demo 54/54 all green, with 3 new regression tests.
+->
+-> **A new defect found at landing (not previously recorded in this document)**: the L8 guard
+-> had been bypassed wholesale. The registration-time rejection-policy check used the same
+-> `instanceof ThreadPoolExecutor` judgment, and a TTL wrapper is not a `ThreadPoolExecutor` —
+-> so `DiscardPolicy` / `DiscardOldestPolicy` pools wrapped in TTL slipped past the check and
+-> registered successfully: tasks were accepted and silently discarded, task code never
+-> executed, and the framework surfaced only as TIMEOUT at the deadline. This is exactly the
+-> failure shape L8 exists to block. Regression case:
+-> `ParRuntimePoliciesTest.aTtlWrappedDiscardingPoolIsStillRefusedInsteadOfSlidingPastTheGuard`
+-> (measured failing before the fix).
+->
+-> Two intentional deviations from the draft:
+-> 1. **Warning location**: actually placed in `ParRuntime`'s registration loop rather than
+->    `ExecutorRuntime`'s construction — the message needs to name the Par id (this repository's
+->    established message convention), and `ExecutorRuntime` does not know the Par id; it also
+->    keeps `ExecutorRuntime` free of logging side effects. The warning fires at most once per
+->    new identity.
+-> 2. **Warning wording**: the draft's *"purge/BlockingRisk introspection is disabled"* stopped
+->    being true once probing moved to the unwrapped object; the actual warning states only the
+->    cost that still holds: TTL capture happens twice (executor boundary + prepare). Double
+->    capture comes from wrapping at the user's executor boundary, which the library cannot
+->    control — the warning is the only remedy.
+->
+-> With the TTL agent loaded, `getTtlExecutorService` returns the original object directly: no
+-> wrapper, no double capture, no warning needed.
++  the TTL side is fixed**.
+ 
+ ## 7. Contracts
+ 
+@@ -405,7 +383,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
+ | L5 | **Attribution unchanged**: exceptions thrown by user executions (including self-wrapping) attribute `USER_FAILURE`; no new `TaskTermination` vocabulary |
+ | L6 | **Independent snapshots**: each `prepare` captures its context snapshot independently, never reused across tasks (P6) |
+ | L7 | **`execute()` only**: submissions to user executors MUST call `execute(Runnable)` and MUST NOT call `submit()` (P8); when rejected, the future MUST be terminated (inline fallback or `SubmissionException`) — never returning a never-completing object. **Any** failure thrown by a submission call — including an `Error` thrown directly in breach of contract — MUST likewise terminate that prepared future with `SubmissionException`: no worker holds it, and after the throw no other path can complete it. "Any failure" covers `Throwable` literally: `execute(Runnable)` declares no checked exceptions, but an executor can smuggle one through generic erasure, so every catch point uniformly catches `Throwable` (initial window and sliding-window refill in `SlidingWindowSubmitter`, single submissions and group members in the shared kernel `ExecutionPhaseHintFuture.submitPrepared`, with the original throwable always kept as cause). A handoff `Error` is diagnosed once at SEVERE at the catch point that records it, the message carrying batch/member identity and phase; the batch path does not go through `submitPrepared`, so the same failure is never recorded twice. Ordinary rejections are control flow and are not logged |
+-| L8 | **Refuse discarding rejection policies at registration**: when a registered `ThreadPoolExecutor` uses `DiscardPolicy` / `DiscardOldestPolicy`, `ParRuntime.Builder.build()` MUST fail with `IllegalArgumentException`, naming the Par id, the pool class, and the policy class in the message. These two policies "accept then discard": they neither execute nor throw `RejectedExecutionException`, while the submission kernel treats only the latter as a terminal signal, so `Par.map` and TaskGroup would wait forever (P10/L7). `AbortPolicy` (rejection becomes `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (tasks execute inline) are unaffected. The guard reads the supplied object once at registration: handlers installed after `build()`, custom discarding handlers, and wrappers the library cannot see through are all outside its coverage — those shapes remain constrained only by U2 |
++| L8 | **Refuse discarding rejection policies at registration**: when a registered `ThreadPoolExecutor` uses `DiscardPolicy` / `DiscardOldestPolicy`, `ParRuntime.Builder.build()` MUST fail with `IllegalArgumentException`, naming the Par id, the pool class, and the policy class in the message. These two policies "accept then discard": they neither execute nor throw `RejectedExecutionException`, while the submission kernel treats only the latter as a terminal signal, so `Par.map` and TaskGroup would wait forever (P10/L7). `AbortPolicy` (rejection becomes `SUBMISSION_FAILURE`) and `CallerRunsPolicy` (tasks execute inline) are unaffected. The guard reads the supplied object — TTL-unwrapped, so a wrapped pool cannot slip past — once at registration: handlers installed after `build()`, custom discarding handlers, and wrappers the library cannot see through are all outside its coverage — those shapes remain constrained only by U2 |
+ 
+ ### 7.2 User-side constraints
+ 
+@@ -458,15 +436,7 @@ Factual basis (verified line by line against the TTL 2.14.5 source):
+ | Promising to propagate arbitrary `ThreadLocal`s/MDC | The propagation set is closed (A3) |
+ | Optional Listening wrapping | `ListenableFuture` is an internal implementation detail; the external contract is `TaskBatchResult`/`TaskGroupResult` |
+ 
+-## 11. Landing status
+-
+-1. ~~TTL wrapper detection~~ — landed (see §6's landing record);
+-2. This document + the `design/AGENTS.md` index + `CHANGELOG.md` — documentation final (the
+-   zero-SPI direction); the CHANGELOG records the detection and L8 fixes above;
+-3. User documentation (en/zh): self-wrapping rules and examples (§5), wiring metrics from
+-   observation snapshots; `idea-graveyard` carries the SPI deferral record.
+-
+-## 12. References
++## 11. References
+ 
+ - [first-principles.md](first-principles.md): axioms and evaluation criteria
+ - [../docs/zh/design/idea-graveyard.md](../docs/zh/design/idea-graveyard.md): rejection records
+diff --git a/design/group-one-shot-api-refactor-codex.md b/design/group-one-shot-api-refactor-codex.md
+index 1b6170a9..2b5d356f 100644
+--- a/design/group-one-shot-api-refactor-codex.md
++++ b/design/group-one-shot-api-refactor-codex.md
+@@ -144,15 +144,14 @@ Cover Java 8 compile-time positive and negative cases, parameterized types, keys
+ inside generic methods, nullable values, identity addressing, cross-run reuse, duplicate
+ declarations not consuming stages, stale/cross-thread stages, and foreign runtimes — plus, for
+ both terminal input forms, success gating, explicit options, cancellation, TTL, rejection, and
+-bounded cleanup. External consumption, independent read-only review, reverse verification, and
+-scoped PIT are reported separately; none can substitute for another.
++bounded cleanup. Dynamic name/position queries keep their own boundary coverage and cannot be
++replaced by key tests. External consumption, independent read-only review, reverse
++verification, and scoped PIT are reported separately; none can substitute for another.
+ 
+ ## 9. Review and verification lessons
+ 
+-After landing, the change went through three independent adversarial review rounds (fresh seat
+-each round, reading the previous round's baseline first) and one PIT mutation run; all 16
+-review findings were confirmed and fixed. The per-item transcript is no longer archived; the
+-generalizable lessons worth keeping:
++Generalizable lessons from this change's review and verification rounds; per-item transcripts
++are not archived.
+ 
+ **"Caller listeners must not block framework convergence" is a defect family, not a single
+ site.**
+@@ -183,66 +182,34 @@ combines made the latter win while the former was discarded without an error.
+   (let a later-declared member finish first), and the order must be established by observation
+   (seeing futures terminate first), not by timing luck inside executions.
+ - Reverse verification (revert the fix, watch the test go red) only covers changed lines; zero
+-  coverage on critical paths went unnoticed by three review rounds plus per-fix reverse
+-  verification — it was PIT that found it. Mutation testing asks a different question: "do
+-  these tests bite". The two complement each other and are both process steps in the root
+-  AGENTS.md's Adversarial Review.
+-- PIT survivors must be classified one by one: equivalent mutants (for example a boundary
++  coverage on critical paths can go unnoticed by review plus per-fix reverse verification —
++  mutation testing is what asks "do these tests bite". The two complement each other and are
++  both process steps in the root AGENTS.md's Adversarial Review.
++- Mutation survivors must be classified one by one: equivalent mutants (for example a boundary
+   condition flipped where `List.get` throws anyway) are not gaps; reporting equivalent mutants
+   as gaps costs the reader's trust more than a missed report does.
+ - Hand-written stubs can make the mechanism under test spin idle or even hang (see the
+   "Historical lessons" section of [interruption-contract.md](interruption-contract.md));
+   critical paths use real implementations.
+ 
+-### Review and verification of typed keys
+-
+-An independent read-only Codex CLI harness in the cmux `task-key-review` workspace checked the
+-typed-key contract item by item, covering Java 8, generics, identity, lifecycle, cancellation,
+-and terminal inputs; no implementation defect was confirmed. The following test findings were
+-all kept and corrected:
++**Assertion-shape lessons from the typed-key rounds:**
+ 
+ - Asserting only terminal non-success cannot rule out a failed member still triggering the
+-  terminal submission. Changed to also require `FAIL_FAST` and zero submissions on the
+-  terminal executor, so an input-assembly failure cannot mask a success-gating error.
+-- Asserting only `TIMEOUT` cannot distinguish an explicit member budget from the group budget.
+-  Added a convergence bound well before the group deadline; temporarily dropping the explicit
+-  options made the test actually fail, and restoring them made it pass.
+-- Coverage of the old combine cannot substitute for the new value-view entry. Added
+-  cancel-before-join, cancel-while-terminal-running, and terminal rejection, checking key
+-  results, submission or invocation counts, and execution-exit confirmation respectively.
+-- Cooperative interrupt exit cannot prove bounded cleanup. Used a separate latch to hold
+-  executions unexited, observed cleanup's return and the unexited summary through a bounded
+-  `Future.get`; the finally releases the executions, confirms exit, drains the finish worker,
+-  and closes the scope. Re-review noted that calling finish synchronously could hang the test
+-  on failure, so it was changed to the controlled worker above and confirmed to have no
+-  blocking finding.
+-- The reverse verification of key identity queries temporarily switched to name-based lookup,
+-  and the same-name key impersonation test actually failed; restoring reference identity made
+-  it pass.
+-
+-The historical verification scores of the type-token implementation do not carry over to the
+-implementation after type-token removal; the latter was verified and reviewed separately.
+-
+-### Re-review without runtime type tokens
+-
+-Independent read-only gpt-6-astra checked generics, Java 8, identity queries, draft guards,
+-result freezing, and cancellation/terminal interleavings against this document's MUST/MUST
+-NOT, finding no production-code defect. Two documentation findings were kept and corrected:
+-the terminal contract still described the removed string-plus-type declaration; this document
+-misstated the construction timing of the combineValues input as after the whole group
+-succeeded. The corrected text describes key declarations and "the input built after all
+-ordinary members succeed, the aggregate values published after the whole group succeeds"
+-respectively. These corrections do not change execution behavior. A CLI review that could not
+-complete due to connection retries does not count as a passing independent review.
+-
+-With type-token tests removed, boundary coverage of dynamic name/position and nullable slots
+-must be kept independently and cannot be replaced by key tests. Reverse verification
+-temporarily resolved keys by name and the same-name key impersonation test failed; restoring
+-reference identity made the full suite pass. This round's scoped PIT covered TaskKey,
+-GroupValues, and TaskGroupResult, including VOID_METHOD_CALLS. The remaining survivors are
+-only the value view's and result's positional bounds/explicit checks: the underlying lists
+-still throw the same exception types the contract requires, equivalent under the existing
+-value and exception-type contract. The only uncovered mutation is GroupValues.toString's
+-diagnostic-text return value; no claim is made that this branch or the scheduling kernel's
+-full mutation space is covered. Real JDK 8 consumption and behavior tests are verified
+-separately.
++  terminal submission — also require `FAIL_FAST` and zero submissions on the terminal
++  executor, so an input-assembly failure cannot mask a success-gating error.
++- Asserting only `TIMEOUT` cannot distinguish an explicit member budget from the group budget
++  — add a convergence bound well before the group deadline.
++- Coverage of a replaced entry cannot substitute for its successor: the value-view entry needs
++  its own cancel-before-join, cancel-while-terminal-running, and rejection cases, checking key
++  results, submission or invocation counts, and execution-exit confirmation.
++- Cooperative interrupt exit cannot prove bounded cleanup: hold executions unexited with a
++  separate latch, observe cleanup's return and the unexited summary through a bounded
++  `Future.get`, and run finish on a controlled worker rather than synchronously, so a failure
++  cannot hang the test.
++- Reverse verification of identity addressing temporarily resolves keys by name, making the
++  same-name key impersonation test fail until reference identity is restored.
++
++**Verification does not carry across reimplementation.** The type-token implementation's
++verification results do not carry over to the type-token-free implementation; each shape —
++including the documents describing it — was verified and reviewed separately. The current
++combineValues semantics are owned by §5.
+diff --git a/design/sliding-window-refill.md b/design/sliding-window-refill.md
+index 2278cbad..2b1f79bb 100644
+--- a/design/sliding-window-refill.md
++++ b/design/sliding-window-refill.md
+@@ -52,24 +52,20 @@ wins.
+ 
+ The framework no longer creates threads for batches waiting to refill: the thread cost drops
+ from O(number of concurrent bounded-window batches) to O(1) (depending only on the business
+-executor's own threads). The `SlidingWindowResourceBoundTest` regression locks this bound
+-through public entries; reverse verification yields 24 `submitRemaining` waiting threads on the
+-old resident-submitter implementation and 0 on the new one.
++executor's own threads). A regression through public entries locks this bound: no framework
++thread may sit waiting for a batch's refills.
+ 
+ ## Cancellation and window consistency
+ 
+-`cancelDuringHandoffKeepsClaimedElementConsistent` locks: when cancellation lands inside the
++A regression gates the cancellation point after the claimed element's `execute()` has returned
++(handoff complete, execution not yet running) and requires: when cancellation lands inside the
+ refill window, claimed elements execute as usual and present their real results externally,
+-while unclaimed elements are abandoned as `SUBMISSION_FAILURE`;
+-`repeatedSubmitAndCancelNeverReportsARanTaskAsUnsubmitted` hammers the same race over many
+-rounds. That test gates the cancellation point after the claimed element's `execute()` has
+-returned (handoff complete, execution not yet running); the TOCTOU window between the `settled`
+-check and `execute()` is outside this case's gating, but behavior in that window follows the
++while unclaimed elements are abandoned as `SUBMISSION_FAILURE`; a repeated submit-and-cancel
++hammer over many rounds never reports a ran task as unsubmitted. The TOCTOU window between the
++`settled` check and `execute()` is outside that gating, but behavior in the window follows the
+ same semantics (claimed elements run as usual).
+ 
+ ## Residuals
+ 
+-- Independent review: the R2 rework has not yet obtained the different-model/harness review the
+-  project requires.
+ - Each historical (terminal) child batch still accumulates one `ParentLink` node constant on
+   the parent token's listener stack — see the residual record in cancellation-propagation §8.
+diff --git a/design/task-graph.md b/design/task-graph.md
+index 9bf362f5..8a4c248d 100644
+--- a/design/task-graph.md
++++ b/design/task-graph.md
+@@ -161,69 +161,35 @@ conclusion, use a dedicated `ParRuntime` serving only that code (as in tests).
+   passes the recording point; the hot path only reads immutable state and the cold path CASes,
+   so neither read nor write paths block, and computation happens only when new edges appear.
+   Switched to CAS.
++- **Deleting token names that appear only as historical mechanism notes in the Chinese design
++  philosophy and idea graveyard**: those sentences neither link to nor teach public usage and
++  do not violate cancellation contract §5.3. Rejected.
+ 
+ ## 7. Verification baseline
+ 
+-- `ExecutorWaitGraphTest`: top-level calls record nothing; non-starvation-prone targets and
+-  external endpoints form no edges; self-loops and cross-admission cross-request cycles; a
+-  multi-alias executor is one member; one admission's multiple edges install together;
+-  re-announcement when components merge; a complete graph of 12 executors reports one
+-  component; neither announcement rejection nor a throwing handler fails the admission;
+-  concurrent installation of the same edge or closing of the same cycle neither loses edges nor
+-  double-announces; when index reads fail after new edges exist, the whole admission is not
+-  installed, and a recording failure does not affect admission.
+-- `ExecutorWaitAdmissionTest`: real waits at public admissions — a same-pool nested `map`
+-  self-loop, a handoff pool forming no edge, two unrelated calls composing a cross-request
+-  cycle, a `mapAndCombine` combine returning to the caller's pool being a self-loop while the
+-  batch pool is not, a nested group waiting on every member and the combine, a top-level group
+-  recording nothing, an external runtime's caller not entering this graph, one pool with two
+-  ids, and warnings not running on the admission thread with a blocking handler not blocking
+-  admission.
+-- `ScopedTaskContractTest`: both the batch and group entries report self-loops under same-pool
+-  nesting.
+-- `ParMapAndCombineTest`: a top-level combined batch records nothing; a nested combine on the
+-  batch's own pool is not a self-loop.
+-
+-## 8. Implementation review and dispositions
+-
+-- Claude's read-only review of the executor wait graph's first implementation confirmed: the
+-  single-target and `mapAndCombine` double-target recording points allocated temporary
+-  collections before the known-edge lookup, violating P6. Retained and fixed: both recording
+-  forms now run eligibility and known-edge checks against the same immutable snapshot first,
+-  allocating no collections for known edges; only the cold path builds the missing-edge list,
+-  and one admission is still installed by the same CAS, with witnesses and exception isolation
+-  unchanged.
+-- The same review found that BACKLOG A-P2 and the interactive demo still described the deleted
+-  request-level task graph. Retained and fixed: A-P2 closed with the old public query surface's
+-  deletion; the demo now renders two executor nodes, real wait edges, and components with
+-  witnesses, no longer fabricating a root, task nodes, or top-level edges.
+-- Deleting token names that appear only as historical mechanism notes in the Chinese design
+-  philosophy and idea graveyard was proposed; rejected: those sentences neither link to nor
+-  teach public usage and do not violate cancellation contract §5.3. Wording, line-break, and
+-  naming-style suggestions were dropped as behavior-free noise.
+-- A later re-review returned no content and was abandoned per the maintainer's instruction, not
+-  counted as an independent pass; the dispositions above come from the Claude review that did
+-  return and the main agent's item-by-item verification.
+-- Kimi's read-only review of the executor wait graph changes further confirmed: nested groups
+-  still built an `awaitedUnits` list by member count before recording — a P6 residual the
+-  previous round did not cover. Fixed by reading from the existing `membersAndTerminal` by
+-  index, with the count taken from the same list; the missing-edge list is created only after
+-  new edges are found, and the one-CAS atomic install is unchanged. The list overload that lost
+-  its production callers was deleted with it, keeping no test-only convenience entry.
+-- DeepSeek's first independent read-only round retained four items: a `RuntimeException` from
+-  an index callback could escape recording; the list overload was down to test-only callers;
+-  the wait count borrowed the convergence counter; and the member-to-combine data-flow note was
+-  lost. All fixed; when reading any unit fails, the whole admission is discarded and a warning
+-  is logged asynchronously, with no partial edges installed. The second round retained stale
+-  Javadoc and a weak test covering only first-element failure: the documentation now states the
+-  index domain and callback preconditions, and the regression was changed to a first element
+-  producing a new edge with a second element failing, proving partial admissions are not
+-  installed. The final re-review has no remaining findings; allocation properties were checked
+-  against the implementation and Guava collection paths, with no allocation benchmark
+-  measured.
+-- 32 targeted and 965 full tests pass. Reverse verification reverted the read-failure guard and
+-  the catch's `return` separately, observing the exception escaping and partial self-loop
+-  installation respectively; passing after restoration. The final `ExecutorWaitGraph` PIT is
+-  65/65 KILLED with none surviving or uncovered; the remaining 32 SURVIVED, 29 NO_COVERAGE, and
+-  1 TIMED_OUT of the two-class run all sit in `TaskGroup` statements untouched by this change —
+-  kept as a pre-existing coverage limit and not counted as this fix's unverified part.
++Verification must cover, by risk area:
++
++- **No-edge conditions**: top-level calls record nothing; awaits on non-starvation-prone
++  targets and on executors external to this runtime form no edges; group membership and the
++  members-to-combine data flow are not waits; sliding-window refills and late-submitted
++  combines are not new logical admissions and produce no edges; a nested combine on the batch's
++  own pool is not a self-loop.
++- **Edge formation**: same-pool nesting produces the expected self-loop at every admission
++  path — batch, internal single-task submission, and group entries alike; a handoff pool
++  forms no edge; two unrelated calls compose a cross-request cycle; a `mapAndCombine`
++  combine returning to the caller's starvation-prone pool is a self-loop while the batch's
++  own pool is not; a nested group records one wait per member and the combine and a top-level
++  group records nothing; one pool registered under two ids is one member; one admission's
++  multiple edges install together (P5), and a newly announced component re-announces when it
++  merges into another; a densely connected executor set (for example a complete graph of a
++  dozen executors) reports one component, not an explosion.
++- **Admission safety**: announcement rejection, a throwing warning handler, and a blocking
++  handler neither fail nor stall the admission; warnings never run on the admission thread;
++  concurrent installation of the same edge and concurrent closing of the same cycle neither
++  lose edges nor double-announce; when reading a unit fails after new edges were found, the
++  whole admission is discarded with no partial edges installed — the regression must prove
++  partial installation cannot happen, with a failing element preceded by one that would have
++  installed a new edge; a recording failure never changes the admission's result.
++- **Hot-path discipline (P6)**: every recording form — single-target, the `mapAndCombine`
++  double target, and the group's per-member recording — must stay allocation-free on the
++  known-edge path; missing-edge lists are built only after new edges are found.
+diff --git a/design/task-group-api-and-options.md b/design/task-group-api-and-options.md
+index 2ee579c0..51ebf511 100644
+--- a/design/task-group-api-and-options.md
++++ b/design/task-group-api-and-options.md
+@@ -114,36 +114,6 @@ inherit choice) are carried by the `ParRuntime.group(name, timeout)`/
+ `GroupStart.closeGrace(Duration)` and `GroupStart.cancelOn(ListenableFuture<?>)` respectively,
+ and both must be declared before the first `par`.
+ 
+-```java
+-public final class TaskOptions {
+-    public static TaskOptions inheritTimeout();
+-    public static TaskOptions timeout(Duration timeout);
+-    public TaskOptions taskType(TaskType taskType);
+-    public TaskOptions rejectEnqueue(boolean rejectEnqueue);
+-
+-    public Optional<Duration> timeout();
+-    public TaskType taskType();
+-    public boolean rejectEnqueue();
+-}
+-
+-public final class BatchOptions {
+-    public static BatchOptions inheritTimeout(String name);
+-    public static BatchOptions timeout(String name, Duration timeout);
+-    public BatchOptions parallelism(int parallelism);
+-    public BatchOptions taskType(TaskType taskType);
+-    public BatchOptions rejectEnqueue(boolean rejectEnqueue);
+-    public BatchOptions closeGrace(Duration closeGrace);
+-    public BatchOptions cancelOn(ListenableFuture<?> signal);
+-
+-    public String name();
+-    public int parallelism();
+-    public Optional<Duration> timeout();
+-    public TaskType taskType();
+-    public boolean rejectEnqueue();
+-    public Optional<Duration> closeGrace();
+-}
+-```
+-
+ **Fields equal the consumption set.** The field set an option type exposes must equal the set
+ its consumers read: member and combine identities come from declaration names, and a single
+ task is one execution with no fan-out, so `TaskOptions` MUST NOT contain name, parallelism, or
+@@ -214,7 +184,7 @@ options into the kernel carrier (name, requestedParallelism, timeout, taskType,
+ The member side adapts from `TaskOptions` (name is the member declaration name,
+ requestedParallelism is always 1), and the batch side adapts from `BatchOptions`. Request
+ sources do not enter `UnitSpec`; they are wired into the execution token separately at
+-admission. The signature and the three-parent decoupling semantics are in
++admission. The resolution entry and the three-parent decoupling semantics are in
+ [Lifecycle and state machine §5](task-group-lifecycle.md).
+ 
+ #### 3.2.1 `TaskType`: an optional diagnostic declaration
+diff --git a/design/task-group-lifecycle.md b/design/task-group-lifecycle.md
+index dddfbcc4..6b69ef4a 100644
+--- a/design/task-group-lifecycle.md
++++ b/design/task-group-lifecycle.md
+@@ -53,19 +53,10 @@ preparation phase. Members add no public Context.
+ `TaskGroup` is itself the group-level run state; no `TaskGroupContext` or `CurrentTaskGroupTl`
+ MUST be added.
+ 
+-It is produced in the submission's runtime creation phase and holds at least:
+-
+-```text
+-groupId / groupName
+-startTimeNanos / deadlineNanos
+-lifecycle
+-first completion reason
+-frozen members registry
+-totalTasks / completedTasks (convergence barrier)
+-group CancellationToken (internal, not a public control entry)
+-completion SettableFuture
+-failedTaskName
+-```
++It is produced in the submission's runtime creation phase and is the single owner of the
++group's run state; the members registry, convergence counting, and completion publication it
++holds are specified normatively in §6. Its internal `CancellationToken` and its internal
++completion future are kernel-internal and are not public control entries.
+ 
+ The `first completion reason` accepts member failure, deadline, group cancel/close, outer
+ cancellation, and direct member cancellation. A single directly cancelled member cascades into
+@@ -76,17 +67,10 @@ future still reference it; it belongs to no physical thread.
+ 
+ ### 4.3 MemberState
+ 
+-Each frozen member needs an internal state record. Recommended as a private/package-visible
+-inner class of `TaskGroup`, to avoid adding a public Context:
+-
+-```text
+-memberName
+-TaskExecutionContext
+-member ListenableFuture (package-private)
+-execution future/phase
+-member TaskTermination (nullable, assigned when the member goes terminal)
+-failure (nullable)
+-```
++Each frozen member needs an internal state record linking the member's identity, its
++`TaskExecutionContext`, its package-private futures, and — once the member goes terminal — its
++`TaskTermination` and failure. Keep it a private/package-visible inner class of `TaskGroup`, to
++avoid adding a public Context.
+ 
+ The lifecycle runs from the submission's full-registration phase until the Group result is no
+ longer referenced. A member may be cancelled before the user function starts; in that case the
+@@ -95,14 +79,9 @@ MemberState exists, but the `TaskExecutionContext` was never installed, and no
+ 
+ ### 4.4 MultiTaskContext
+ 
+-Each member creates a single-task `MultiTaskContext`:
+-
+-```text
+-taskCount = 1
+-effectiveParallelism = 1
+-name = member name (String)
+-executorIdentity / executorLabel = the member Par's binding
+-```
++Each member creates a single-task `MultiTaskContext` resolved for exactly one task: the member
++declaration name is the unit name, and the member `Par`'s binding is the executor identity and
++label.
+ 
+ The member declaration name (a `String`) is the single source of truth for member identity: it
+ serves simultaneously as the unique key inside the Group, the group-level result key, and the
+@@ -149,13 +128,10 @@ completed member's structured child task".
+ Each time a member actually calls the target executor's `execute/submit`, the member Batch must
+ be temporarily installed:
+ 
+-```java
+-MultiTaskContext previous = SubmissionScope.install(memberBatch);
+-try {
+-    executor.execute(memberFuture);
+-} finally {
+-    SubmissionScope.restore(previous);
+-}
++```text
++previous = install(memberBatch)
++    executor.execute(member future)
++finally restore(previous)
+ ```
+ 
+ Its lifecycle covers only one submission call — not queueing or task execution. Stack-wise
+@@ -179,31 +155,24 @@ queued task holds a TTL snapshot — that is TTL's own retention semantics.
+ 
+ ## 5. Structural parent, cancellation parent, and deadline ceiling must be decoupled
+ 
+-The existing `MultiTaskContext.resolve()` derives three things from the `parent
+-MultiTaskContext`:
+-
+-1. the nested structural parent (also the waiter for executor waits);
+-2. the cancellation token parent;
+-3. the deadline ceiling.
+-
+-Group members prove these three are not always the same object. `MultiTaskContext` provides a
+-package-visible overload so the three can be passed independently. The overload accepts the
+-package-private carrier `UnitSpec` (name, requestedParallelism, timeout, taskType,
+-rejectEnqueue) and MUST NOT accept public option types: each public type provides a
+-package-private adapter method folding its options into the carrier, so batches and members
+-still go through the same resolution path, with members passing `requestedParallelism = 1`:
+-
+-```java
+-static MultiTaskContext resolve(
+-        UnitSpec spec,
+-        int taskCount,
+-        @Nullable MultiTaskContext structuralParent,
+-        @Nullable CancellationToken cancellationParent,
+-        long deadlineCeilingNanos,
+-        long resolutionTimeNanos,
+-        @Nullable ExecutorIdentity executorIdentity,
+-        @Nullable String executorLabel);
+-```
++Resolution derives three things from an enclosing `MultiTaskContext`: the nested structural
++parent (also the waiter for executor waits), the cancellation token parent, and the deadline
++ceiling. Group members prove these three are not always the same object, so the single
++package-private entry `MultiTaskContext.resolve(Resolution)` takes them as independent,
++order-free parameters: a `Resolution` carries the package-private carrier `UnitSpec` (name,
++requestedParallelism, timeout, taskType, rejectEnqueue) plus the task count, and unset
++parent-derived values default from the structural parent — the cancellation parent to its
++token, the deadline ceiling to its deadline — while explicitly set values always win. A caller
++nesting under an enclosing scoped task therefore sets only the parent; a group member overrides
++the cancellation parent with the group token and the ceiling with the group deadline. The
++resolution also fixes the resolution clock reading and, for a unit without a cancellation
++parent, the root clock/scheduler pair (the pairing rules are §5.2 of the
++[cancellation propagation contract](cancellation-propagation.md)); the entry the unit is
++submitted through supplies diagnostic and graph state only, never a submission target.
++
++`resolve` MUST NOT accept public option types: each public type provides a package-private
++adapter method folding its options into `UnitSpec`, so batches and members still go through the
++same resolution path, with members passing `requestedParallelism = 1`.
+ 
+ The semantics cannot be merged back into a fake parent. Splitting the option types changes none
+ of this section's resolution results: `UnitSpec` only changes "where the values come from", not
+diff --git a/design/task-group-submission.md b/design/task-group-submission.md
+index e83ad3db..3d88c260 100644
+--- a/design/task-group-submission.md
++++ b/design/task-group-submission.md
+@@ -219,16 +219,10 @@ batch. Historical source: `proposal:P0010`; the remaining executor-diagnostic di
+ 
+ ### 9.3 Code organization
+ 
+-```text
+-io.github.monadrome.parallelinscope/
+-  GroupDraft.java                 // the chained draft, implementing the three public step interfaces
+-  TaskGroup.java                  // the package-private run object
+-  TaskGroupDefinition.java        // the package-private frozen structure
+-  TaskGroupResult.java
+-  TaskExitObservation.java
+-  TaskTermination.java
+-  TaskSubmissions.java            // the package-private prepare / submitScoped two-phase kernel
+-```
++The group's declaration, run, definition, and result types all live in the root package next
++to the shared kernel — one package, with the public surface and the package-private kernel
++boundary owned by §3 of [API and options](task-group-api-and-options.md); no conceptual
++subpackage is introduced for the group path.
+ 
+ `ParName` was renamed `ParId` and kept: the v0.3 redesign once proposed deleting `ParName` and
+ having endpoints take bare `String`, and review rejected it — the value type is the only

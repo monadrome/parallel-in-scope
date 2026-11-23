@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "design-contract-cleanup-3a65a8b7-20261120-025458-983c49",
+  "version": 1,
+  "createdAt": "2026-11-20T02:55:04.053Z",
+  "inputs": {
+    "dedupVersion": 1,
+    "adjudicationVersion": null,
+    "goldVersion": 1,
+    "reviews": []
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "4c15c595385e4ef1507f00dd17f53d4ca2f534d8",
+    "head": "3a65a8b7a3f54a4fc3ee89e58f3e42bee0d87f38",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "systemsWithUsage": 0,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "codex": {
+      "identity": {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "openai",
+        "model": "gpt-6.1-terra",
+        "revision": null,
+        "effort": "medium"
+      },
+      "status": "failed",
+      "durationMs": 4893,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 0,
+        "adjudicated": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": null,
+        "rejected": null,
+        "neutral": null,
+        "uncertain": null
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": null,
+      "error": "invalid review output: codex attempt 1: produced no review text (exit code 0)"
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 0,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "findings": {
+      "total": 0,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "rates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "findingRates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "macro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "systemsAdjudicated": 0
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values",
+    "dedup uses identity clusters; semantic deduplication requires explicit clusters input",
+    "no adjudication version exists; all clusters are pending",
+    "reviewers without a completed review: codex; failures and timeouts are not treated as empty results"
+  ]
+}

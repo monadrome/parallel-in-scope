@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "design-contract-cleanup-3a65a8b7-20261120-025458-983c49",
+  "version": 1,
+  "createdAt": "2026-11-20T02:55:03.930Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

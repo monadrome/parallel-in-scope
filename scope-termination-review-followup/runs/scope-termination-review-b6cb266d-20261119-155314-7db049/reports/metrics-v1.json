@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "scope-termination-review-b6cb266d-20261119-155314-7db049",
+  "version": 1,
+  "createdAt": "2026-11-19T15:58:37.171Z",
+  "inputs": {
+    "dedupVersion": 1,
+    "adjudicationVersion": null,
+    "goldVersion": 1,
+    "reviews": [
+      {
+        "agent": "kiro",
+        "attempt": 1,
+        "sha256": "31e9583cf76982709bf0a626c920c507d4acc2b6a650d4dfd5f6c5ee01bff89b"
+      }
+    ]
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "b4fb20ec673d5a55f2bd8f324ed793ff4efc3372",
+    "head": "b6cb266d120c78ee934b7341fb757a1fbe62a049",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "systemsWithUsage": 0,
+    "systemsTotal": 2,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "kiro": {
+      "identity": {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max"
+      },
+      "status": "completed",
+      "durationMs": 320986,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 0,
+        "adjudicated": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": null,
+        "rejected": null,
+        "neutral": null,
+        "uncertain": null
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": null,
+      "error": null
+    },
+    "codex": {
+      "identity": {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "openai",
+        "model": "glm-5.3",
+        "revision": null,
+        "effort": "medium"
+      },
+      "status": "failed",
+      "durationMs": 4741,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 0,
+        "adjudicated": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": null,
+        "rejected": null,
+        "neutral": null,
+        "uncertain": null
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": null,
+      "error": "invalid review output: codex attempt 1: produced no review text (exit code 0)"
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 0,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "findings": {
+      "total": 0,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "rates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "findingRates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "macro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "systemsAdjudicated": 0
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values",
+    "dedup uses identity clusters; semantic deduplication requires explicit clusters input",
+    "no adjudication version exists; all clusters are pending",
+    "reviewers without a completed review: codex; failures and timeouts are not treated as empty results"
+  ]
+}

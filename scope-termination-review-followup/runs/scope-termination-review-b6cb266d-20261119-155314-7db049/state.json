@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "scope-termination-review-b6cb266d-20261119-155314-7db049",
+  "status": "partial",
+  "createdAt": "2026-11-19T15:53:15.870Z",
+  "updatedAt": "2026-11-19T16:01:43.394Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-19T15:53:15.892Z",
+      "error": null
+    },
+    "reviews": {
+      "kiro": {
+        "agent": "kiro",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-19T15:53:15.898Z",
+            "endedAt": "2026-11-19T15:58:37.049Z",
+            "durationMs": 320986,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-19T15:58:37.061Z"
+      },
+      "codex": {
+        "agent": "codex",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-19T15:53:15.898Z",
+            "endedAt": "2026-11-19T15:53:20.828Z",
+            "durationMs": 4741,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "invalid review output: codex attempt 1: produced no review text (exit code 0)",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          },
+          {
+            "attempt": 2,
+            "status": "failed",
+            "startedAt": "2026-11-19T16:00:25.877Z",
+            "endedAt": "2026-11-19T16:00:30.296Z",
+            "durationMs": 4322,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "invalid review output: codex attempt 2: produced no review text (exit code 0)",
+            "recordPath": "reviews/codex/attempt-2.json",
+            "logBase": "logs/codex-attempt-2"
+          }
+        ],
+        "updatedAt": "2026-11-19T16:00:30.313Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-19T15:58:37.137Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-19T15:58:37.190Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-19T15:58:37.249Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-19T16:01:15.553Z",
+      "error": null
+    }
+  },
+  "eventSeq": 49
+}

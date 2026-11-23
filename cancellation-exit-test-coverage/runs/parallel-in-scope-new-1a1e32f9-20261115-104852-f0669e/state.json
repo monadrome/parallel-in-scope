@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "parallel-in-scope-new-1a1e32f9-20261115-104852-f0669e",
+  "status": "completed",
+  "createdAt": "2026-11-15T10:48:52.636Z",
+  "updatedAt": "2026-11-15T10:59:13.253Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-15T10:48:52.668Z",
+      "error": null
+    },
+    "reviews": {
+      "kiro": {
+        "agent": "kiro",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-15T10:48:52.674Z",
+            "endedAt": "2026-11-15T10:59:13.038Z",
+            "durationMs": 620194,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-15T10:59:13.048Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-15T10:59:13.119Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-15T10:59:13.169Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-15T10:59:13.234Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-15T10:48:52.636Z",
+      "error": null
+    }
+  },
+  "eventSeq": 56
+}

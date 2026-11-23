@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "design-contract-cleanup-3a65a8b7-20261120-025433-d304c2",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-20T03:00:55.672Z",
+  "judge": {
+    "kind": "agent",
+    "name": "Kimi",
+    "model": "kimi-code/k3.1-pro",
+    "note": null
+  },
+  "verdicts": []
+}

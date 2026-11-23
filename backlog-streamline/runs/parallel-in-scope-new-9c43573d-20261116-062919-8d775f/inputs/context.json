@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-16T06:29:20.495Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new",
+    "name": "parallel-in-scope-new",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "53829493dacdff11a01a57ae488ad824505d1c45",
+    "head": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "53829493dacdff11a01a57ae488ad824505d1c45",
+    "to": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "label": "53829493..9c43573d"
+  },
+  "objective": {
+    "subject": "docs: rewrite backlog as a pre-release change record",
+    "body": "Replace the pinned investigation inventory with a concise list of changes\nplanned before a release: the 1.0.0 breaking-API batch (failedTask()\nexposure, pure-timeout failedTaskResult() contract), v0.5.0 release work\n(docs link flip, cross-version API surface diff), and one small logging\nfix. Landed, stale, and non-gating items are removed outright; verified\nagainst current sources (purge members and deadline saturation already\nfixed, HTML language check already in CI). BACKLOG.md leaves the\ncheck-doc-refs exemption now that it carries no hashes or line numbers."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "677588243ce26f439d65520b30dd3759cf5288cd73b836127700b3836003dfed",
+    "bytes": 44431,
+    "files": [
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "BACKLOG.md",
+        "status": "M",
+        "additions": 33,
+        "deletions": 477
+      },
+      {
+        "path": "scripts/check-doc-refs.py",
+        "status": "M",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/tests/test_check_doc_refs.py",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "fcb6102a185c6cc2d6c5302350aaac7e1f19abf3ef000dbd12da5483ded41fa0",
+    "bytes": 2703,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

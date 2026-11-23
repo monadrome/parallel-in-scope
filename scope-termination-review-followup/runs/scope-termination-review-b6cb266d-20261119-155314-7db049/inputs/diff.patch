@@ -1,0 +1,172 @@
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java b/core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
+index 5b8e4c8b..5666788b 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java
+@@ -37,7 +37,7 @@ public final class ScopeTermination {
+             @Nullable FailureCause failureCause,
+             @Nullable CancellationReason cancellationReason,
+             @Nullable String failedTask) {
+-        this.kind = checkNotNull(kind, "kind cannot be null");
++        this.kind = kind;
+         this.failureCause = failureCause;
+         this.cancellationReason = cancellationReason;
+         this.failedTask = failedTask;
+@@ -116,14 +116,24 @@ public final class ScopeTermination {
+             }
+         }
+         if (firstFailure != null) {
+-            return failed(checkNotNull(firstFailure.failureCause(), "failed result has no failure cause"), source);
++            return failed(
++                    Verify.verifyNotNull(firstFailure.failureCause(), "failed result has no failure cause"), source);
+         }
+         if (firstCancellation != null) {
+-            return cancelled(checkNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason"));
++            return cancelled(
++                    Verify.verifyNotNull(firstCancellation.cancellationReason(), "cancelled result has no reason"));
+         }
+         return succeeded();
+     }
+ 
++    /**
++     * Returns {@code primary} when one was recorded, otherwise the fallback derived from member
++     * results.
++     */
++    static ScopeTermination primaryOr(@Nullable ScopeTermination primary, ScopeTermination fallback) {
++        return primary == null ? fallback : primary;
++    }
++
+     /**
+      * Names a non-successful scope termination for exception messages: the cancellation reason
+      * kind for a cancellation, the termination kind otherwise.
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+index f86b8752..ed2f44f3 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+@@ -249,7 +249,8 @@ final class TaskBatch<T> implements AutoCloseable {
+                 && (primary == null || primary.kind() == ScopeTermination.Kind.CANCELLED)) {
+             primary = ScopeTermination.cancelled(CancellationReason.cancelledByCaller(batchName));
+         }
+-        ScopeTermination aggregate = primary == null ? ScopeTermination.fromResults(batchName, frozen) : primary;
++        ScopeTermination aggregate =
++                ScopeTermination.primaryOr(primary, ScopeTermination.fromResults(batchName, frozen));
+         return new TaskBatchResult<>(batchName, frozen, observations, unfinished, aggregate);
+     }
+ 
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+index 517ad212..a26eed6f 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+@@ -973,6 +973,13 @@ final class TaskGroup<R> implements AutoCloseable {
+         return TokenOutcomes.cancellationReason(groupToken, member.name, whenUncommitted);
+     }
+ 
++    /**
++     * Synthesizes the explicit scope termination for a settled member, or returns {@code null} so
++     * the member's observed termination enters the accumulator unchanged. A direct member
++     * cancellation synthesizes {@code CANCELLED_BY_MEMBER}; a {@code CANCELLED_BY_PARENT_SCOPE}
++     * observed while the group caller has committed a cancellation synthesizes
++     * {@code CANCELLED_BY_CALLER}.
++     */
+     private @Nullable ScopeTermination explicitScopeTermination(
+             MemberState member, TaskTermination<Object> termination) {
+         if (cancelledDirectly(termination)) {
+@@ -1114,7 +1121,7 @@ final class TaskGroup<R> implements AutoCloseable {
+             snapshots.put(member.name, memberSnapshot(member));
+         }
+         ScopeTermination primary = scopeTermination.primary();
+-        ScopeTermination aggregate = primary == null ? decided : primary;
++        ScopeTermination aggregate = ScopeTermination.primaryOr(primary, decided);
+         return new TaskGroupReport(
+                 groupId,
+                 groupName,
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java
+index 89a01782..c3ae17c8 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java
+@@ -623,9 +623,7 @@ class SynchronousExecutionTest {
+                     .group("rejected", TIMEOUT)
+                     .par(TaskKey.<Integer>named("execution"), rejected, () -> 1)
+                     .runAll();
+-            TerminationAssertions.assertScopeFailed(group.termination());
+-            assertThat(Verify.verifyNotNull(group.termination().failureCause()).kind())
+-                    .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
++            TerminationAssertions.assertScopeFailed(group.termination(), FailureCause.Kind.SUBMISSION_REJECTED);
+             assertThat(Verify.verifyNotNull(group.resultAt(0).failure()).getCause())
+                     .isSameAs(original);
+             assertThat(group.executionExitConfirmed()).isTrue();
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+index 84ef5719..ba45186b 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java
+@@ -114,11 +114,7 @@ class TaskGroupCombineGuardCancellationTest {
+                 TaskGroupReport result = group.convergenceFuture().get(10, TimeUnit.SECONDS);
+ 
+                 assertThat(legitimate(result.termination())).isTrue();
+-                TerminationAssertions.assertScopeFailed(result.termination());
+-                assertThat(com.google.common.base.Verify.verifyNotNull(
+-                                        result.termination().failureCause())
+-                                .kind())
+-                        .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
++                TerminationAssertions.assertScopeFailed(result.termination(), FailureCause.Kind.SUBMISSION_REJECTED);
+                 assertThat(executionRan).isFalse();
+                 // A stranded slot here would mean the guard's path skipped the exit publish that its
+                 // phase claim made it responsible for.
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+index b72b9abd..51d3452f 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java
+@@ -213,10 +213,7 @@ class TaskGroupCombineNestedGuardTest {
+ 
+             TerminationAssertions.assertScopeSucceeded(result.termination());
+             ScopeTermination innerScope = com.google.common.base.Verify.verifyNotNull(innerOutcome.get());
+-            TerminationAssertions.assertScopeFailed(innerScope);
+-            assertThat(com.google.common.base.Verify.verifyNotNull(innerScope.failureCause())
+-                            .kind())
+-                    .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
++            TerminationAssertions.assertScopeFailed(innerScope, FailureCause.Kind.SUBMISSION_REJECTED);
+             assertThat(innerThread.get()).isNull();
+         } finally {
+             release.countDown();
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/TerminationAssertions.java b/core/src/test/java/io/github/monadrome/parallelinscope/TerminationAssertions.java
+index 5b823106..58ec62e6 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/TerminationAssertions.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/TerminationAssertions.java
+@@ -56,6 +56,11 @@ final class TerminationAssertions {
+         assertThat(termination.cancellationReason()).isNull();
+     }
+ 
++    static void assertScopeFailed(ScopeTermination termination, FailureCause.Kind kind) {
++        assertScopeFailed(termination);
++        assertThat(Verify.verifyNotNull(termination.failureCause()).kind()).isEqualTo(kind);
++    }
++
+     static void assertScopeCancelled(ScopeTermination termination, CancellationReason.Kind kind) {
+         assertThat(termination.kind()).isEqualTo(ScopeTermination.Kind.CANCELLED);
+         assertThat(termination.successful()).isFalse();
+diff --git a/verification/race-claims/claims.json b/verification/race-claims/claims.json
+index 0b9d1041..87220059 100644
+--- a/verification/race-claims/claims.json
++++ b/verification/race-claims/claims.json
+@@ -116,6 +116,22 @@
+       "method": "code-proof",
+       "proof": "The flag write is a volatile write that precedes executing.interrupt() in program order. JLS 17.4.4: a call to interrupt() synchronizes-with any point where another thread determines it was interrupted, which includes the JDK blocking call that throws InterruptedException; the runner's later volatile read in lateFailureLevel therefore sees true. The write is guarded by the same non-null runner read as the delivery, so a cancellation before runner publication or after run()'s finally withdraws the runner leaves the flag false; AbstractFuture calls interruptTask only for the single winning cancel(true), so there is one writer. The field belongs to the future, which runs at most once (phase CAS SUBMITTED to RUNNING), so a later task reusing the thread reads its own false flag. Writing after interrupt() would let a fast runner read false and log a kernel-caused InterruptedException at WARNING; the window is too narrow for a deterministic mutation test.",
+       "note": "LateFailureLoggingTest#rawBlockingCallInterruptedByKernelCancellationIsNotAWarning and #kernelDeliveryDoesNotLeakToTheNextFutureOnTheSameThread fail when the flag write is removed; the write-after-interrupt ordering is not reliably observable, so this stays a code proof."
++    },
++    {
++      "id": "accumulator-fail-fast-replacement",
++      "protocol": "ScopeTerminationAccumulator observe",
++      "claim": "The compare-and-set is the scope termination's linearization point: ordinary terminations are first-writer-wins, while an ABORTED_BY_FAIL_FAST cancellation is provisional and must be replaceable by the failure that triggered it.",
++      "method": "mutation",
++      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
++      "mutations": [
++        {
++          "find": "        return termination.kind() == ScopeTermination.Kind.CANCELLED\n                && Verify.verifyNotNull(termination.cancellationReason()).kind()\n                        == CancellationReason.Kind.ABORTED_BY_FAIL_FAST;\n",
++          "replace": "        return false;\n"
++        }
++      ],
++      "tests": "TaskBatchResultTest#scopeTerminationPrefersTheFailureOverAReplayOfFailFastCancellation,ScopeTerminationTest,TaskGroupConvergenceTest",
++      "expect": "failure",
++      "note": "The cited batch test settles a fail-fast-cancelled task before its triggering failure, so the provisional cancellation is observed first and the failure must replace it; with the check removed the failure is refused and the scope stays cancelled."
+     }
+   ]
+ }

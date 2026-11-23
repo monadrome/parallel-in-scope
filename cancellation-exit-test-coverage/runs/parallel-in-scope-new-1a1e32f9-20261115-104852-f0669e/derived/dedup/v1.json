@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "parallel-in-scope-new-1a1e32f9-20261115-104852-f0669e",
+  "version": 1,
+  "createdAt": "2026-11-15T10:59:13.083Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": null
+    }
+  ]
+}

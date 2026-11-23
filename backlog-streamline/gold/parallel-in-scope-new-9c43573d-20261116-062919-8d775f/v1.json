@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "version": 1,
+  "createdAt": "2026-11-16T06:43:36.540Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "53829493dacdff11a01a57ae488ad824505d1c45",
+    "head": "9c43573d6eb44793351d8a05a4c1fee64b226de4"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

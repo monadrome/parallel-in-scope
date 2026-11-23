@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "agent": "ocr",
+  "attempt": 1,
+  "startedAt": "2026-11-16T06:29:44.224Z",
+  "endedAt": "2026-11-16T06:30:04.436Z",
+  "durationMs": 20103,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "ocr",
+    "args": [
+      "review",
+      "--commit",
+      "9c43573d6eb44793351d8a05a4c1fee64b226de4",
+      "--format",
+      "json",
+      "--audience",
+      "agent",
+      "--background-file",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.review-benchmark/runs/parallel-in-scope-new-9c43573d-20261116-062919-8d775f/inputs/context.md"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.review-benchmark/runs/parallel-in-scope-new-9c43573d-20261116-062919-8d775f/snapshot"
+  },
+  "stdoutPath": "logs/ocr-attempt-1.stdout.log",
+  "stderrPath": "logs/ocr-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "ocr",
+    "version": "open-code-review v1.13.7 (b1dcffb0) darwin/arm64",
+    "provider": null,
+    "model": null,
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": 34970,
+    "outputTokens": 2522,
+    "totalTokens": 37492,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": null,
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

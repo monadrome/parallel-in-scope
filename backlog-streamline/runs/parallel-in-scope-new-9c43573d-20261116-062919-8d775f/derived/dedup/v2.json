@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "parallel-in-scope-new-9c43573d-20261116-062919-8d775f",
+  "version": 2,
+  "createdAt": "2026-11-16T06:59:02.212Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kimi:0"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kimi:1"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "kimi:2"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C05",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": null
+    }
+  ]
+}

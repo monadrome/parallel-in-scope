@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "scope-termination-review-b6cb266d-20261119-155314-7db049",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-19T15:53:15.849Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/scope-termination-review",
+    "name": "scope-termination-review",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "b4fb20ec673d5a55f2bd8f324ed793ff4efc3372",
+    "head": "b6cb266d120c78ee934b7341fb757a1fbe62a049",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "b4fb20ec673d5a55f2bd8f324ed793ff4efc3372",
+    "to": "b6cb266d120c78ee934b7341fb757a1fbe62a049",
+    "label": "b4fb20ec..b6cb266d"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "19f87f1b5fc970fcb1132bbe17039a941a19ec5a8f89fc5d25b124bf71bac2ee",
+    "bytes": 12124,
+    "files": [
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "status": "M",
+        "additions": 13,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "status": "M",
+        "additions": 8,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/SynchronousExecutionTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineGuardCancellationTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 5
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupCombineNestedGuardTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TerminationAssertions.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 0
+      },
+      {
+        "path": "verification/race-claims/claims.json",
+        "status": "M",
+        "additions": 16,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "dc793d484b19598456880a18ed72e5b4291f3bd8685a3f44efcc3525c713e877",
+    "bytes": 1619,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "c89180df8ef544c6c5497243904682591ca24bf918a53d3fc3813cecf87096ff",
+    "bytes": 3670
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "b6cb266d120c78ee934b7341fb757a1fbe62a049",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

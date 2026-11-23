@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "scope-termination-review-b6cb266d-20261119-155314-7db049",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-19T16:01:43.319Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi",
+    "note": null
+  },
+  "verdicts": []
+}
