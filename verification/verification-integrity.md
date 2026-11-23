@@ -17,7 +17,7 @@ The gate scans Java tests under every `src/test` directory, Python
 | V2 test-case deletion | An existing Java test method, Python test function, or TypeScript test title is removed or renamed. Deleting a whole file reports V1 instead of one V2 per case. |
 | V3 new test suppression | The head adds Java `@Disabled` variants/`@Ignore` or a constant-failing assumption; Python skip/expected-failure/xfail decorators, marks, or runtime skip calls; or TypeScript `skip`, `todo`, `only`, x-prefixed, test-options, or runtime test-context selection. Existing occurrences are grandfathered by baseline subtraction. |
 | V4 assertion reduction | An existing test case has fewer assertions than in the base. Changing an assertion while keeping the count is allowed. |
-| V5 constant assertion | The head adds a constant-true/false or self-comparing assertion. Existing occurrences are grandfathered by baseline subtraction. |
+| V5 constant assertion | The head adds a constant-true/false or self-comparing assertion, including self-comparisons with trailing message or delta arguments. Existing occurrences are grandfathered by baseline subtraction. |
 | V6 owner-protection loss | A required `.github/CODEOWNERS` entry is absent or no longer contains `@monadrome`, a later matching rule removes that owner's effective coverage of a protected file (including an ownerless rule), or the file reaches GitHub's 3 MB loading limit. This rule has no exception mechanism. |
 
 Java assertions are `assertXxx`, `fail`, and Mockito `verify` calls. Python uses

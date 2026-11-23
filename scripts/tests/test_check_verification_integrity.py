@@ -174,7 +174,13 @@ class JavaIntegrityTest(TreeTest):
         self.assertEqual(self.run_check(base, head)[0], 0)
 
     def test_new_constant_and_self_comparing_assertions_fail(self):
-        for replacement in ("assertTrue(true)", "assertEquals(value, value)", "assertThat(true).isTrue()"):
+        for replacement in (
+            "assertTrue(true)",
+            "assertEquals(value, value)",
+            "assertEquals(value, value, \"message\")",
+            "assertSame(value, value, \"message\")",
+            "assertThat(true).isTrue()",
+        ):
             with self.subTest(replacement=replacement):
                 base = self.tree("base", {JAVA_PATH: JAVA_TEST})
                 head = self.tree("head", {JAVA_PATH: JAVA_TEST.replace("assertTrue(value)", replacement)})
@@ -265,7 +271,9 @@ class PythonIntegrityTest(TreeTest):
         weakened = PYTHON_TEST.replace("        self.assertTrue(value)\n", "")
         noop = PYTHON_TEST.replace("self.assertTrue(value)", "self.assertTrue(True)")
         equal = PYTHON_TEST.replace("self.assertTrue(value)", "self.assertEqual(value, value)")
-        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5")):
+        equal_message = PYTHON_TEST.replace("self.assertTrue(value)", "self.assertEqual(value, value, 'message')")
+        is_message = PYTHON_TEST.replace("self.assertTrue(value)", "self.assertIs(value, value, 'message')")
+        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (equal_message, "V5"), (is_message, "V5")):
             with self.subTest(rule=rule, head_text=head_text):
                 base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
                 head = self.tree("head", {PYTHON_PATH: head_text})
@@ -344,8 +352,10 @@ class TypeScriptIntegrityTest(TreeTest):
         weakened = TS_TEST.replace("  assert.ok(value);\n", "")
         noop = TS_TEST.replace("assert.ok(value)", "assert.ok(true)")
         equal = TS_TEST.replace("assert.ok(value)", "assert.strictEqual(value, value)")
+        equal_message = TS_TEST.replace("assert.ok(value)", "assert.strictEqual(value, value, 'message')")
+        deep_message = TS_TEST.replace("assert.ok(value)", "assert.deepEqual(value, value, 'message')")
         expect = TS_TEST.replace("assert.ok(value)", "expect(true).toBe(true)")
-        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (expect, "V5")):
+        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (equal_message, "V5"), (deep_message, "V5"), (expect, "V5")):
             with self.subTest(rule=rule, head_text=head_text):
                 base = self.tree("base", {TS_PATH: TS_TEST})
                 head = self.tree("head", {TS_PATH: head_text})

@@ -299,7 +299,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
             noop = True
         elif name == "assertFalse" and values and (values[0] == "false" or values[-1] == "false"):
             noop = True
-        elif name in {"assertEquals", "assertSame"} and len(original) == 2 and original[0] == original[1]:
+        elif name in {"assertEquals", "assertSame"} and len(original) >= 2 and original[0] == original[1]:
             noop = True
         elif name == "assertThat" and values in (["true"], ["false"]):
             chain = re.match(r"\s*\.\s*(?P<method>isTrue|isFalse)\s*\(\s*\)", code[end:])
@@ -372,7 +372,7 @@ def python_noops(tree: ast.AST, path: str, text: str) -> Iterator[Violation]:
             name = dotted_name(node.func).rsplit(".", 1)[-1]
             if name in {"assertTrue", "assertFalse"} and node.args:
                 noop = isinstance(node.args[0], ast.Constant) and node.args[0].value is (name == "assertTrue")
-            elif name in {"assertEqual", "assertIs"} and len(node.args) == 2:
+            elif name in {"assertEqual", "assertIs"} and len(node.args) >= 2:
                 noop = ast.dump(node.args[0]) == ast.dump(node.args[1])
             elif name == "assertIsNone" and len(node.args) == 1:
                 noop = isinstance(node.args[0], ast.Constant) and node.args[0].value is None
@@ -477,7 +477,7 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         method = match["method"]
         noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
             method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
-            and len(original) == 2
+            and len(original) >= 2
             and original[0] == original[1]
         )
         if noop:
