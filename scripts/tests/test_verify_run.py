@@ -1,4 +1,4 @@
-"""Tests for assurance-run accepted mutation exception validation."""
+"""Tests for assurance-run verification."""
 
 import hashlib
 import importlib.util
@@ -13,7 +13,7 @@ verify_run = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(verify_run)
 
 
-class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+class VerifyRunTest(unittest.TestCase):
     def make_run(self, exception, policy, final_gate="PASS WITH ACCEPTED EXCEPTIONS"):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
