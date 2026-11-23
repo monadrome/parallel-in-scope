@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-22-periodic-runtime-adoption-guard",
+  "date": "2026-11-22",
+  "topic": "periodic-runtime-adoption-guard",
+  "routes": [
+    "concurrency",
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi"
+  },
+  "change": {
+    "commits": [
+      "fix: reject periodic runnable scheduled adoption"
+    ],
+    "files": 8,
+    "insertions": 185,
+    "deletions": 29
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "reject-periodic-adoption-f380489a-20261123-035825-46892b",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 14319,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 396429,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "reject-periodic-adoption-f380489a-20261123-040622-f47e2b",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 204418,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 71966,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 71966,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "periodic-runtime-guard-complexity",
+        "head": "ac9b1fd926d53aff71e529fab36054e2b62ebe3c",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "T01"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn-test": 1,
+      "test-compilation": 1,
+      "expected-regression-red": 1,
+      "refactoring-detect": 1,
+      "script-tests": 1,
+      "review-bootstrap": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "All four general adoption paths reject detectable periodic sources. 3448 library tests, 376 script tests, race claims, and Java 8/17/21/25 consumers pass; JDK 11 is remote-only locally. PIT was inconclusive before mutation on an existing deadline test and the maintainer waived rerun. The first adversarial run was partial because the pinned Codex model was unavailable; DeepSeek/Codex and Kiro completed with zero findings."
+}
