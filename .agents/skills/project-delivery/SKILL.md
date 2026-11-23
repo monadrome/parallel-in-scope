@@ -57,10 +57,14 @@ for the specialized check or maintenance task being performed.
 
 Read [Local Verification](references/workflow.md#local-verification) for the code/docs branch.
 Reproduce defects before fixing them; use the selected route's regression and concurrency gates.
+For public API/documented-contract or concurrency routes, apply
+[assurance routing](references/assurance.md): run the required bundle to a passing report, or
+record a skip-eligible classification for independent-review confirmation.
 
 **Done:** each requested change and its documentation/changelog obligations are accounted for,
-all applicable local checks pass, and every required regression is reverse-verified. Fix
-change-caused failures before the first commit; report unrelated failures or blockers.
+all applicable local checks pass, every required regression is reverse-verified, and required
+assurance passes or its skip rationale is recorded. Fix change-caused failures before the first
+commit; report unrelated failures or blockers.
 
 ### 3. Commit And Review
 
@@ -71,7 +75,9 @@ independent review; its planner decides applicability and detector scope.
 For every non-empty change, read Independent Review in [review](references/review.md).
 For a high-risk route, also follow its Adversarial Review section through the project
 multi-review skill. Workflow contracts take that full-review route even when Markdown-only.
-Fix confirmed findings in follow-up commits and apply the review's re-review/stop rules.
+The reviewer confirms any skip-eligible assurance classification against the complete diff;
+a question or disagreement makes the run required. Fix confirmed findings in follow-up commits
+and apply the review's re-review/stop rules.
 
 **Done:** the committed tree passes applicable preflight; the review evidence covers every
 changed path, including metadata; and no required review or confirmed blocking finding remains
@@ -90,9 +96,11 @@ existing PR, an external contributor, or the unattended issue runner, as applica
 
 **Done:** delivery followed the authorized route, required CI for the pushed tip is terminal
 and passing, and every check has its own pass/fail/blocked/inconclusive/skipped status with
-a reason for each non-pass. Behavior tests, external consumers, review, and mutation coverage
-are distinct results. Required pending or blocked checks mean delivery remains incomplete.
+a reason for each non-pass. Behavior tests, external consumers, review, mutation coverage, and
+assurance are distinct results; any required assurance run has a passing report, and every skip
+is independently confirmed. Required pending or blocked checks mean delivery remains incomplete.
 
 Use the existing dependency-audit, refactoring-review, and multi-review skills only when the
-selected route calls for them. Assurance remains an optional, separately versioned bundle;
-this skill must not copy its algorithms or host-adapter assumptions.
+selected route calls for them. Assurance remains a separately versioned bundle whose routing
+is owned by [assurance routing](references/assurance.md); this skill must not copy its
+algorithms or host-adapter assumptions.

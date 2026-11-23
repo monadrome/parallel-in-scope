@@ -1,7 +1,7 @@
 ---
 name: assurance-report
 description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
-version: "1.2.0"
+version: "1.3.0"
 disable-model-invocation: true
 ---
 # Assurance Report
@@ -26,3 +26,10 @@ review separately. PIT must report raw status, disposition, and the final gate t
 unaccepted or incompletely evidenced timeout remains `INCONCLUSIVE`; a well-evidenced,
 approved mutation exception may make the PIT gate `PASS`, but the raw status must not be
 rewritten.
+
+End the report with exactly one `Final gate: <STATUS>` line. Use `PASS` when every required
+check passes without accepted exceptions, and `PASS WITH ACCEPTED EXCEPTIONS` when every other
+required check passes and one or more exceptions are recorded, evidenced, and approved in the
+manifest. Use `FAIL`, `BLOCKED`, or
+`INCONCLUSIVE` for the corresponding unresolved outcome. A host delivery gate may accept only
+`PASS` or `PASS WITH ACCEPTED EXCEPTIONS`; never rewrite an unresolved outcome to satisfy it.

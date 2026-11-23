@@ -13,10 +13,10 @@ Create `${RUN_DIR}/run-manifest.json` before phase one. It must contain:
   "schemaVersion": "contract-assurance-run/v1",
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
-  "package": {"name": "contract-first-assurance", "version": "1.2.0"},
+  "package": {"name": "contract-first-assurance", "version": "1.3.0"},
   "adapter": {
     "name": "vformation",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
   },
   "workspace": {

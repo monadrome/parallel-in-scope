@@ -56,8 +56,8 @@ restrictive gate wins. If the task crosses into a gated route, stop and reclassi
 |---|---|---|
 | Mechanical, non-behavioral one-file edit | Edit, narrow check, commit, lightweight independent review | Write a proposal or run full adversarial review |
 | Reproducible behavior defect | Reproduce first, fix the root cause, regression test, reverse verification | Fix by inspection or finish without a failing case |
-| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and owning contract; write/update a proposal; stop for maintainer direction | Implement before direction is settled |
-| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State invariants/interleavings; test every race using shared fixtures; run registered race-claim checks, full suite, and adversarial review | Treat compilation or one green run as proof |
+| Public API, documented contract, or new mechanism | Read `design/first-principles.md` and owning contract; apply [assurance routing](.agents/skills/project-delivery/references/assurance.md); write/update a proposal; stop for maintainer direction | Implement before direction is settled |
+| Cancellation, interruption, deadline, visibility, context propagation, executor binding, or queue behavior | State invariants/interleavings; test every race using shared fixtures; run registered race-claim checks, full suite, and adversarial review; apply [assurance routing](.agents/skills/project-delivery/references/assurance.md) | Treat compilation or one green run as proof |
 | Documentation/site only | Check diff, referenced paths and commands; run `python3 scripts/check-doc-refs.py`; lightweight independent review | Run Java tests or formatting unless another route applies |
 | Dependency/build | Patch/minor: dependency-audit skill, `mvn test`, local runtime-consumer matrix | Add a dependency or take a major upgrade without asking |
 | Release, snapshot, merge into `main`, or issue-runner delivery | Maintainer action, or `design/issue-automation.md` for the runner | Initiate, push, or merge outside that route |

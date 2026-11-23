@@ -2,7 +2,7 @@
 name: contract-first-assurance
 description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
 compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
-version: "1.2.0"
+version: "1.3.0"
 ---
 
 # Contract-First Independent Assurance
@@ -68,7 +68,7 @@ requires a human decision.
 
 ## Invocation modes
 
-This entry allows two invocation modes:
+This entry allows three invocation modes:
 
 - **Autonomous invocation**: when the user asks to check PR quality, independently verify an
   implementation, generate tests from requirements or contracts, or find behavioral gaps
@@ -77,6 +77,9 @@ This entry allows two invocation modes:
   independent-verification, contract-gap, or isolated-testing intent is explicitly present.
 - **Manual invocation**: the user types `/contract-first-assurance`; the full flow runs
   regardless of the current request's wording.
+- **Required route invocation**: a host workflow explicitly dispatches this entry when its
+  assurance policy marks the change as requiring independent verification; the full flow and
+  passing-report gate apply.
 
 This skill's sub-flow skills have autonomous invocation off by default; they can only be
 dispatched explicitly by this entry or invoked by the user typing their commands directly.
@@ -393,8 +396,9 @@ ${RUN_DIR}/
 
 If a step was not executed, the corresponding `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status
 and reason must be kept. The report lists raw status, disposition, whether the exception was
-accepted, and the final gate status separately; `PASS` may include accepted exceptions, but a
-raw `TIMED_OUT` must not be rewritten as `KILLED`.
+accepted, and the final gate status separately. Its final gate is `PASS` without accepted
+exceptions or `PASS WITH ACCEPTED EXCEPTIONS` when every exception is accepted; a raw
+`TIMED_OUT` must not be rewritten as `KILLED`.
 Before the final report, run:
 
 ```bash
