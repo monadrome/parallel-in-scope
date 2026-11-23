@@ -59,13 +59,17 @@ partition once after addressing the reported cause, then retain the raw timeout
 and continue with independent partitions so one mutation site cannot block the
 whole audit.
 
-For example, a focused partition can be run with the same explicit mutator set:
+For example, a focused partition can be run with the same explicit mutator set,
+with the shell capturing the Maven console log that the plugin does not write:
 
 ```bash
+EVID=tmp/pit-evidence/execution-phase-hint && mkdir -p "$EVID"
 mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture*' \
   '-DtargetTests=io.github.monadrome.parallelinscope.TaskTerminationTest*,io.github.monadrome.parallelinscope.CallableReferenceReleaseTest*' \
-  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'
+  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS' \
+  > "$EVID/pit.log" 2>&1; rc=$?
+cp core/target/pit-reports/mutations.xml "$EVID/" 2>/dev/null; echo "exit=$rc"
 ```
 
 Do not run Maven or PIT concurrently in one checkout. Archive the command and
@@ -88,11 +92,17 @@ includes nested classes; comma-separated patterns allow multiple classes and
 tests. Include every relevant contract test, not just the new regression test.
 
 ```bash
+EVID=tmp/pit-evidence/<label> && mkdir -p "$EVID"
 mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage \
   '-DtargetClasses=io.github.monadrome.parallelinscope.TouchedClass*' \
   '-DtargetTests=io.github.monadrome.parallelinscope.TouchedTest*,io.github.monadrome.parallelinscope.OtherContractTest*' \
-  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS'
+  '-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS' \
+  > "$EVID/pit.log" 2>&1; rc=$?
+cp core/target/pit-reports/mutations.xml "$EVID/" 2>/dev/null; echo "exit=$rc"
 ```
+
+The redirect writes the log the plugin never produces, and the `cp` keeps the
+raw XML only when PIT wrote one; both live in `$EVID` regardless of `rc`.
 
 The explicit goal is required: `mvn -Ppitest` alone runs no mutation analysis.
 The command is offline-safe when dependencies are already installed.
@@ -114,9 +124,8 @@ dependency invalidation.
 For this multi-module build, a core PIT run writes `core/target/pit-reports/mutations.xml`
 and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
 That path is build output: a clean, a rebuild, or worktree removal deletes it, so a focused
-inline run MUST capture the full command output into a log (redirect or `tee` the Maven
-invocation; the plugin writes only XML and HTML) and copy the XML and that log to durable
-evidence at that point. The archived XML is what later evidence and the delivery ledger cite.
+inline run MUST copy the XML and the captured command log to durable evidence at that point,
+as the examples above do. The archived XML is what later evidence and the delivery ledger cite.
 The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
 may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
 Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside
