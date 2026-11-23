@@ -107,7 +107,36 @@ def blank(text: str) -> str:
     return "".join(char if char == "\n" else " " for char in text)
 
 
-def mask_c_like(text: str) -> Source:
+def javascript_regex_span(text: str, start: int) -> tuple[int, int] | None:
+    previous = start - 1
+    while previous >= 0 and text[previous].isspace():
+        previous -= 1
+    if previous >= 0 and text[previous] not in "([{=,:;!&|?+-*%^~<>":
+        if re.search(r"\b(?:return|throw|case|delete|void|typeof|instanceof|in|of|yield|await)$", text[:previous + 1]) is None:
+            return None
+    in_class = False
+    index = start + 1
+    while index < len(text):
+        char = text[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == "\n":
+            return None
+        if char == "[":
+            in_class = True
+        elif char == "]":
+            in_class = False
+        elif char == "/" and not in_class:
+            end = index + 1
+            while end < len(text) and text[end].isalpha():
+                end += 1
+            return index, end
+        index += 1
+    return None
+
+
+def mask_c_like(text: str, javascript: bool = False) -> Source:
     """Blank comments and literal contents while preserving offsets and quote delimiters."""
     out: list[str] = []
     i, n = 0, len(text)
@@ -121,6 +150,10 @@ def mask_c_like(text: str) -> Source:
             end = text.find("*/", i + 2)
             end = n if end < 0 else end + 2
             out.append(blank(text[i:end]))
+            i = end
+        elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
+            close, end = span
+            out.append("/" + blank(text[i + 1:close]) + text[close:end])
             i = end
         elif text[i] in "\"'`":
             quote = '"""' if text.startswith('"""', i) else text[i]
@@ -189,7 +222,7 @@ JAVA_TEST = re.compile(
     r"@(?:[A-Za-z_$][\w$]*\.)*(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\b"
 )
 JAVA_ANNOTATION = re.compile(r"@(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*")
-JAVA_DISABLED = re.compile(r"@(?:[A-Za-z_$][\w$]*\.)*(?:Disabled|Ignore)\b")
+JAVA_DISABLED = re.compile(r"@(?:[A-Za-z_$][\w$]*\.)*(?:Disabled\w*|Ignore)\b")
 JAVA_ASSERTION = re.compile(
     r"(?<![\w$])(?P<name>assert[A-Z][\w$]*|fail|verify(?:NoInteractions|NoMoreInteractions)?)\s*\("
 )
@@ -303,7 +336,14 @@ def dotted_name(node: ast.AST) -> str:
 
 
 PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
-PYTHON_RUNTIME_DISABLED = {"pytest.skip", "pytest.xfail", "pytest.importorskip"}
+PYTHON_RUNTIME_DISABLED = {
+    "pytest.skip",
+    "pytest.xfail",
+    "pytest.importorskip",
+    "pytest.mark.skip",
+    "pytest.mark.skipif",
+    "pytest.mark.xfail",
+}
 
 
 def python_assertion_call(node: ast.AST) -> bool:
@@ -385,6 +425,7 @@ TS_TEST = re.compile(
 )
 TS_SELECTION = re.compile(r"(?<![\w$])(?:test|it|describe)\s*\.\s*(?:skip|only|todo)\b|(?<![\w$])x(?:test|it|describe)\b")
 TS_RUNTIME_SELECTION = re.compile(r"(?<![\w$])(?:t|context)\s*\.\s*(?:skip|only|todo)\s*\(")
+TS_OPTIONS_SELECTION = re.compile(r"(?<![\w$])(?:skip|todo|only)\s*:\s*(?!false\b)(?:true\b|['\"`]|[A-Za-z_$0-9])")
 TS_ASSERTION = re.compile(r"(?<![\w$])(?:assert(?:\s*\.\s*[A-Za-z_$][\w$]*)?|expect)\s*\(")
 TS_ASSERT_CALL = re.compile(
     r"(?<![\w$])assert(?:\s*\.\s*(?P<method>ok|equal|strictEqual|deepEqual|deepStrictEqual))?\s*\("
@@ -395,9 +436,10 @@ TS_EXPECT_NOOP = re.compile(
 
 
 def scan_typescript(path: str, text: str, digest: str) -> TestFile:
-    source = mask_c_like(text)
+    source = mask_c_like(text, javascript=True)
     code = source.code
     tests: list[TestCase] = []
+    markers: list[Violation] = []
     for match in TS_TEST.finditer(code):
         quote_at = match.end() - 1
         quote = match["quote"]
@@ -405,14 +447,19 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         open_call = code.rfind("(", match.start(), quote_at)
         close_call = matching_delimiter(code, open_call) if open_call >= 0 else -1
         if close_quote < 0 or close_call < 0:
-            continue
+            raise CheckError(f"cannot parse TypeScript test at {path}:{source.line_of(match.start())}")
         title = normalize(text[quote_at + 1:close_quote])
         assertions = sum(1 for _ in TS_ASSERTION.finditer(code, open_call + 1, close_call))
         tests.append(TestCase(title, source.line_of(match.start()), assertions))
-    markers = [
+        arrow = code.find("=>", open_call + 1, close_call)
+        function = code.find("function", open_call + 1, close_call)
+        callback = min((index for index in (arrow, function) if index >= 0), default=close_call)
+        for option in TS_OPTIONS_SELECTION.finditer(code, open_call + 1, callback):
+            markers.append(violation(source, path, option.start(), option.end(), "V3", "new test options suppression"))
+    markers.extend(
         violation(source, path, match.start(), match.end(), "V3", "new skipped, todo, exclusive, or x-prefixed test selection")
         for match in TS_SELECTION.finditer(code)
-    ]
+    )
     markers.extend(
         violation(source, path, match.start(), match.end(), "V3", "new runtime test skip, todo, or exclusive selection")
         for match in TS_RUNTIME_SELECTION.finditer(code)

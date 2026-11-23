@@ -146,6 +146,15 @@ class JavaIntegrityTest(TreeTest):
         self.assertEqual(code, 1)
         self.assertIn(": V3:", out)
 
+    def test_disabled_annotation_variants_fail(self):
+        for annotation in ("@DisabledOnOs(OS.WINDOWS)", "@DisabledIfSystemProperty(named = \"x\", matches = \"y\")"):
+            with self.subTest(annotation=annotation):
+                base = self.tree("base", {JAVA_PATH: JAVA_TEST})
+                head = self.tree("head", {JAVA_PATH: JAVA_TEST.replace("@Test", f"{annotation}\n    @Test")})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V3:", out)
+
     def test_constant_failing_assumption_fails(self):
         base = self.tree("base", {JAVA_PATH: JAVA_TEST})
         weakened = JAVA_TEST.replace("assertTrue(value)", "assertNotNull(value); assumeTrue(false)")
@@ -241,6 +250,17 @@ class PythonIntegrityTest(TreeTest):
                 self.assertIn(": V3: new runtime test skip or xfail", out)
                 self.assertNotIn(": V4:", out)
 
+    def test_parametrized_pytest_skip_mark_fails(self):
+        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+        decorated = PYTHON_TEST.replace(
+            "    def test_works",
+            "    @pytest.mark.parametrize('value', [1], marks=pytest.mark.skip('reason'))\n    def test_works",
+        )
+        head = self.tree("head", {PYTHON_PATH: decorated})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new runtime test skip or xfail", out)
+
     def test_python_assertion_reduction_and_noops_fail(self):
         weakened = PYTHON_TEST.replace("        self.assertTrue(value)\n", "")
         noop = PYTHON_TEST.replace("self.assertTrue(value)", "self.assertTrue(True)")
@@ -286,6 +306,30 @@ class TypeScriptIntegrityTest(TreeTest):
                 self.assertEqual(code, 1)
                 self.assertIn(": V3:", out)
                 self.assertNotIn(": V2:", out)
+
+    def test_typescript_regex_literals_keep_call_delimiters(self):
+        source = TS_TEST.replace(
+            "assert.ok(value)",
+            r"assert.match(value, /^refs\/llm\/(?:done)\//); assert.notOk(value)",
+        )
+        parsed = integrity.scan_typescript(TS_PATH, source, "digest")
+        self.assertEqual([(test.name, test.assertions) for test in parsed.tests], [("works", 3)])
+
+    def test_typescript_options_suppression_fails(self):
+        base = self.tree("base", {TS_PATH: TS_TEST})
+        suppressed = TS_TEST.replace("test('works', () =>", "test('works', { skip: true }, () =>")
+        head = self.tree("head", {TS_PATH: suppressed})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new test options suppression", out)
+        self.assertNotIn(": V4:", out)
+
+    def test_unparseable_typescript_test_fails_closed(self):
+        base = self.tree("base", {})
+        head = self.tree("head", {TS_PATH: "test('broken', () => {\n"})
+        code, out, err = self.run_check(base, head)
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("cannot parse TypeScript test", err)
 
     def test_runtime_typescript_skip_fails(self):
         base = self.tree("base", {TS_PATH: TS_TEST})
