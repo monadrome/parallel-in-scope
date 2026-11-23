@@ -1,0 +1,203 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-22-review-evidence-llm-ledger",
+  "date": "2026-11-22",
+  "topic": "review-evidence-llm-ledger",
+  "routes": [
+    "contract"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi-for-coding"
+  },
+  "change": {
+    "commits": [
+      "docs: preserve review run evidence on the llm-ledger branch",
+      "docs: bound llm-ledger archiving to sanitized audit records",
+      "docs: close archive gaps from review round three"
+    ],
+    "files": 6,
+    "insertions": 43,
+    "deletions": 13
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "review-evidence-llm-ledger-9fc1db93-20261123-070320-f21848",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 13788,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 511004,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "review-evidence-llm-ledger-9fc1db93-20261123-071235-04cb99",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 314062,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 54507,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 54507,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "review-evidence-llm-ledger-554a7768-20261123-071856-478dfe",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 385488,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 83741,
+              "cost": null,
+              "currency": null
+            }
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 387287,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 83741,
+          "systemsWithUsage": 1,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {}
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Unify review-evidence retention on the llm-ledger branch: sanitized audit records plus gold, dedicated ledger worktree, non-ff retry. 3 rounds, 8 findings confirmed and fixed; codex round-1 failed on unavailable gpt-6.1-terra and was rerun with deepseek-v4-pro. Stopped after three rounds per review procedure."
+}
