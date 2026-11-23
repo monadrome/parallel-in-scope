@@ -1,0 +1,20 @@
+verification/pit.md
+  s_29f90af3a2c4db::t_3631623ba12c0a 62,68,94,116-118
+  s_29f90af3a2c4db::t_7dc65bb05c00bc 119-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "8d9074b4e292ffa856bf4b4d26d2175fe6110baa",
+  "prompts": {},
+  "sessions": {
+    "s_29f90af3a2c4db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a207b2-ba91-7c03-a92c-e14df241281f",
+        "model": "kimi-code/k3.1-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
