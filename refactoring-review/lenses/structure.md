@@ -88,9 +88,10 @@ public or protected `T2`.
   lifecycle safety are judgement)
 
 ### S11 Temporary mutable map for an immutable result
-- Smell: the change constructs a fresh `LinkedHashMap`, only adds entries with `put` whose keys and
-  values are proven non-null, and then freezes it with `ImmutableMap.copyOf`, although no code reads,
-  mutates after freezing, or passes the mutable map to another consumer before the freeze.
+- Smell: the change constructs a fresh `LinkedHashMap`, performs only `put` operations with keys and
+  values proven non-null and each key proven to be written at most once, and then freezes it with
+  `ImmutableMap.copyOf`, although no code reads or passes the mutable map to another consumer before
+  the freeze.
 - Move: use `ImmutableMap.builder()` or `builderWithExpectedSize()`, retain the `put` order, and
   pass the built map directly; tighten a package-private boundary to `ImmutableMap` when needed.
 - Suppress: `get`, `computeIfAbsent`, `merge`, iteration, or failure cleanup needs the mutable map;
