@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-22-immutable-map-builder",
+  "date": "2026-11-22",
+  "topic": "immutable-map-builder",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": null
+  },
+  "change": {
+    "commits": [
+      "test: assert immutable map iteration order",
+      "refactor: build immutable maps without intermediate copies",
+      "refactor: reuse member count for result map sizing"
+    ],
+    "files": 6,
+    "insertions": 33,
+    "deletions": 24
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "immutable-map-builder-c49145cb-20261123-032108-7fd671",
+        "status": "partial",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 10585,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 284809,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-immutable-map-builder-2026-11-22",
+        "head": "a22ebf014d7dd727558adb0b26dc19b40070ef37",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 2,
+      "PIT": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-immutable-map-builder-final/runtime/mutations.xml",
+      "statuses": {
+        "KILLED": 118,
+        "NO_COVERAGE": 1,
+        "SURVIVED": 7,
+        "TIMED_OUT": 4
+      },
+      "total": 130,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0308
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Behavior-preserving builder refactor; Kiro and external ZCode found no defects, Codex provider failed, and the maintainer cancelled the remaining PIT partition."
+}
