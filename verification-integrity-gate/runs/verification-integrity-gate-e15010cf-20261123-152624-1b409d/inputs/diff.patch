@@ -1,0 +1,348 @@
+diff --git a/ledger/2026-11-23-verification-integrity-gate.json b/ledger/2026-11-23-verification-integrity-gate.json
+new file mode 100644
+index 00000000..98b0950d
+--- /dev/null
++++ b/ledger/2026-11-23-verification-integrity-gate.json
+@@ -0,0 +1,342 @@
++{
++  "schemaVersion": "process-ledger/v1",
++  "id": "2026-11-23-verification-integrity-gate",
++  "date": "2026-11-23",
++  "topic": "verification-integrity-gate",
++  "routes": [
++    "contract"
++  ],
++  "implementer": {
++    "agent": "kimi",
++    "model": "kimi-code/k3.1-pro"
++  },
++  "change": {
++    "commits": [
++      "feat: add verification integrity gate",
++      "fix: close verification integrity bypasses",
++      "fix: reject remaining test suppression forms",
++      "refactor: simplify verification integrity checks",
++      "fix: detect self comparisons with messages"
++    ],
++    "files": 9,
++    "insertions": 1471,
++    "deletions": 14
++  },
++  "reviews": {
++    "adversarial": [
++      {
++        "runId": "verification-integrity-gate-8e330bd7-20261123-094116-71e5d7",
++        "status": "failed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "failed",
++            "attempts": 1,
++            "durationMs": 643841,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          },
++          {
++            "agent": "claude",
++            "status": "timed_out",
++            "attempts": 1,
++            "durationMs": 2714882,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 2,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "verification-integrity-gate-28741104-20261123-145751-50acd7",
++        "status": "failed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "failed",
++            "attempts": 1,
++            "durationMs": 730262,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "verification-integrity-gate-28741104-20261123-151059-32c2f1",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 252928,
++            "findings": {
++              "total": 3,
++              "adjudicated": 3,
++              "confirmed": 3,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 1,
++          "adjudicated": 1,
++          "confirmed": 1,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "verification-integrity-gate-393c6c11-20261123-151814-e9a91c",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 394894,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      }
++    ],
++    "refactoring": [
++      {
++        "run": "refactoring-verification-integrity-gate-fixes-2026-11-23",
++        "head": "e8f31d796f129e6e1080953effe87f88d176090e",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": [
++              "M05"
++            ],
++            "tier": "T1",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "applied"
++          },
++          {
++            "id": "R2",
++            "rules": [
++              "M07"
++            ],
++            "tier": "T1",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "applied"
++          },
++          {
++            "id": "R3",
++            "rules": [
++              "M05"
++            ],
++            "tier": "T2",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R4",
++            "rules": [
++              "D01"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R5",
++            "rules": [
++              "D04"
++            ],
++            "tier": "T2",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "review"
++          },
++          {
++            "id": "R6",
++            "rules": [
++              "S06"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": true,
++            "disposition": "applied"
++          },
++          {
++            "id": "R7",
++            "rules": [
++              "S03"
++            ],
++            "tier": "T1",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "applied"
++          },
++          {
++            "id": "R8",
++            "rules": [
++              "S02"
++            ],
++            "tier": "T1",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "applied"
++          },
++          {
++            "id": "R9",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R10",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R11",
++            "rules": [
++              "T05"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          }
++        ]
++      }
++    ]
++  },
++  "gates": {
++    "failures": {
++      "python3 -m unittest scripts.tests.test_check_verification_integrity": 1,
++      "python3 -m unittest scripts.tests.test_check_verification_integrity scripts.tests.test_check_project_baseline": 2,
++      "python3 scripts/check-verification-integrity.py --base origin/dev/v0.5.0": 1,
++      "mvn clean install": 1,
++      "python3 scripts/refactoring-review.py plan": 1,
++      "python3 scripts/refactoring-review.py detect": 1,
++      "python3 scripts/refactoring-review.py verify": 1
++    }
++  },
++  "pit": [],
++  "interventions": {
++    "asks": 0,
++    "corrections": 0
++  },
++  "usage": {
++    "totalTokens": null,
++    "cost": null,
++    "currency": null
++  },
++  "notes": "Added Java/Python/TypeScript verification-integrity gate with effective CODEOWNERS enforcement. PIT skipped: no Java production or mutation evidence changed. Local JDK 11 unavailable; remote CI required. Two Codex runs blocked by max_output_tokens; Kiro confirmed and then verified the fixes. GitHub classic branch protection is absent and both rulesets are disabled, so required-check/code-owner enforcement remains a maintainer action."
++}

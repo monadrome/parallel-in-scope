@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "verification-integrity-gate-8e330bd7-20261123-094116-71e5d7",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-23T09:41:17.518Z",
+  "endedAt": "2026-11-23T09:52:01.840Z",
+  "durationMs": 643841,
+  "exitCode": 1,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-8e330bd7-20261123-094116-71e5d7/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-8e330bd7-20261123-094116-71e5d7/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-8e330bd7-20261123-094116-71e5d7/agent-output/codex/attempt-1/last-message.json",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 20b2c58b9487a3c15284adca94d86954c3e4a67a to 8e330bd7dada615bd6aef713f581957eff526928. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-8e330bd7-20261123-094116-71e5d7/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-8e330bd7-20261123-094116-71e5d7/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Independent adversarial review: verification integrity gate\n\nReview the complete diff from origin/dev/v0.5.0 to HEAD and every changed file:\nAGENTS.md, .agents/skills/project-delivery/references/commands.md,\n.github/CODEOWNERS, .github/workflows/ci.yml, scripts/check-project-baseline.py,\nscripts/check-verification-integrity.py,\nscripts/tests/test_check_project_baseline.py,\nscripts/tests/test_check_verification_integrity.py, and\nverification/verification-integrity.md. Read the implementation and tests from the\nsnapshot; do not edit files.\n\nContract under review:\n- MUST reject deleted test files and cases, new test suppression, reduced assertion\n  counts, and new constant assertions relative to the pull-request base.\n- MUST report protected verification infrastructure changes and retain\n  repository-owner CODEOWNERS coverage.\n- MUST NOT treat protected infrastructure edits as self-approving or allow\n  exceptions to CODEOWNERS protection.\n\nAttack surfaces to probe explicitly:\n- test deletion, renaming, exact moves, duplicate names, helper methods, custom or\n  multiline test annotations, comments and literals;\n- assertion-count preservation attacks, constant/self-comparison false positives,\n  baseline subtraction, file moves containing existing suppressions;\n- Java's lightweight parser, Python AST behavior, and TypeScript masking/parsing;\n- CODEOWNERS precedence/self-modification, exception handling, workflow self-removal,\n  merge-base selection, untrusted fork input, and command/revision injection;\n- whether CI and documentation actually enforce the stated contract without making\n  legitimate maintenance impossible;\n- test quality and missing reverse verification, plus unnecessary complexity in the\n  new 656-line checker.\n\nReport only concrete findings supported by file content and an executable or\nsource-level reproduction hypothesis. Distinguish blocking defects from documented\nlimitations and optional improvements.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-8e330bd7-20261123-094116-71e5d7/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": null,
+    "model": null,
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": null,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "failed",
+  "summary": null,
+  "findings": null,
+  "rawFindings": null,
+  "error": "reviewer exited with code 1"
+}

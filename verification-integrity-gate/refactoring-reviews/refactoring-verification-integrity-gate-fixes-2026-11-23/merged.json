@@ -1,0 +1,373 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D-1",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S-1",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T-1",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/check-project-baseline.py",
+      "symbol": "validate_script_and_docs",
+      "refactoring": "Extract Function (consolidate the duplicated read-and-contains blocks into one parameterized helper over an artifact table)",
+      "rules": [
+        "M05"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "Adding the integrity gate copied the existing Java-gate and its documentation checks into two more inline blocks, so the next gate means another copy here plus another entry in validate_stale_references and another mirrored patch list in the test. One helper driven by a (path, required text, description) table keeps the development-line artifact contract in one place and lets the test assert the table instead of mirroring it."
+      ],
+      "behaviorRisks": [
+        "Identical error strings and their order for the Java gate, the integrity gate, and both docs; the exact 'DEFAULT_UPSTREAM = \"<ref>\"' match and the stale-reference error set must stay unchanged."
+      ],
+      "guardingTests": [
+        "ProjectBaselineTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M05"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "main",
+      "refactoring": "Move Function (encapsulate the exemption decision as a documented Violation predicate)",
+      "rules": [
+        "M07"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "main decides that rule V6 is never exemptible by comparing item.rule to a bare string, while REVIEWED_EXCEPTIONS is declared elsewhere and Violation.rule promises nothing about exemptibility. Declaring the promise beside the rule definition makes the documented 'V6 has no exception mechanism' single-sourced and lets a future non-exceptible rule declare itself without editing main."
+      ],
+      "behaviorRisks": [
+        "V6 findings must still bypass REVIEWED_EXCEPTIONS, every other rule must still be filtered by the (path, rule, key) tuple, and output ordering plus exit statuses (1 on findings, 2 on CheckError) must not change."
+      ],
+      "guardingTests": [
+        "InfrastructureTest",
+        "JavaIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M07"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "mask_c_like",
+      "refactoring": "Extract Module (shared gate parsing and git-base support) and reuse the existing helper",
+      "rules": [
+        "M05"
+      ],
+      "tier": "T2",
+      "scope": "in-diff",
+      "rationales": [
+        "The new gate re-declares Violation and Source and copies normalize, blank, literal masking, delimiter scanning, split_arguments, git, default_base, extract_base, revision_argument, and baseline subtraction from scripts/check-java-conventions.py. Each parsing fix or development-line base change must now land twice, and the two copies already differ (matching_delimiter vs matching_paren, no generic-angle handling in split_arguments), so the gates can drift silently."
+      ],
+      "behaviorRisks": [
+        "Masking must keep byte-identical offsets and normalized keys; each gate must keep its own error text and exit codes; any extracted module must be added to REQUIRED_CODEOWNERS and CODEOWNERS, because moving helper code out of the protected check-*.py file would move the gate's trust boundary; tests load scripts by path through importlib, so imports must resolve in that mode."
+      ],
+      "guardingTests": [
+        "BaselineTest",
+        "JavaIntegrityTest",
+        "PythonIntegrityTest",
+        "RevisionTest",
+        "RuleTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M05"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "check_verification_integrity#java_noops",
+      "refactoring": "Remove Dead Code",
+      "rules": [
+        "D01"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "split_arguments always appends a final (start, close_index) span, so its result is never empty; the `values and (...)` guards in java_noops (assertTrue/assertFalse) and java_assumptions re-validate what the helper already guarantees. Deleting them leaves a guard set that is honest: every remaining condition is one that can actually fire, so future readers can tell a real malformed-input branch from a decorative one."
+      ],
+      "behaviorRisks": [
+        "none; append-only split_arguments yields at least one span even for `assertTrue()`, so values[0] / values[-1] stay defined and the same arguments are classified as before"
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "D-1",
+          "rule": "D01"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "check_verification_integrity#scan_typescript",
+      "refactoring": "Replace Silent Skip with Fail-Fast CheckError",
+      "rules": [
+        "D04"
+      ],
+      "tier": "T2",
+      "scope": "in-diff",
+      "rationales": [
+        "When TS_TEST matches a recognized `test`/`it` call but the title or call cannot be delimited, the loop silently `continue`s, so an unparsable test is recorded as \"no test case\" rather than as a parse failure. That makes the test inventory and the documented exit-2 \"could not run\" contract untrustworthy for TypeScript, whereas the Java path raises `cannot parse Java test method at ...` for the analogous branches. Failing fast keeps the two scanners' failure semantics aligned and keeps a broken file from looking like a file with fewer tests."
+      ],
+      "behaviorRisks": [
+        "changes observable behavior: a recognized but unparsable TypeScript test call currently contributes no TestCase and may let the run exit 0 or 1, while the replacement exits 2; well-formed files and their case counts must stay identical"
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "D-1",
+          "rule": "D04"
+        }
+      ],
+      "flags": [],
+      "id": "R5"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "TestFile#text",
+      "refactoring": "Remove Dead Code",
+      "rules": [
+        "S06"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "`TestFile.text` is written by all three scanners (`scan_java`, `scan_python`, `scan_typescript`) but never read: only `TestFile.tests`, `.digest`, and `.markers` are consumed by `exact_moves`, `compare_tests`, and `main`; the raw text used for comparisons lives in `Source.text`. Dropping the field removes a per-file full-source retention and makes the dataclass say exactly what the comparison pipeline needs, so its constructor shape stops inviting future readers to treat stored text as authoritative."
+      ],
+      "behaviorRisks": [
+        "None: no caller or test reads the field; the `dataclasses.replace(file, markers=...)` alignment in `align_base_files` and the V1/V2/V4 messages use only the remaining fields, and scanner output visible through `main` is unchanged."
+      ],
+      "guardingTests": [
+        "InfrastructureTest",
+        "JavaIntegrityTest",
+        "PythonIntegrityTest",
+        "RevisionTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": true,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S06"
+        }
+      ],
+      "flags": [],
+      "id": "R6"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "java_noops / scan_typescript",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S03"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "Both `java_noops` and `scan_typescript` repeat the same argument-extraction shape: `split_arguments(...)`, then a masked `values` list from `code[start:end]` and a raw `original` list from the unmasked text, followed by `len(original) == 2 and original[0] == original[1]` for the self-comparison check. Extracting one helper that returns the masked and original argument texts makes the deliberate split (masked for constant detection, raw for string-literal self-comparison) defined once, so adding an assertion form to either language cannot silently diverge on how arguments are normalized or how the marker span ends."
+      ],
+      "behaviorRisks": [
+        "Must keep the `< 0` close-delimiter skip, identical whitespace normalization, the masked-versus-raw split, and the `close_index + 1` marker end so V5 keys and reported spans stay byte-identical."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S03"
+        }
+      ],
+      "flags": [],
+      "id": "R7"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "codeowner_violations",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "The function runs three abstraction levels: parsing CODEOWNERS lines into pattern/regex/owner entries, checking mandatory entries by exact pattern text, and checking effective coverage by fullmatch over protected files. The last two passes are the same shape (`matching = [...]; if not matching or CODEOWNER not in matching[-1][2]: append V6 Violation`), so the GitHub rule that the last matching entry decides the owner is stated twice. Extracting `parse_codeowner_entries` and a single last-match-owner check makes that override rule changeable in one place and lets the mandatory-entry case be tested without parsing."
+      ],
+      "behaviorRisks": [
+        "Output is sorted in `main`, so violation order is not observable, but the extracted helpers must keep exact-pattern comparison for `REQUIRED_CODEOWNERS`, regex `fullmatch` for protected paths, `matching[-1]` last-wins semantics, unfiltered V6 handling, and every existing V6 message/key."
+      ],
+      "guardingTests": [
+        "InfrastructureTest",
+        "RevisionTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R8"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TreeTest#tree",
+      "refactoring": "Extract Function\uff08\u5728 TreeTest \u4e2d\u65b0\u589e java_base() \u4e0e java_head(text) \u4e24\u4e2a\u6d4b\u8bd5\u8f85\u52a9\u65b9\u6cd5\uff09",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "self.tree(\"base\", {JAVA_PATH: JAVA_TEST}) \u5728 JavaIntegrityTest \u7b49\u7c7b\u7684 12 \u4e2a\u7528\u4f8b\u4e2d\u9010\u5b57\u91cd\u590d\uff0chead \u4fa7\u4e5f\u53cd\u590d\u51fa\u73b0 {JAVA_PATH: <\u53d8\u4f53>} \u5f62\u6001\uff1b\u62bd\u6210\u4e24\u4e2a\u53ea\u8bfb\u6784\u9020\u8f85\u52a9\u540e\uff0c\u65b0\u589e\u4e00\u6761 Java \u7528\u4f8b\u53ea\u9700\u5199\u53d8\u4f53\u6587\u672c\uff0c\u4fee\u6539\u9ed8\u8ba4\u57fa\u7ebf\u6d4b\u8bd5\u6e90\u7801\u6216 CODEOWNERS \u9ed8\u8ba4\u503c\u65f6\u53ea\u6539\u4e00\u5904\uff0c\u7528\u4f8b\u4e3b\u4f53\u53ea\u5269\u201c\u6539\u4e86\u4ec0\u4e48\u3001\u671f\u671b\u54ea\u6761 V \u89c4\u5219\u201d\u3002"
+      ],
+      "behaviorRisks": [
+        "\u8f85\u52a9\u5fc5\u987b\u4fdd\u7559\u6bcf\u4e2a\u7528\u4f8b\u4f7f\u7528\u72ec\u7acb tmp \u5b50\u76ee\u5f55\u3001\u9ed8\u8ba4 CODEOWNERS \u5199\u5165\u4ee5\u53ca\u539f\u6837\u6587\u4ef6\u5185\u5bb9\uff1b\u4e0d\u5f97\u5408\u5e76\u6216\u590d\u7528\u540c\u4e00\u4e2a tree\uff0c\u5426\u5219\u7528\u4f8b\u95f4\u4f1a\u4e92\u76f8\u770b\u5230\u5bf9\u65b9\u7684 head \u6587\u4ef6\uff0c\u65ad\u8a00\u968f\u4e4b\u6539\u53d8\u3002"
+      ],
+      "guardingTests": [
+        "InfrastructureTest",
+        "JavaIntegrityTest",
+        "PythonIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R9"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "RevisionTest#run_git_check",
+      "refactoring": "Extract Function\uff08\u628a TreeTest#run_check \u7684\u6355\u83b7\u903b\u8f91\u63d0\u70bc\u4e3a\u53c2\u6570\u5316\u7684 capture_main(*argv)\uff0cRevisionTest#run_git_check \u4e0e test_an_unknown_revision_exits_2 \u590d\u7528\uff09",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "io.StringIO \u53cc\u8def\u6355\u83b7 + contextlib.redirect_stdout/stderr + integrity.main \u7684\u4e09\u6bb5\u6837\u677f\u5728\u672c\u6587\u4ef6\u51fa\u73b0\u4e09\u5904\uff08TreeTest#run_check\u3001RevisionTest#run_git_check\u3001test_an_unknown_revision_exits_2 \u5185\u8054\u5757\uff09\uff0c\u5176\u4e2d\u4e24\u5904\u53c2\u6570\u53ea\u5dee argv \u62fc\u88c5\uff1b\u5408\u5e76\u4e3a\u4e00\u4e2a\u8fd4\u56de (code, out, err) \u7684\u8f85\u52a9\u540e\uff0crevision \u7528\u4f8b\u53ea\u8868\u8fbe\u201c\u7528\u4ec0\u4e48\u53c2\u6570\u8c03\u7528\u201d\uff0c\u6355\u83b7\u65b9\u5f0f\u53d8\u5316\u53ea\u9700\u6539\u4e00\u5904\u3002"
+      ],
+      "behaviorRisks": [
+        "\u5fc5\u987b\u4fdd\u6301 stdout \u4e0e stderr \u5206\u5f00\u6355\u83b7\u3001\u8fd4\u56de\u503c\u4e09\u5143\u7ec4\u987a\u5e8f\u4e0d\u53d8\uff0c\u5e76\u5728 main \u8c03\u7528\u671f\u95f4\u4fdd\u6301 mock.patch.object(integrity, \"ROOT\", ...) \u751f\u6548\uff1b\u82e5\u628a patch \u79fb\u51fa\u6355\u83b7\u8f85\u52a9\u6216\u5728\u8f85\u52a9\u5185\u90e8\u63d0\u524d\u9000\u51fa\uff0c\u4f1a\u6539\u53d8 RevisionTest \u7528\u4f8b\u7684\u89c2\u5bdf\u7ed3\u679c\u3002"
+      ],
+      "guardingTests": [
+        "InfrastructureTest",
+        "RevisionTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R10"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "JavaIntegrityTest#test_parameterized_test_annotations_and_arguments_are_parsed",
+      "refactoring": "Rename\uff08\u6539\u4e3a\u63cf\u8ff0\u884c\u4e3a\u7684\u540d\u79f0\uff0c\u5982 test_deleting_a_parameterized_test_reports_one_case\uff09",
+      "rules": [
+        "T05"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "\u5f53\u524d\u540d\u79f0\u8bf4\u7684\u662f\u89e3\u6790\u673a\u5236\uff08annotations and arguments are parsed\uff09\uff0c\u4f46\u7528\u4f8b\u5b9e\u9645\u9489\u4f4f\u7684\u884c\u4e3a\u662f\u201c\u5220\u9664\u53c2\u6570\u5316\u7528\u4f8b\u540e\u62a5\u544a 1 \u4e2a test case\u201d\uff1b\u6539\u6210\u884c\u4e3a\u540d\u540e\uff0c\u5931\u8d25\u4fe1\u606f\u4e0e V1 \u6d88\u606f\u4e4b\u95f4\u7684\u5bf9\u5e94\u5173\u7cfb\u65e0\u9700\u518d\u8bfb\u7528\u4f8b\u4f53\u5373\u53ef\u7406\u89e3\u3002"
+      ],
+      "behaviorRisks": [
+        "\u4ec5\u6539\u65b9\u6cd5\u540d\uff0c\u8f93\u5165\u3001\u65ad\u8a00\u4e0e message \u7247\u6bb5\u4fdd\u6301\u4e0d\u53d8\uff1bunittest \u53d1\u73b0\u673a\u5236\u4e0d\u4f9d\u8d56\u8be5\u540d\u79f0\u3002"
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T05"
+        }
+      ],
+      "flags": [],
+      "id": "R11"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 11,
+    "byTier": {
+      "T0": 5,
+      "T1": 4,
+      "T2": 2
+    },
+    "incompleteAgents": 0
+  }
+}

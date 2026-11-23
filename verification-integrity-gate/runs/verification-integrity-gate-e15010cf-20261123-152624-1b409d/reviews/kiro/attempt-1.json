@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "verification-integrity-gate-e15010cf-20261123-152624-1b409d",
+  "agent": "kiro",
+  "attempt": 1,
+  "startedAt": "2026-11-23T15:26:25.118Z",
+  "endedAt": "2026-11-23T15:27:27.364Z",
+  "durationMs": 62039,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kiro-cli",
+    "args": [
+      "chat",
+      "--v3",
+      "--no-interactive",
+      "--trust-all-tools",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 393c6c1157d1f8c1bd99438c94a16205cc1f9168 to e15010cf224e9ddbd2dfeca8262f6c1961eddee2. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-e15010cf-20261123-152624-1b409d/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-e15010cf-20261123-152624-1b409d/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 2 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Lightweight independent review: delivery ledger metadata\n\nReview only the ledger commit diff. Check that the JSON is parseable and internally\nconsistent, commit subjects and changed-file counts match the actual commit range,\nreview run references exist and have the recorded statuses, dispositions and gate\nfailure counts are not silently omitted, and the notes distinguish local passes,\nskipped PIT, the unavailable local JDK 11, and the external GitHub enforcement\nboundary. Do not review or re-litigate the implementation already covered by the\nfull adversarial review. Work read-only, do not run builds, and return at most 2\nconcrete findings; otherwise return an empty findings list.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate/.review-benchmark/runs/verification-integrity-gate-e15010cf-20261123-152624-1b409d/snapshot"
+  },
+  "stdoutPath": "logs/kiro-attempt-1.stdout.log",
+  "stderrPath": "logs/kiro-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kiro",
+    "version": "kiro-cli 3.5.0",
+    "provider": null,
+    "model": null,
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the ledger-only commit e15010cf. The JSON parses cleanly; the five recorded commit subjects exactly match the feature commits 7d38ff67..393c6c11; the recorded diff stats (9 files, 1471 insertions, 14 deletions) match the actual range 0e804a8b..393c6c11; the refactoring run head e8f31d79 and adversarial runId heads (8e330bd7, 28741104, 393c6c11) all resolve to real commits; dispositions (applied/deferred/review) and all seven gate failure counts are recorded rather than omitted; the notes correctly distinguish local gate passes, the skipped PIT (pit: [] with rationale), the unavailable local JDK 11, the two failed Codex runs, and the external GitHub enforcement boundary left as a maintainer action. No inconsistencies found.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "verification-integrity-gate-8e330bd7-20261123-094116-71e5d7",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:41:17.459Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate",
+    "name": "verification-integrity-gate"
+  },
+  "commits": {
+    "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "head": "8e330bd7dada615bd6aef713f581957eff526928",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "claude",
+        "version": "2.1.317 (Claude Code)",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 2,
+    "timeouts": {
+      "totalSeconds": 3060,
+      "reviewSeconds": 2700,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "c532c187846de099954b30cea4144d94f98bd473c9d46582f37842647467fd09",
+    "contextJsonSha256": "fe462b2822cab0a9d4c3ede30d5ebefde97bf10e6bcf9e4ad46dee270db5fea6",
+    "diffSha256": "9531beda3e23f0435c8ef3d1b1aff42fa3caf74f73ba23877960c9a7313ba7ab",
+    "caseManifestSha256": "b6b9b64de27e057c8d03e1cbfeb84f77be7f3e441d8f4d1580e051b3bf053536",
+    "promptSha256": "db3cba19962ee1e2a68cabc89d61455cf7d7acdb3af15f06658961d507628977"
+  },
+  "promptPath": "inputs/prompt.md"
+}

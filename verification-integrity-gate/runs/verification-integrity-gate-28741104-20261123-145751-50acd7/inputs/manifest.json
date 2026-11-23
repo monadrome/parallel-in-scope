@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "verification-integrity-gate-28741104-20261123-145751-50acd7",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T14:57:51.914Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate",
+    "name": "verification-integrity-gate",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "head": "287411045a115d27fb086e18dfd4c095e45518dd",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "to": "287411045a115d27fb086e18dfd4c095e45518dd",
+    "label": "0e804a8b..28741104"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "3347ef9428ca5b7916aa80e855c363f052002240444dbbb0310a0520a473c99e",
+    "bytes": 75395,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": ".github/CODEOWNERS",
+        "status": "A",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "status": "M",
+        "additions": 22,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/check-project-baseline.py",
+        "status": "M",
+        "additions": 24,
+        "deletions": 9
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "A",
+        "additions": 812,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_check_project_baseline.py",
+        "status": "M",
+        "additions": 11,
+        "deletions": 5
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "A",
+        "additions": 466,
+        "deletions": 0
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "A",
+        "additions": 118,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "4b0a5bb6aef02cc513d913f5cf2dbd7cc415d6f0eb72757e913aa77340880e35",
+    "bytes": 1760,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "498b5f445c39c5442085b7bc41f2a560d09d2d508aa1eed9936016dd0592c4ed",
+    "bytes": 3239
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "287411045a115d27fb086e18dfd4c095e45518dd",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

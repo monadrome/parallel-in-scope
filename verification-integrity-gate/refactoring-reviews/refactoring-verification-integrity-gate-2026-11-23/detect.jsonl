@@ -1,0 +1,4 @@
+{"agent": "M", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 437, "findings": null, "progress": "agents/M/attempt-1.progress.jsonl"}
+{"agent": "D-1", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 272, "findings": 2, "progress": "agents/D-1/attempt-1.progress.jsonl"}
+{"agent": "S-1", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 141, "findings": 3, "progress": "agents/S-1/attempt-1.progress.jsonl"}
+{"agent": "T-1", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 208, "findings": 3, "progress": "agents/T-1/attempt-1.progress.jsonl"}

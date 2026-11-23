@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-gate-28741104-20261123-151059-32c2f1",
+  "version": 2,
+  "createdAt": "2026-11-23T15:19:29.242Z",
+  "method": "imported",
+  "note": "imported: One V5 arity defect repeated across the Java, Python, and TypeScript scanners",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0",
+        "kiro:1",
+        "kiro:2"
+      ],
+      "note": "Optional trailing message arguments bypassed self-comparison detection in all three language scanners"
+    }
+  ]
+}

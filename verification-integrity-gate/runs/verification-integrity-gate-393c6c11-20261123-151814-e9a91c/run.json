@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "verification-integrity-gate-393c6c11-20261123-151814-e9a91c",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T15:18:14.666Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate",
+    "name": "verification-integrity-gate"
+  },
+  "commits": {
+    "base": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "head": "393c6c1157d1f8c1bd99438c94a16205cc1f9168",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": null,
+        "model": null,
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 3,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "80bd97c7991c7a63b0438853ef598aeb017c1a21e53939707724c9595e17ef46",
+    "contextJsonSha256": "d2b66129cfbdba46a043627afa292abd25574e11a0ed68e8e7c52b1a36d968b7",
+    "diffSha256": "bd01de2448fda7e612ab47345f434fe96a5d40d31ff2700162584da2d8230357",
+    "caseManifestSha256": "3851a68d693e963e1d3e1c0caf6e5dd204d4df730d978ee108fafa7b63d4cd40",
+    "promptSha256": "18a757bb7e207ad1afb61ad0afd140315986ad14b089d562453e6d3c197a9734"
+  },
+  "promptPath": "inputs/prompt.md"
+}

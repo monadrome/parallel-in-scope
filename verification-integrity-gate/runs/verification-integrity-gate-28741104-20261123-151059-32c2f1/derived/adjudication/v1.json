@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-gate-28741104-20261123-151059-32c2f1",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-23T15:19:29.261Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi-code/k3.1-pro",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "All three scanners returned exit 0 for self-comparisons with a trailing message. Six new overload subtests failed before the fix and pass after comparing the first two arguments whenever at least two are present.",
+      "confidence": 1
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "verification-integrity-gate-e15010cf-20261123-152624-1b409d",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T15:26:25.052Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate",
+    "name": "verification-integrity-gate",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "393c6c1157d1f8c1bd99438c94a16205cc1f9168",
+    "head": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "393c6c1157d1f8c1bd99438c94a16205cc1f9168",
+    "to": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "label": "393c6c11..e15010cf"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "b2642ffc94269dec52be6ca89f8e9c45b4372b7e5f33ee2e1ff8da3e34104aad",
+    "bytes": 9686,
+    "files": [
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "A",
+        "additions": 342,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "279011adc4e5408946e3dadb3c8330de5fa1b812eb65975ad29b186190e90e0d",
+    "bytes": 691,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "ae03dd452734f470aacaeb3af6efb1c2e4b02753db9038181e0c8816d207e5a7",
+    "bytes": 1629
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

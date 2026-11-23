@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-gate-8e330bd7-20261123-094116-71e5d7",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:41:17.434Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-gate",
+    "name": "verification-integrity-gate",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "head": "8e330bd7dada615bd6aef713f581957eff526928",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "to": "8e330bd7dada615bd6aef713f581957eff526928",
+    "label": "20b2c58b..8e330bd7"
+  },
+  "objective": {
+    "subject": "feat: add verification integrity gate",
+    "body": "MUST: Reject deleted test files and cases, new test suppression, reduced assertion counts, and new constant assertions relative to the pull-request base.\n\nMUST: Report protected verification infrastructure changes and retain repository-owner CODEOWNERS coverage.\n\nMUST NOT: Treat protected infrastructure edits as self-approving or allow exceptions to CODEOWNERS protection.\n\nPIT: skipped; no Java production code or Java mutation evidence changed. Targeted Python source mutations reverse-verified the new regression tests."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "9531beda3e23f0435c8ef3d1b1aff42fa3caf74f73ba23877960c9a7313ba7ab",
+    "bytes": 59822,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": ".github/CODEOWNERS",
+        "status": "A",
+        "additions": 5,
+        "deletions": 0
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "status": "M",
+        "additions": 22,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/check-project-baseline.py",
+        "status": "M",
+        "additions": 13,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "A",
+        "additions": 656,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_check_project_baseline.py",
+        "status": "M",
+        "additions": 11,
+        "deletions": 5
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "A",
+        "additions": 349,
+        "deletions": 0
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "A",
+        "additions": 112,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "c532c187846de099954b30cea4144d94f98bd473c9d46582f37842647467fd09",
+    "bytes": 1951,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "8e330bd7dada615bd6aef713f581957eff526928",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
