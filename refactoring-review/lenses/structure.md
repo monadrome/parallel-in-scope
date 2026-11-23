@@ -87,20 +87,26 @@ public or protected `T2`.
 - mechanizable: partly (constant-construction repetition is detectable; payload, mutability, and
   lifecycle safety are judgement)
 
-### S11 Temporary mutable map for an immutable result
-- Smell: the change constructs a fresh `LinkedHashMap`, performs only `put` operations with keys and
-  values proven non-null and each key proven to be written at most once, and then freezes it with
-  `ImmutableMap.copyOf`, although no code reads or passes the mutable map to another consumer before
-  the freeze.
-- Move: use `ImmutableMap.builder()` or `builderWithExpectedSize()`, retain the `put` order, and
-  pass the built map directly; tighten a package-private boundary to `ImmutableMap` when needed.
-- Suppress: `get`, `computeIfAbsent`, `merge`, iteration, or failure cleanup needs the mutable map;
-  the map is long-lived mutable state; duplicate keys need last-write-wins semantics; or the boundary
-  accepts a caller-supplied or otherwise unknown `Map` and needs a defensive copy; or moving the
-  builder's null or duplicate validation would cross a catch, cleanup, or other observable failure
-  boundary. `copyOf` also remains valid when the argument may already be immutable and reuse is
-  intentional.
+### S11 Temporary mutable collection for an immutable result
+- Smell: the change creates a fresh mutable collection (`HashMap`, `LinkedHashMap`, `HashSet`,
+  `LinkedHashSet`, `ArrayList`, or another `java.util` collection), adds only entries the matching
+  Guava immutable type accepts (non-null and, for a map or set, no duplicate keys or elements), and
+  then freezes it with that type's `copyOf`, although no code reads, queries, or passes the mutable
+  collection to another consumer before the freeze.
+- Move: accumulate into the matching builder (`ImmutableMap.builder()`, `ImmutableSet.builder()`,
+  `ImmutableList.builder()`, or another `ImmutableXxx` builder, with `builderWithExpectedSize()`
+  when the size is known), add entries in the same order, and pass the built collection directly;
+  tighten a package-private boundary to the immutable type when needed.
+- Suppress: lookup (`get`, `contains`), conditional replacement (`merge`, `computeIfAbsent`, or a
+  `put` that overwrites), removal, sorting, iteration, or failure cleanup needs the mutable
+  collection; it is long-lived mutable state; duplicates rely on last-write-wins or deduplication
+  rather than being impossible; the frozen order differs from the order entries are produced and
+  that order is observable (`HashMap` and `HashSet` iterate in hash order, a builder in
+  accumulation order); or the boundary accepts a caller-supplied or otherwise unknown collection
+  and needs a defensive copy; or moving the builder's null or duplicate validation would cross a
+  catch, cleanup, or other observable failure boundary. `copyOf` also remains valid when the
+  argument may already be immutable and reuse is intentional.
 - Tier: `T0` for a local-only replacement; `T1` when a package-private signature or multiple files
   change; `T2` for a public signature.
-- mechanizable: partly (the construction pair is syntactically detectable; reads, escapes, duplicate
-  keys, and lifecycle use require def-use judgement)
+- mechanizable: partly (the container, the accumulation calls, and the freeze are syntactically
+  detectable; reads, escapes, duplicates, ordering, and lifecycle use require def-use judgement)
