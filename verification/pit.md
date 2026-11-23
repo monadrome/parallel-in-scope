@@ -113,6 +113,9 @@ dependency invalidation.
 
 For this multi-module build, a core PIT run writes `core/target/pit-reports/mutations.xml`
 and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
+That path is build output: a clean, a rebuild, or worktree removal deletes it, so a focused
+inline run MUST copy the XML and its log to durable evidence at that point, and the archived
+XML is what later evidence and the delivery ledger cite.
 The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
 may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
 Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside

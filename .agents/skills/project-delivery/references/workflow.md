@@ -10,9 +10,12 @@ owned worktree from the freshly fetched upstream declared in `.agents/project-ba
 
 ```bash
 git worktree add -b <topic> .worktrees/<topic> <upstream-ref>
+cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py
 ```
 
-Carry over only your own changes as a patch of your paths, then return those paths in the
+The skill check runs inside the new worktree, before any skill is invoked there; the script
+inspects the checkout containing it, so the shared checkout's copy proves nothing. Carry over
+only your own changes as a patch of your paths, then return those paths in the
 shared checkout to their committed state. Verify, commit, and deliver from the owned worktree.
 Leave others' files and commits intact: do not commit, stash, reset, rebase, or switch branches
 in the shared checkout, and never push their commits. After delivery, preserve the review

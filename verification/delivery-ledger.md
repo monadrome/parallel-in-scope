@@ -10,8 +10,9 @@ first candidate for a mechanical check.
 
 The raw evidence stays where the tools write it: llm-review-bench runs under
 `.review-benchmark/runs/` or `.agents/reviews/`, refactoring-review runs under
-`.agents/reviews/`, PIT reports under `target/`. PIT reports are local build
-output and die with their worktree. Review run directories are different:
+`.agents/reviews/`, PIT reports under build output such as
+`core/target/pit-reports/mutations.xml` and archived per [PIT
+verification](pit.md) before cleanup. Review run directories are different:
 delivery commits their audit records (raw logs, agent output, and snapshots
 excluded) with matching gold to the `llm-ledger` branch before removing the
 worktree (Checkout Isolation in the project-delivery workflow), so the review
@@ -38,10 +39,14 @@ python3 scripts/process-metrics.py record --topic <topic> --route <route> \
   --agent <harness> --model <model> \
   --adversarial <bench run dir or id> \
   --refactoring <refactoring-review run dir> \
-  --pit target/pit-reports/mutations.xml \
+  --pit <archive-dir>/batch-<name>/mutations.xml \
   --gate-failure 'mvn test=2' --asks 1 --corrections 0
 ```
 
+`--pit` takes durable evidence, preferring the archived XML from
+`scripts/run-pit-core.sh --out <archive-dir>`; run a focused inline PIT only after
+copying its XML and log out of build output. A directory argument reads every
+`mutations.xml` below it, so one multi-batch archive can be passed once.
 `--base` defaults to `@{upstream}`, which is the development line for a
 worktree branch created from `origin/dev/vX.Y.Z`; pass it explicitly
 otherwise. Name each adversarial review run once, in round order, including

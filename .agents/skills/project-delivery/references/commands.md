@@ -2,7 +2,8 @@
 
 ## Commands
 
-Run from the repository root.
+Run from the repository root, except the worktree skill check, which runs inside the new
+worktree before the first skill invocation there.
 
 ```bash
 mvn test -Dtest='ClassName#methodName' # targeted test; replace class and method
@@ -21,9 +22,10 @@ python3 scripts/check-java-conventions.py  # new library-source convention viola
 python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
 python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
 python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures
+scripts/run-pit-core.sh --batch <A|B|C|D|E|all> --out <archive-dir>  # default core PIT partition; archives XML, log, monitor data, and metadata
 python3 scripts/watch-delivery-ci.py <sha>  # watch the pushed tip's CI runs to a terminal result; attributes runs by head_sha
 python3 .agents/skills/contract-first-assurance/scripts/verify_package.py  # verify the versioned assurance skill bundle
-python3 scripts/check-worktree-skills.py  # verify required project skills are materialized and tracked
+(cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py)  # verify the new worktree's required skills; run there, not in the shared checkout
 python3 scripts/check-project-baseline.py  # verify the development-line baseline is consistent
 python3 .agents/skills/contract-first-assurance/scripts/verify_run.py --run-dir <run-dir>  # verify assurance inputs, logs, and hashes
 ```
@@ -40,11 +42,16 @@ standalone agent-skills checkout should provide its own adapter instead of
 copying these repository paths into the portable phases.
 
 Project skills required by repository workflows are listed in
-`.worktreeinclude.yaml` and must be committed under `.agents/skills/`. A new
-worktree must pass `python3 scripts/check-worktree-skills.py` before a skill is
-invoked. The check rejects missing, untracked, and symlinked skill directories;
-it never copies files from a parent checkout. This makes the Git commit the
-source of truth for worktree availability.
+`.worktreeinclude.yaml` and must be committed under `.agents/skills/`. The
+skill check inspects the checkout containing the script, so a run in a shared
+checkout proves nothing about the new worktree. It rejects missing, untracked,
+and symlinked skill directories; it never copies files from a parent checkout.
+This makes the Git commit the source of truth for worktree availability.
+
+Core PIT partitions go through `scripts/run-pit-core.sh`, the durable default:
+it archives each batch's `mutations.xml`, `pit.log`, `process-monitor.log`, and
+`run-meta.txt` under `<archive-dir>/batch-<name>/`. Procedure, durability, and
+dispositions: [PIT verification](../../../../verification/pit.md).
 
 The current development line and its upstream ref are declared once in
 `.agents/project-baseline.json`. Review gates and their documentation are

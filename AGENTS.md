@@ -25,8 +25,9 @@ A request for analysis authorizes analysis, not applying its proposals.
 For **every modification**, use the project-level
 [project-delivery skill](.agents/skills/project-delivery/SKILL.md) before editing. It owns the
 delivery sequence and its completion criteria. Read-only questions use the subject routes only.
-Required project skills are tracked in `.worktreeinclude.yaml`; a new worktree must pass
-`python3 scripts/check-worktree-skills.py` before invoking a skill.
+Required project skills are tracked in `.worktreeinclude.yaml`. A new worktree must pass its
+own skill check before invoking a skill; the script inspects the checkout that contains it, so
+run it inside that worktree (see Commands).
 
 ### Exploratory Design Loading
 
@@ -69,7 +70,8 @@ under the documentation-maintenance decision-rationale rules.
 
 ## Commands
 
-Run from the repository root; select checks by route, not by copying the whole catalog.
+Run from the repository root, except the worktree skill check, which runs inside the new
+worktree. Select checks by route, not by copying the whole catalog.
 
 ```bash
 mvn test -Dtest='ClassName#methodName' # targeted test
@@ -77,7 +79,7 @@ mvn test                            # full library suite
 mvn spotless:apply                  # Java changes only
 python3 scripts/check-doc-refs.py
 python3 scripts/check-local-links.py
-python3 scripts/check-worktree-skills.py
+(cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py)  # inside the new worktree
 python3 scripts/check-project-baseline.py
 ```
 
