@@ -1,0 +1,23 @@
+scripts/check-contract-tests.py
+  s_efda58e1e2f725::t_7c5c3b63949176 14
+verification/contract-tests/AGENTS.md
+  s_efda58e1e2f725::t_7c5c3b63949176 20-21
+.github/workflows/ci.yml
+  s_efda58e1e2f725::t_7c5c3b63949176 191-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a6214b44766c8b502d192c4621f692258216d47a",
+  "prompts": {},
+  "sessions": {
+    "s_efda58e1e2f725": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a208d8-040e-74b3-961a-4a412015a8e3",
+        "model": "ctrip-ada/claude-auto[1M]"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
