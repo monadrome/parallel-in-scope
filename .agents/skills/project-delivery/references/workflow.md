@@ -16,11 +16,21 @@ Carry over only your own changes as a patch of your paths, then return those pat
 shared checkout to their committed state. Verify, commit, and deliver from the owned worktree.
 Leave others' files and commits intact: do not commit, stash, reset, rebase, or switch branches
 in the shared checkout, and never push their commits. After delivery, preserve the review
-evidence, then remove the worktree and delete its branch: commit the delivery's review run
-directories (`.review-benchmark/runs/`, `.agents/reviews/`) to the `llm-ledger` branch under
-the topic name and push it, creating that branch from an orphan root when it does not exist
-yet. The run directories are git-ignored and would otherwise die with the worktree; on
-`llm-ledger` they stay available as the audit trail the review procedure requires.
+evidence, then remove the worktree and delete its branch:
+
+- Archive each review run under the topic name on the `llm-ledger` branch:
+  `.review-benchmark/runs/<run-id>` becomes `<topic>/runs/<run-id>`, the matching
+  `.review-benchmark/gold/<run-id>` becomes `<topic>/gold/<run-id>`, and a refactoring-review
+  run under `.agents/reviews/` becomes `<topic>/refactoring-reviews/<run>`. Exclude `logs/`,
+  `agent-output/`, and `snapshot/`: raw logs and agent output may contain sensitive fragments
+  and must not be committed (the benchmark security boundary), and the snapshot is a nested
+  worktree. The rest is the audit trail the review procedure requires, and `report`/`rescore`
+  still work against the archive with `--output <ledger-checkout>/<topic>`.
+- Work in a dedicated ledger worktree: fetch `origin/llm-ledger` and check it out there,
+  creating the branch from an orphan root when absent; copy the runs into the paths above,
+  `git add` (an orphan root carries no ignore rules), commit, and push. On a non-fast-forward
+  rejection, rebase onto the fetched tip and retry; topic-named directories keep concurrent
+  appends disjoint. Remove the delivery worktree only once the pushed tip contains the topic.
 
 ## Local Verification
 

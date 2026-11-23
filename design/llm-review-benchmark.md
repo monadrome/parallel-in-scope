@@ -316,7 +316,9 @@ JSON's `note`).
   required `--trust-all-tools` exists only inside the adapter and is recorded as a risk.
 - **Local data**: the benchmark root defaults to `.review-benchmark/`, already in the root
   `.gitignore`; raw logs may contain model output or sensitive fragments and must not be
-  committed.
+  committed. Delivery archives run audit records (excluding `logs/`, `agent-output/`, and
+  `snapshot/`) with their gold to the `llm-ledger` branch per Checkout Isolation in the
+  project-delivery workflow.
 - **Tests call no real models**: tests use temporary git repositories and fixture adapters;
   real CLIs are triggered only by explicit runs.
 - **Concurrency**: only one runner process per run; state updates serialize in-process, there
