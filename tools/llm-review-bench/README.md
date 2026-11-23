@@ -352,7 +352,7 @@ where available (Codex `--sandbox read-only`; Claude with no bypass; Kimi withou
 - One runner process per run. State updates are serialized in-process; there is no cross-process lock.
   Concurrent commands against the same run are unsupported.
 - Adapter output parsing is best effort for real CLIs whose formats are not stable public contracts.
-  Raw logs are kept so parsing can be revisited.
+  Raw logs are kept in the local run directory so parsing can be revisited; they are never committed.
 - OCR reviews the commit's own parent range; a live review with a custom `--base` is approximate for
   the OCR adapter. Documented in [docs/adapters.md](docs/adapters.md).
 - Kiro's non-interactive mode requires `--trust-all-tools`; that flag is confined to the adapter and

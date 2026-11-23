@@ -22,10 +22,12 @@ evidence, then remove the worktree and delete its branch:
   `.review-benchmark/runs/<run-id>` becomes `<topic>/runs/<run-id>`, the matching
   `.review-benchmark/gold/<run-id>` becomes `<topic>/gold/<run-id>`, and a refactoring-review
   run under `.agents/reviews/` becomes `<topic>/refactoring-reviews/<run>`. Exclude `logs/`,
-  `agent-output/`, and `snapshot/`: raw logs and agent output may contain sensitive fragments
-  and must not be committed (the benchmark security boundary), and the snapshot is a nested
-  worktree. The rest is the audit trail the review procedure requires, and `report`/`rescore`
-  still work against the archive with `--output <ledger-checkout>/<topic>`.
+  `agent-output/`, and `snapshot/`; a refactoring-review run also drops its `agents/` subtree
+  (raw detector stdout/stderr and last messages), keeping the run-root plan, merged results,
+  and report. Raw logs and agent output may contain sensitive fragments and must not be
+  committed (the benchmark security boundary); the snapshot is a nested worktree. The rest is
+  the audit trail the review procedure requires, and `report`/`rescore` still work against the
+  archive with `--output <ledger-checkout>/<topic>`.
 - Work in a dedicated ledger worktree: fetch `origin/llm-ledger` and check it out there,
   creating the branch from an orphan root when absent; copy the runs into the paths above,
   `git add` (an orphan root carries no ignore rules), commit, and push. On a non-fast-forward

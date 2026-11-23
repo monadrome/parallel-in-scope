@@ -29,8 +29,8 @@ than the current combination. The maintainer needs to:
 
 1. have multiple reviewers look at the same immutable git snapshot, not each at a drifting
    working tree;
-2. keep every reviewer's raw responses, logs, elapsed time, timeout and failure states,
-   auditable afterwards;
+2. keep every reviewer's raw responses, logs, elapsed time, timeout and failure states in the
+   local run directory, auditable afterwards;
 3. use a unified finding protocol and explicit clustering rules, separating "same root cause"
    from "different defects on the same line";
 4. use a four-state verdict to distinguish true defects, false positives, valid-but-actionable-
@@ -111,7 +111,8 @@ the CLI — it implements no evaluation algorithm and no longer calls the old Py
 ### 3.3 Failure modes removed
 
 - **Evidence vanishing with the session**: run directories keep raw responses, logs, and input
-  hashes — auditable and recomputable across sessions.
+  hashes locally; delivery archives the structured records (raw logs excluded) with their gold
+  to the `llm-ledger` branch, keeping them auditable and recomputable across sessions.
 - **timeout/failed treated as an empty review**: failures record `findings: null`, are excluded
   from denominators, and are reported separately — never converted to 0.
 - **File+line or text similarity masquerading as semantic dedup**: the tool provides only the
@@ -318,7 +319,8 @@ JSON's `note`).
   `.gitignore`; raw logs may contain model output or sensitive fragments and must not be
   committed. Delivery archives run audit records (excluding `logs/`, `agent-output/`, and
   `snapshot/`) with their gold to the `llm-ledger` branch per Checkout Isolation in the
-  project-delivery workflow.
+  project-delivery workflow; raw logs stay local to the run directory and disappear with its
+  worktree, so the durable audit record is the sanitized archive.
 - **Tests call no real models**: tests use temporary git repositories and fixture adapters;
   real CLIs are triggered only by explicit runs.
 - **Concurrency**: only one runner process per run; state updates serialize in-process, there

@@ -62,7 +62,8 @@ fixes can continue in later sessions:
   fix's actual effect in the change's `design/` document, or in the fix commit
   message when no `design/` document covers the change. The review workspace or
   run directory is the audit trail; delivery commits its audit records (raw
-  logs and agent output excluded) to the `llm-ledger` branch before removing
+  logs, agent output, and the nested snapshot excluded) to the `llm-ledger`
+  branch before removing
   the worktree (Checkout Isolation in [workflow](workflow.md)), so the evidence
   outlives the cleanup.
 - Reverse-verify every regression test: temporarily revert only the fix, observe
