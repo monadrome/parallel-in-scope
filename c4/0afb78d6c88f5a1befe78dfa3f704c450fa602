@@ -1,0 +1,19 @@
+core/src/main/java/io/github/monadrome/parallelinscope/fixture/S11Fixture.java
+  s_2af39babb67e29::t_8248bf5a07f447 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c40afb78d6c88f5a1befe78dfa3f704c450fa602",
+  "prompts": {},
+  "sessions": {
+    "s_2af39babb67e29": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20723-dd73-7120-ae71-ca8c03ecc99b",
+        "model": "ctrip-ada/claude-auto[1M]"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
