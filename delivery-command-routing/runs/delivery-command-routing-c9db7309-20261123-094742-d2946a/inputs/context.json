@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "delivery-command-routing-c9db7309-20261123-094742-d2946a",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:47:43.854Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "c9db730933ebad0c717804063222a238b2e6a792",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "c9db730933ebad0c717804063222a238b2e6a792",
+    "label": "10141117..c9db7309"
+  },
+  "objective": {
+    "subject": "docs: capture a focused PIT log in the run examples",
+    "body": "MUST: redirect a focused inline Maven/PIT invocation's console output into the\nevidence directory, then copy `core/target/pit-reports/mutations.xml` beside it,\nbecause the PIT plugin writes only XML and HTML.\n\nMUST NOT: document a focused PIT command that leaves no command log for the\ndurable-evidence requirement to copy."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "cc4416fb64f5e2c5e839a0a4ebd45cec123dc76daa5cf5c48729a99b8d3fdae5",
+    "bytes": 13126,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 23,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "8b0bdd8c429222c6ede969283a5dc93e0bcee66e8cc6eccb4882eb109bd4aa92",
+    "bytes": 2634,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "c9db730933ebad0c717804063222a238b2e6a792",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

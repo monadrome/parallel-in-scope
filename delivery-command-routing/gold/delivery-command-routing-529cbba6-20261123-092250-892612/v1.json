@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "delivery-command-routing-529cbba6-20261123-092250-892612",
+  "version": 1,
+  "createdAt": "2026-11-23T09:29:44.239Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "529cbba6f29a7139a751708e0a3c8ba7a5d69ef1"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

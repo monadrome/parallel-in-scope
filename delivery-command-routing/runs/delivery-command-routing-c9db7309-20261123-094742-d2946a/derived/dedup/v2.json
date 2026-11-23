@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "delivery-command-routing-c9db7309-20261123-094742-d2946a",
+  "version": 2,
+  "createdAt": "2026-11-23T09:54:23.747Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "focused examples copied any pre-existing mutations.xml, so a failed run could archive stale evidence"
+    }
+  ]
+}

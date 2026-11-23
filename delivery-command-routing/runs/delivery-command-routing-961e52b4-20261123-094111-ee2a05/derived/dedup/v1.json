@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "delivery-command-routing-961e52b4-20261123-094111-ee2a05",
+  "version": 1,
+  "createdAt": "2026-11-23T09:46:20.696Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": null
+    }
+  ]
+}

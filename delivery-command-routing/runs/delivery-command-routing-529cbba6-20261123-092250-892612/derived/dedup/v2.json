@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "delivery-command-routing-529cbba6-20261123-092250-892612",
+  "version": 2,
+  "createdAt": "2026-11-23T09:31:21.656Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "workflow.md used a persistent cd, leaving the caller in the new worktree during the patch carry-over"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "issue-runner PIT gate path/classifier mismatch; gates.py is untouched by this diff"
+    }
+  ]
+}

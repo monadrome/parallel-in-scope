@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "delivery-command-routing-1f215ae6-20261123-093126-dbbda4",
+  "version": 2,
+  "createdAt": "2026-11-23T09:41:06.047Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "run-pit-core.sh A-E patterns omit 11 current root classes; promoting it as the default hides the gap"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "focused inline requirement says copy a log, but the documented Maven command creates none"
+    }
+  ]
+}

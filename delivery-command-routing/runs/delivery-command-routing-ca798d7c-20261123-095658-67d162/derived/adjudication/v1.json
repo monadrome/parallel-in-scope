@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "delivery-command-routing-ca798d7c-20261123-095658-67d162",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-23T10:02:30.805Z",
+  "judge": {
+    "kind": "agent",
+    "name": "codex",
+    "model": "gpt-5.6-terra",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": null,
+      "confidence": null
+    }
+  ]
+}

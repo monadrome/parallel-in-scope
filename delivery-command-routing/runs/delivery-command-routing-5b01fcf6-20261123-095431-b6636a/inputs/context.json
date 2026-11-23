@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "delivery-command-routing-5b01fcf6-20261123-095431-b6636a",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:54:33.176Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "5b01fcf60da70a4bcc209fe0c640c186405e31ec",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "5b01fcf60da70a4bcc209fe0c640c186405e31ec",
+    "label": "10141117..5b01fcf6"
+  },
+  "objective": {
+    "subject": "docs: never archive a stale focused PIT report",
+    "body": "MUST: delete `core/target/pit-reports/mutations.xml` before a focused inline\nPIT invocation and copy it only when the current run produced it.\n\nMUST NOT: copy a pre-existing report into evidence for a failed or inconclusive\nrun; missing XML stays `inconclusive` rather than becoming prior numbers."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "10ac0a9cf1ab0c27e0f8bdc9b3803aef7d185948998099ea66a3aee101be687d",
+    "bytes": 13927,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 33,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "691511771719aa2cf3acb3a1cd8bb358a2c6ada51e2d3482d67eef3a01924089",
+    "bytes": 2603,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "5b01fcf60da70a4bcc209fe0c640c186405e31ec",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "delivery-command-routing-8d9074b4-20261123-100235-93b4dd",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T10:02:36.459Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "8d9074b4e292ffa856bf4b4d26d2175fe6110baa",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 3060,
+      "reviewSeconds": 2700,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "a23f82b1e39022d44655a138d964e6cfeee5c1e6baf4ae331cb531e4c2ef00fc",
+    "contextJsonSha256": "6ae8938d679f5cd295e35da344a0161628e98c3c9805220ce34d527da7ed7c4b",
+    "diffSha256": "97c1f6d1f2a1dbc10d1a3b88210e59af928774a20a5261e810099f03d2a4e036",
+    "caseManifestSha256": "e30751a36f236d1431bab7bedf64280845940392ec35ad2cde788aed9eb5e190",
+    "promptSha256": "c6ca9992d65b1292abed0bb1b5e78c22e25770aad86e978b7305066cfd52ff2a"
+  },
+  "promptPath": "inputs/prompt.md"
+}

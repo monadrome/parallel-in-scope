@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "delivery-command-routing-ca798d7c-20261123-095658-67d162",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:56:59.315Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "ca798d7cc0b5d4beb1a765b16501c38c2ad09c0b",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "ca798d7cc0b5d4beb1a765b16501c38c2ad09c0b",
+    "label": "10141117..ca798d7c"
+  },
+  "objective": {
+    "subject": "docs: give each focused PIT run its own evidence directory",
+    "body": "MUST: use a fresh, per-run evidence directory (the examples timestamp it) so a\nretry cannot read an earlier run's archived XML as its own result.\n\nMUST NOT: reuse an evidence directory across runs whose XML was already copied."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "2b2028aa758712b3db96bceba1e3f8fd552db5eaa34a859d48b008b0084fb882",
+    "bytes": 14139,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 36,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "66754640464f05ca607a229eac37b2e0984f3505a0df3fc878ecab11194c0603",
+    "bytes": 2544,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "ca798d7cc0b5d4beb1a765b16501c38c2ad09c0b",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "delivery-command-routing-529cbba6-20261123-092250-892612",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:22:51.091Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "529cbba6f29a7139a751708e0a3c8ba7a5d69ef1",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "529cbba6f29a7139a751708e0a3c8ba7a5d69ef1",
+    "label": "10141117..529cbba6"
+  },
+  "objective": {
+    "subject": "docs: run worktree skill check in the owned worktree and default to durable PIT evidence",
+    "body": "MUST: run `(cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py)`\ninside a new worktree before invoking a skill there; the script inspects the\ncheckout containing it, so the shared checkout's copy proves nothing about the\nnew worktree.\n\nMUST: run core PIT partitions through\n`scripts/run-pit-core.sh --batch <A|B|C|D|E|all> --out <archive-dir>`, which\narchives each batch's XML, log, monitor data, and run metadata.\n\nMUST: copy `core/target/pit-reports/mutations.xml` and its log out of build\noutput to durable evidence when a focused inline PIT run is used, before any\nclean, rebuild, or worktree removal.\n\nMUST: record the archived XML in the delivery ledger's `--pit` input.\n\nMUST NOT: pass `target/pit-reports/mutations.xml` as the ledger PIT path; core\nPIT output lives under `core/target/pit-reports/`."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "d115c0f2799450fbdae0ba55d3997786cc7b62cd3075dc0dec7f4eed95ec577d",
+    "bytes": 8993,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 14,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "938940c7ddacd772d99bdd96e513bf3066d49d414bfcf951203fed5f76cd3b6a",
+    "bytes": 3169,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "529cbba6f29a7139a751708e0a3c8ba7a5d69ef1",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

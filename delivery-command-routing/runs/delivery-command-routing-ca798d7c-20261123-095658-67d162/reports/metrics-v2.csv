@@ -1,0 +1,6 @@
+run_id,evaluation_version,layer,scope,key,mode,gold_status,open_world,system,agent,version,provider,model,effort,revision,status,duration_seconds,attempts,input_tokens,output_tokens,total_tokens,cost,currency,findings,adjudicated,confirmed,rejected,neutral,uncertain,pending,confirmed_rate,rejected_rate,neutral_rate,uncertain_rate,known_fix_recall,regression_recall,timeout,error,recall_note,cluster_id,verdict,cluster_findings,gold_labels,summary
+delivery-command-routing-ca798d7c-20261123-095658-67d162,2,system,kiro,kiro,live,open-world,true,kiro,kiro,kiro-cli 3.5.0,kiro,gpt-5.6-terra,max,,completed,242.803,1,,,,,,1,1,1,0,0,0,0,1,0,0,0,,,false,,open-world case: no gold labels,,,,,
+delivery-command-routing-ca798d7c-20261123-095658-67d162,2,union,clusters,union,live,open-world,true,,,,,,,,,,,,,,,,1,1,1,0,0,0,0,1,0,0,0,,,false,,open-world case: no gold labels,,,,,
+delivery-command-routing-ca798d7c-20261123-095658-67d162,2,aggregate,micro,micro,live,open-world,true,,,,,,,,,,,,,,,,,,,,,,,1,0,0,0,,,false,,,,,,,
+delivery-command-routing-ca798d7c-20261123-095658-67d162,2,aggregate,macro,macro,live,open-world,true,,,,,,,,,,,,,,,,,,,,,,,1,0,0,0,,,false,,,,,,,
+delivery-command-routing-ca798d7c-20261123-095658-67d162,2,cluster,C01,C01,live,open-world,true,,,,,,,,confirmed,,,,,,,,,,,,,,,,,,,,,false,,,C01,confirmed,1,,kiro: Timestamped focused PIT directory can be reused

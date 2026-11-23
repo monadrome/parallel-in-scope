@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "delivery-command-routing-961e52b4-20261123-094111-ee2a05",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:41:12.256Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "961e52b4a9e4888b8e775f08c7088c0e16de342b",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "961e52b4a9e4888b8e775f08c7088c0e16de342b",
+    "label": "10141117..961e52b4"
+  },
+  "objective": {
+    "subject": "docs: bound the core PIT runner default to its actual coverage",
+    "body": "MUST: confirm that `scripts/run-pit-core.sh`'s fixed A–E batch patterns cover\nevery changed class, and cover an omitted class with explicit `targetClasses`\nin a focused run.\n\nMUST NOT: treat a completed A–E batch set as mutation evidence for a changed\nclass that no batch mutates; root classes added after the partition inventory\ncan be absent from every batch.\n\nMUST: capture the focused inline Maven invocation's output into a log before\ncopying that log, because the PIT plugin writes only XML and HTML."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "af32588e4148b918d50c826d7cdeba0ea5cfe7444733cbe72a437c02f251ae25",
+    "bytes": 10457,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 11,
+        "deletions": 3
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "a136900913d24675581434f2a7d9c70dc0c092ad51b747f2ec98732e44cbae41",
+    "bytes": 2832,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "961e52b4a9e4888b8e775f08c7088c0e16de342b",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

@@ -1,0 +1,6 @@
+run_id,evaluation_version,layer,scope,key,mode,gold_status,open_world,system,agent,version,provider,model,effort,revision,status,duration_seconds,attempts,input_tokens,output_tokens,total_tokens,cost,currency,findings,adjudicated,confirmed,rejected,neutral,uncertain,pending,confirmed_rate,rejected_rate,neutral_rate,uncertain_rate,known_fix_recall,regression_recall,timeout,error,recall_note,cluster_id,verdict,cluster_findings,gold_labels,summary
+delivery-command-routing-c9db7309-20261123-094742-d2946a,1,system,kiro,kiro,live,open-world,true,kiro,kiro,kiro-cli 3.5.0,kiro,gpt-5.6-terra,max,,completed,346.425,1,,,,,,1,0,0,0,0,0,1,,,,,,,false,,open-world case: no gold labels,,,,,
+delivery-command-routing-c9db7309-20261123-094742-d2946a,1,union,clusters,union,live,open-world,true,,,,,,,,,,,,,,,,1,0,0,0,0,0,1,,,,,,,false,,open-world case: no gold labels,,,,,
+delivery-command-routing-c9db7309-20261123-094742-d2946a,1,aggregate,micro,micro,live,open-world,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false,,,,,,,
+delivery-command-routing-c9db7309-20261123-094742-d2946a,1,aggregate,macro,macro,live,open-world,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false,,,,,,,
+delivery-command-routing-c9db7309-20261123-094742-d2946a,1,cluster,C01,C01,live,open-world,true,,,,,,,,pending,,,,,,,,,,,,,,,,,,,,,false,,,C01,pending,1,,kiro: Focused PIT examples can archive a stale mutation report

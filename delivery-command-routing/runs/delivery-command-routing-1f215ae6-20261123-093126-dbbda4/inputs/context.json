@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "delivery-command-routing-1f215ae6-20261123-093126-dbbda4",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:31:27.190Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "1f215ae6e48f987eb94c276acfd9af8d050b0b2e",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "1f215ae6e48f987eb94c276acfd9af8d050b0b2e",
+    "label": "10141117..1f215ae6"
+  },
+  "objective": {
+    "subject": "docs: keep checkout isolation in the shared checkout",
+    "body": "MUST: run the new worktree's skill check in a subshell, so the caller stays in\nthe shared checkout for the patch carry-over that follows.\n\nMUST NOT: leave the shell inside the new worktree before the carry-over, or the\npatch and shared-checkout restoration target the wrong checkout."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "be515595bc2bee61d138938d3586d8738ae2fab773748a80ea42d734d4678de4",
+    "bytes": 9076,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 14,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "45b316935f93b63da85543a201c407c3b0b293eb0de2cf98507f97453ea9a371",
+    "bytes": 2594,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "1f215ae6e48f987eb94c276acfd9af8d050b0b2e",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

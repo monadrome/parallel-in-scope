@@ -1,0 +1,147 @@
+diff --git a/.agents/skills/project-delivery/references/commands.md b/.agents/skills/project-delivery/references/commands.md
+index df20569f..3d1c4577 100644
+--- a/.agents/skills/project-delivery/references/commands.md
++++ b/.agents/skills/project-delivery/references/commands.md
+@@ -2,7 +2,8 @@
+ 
+ ## Commands
+ 
+-Run from the repository root.
++Run from the repository root, except the worktree skill check, which runs inside the new
++worktree before the first skill invocation there.
+ 
+ ```bash
+ mvn test -Dtest='ClassName#methodName' # targeted test; replace class and method
+@@ -21,9 +22,10 @@ python3 scripts/check-java-conventions.py  # new library-source convention viola
+ python3 scripts/refactoring-review.py plan  # refactoring-review gate and detector plan for the committed change
+ python3 scripts/process-metrics.py record --topic <topic> --route <route>  # delivery record; see verification/delivery-ledger.md
+ python3 scripts/process-metrics.py report  # aggregate delivery records: review rounds, rule findings, gate failures
++scripts/run-pit-core.sh --batch <A|B|C|D|E|all> --out <archive-dir>  # default core PIT partition; archives XML, log, monitor data, and metadata
+ python3 scripts/watch-delivery-ci.py <sha>  # watch the pushed tip's CI runs to a terminal result; attributes runs by head_sha
+ python3 .agents/skills/contract-first-assurance/scripts/verify_package.py  # verify the versioned assurance skill bundle
+-python3 scripts/check-worktree-skills.py  # verify required project skills are materialized and tracked
++(cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py)  # verify the new worktree's required skills; run there, not in the shared checkout
+ python3 scripts/check-project-baseline.py  # verify the development-line baseline is consistent
+ python3 .agents/skills/contract-first-assurance/scripts/verify_run.py --run-dir <run-dir>  # verify assurance inputs, logs, and hashes
+ ```
+@@ -40,11 +42,16 @@ standalone agent-skills checkout should provide its own adapter instead of
+ copying these repository paths into the portable phases.
+ 
+ Project skills required by repository workflows are listed in
+-`.worktreeinclude.yaml` and must be committed under `.agents/skills/`. A new
+-worktree must pass `python3 scripts/check-worktree-skills.py` before a skill is
+-invoked. The check rejects missing, untracked, and symlinked skill directories;
+-it never copies files from a parent checkout. This makes the Git commit the
+-source of truth for worktree availability.
++`.worktreeinclude.yaml` and must be committed under `.agents/skills/`. The
++skill check inspects the checkout containing the script, so a run in a shared
++checkout proves nothing about the new worktree. It rejects missing, untracked,
++and symlinked skill directories; it never copies files from a parent checkout.
++This makes the Git commit the source of truth for worktree availability.
++
++Core PIT partitions go through `scripts/run-pit-core.sh`, the durable default:
++it archives each batch's `mutations.xml`, `pit.log`, `process-monitor.log`, and
++`run-meta.txt` under `<archive-dir>/batch-<name>/`. Procedure, durability, and
++dispositions: [PIT verification](../../../../verification/pit.md).
+ 
+ The current development line and its upstream ref are declared once in
+ `.agents/project-baseline.json`. Review gates and their documentation are
+diff --git a/.agents/skills/project-delivery/references/workflow.md b/.agents/skills/project-delivery/references/workflow.md
+index a739e18f..35523627 100644
+--- a/.agents/skills/project-delivery/references/workflow.md
++++ b/.agents/skills/project-delivery/references/workflow.md
+@@ -10,9 +10,12 @@ owned worktree from the freshly fetched upstream declared in `.agents/project-ba
+ 
+ ```bash
+ git worktree add -b <topic> .worktrees/<topic> <upstream-ref>
++cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py
+ ```
+ 
+-Carry over only your own changes as a patch of your paths, then return those paths in the
++The skill check runs inside the new worktree, before any skill is invoked there; the script
++inspects the checkout containing it, so the shared checkout's copy proves nothing. Carry over
++only your own changes as a patch of your paths, then return those paths in the
+ shared checkout to their committed state. Verify, commit, and deliver from the owned worktree.
+ Leave others' files and commits intact: do not commit, stash, reset, rebase, or switch branches
+ in the shared checkout, and never push their commits. After delivery, preserve the review
+diff --git a/AGENTS.md b/AGENTS.md
+index 3329bd6d..c0d5124e 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -25,8 +25,9 @@ A request for analysis authorizes analysis, not applying its proposals.
+ For **every modification**, use the project-level
+ [project-delivery skill](.agents/skills/project-delivery/SKILL.md) before editing. It owns the
+ delivery sequence and its completion criteria. Read-only questions use the subject routes only.
+-Required project skills are tracked in `.worktreeinclude.yaml`; a new worktree must pass
+-`python3 scripts/check-worktree-skills.py` before invoking a skill.
++Required project skills are tracked in `.worktreeinclude.yaml`. A new worktree must pass its
++own skill check before invoking a skill; the script inspects the checkout that contains it, so
++run it inside that worktree (see Commands).
+ 
+ ## Task Routes
+ 
+@@ -51,7 +52,8 @@ under the documentation-maintenance decision-rationale rules.
+ 
+ ## Commands
+ 
+-Run from the repository root; select checks by route, not by copying the whole catalog.
++Run from the repository root, except the worktree skill check, which runs inside the new
++worktree. Select checks by route, not by copying the whole catalog.
+ 
+ ```bash
+ mvn test -Dtest='ClassName#methodName' # targeted test
+@@ -59,7 +61,7 @@ mvn test                            # full library suite
+ mvn spotless:apply                  # Java changes only
+ python3 scripts/check-doc-refs.py
+ python3 scripts/check-local-links.py
+-python3 scripts/check-worktree-skills.py
++(cd .worktrees/<topic> && python3 scripts/check-worktree-skills.py)  # inside the new worktree
+ python3 scripts/check-project-baseline.py
+ ```
+ 
+diff --git a/verification/delivery-ledger.md b/verification/delivery-ledger.md
+index a8a9189a..10b82ef2 100644
+--- a/verification/delivery-ledger.md
++++ b/verification/delivery-ledger.md
+@@ -10,8 +10,9 @@ first candidate for a mechanical check.
+ 
+ The raw evidence stays where the tools write it: llm-review-bench runs under
+ `.review-benchmark/runs/` or `.agents/reviews/`, refactoring-review runs under
+-`.agents/reviews/`, PIT reports under `target/`. PIT reports are local build
+-output and die with their worktree. Review run directories are different:
++`.agents/reviews/`, PIT reports under build output such as
++`core/target/pit-reports/mutations.xml` and archived per [PIT
++verification](pit.md) before cleanup. Review run directories are different:
+ delivery commits their audit records (raw logs, agent output, and snapshots
+ excluded) with matching gold to the `llm-ledger` branch before removing the
+ worktree (Checkout Isolation in the project-delivery workflow), so the review
+@@ -38,10 +39,14 @@ python3 scripts/process-metrics.py record --topic <topic> --route <route> \
+   --agent <harness> --model <model> \
+   --adversarial <bench run dir or id> \
+   --refactoring <refactoring-review run dir> \
+-  --pit target/pit-reports/mutations.xml \
++  --pit <archive-dir>/batch-<name>/mutations.xml \
+   --gate-failure 'mvn test=2' --asks 1 --corrections 0
+ ```
+ 
++`--pit` takes durable evidence, preferring the archived XML from
++`scripts/run-pit-core.sh --out <archive-dir>`; run a focused inline PIT only after
++copying its XML and log out of build output. A directory argument reads every
++`mutations.xml` below it, so one multi-batch archive can be passed once.
+ `--base` defaults to `@{upstream}`, which is the development line for a
+ worktree branch created from `origin/dev/vX.Y.Z`; pass it explicitly
+ otherwise. Name each adversarial review run once, in round order, including
+diff --git a/verification/pit.md b/verification/pit.md
+index a4f5bf56..77a0d077 100644
+--- a/verification/pit.md
++++ b/verification/pit.md
+@@ -113,6 +113,9 @@ dependency invalidation.
+ 
+ For this multi-module build, a core PIT run writes `core/target/pit-reports/mutations.xml`
+ and HTML reports. Preserve the XML and logs for each batch before another run overwrites them.
++That path is build output: a clean, a rebuild, or worktree removal deletes it, so a focused
++inline run MUST copy the XML and its log to durable evidence at that point, and the archived
++XML is what later evidence and the delivery ledger cite.
+ The core profile keeps eight workers and a 60-second per-mutant timeout by default; recovery runs
+ may override `pitest.threads`, `pitest.timeoutConstant`, and `pitest.timeoutFactor` as effective
+ Maven properties, and should archive parent/minion PID, CPU, RSS, and state heartbeats alongside

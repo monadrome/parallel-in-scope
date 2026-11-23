@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "delivery-command-routing-c9db7309-20261123-094742-d2946a",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:47:43.963Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/delivery-command-routing",
+    "name": "delivery-command-routing",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "10141117282bf52f1463c1f728be161383a2b748",
+    "head": "c9db730933ebad0c717804063222a238b2e6a792",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "10141117282bf52f1463c1f728be161383a2b748",
+    "to": "c9db730933ebad0c717804063222a238b2e6a792",
+    "label": "10141117..c9db7309"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "cc4416fb64f5e2c5e839a0a4ebd45cec123dc76daa5cf5c48729a99b8d3fdae5",
+    "bytes": 13126,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "verification/delivery-ledger.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 3
+      },
+      {
+        "path": "verification/pit.md",
+        "status": "M",
+        "additions": 23,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "8b0bdd8c429222c6ede969283a5dc93e0bcee66e8cc6eccb4882eb109bd4aa92",
+    "bytes": 2634,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "74d1cc79fc22ebf0efe9f7ac5d2d3fc328fa9ed28e32c55f74152a9a475e69aa",
+    "bytes": 2497
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "c9db730933ebad0c717804063222a238b2e6a792",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

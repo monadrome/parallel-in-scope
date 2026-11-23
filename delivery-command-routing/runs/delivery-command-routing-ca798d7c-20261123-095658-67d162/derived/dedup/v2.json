@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "delivery-command-routing-ca798d7c-20261123-095658-67d162",
+  "version": 2,
+  "createdAt": "2026-11-23T10:02:30.784Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "the timestamped directory could collide within one UTC second and reuse prior XML"
+    }
+  ]
+}

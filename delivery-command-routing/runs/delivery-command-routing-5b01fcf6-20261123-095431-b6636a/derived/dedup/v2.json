@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "delivery-command-routing-5b01fcf6-20261123-095431-b6636a",
+  "version": 2,
+  "createdAt": "2026-11-23T09:56:54.323Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "reused EVID directory could carry a previous run's mutations.xml into a failed retry"
+    }
+  ]
+}
