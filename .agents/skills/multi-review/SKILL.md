@@ -56,7 +56,7 @@ for now — do not put `claude` in a systems file.
 |---|---|---|---|
 | `codex` | `gpt-6.1-terra` | `medium` | Codex's reasoning effort is passed to the CLI. |
 | `kiro` | `gpt-5.6-terra` or `kimi-k3` | `max` | Choose one Kiro model per run; pass the Kiro effort via `extraArgs: ["--effort", "max"]`. |
-| `zcode` | `glm-5.3` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
+| `zcode` | `glm-5.4` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
 
 Example systems file:
 
