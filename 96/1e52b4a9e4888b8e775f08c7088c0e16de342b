@@ -1,0 +1,24 @@
+verification/delivery-ledger.md
+  s_29f90af3a2c4db::t_29bef7f6eb0fc1 47-50
+.agents/skills/project-delivery/references/commands.md
+  s_29f90af3a2c4db::t_1ad0514f6f3f61 25
+  s_29f90af3a2c4db::t_29bef7f6eb0fc1 53-56
+verification/pit.md
+  s_29f90af3a2c4db::t_29bef7f6eb0fc1 117-119,126-128,130-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "961e52b4a9e4888b8e775f08c7088c0e16de342b",
+  "prompts": {},
+  "sessions": {
+    "s_29f90af3a2c4db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a207b2-ba91-7c03-a92c-e14df241281f",
+        "model": "kimi-code/k3.1-pro"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
