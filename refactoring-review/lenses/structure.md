@@ -86,3 +86,18 @@ public or protected `T2`.
   shared empty-state objects; `T2` public factories or shared identity added to a public contract.
 - mechanizable: partly (constant-construction repetition is detectable; payload, mutability, and
   lifecycle safety are judgement)
+
+### S11 Temporary mutable map for an immutable result
+- Smell: the change constructs a fresh `LinkedHashMap`, only adds entries with `put`, and then
+  freezes it with `ImmutableMap.copyOf`, although no code reads, mutates after freezing, or passes
+  the mutable map to another consumer before the freeze.
+- Move: use `ImmutableMap.builder()` or `builderWithExpectedSize()`, retain the `put` order, and
+  pass the built map directly; tighten a package-private boundary to `ImmutableMap` when needed.
+- Suppress: `get`, `computeIfAbsent`, `merge`, iteration, or failure cleanup needs the mutable map;
+  the map is long-lived mutable state; duplicate keys need last-write-wins semantics; or the boundary
+  accepts a caller-supplied or otherwise unknown `Map` and needs a defensive copy. `copyOf` also
+  remains valid when the argument may already be immutable and reuse is intentional.
+- Tier: `T0` for a local-only replacement; `T1` when a package-private signature or multiple files
+  change; `T2` for a public signature.
+- mechanizable: partly (the construction pair is syntactically detectable; reads, escapes, duplicate
+  keys, and lifecycle use require def-use judgement)
