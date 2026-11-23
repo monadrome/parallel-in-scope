@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-23-agent-reading-isolation",
+  "date": "2026-11-23",
+  "topic": "agent-reading-isolation",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi-code/k3.1-pro"
+  },
+  "change": {
+    "commits": [
+      "docs: stage exploratory design reading",
+      "docs: default reviewer selection to magpie",
+      "docs: exclude agent instructions from site",
+      "docs: parse magpie reviewer fields"
+    ],
+    "files": 5,
+    "insertions": 63,
+    "deletions": 8
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "agent-reading-isolation-ebef153a-20261123-082716-62beaf",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 854882,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-reading-isolation-fee072e2-20261123-084419-e697f4",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 578163,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 211798,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 211798,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "agent-reading-isolation-b1e9ba3b-20261123-085621-b42082",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 1578970,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 494979,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 494979,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "local review CLI build without installed tsc": 1,
+      "strict MkDocs build": 1
+    }
+  },
+  "pit": [],
+  "interventions": {
+    "asks": 0,
+    "corrections": 1
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Added two-phase exploratory reading boundaries for root, docs, and demo agent instructions; defaulted reviewer selection to Magpie-managed settings with labelled-output extraction. First review timed out after exposing a MkDocs strict-build failure, which was reproduced and fixed; second completed with one confirmed Magpie parsing finding, fixed before the third completed with zero findings. Open-world recall n/a; Java tests, PIT, and refactoring review skipped for documentation/site-only changes; usage unknown."
+}
