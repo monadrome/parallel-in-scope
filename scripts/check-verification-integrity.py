@@ -396,17 +396,23 @@ def python_import_aliases(tree: ast.AST) -> dict[str, str]:
                     aliases[alias.asname] = alias.name
         elif isinstance(node, ast.ImportFrom) and node.module and (node.module == "pytest" or node.module.startswith("pytest.")):
             for alias in node.names:
-                aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+                if alias.name == "*":
+                    aliases["*"] = node.module
+                else:
+                    aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
     return aliases
 
 
 def python_resolved_name(node: ast.AST, aliases: dict[str, str]) -> str:
     name = dotted_name(node)
     head, separator, tail = name.partition(".")
+    if head not in aliases and head in PYTEST_WILDCARD_NAMES and "*" in aliases:
+        return f"{aliases['*']}.{name}"
     return aliases.get(head, head) + separator + tail
 
 
 PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
+PYTEST_WILDCARD_NAMES = PYTHON_DISABLED | {"importorskip", "mark"}
 PYTHON_RUNTIME_DISABLED = {
     "pytest.skip",
     "pytest.xfail",

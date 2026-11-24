@@ -298,6 +298,22 @@ class PythonIntegrityTest(TreeTest):
                 self.assertIn(": V3: new runtime test skip or xfail", out)
                 self.assertNotIn(": V4:", out)
 
+    def test_wildcard_pytest_runtime_skips_fail(self):
+        for imports, call in (
+            ("from pytest import *\n", "skip('reason')"),
+            ("from pytest import *\n", "xfail('reason')"),
+            ("from pytest import *\n", "importorskip('missing')"),
+            ("from pytest import *\n", "mark.skip('reason')"),
+            ("from pytest.mark import *\n", "skip('reason')"),
+        ):
+            with self.subTest(imports=imports, call=call):
+                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+                weakened = imports + PYTHON_TEST.replace("self.assertTrue(value)", f"self.assertNotNull(value)\n        {call}")
+                head = self.tree("head", {PYTHON_PATH: weakened})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V3: new runtime test skip or xfail", out)
+
     def test_parametrized_pytest_skip_mark_fails(self):
         base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
         decorated = PYTHON_TEST.replace(
