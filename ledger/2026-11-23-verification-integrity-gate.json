@@ -338,5 +338,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "Added Java/Python/TypeScript verification-integrity gate with effective CODEOWNERS enforcement. PIT skipped: no Java production or mutation evidence changed. Local JDK 11 unavailable; remote CI required. Two Codex runs blocked by max_output_tokens; Kiro confirmed and then verified the fixes. GitHub classic branch protection is absent and both rulesets are disabled, so required-check/code-owner enforcement remains a maintainer action."
+  "notes": "Added Java/Python/TypeScript verification-integrity gate with effective CODEOWNERS enforcement. assurance: SKIPPED; scope: verification checker and tests, CI/CODEOWNERS, project routing, gate contract, and delivery metadata; reason: agent/repository verification workflow only, with no library runtime contract, observable behavior, or behavioral evidence change. PIT skipped: no Java production or mutation evidence changed. Local JDK 11 unavailable; remote CI required. Two Codex runs blocked by max_output_tokens; Kiro confirmed and then verified the fixes. GitHub classic branch protection is absent and both rulesets are disabled, so required-check/code-owner enforcement remains a maintainer action."
 }
