@@ -114,8 +114,8 @@ class TestFile:
 class Source:
     text: str
     code: str
-    comparable: str
-    literals: dict[int, int]
+    comparison_view: str
+    literal_spans: dict[int, int]
 
     def line_of(self, offset: int) -> int:
         return self.text.count("\n", 0, offset) + 1
@@ -161,27 +161,27 @@ def javascript_regex_span(text: str, start: int) -> tuple[int, int] | None:
 def mask_c_like(text: str, javascript: bool = False) -> Source:
     """Return masked code, a comment-free comparison view, and literal spans."""
     out: list[str] = []
-    comparable_out: list[str] = []
-    literals: dict[int, int] = {}
+    comparison_view_out: list[str] = []
+    literal_spans: dict[int, int] = {}
     i, n = 0, len(text)
     while i < n:
         if text.startswith("//", i):
             end = text.find("\n", i)
             end = n if end < 0 else end
             out.append(blank(text[i:end]))
-            comparable_out.append(blank(text[i:end]))
+            comparison_view_out.append(blank(text[i:end]))
             i = end
         elif text.startswith("/*", i):
             end = text.find("*/", i + 2)
             end = n if end < 0 else end + 2
             out.append(blank(text[i:end]))
-            comparable_out.append(blank(text[i:end]))
+            comparison_view_out.append(blank(text[i:end]))
             i = end
         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
             close, end = span
-            literals[i] = end
+            literal_spans[i] = end
             out.append("/" + blank(text[i + 1:close]) + text[close:end])
-            comparable_out.append(text[i:end])
+            comparison_view_out.append(text[i:end])
             i = end
         elif text[i] in "\"'`":
             quote = '"""' if text.startswith('"""', i) else text[i]
@@ -195,19 +195,19 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             j = min(j, n)
             closed = text.startswith(quote, j)
             end = j + len(quote) if closed else j
-            literals[i] = end
+            literal_spans[i] = end
             out.append(quote + blank(text[i + len(quote):j]) + (quote if closed else ""))
-            comparable_out.append(text[i:end])
+            comparison_view_out.append(text[i:end])
             i = end
         else:
             out.append(text[i])
-            comparable_out.append(text[i])
+            comparison_view_out.append(text[i])
             i += 1
     code = "".join(out)
-    comparable = "".join(comparable_out)
-    if len(code) != len(text) or len(comparable) != len(text):
+    comparison_view = "".join(comparison_view_out)
+    if len(code) != len(text) or len(comparison_view) != len(text):
         raise CheckError("internal error: masking changed the text length")
-    return Source(text, code, comparable, literals)
+    return Source(text, code, comparison_view, literal_spans)
 
 
 def matching_delimiter(code: str, open_index: int, opening: str = "(", closing: str = ")") -> int:
@@ -241,11 +241,11 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
 
 def comparison_span(source: Source, start: int, end: int) -> tuple[int, int]:
     while start < end:
-        while start < end and source.comparable[start].isspace():
+        while start < end and source.comparison_view[start].isspace():
             start += 1
-        while end > start and source.comparable[end - 1].isspace():
+        while end > start and source.comparison_view[end - 1].isspace():
             end -= 1
-        if start >= end or source.comparable[start] != "(" or matching_delimiter(source.code, start) != end - 1:
+        if start >= end or source.comparison_view[start] != "(" or matching_delimiter(source.code, start) != end - 1:
             break
         start += 1
         end -= 1
@@ -256,15 +256,15 @@ def comparison_form(source: Source, start: int, end: int) -> str:
     start, end = comparison_span(source, start, end)
     parts = []
     cursor = start
-    for literal_start, literal_end in sorted(source.literals.items()):
+    for literal_start, literal_end in sorted(source.literal_spans.items()):
         if literal_end <= start:
             continue
         if literal_start >= end:
             break
-        parts.append(normalize(source.comparable[cursor:literal_start]))
-        parts.append(source.comparable[literal_start:literal_end])
+        parts.append(normalize(source.comparison_view[cursor:literal_start]))
+        parts.append(source.comparison_view[literal_start:literal_end])
         cursor = literal_end
-    parts.append(normalize(source.comparable[cursor:end]))
+    parts.append(normalize(source.comparison_view[cursor:end]))
     return "".join(parts)
 
 
@@ -292,10 +292,10 @@ def self_comparing(
     if javascript and TAGGED_TEMPLATE.search(source.code[start:end]):
         return False
     if by_identity and javascript:
-        opening = source.comparable[start]
+        opening = source.comparison_view[start]
         if opening in "{[" and matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]") == end - 1:
             return False
-        if source.comparable[start] == "/" and source.literals.get(start) == end:
+        if source.comparison_view[start] == "/" and source.literal_spans.get(start) == end:
             return False
     return True
 
@@ -436,7 +436,7 @@ def dotted_name(node: ast.AST) -> str:
     return ""
 
 
-def python_import_aliases(tree: ast.AST) -> tuple[dict[str, str], list[str]]:
+def python_pytest_imports(tree: ast.AST) -> tuple[dict[str, str], list[str]]:
     aliases: dict[str, str] = {}
     wildcard_imports: list[str] = []
     for node in ast.walk(tree):
@@ -525,7 +525,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
                 visit(child, prefix)
 
     visit(tree)
-    aliases, wildcard_imports = python_import_aliases(tree)
+    aliases, wildcard_imports = python_pytest_imports(tree)
     markers = list(python_noops(tree, path, text))
     decorator_calls: set[int] = set()
     for node in ast.walk(tree):
