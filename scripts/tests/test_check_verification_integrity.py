@@ -209,6 +209,19 @@ class JavaIntegrityTest(TreeTest):
                 head = self.tree("head", {JAVA_PATH: changed})
                 self.assertEqual(self.run_check(base, head)[0], 0)
 
+    def test_non_pure_equality_calls_are_not_self_comparisons(self):
+        for assertion in (
+            "assertEquals(compute(), compute())",
+            "assertSame(compute(), compute())",
+            "assertEquals(obj.getValue(), obj.getValue())",
+            "assertEquals(value++, value++)",
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {JAVA_PATH: JAVA_TEST})
+                changed = JAVA_TEST.replace("assertEquals(2, value)", assertion)
+                head = self.tree("head", {JAVA_PATH: changed})
+                self.assertEqual(self.run_check(base, head)[0], 0)
+
     def test_parameterized_test_annotations_and_arguments_are_parsed(self):
         parameterized = JAVA_TEST.replace("@Test", '@ParameterizedTest(name = "{0}")\n    @MethodSource("values")')
         base = self.tree("base", {JAVA_PATH: parameterized})
@@ -443,6 +456,53 @@ class TypeScriptIntegrityTest(TreeTest):
                 base = self.tree("base", {TS_PATH: TS_TEST})
                 head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
                 self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_typescript_non_pure_equality_calls_pass(self):
+        for assertion in (
+            "expect(compute()).toBe(compute())",
+            "expect(list.pop()).toEqual(list.pop())",
+            "expect(obj.getValue()).toStrictEqual(obj.getValue())",
+            "assert.strictEqual(compute(), compute())",
+            "assert.deepEqual(obj.getValue(), obj.getValue())",
+            "expect(value++).toBe(value++)",
+            "expect(value = 1).toBe(value = 1)",
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_typescript_identity_assertions_with_allocated_literals_pass(self):
+        for assertion in (
+            "expect({}).toBe({})",
+            "expect([1]).toBe([1])",
+            "expect(/a/).toBe(/a/)",
+            "assert.strictEqual({}, {})",
+            "assert.strictEqual(/a/, /a/)",
+            "assert.equal([1], [1])",
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_typescript_deep_equality_and_pure_operands_fail(self):
+        for assertion in (
+            "expect({}).toEqual({})",
+            "expect([1]).toStrictEqual([1])",
+            "expect(/a/).toEqual(/a/)",
+            "expect(obj.value).toBe(obj.value)",
+            "expect((value)).toBe((value))",
+            "assert.deepEqual({}, {})",
+            "assert.deepStrictEqual([1], [1])",
+            "assert.deepStrictEqual(/a/, /a/)",
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V5:", out)
 
 
 class InfrastructureTest(TreeTest):

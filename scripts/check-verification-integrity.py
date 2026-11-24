@@ -240,6 +240,15 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
 
 
 def normalize_comparison(source: Source, start: int, end: int) -> str:
+    while start < end:
+        while start < end and source.comparable[start].isspace():
+            start += 1
+        while end > start and source.comparable[end - 1].isspace():
+            end -= 1
+        if start >= end or source.comparable[start] != "(" or matching_delimiter(source.code, start) != end - 1:
+            break
+        start += 1
+        end -= 1
     parts = []
     cursor = start
     for literal_start, literal_end in source.literals.items():
@@ -252,6 +261,29 @@ def normalize_comparison(source: Source, start: int, end: int) -> str:
         cursor = literal_end
     parts.append(normalize(source.comparable[cursor:end]))
     return "".join(parts)
+
+
+C_LIKE_SIDE_EFFECT = re.compile(r"\b(?:new|delete|yield|await|function|class)\b|=>|->|\+\+|--|::")
+C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?\s*\(|\)\s*\(")
+C_LIKE_ASSIGNMENT = re.compile(r"(?<![=!<>])(?:\+|-|\*|/|%|&|\||\^|>>>|>>|<<)?=(?!=|>)")
+TAGGED_TEMPLATE = re.compile(r"[\w$)\]]\s*`")
+
+
+def self_comparing(left: str, right: str, javascript: bool, identity: bool) -> bool:
+    if not left or left != right:
+        return False
+    for operand in (left, right):
+        code = mask_c_like(operand, javascript).code
+        if C_LIKE_SIDE_EFFECT.search(code) or C_LIKE_CALL.search(code) or C_LIKE_ASSIGNMENT.search(code):
+            return False
+        if javascript and TAGGED_TEMPLATE.search(operand):
+            return False
+        if identity and javascript:
+            if operand.startswith(("{", "[")):
+                return False
+            if operand.startswith("/") and (span := javascript_regex_span(operand, 0)) is not None and span[1] == len(operand):
+                return False
+    return True
 
 
 def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[str], int]:
@@ -346,7 +378,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
             noop = True
         elif name == "assertFalse" and values and (values[0] == "false" or values[-1] == "false"):
             noop = True
-        elif name in {"assertEquals", "assertSame"} and len(comparable) >= 2 and comparable[0] == comparable[1]:
+        elif name in {"assertEquals", "assertSame"} and len(comparable) >= 2 and self_comparing(comparable[0], comparable[1], False, False):
             noop = True
         elif name == "assertThat" and values in (["true"], ["false"]):
             chain = re.match(r"\s*\.\s*(?P<method>isTrue|isFalse)\s*\(\s*\)", code[end:])
@@ -509,7 +541,7 @@ TS_ASSERT_CALL = re.compile(
     r"(?<![\w$])assert(?:\s*\.\s*(?P<method>ok|equal|strictEqual|deepEqual|deepStrictEqual))?\s*\("
 )
 TS_EXPECT_CALL = re.compile(r"(?<![\w$])expect\s*\(")
-TS_EXPECT_EQUALITY = re.compile(r"\s*\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(")
+TS_EXPECT_EQUALITY = re.compile(r"\s*\.\s*(?P<method>toBe|toEqual|toStrictEqual)\s*\(")
 
 
 def scan_typescript(path: str, text: str, digest: str) -> TestFile:
@@ -550,7 +582,7 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
             method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
             and len(comparable) >= 2
-            and comparable[0] == comparable[1]
+            and self_comparing(comparable[0], comparable[1], True, method in {"equal", "strictEqual"})
         )
         if noop:
             markers.append(violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion"))
@@ -562,7 +594,7 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         if chain is None:
             continue
         _, expected, expectation_close = call_arguments(source, chain.end() - 1)
-        if expectation_close >= 0 and len(expected) == 1 and received[0] == expected[0]:
+        if expectation_close >= 0 and len(expected) == 1 and self_comparing(received[0], expected[0], True, chain["method"] == "toBe"):
             markers.append(violation(source, path, match.start(), expectation_close + 1, "V5", "new constant or self-comparing expect assertion"))
     return TestFile(digest, tuple(tests), tuple(markers))
 
