@@ -179,6 +179,7 @@ class JavaIntegrityTest(TreeTest):
             "assertEquals(value, value)",
             "assertEquals(value, value, \"message\")",
             "assertSame(value, value, \"message\")",
+            "assertEquals(value, /* copied value */ value)",
             "assertThat(true).isTrue()",
         ):
             with self.subTest(replacement=replacement):
@@ -193,7 +194,7 @@ class JavaIntegrityTest(TreeTest):
         base = self.tree("base", {JAVA_PATH: constant})
         same = self.tree("same", {JAVA_PATH: constant})
         self.assertEqual(self.run_check(base, same)[0], 0)
-        different = JAVA_TEST.replace("assertEquals(2, value)", 'assertEquals("expected", "actual")')
+        different = JAVA_TEST.replace("assertEquals(2, value)", 'assertEquals("expected", /* distinct */ "actual")')
         head = self.tree("head", {JAVA_PATH: different})
         self.assertEqual(self.run_check(self.tree("different-base", {JAVA_PATH: JAVA_TEST}), head)[0], 0)
 
@@ -250,6 +251,23 @@ class PythonIntegrityTest(TreeTest):
             with self.subTest(call=call):
                 base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
                 weakened = PYTHON_TEST.replace("self.assertTrue(value)", f"self.assertNotNull(value)\n        {call}")
+                head = self.tree("head", {PYTHON_PATH: weakened})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V3: new runtime test skip or xfail", out)
+                self.assertNotIn(": V4:", out)
+
+    def test_imported_pytest_skip_aliases_fail(self):
+        for imports, call in (
+            ("from pytest import skip\n", "skip('reason')"),
+            ("from pytest import xfail as suppress\n", "suppress('reason')"),
+            ("import pytest as p\n", "p.skip('reason')"),
+            ("import pytest as p\n", "p.importorskip('missing')"),
+            ("from pytest import mark as m\n", "m.skip('reason')"),
+        ):
+            with self.subTest(imports=imports, call=call):
+                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+                weakened = imports + PYTHON_TEST.replace("self.assertTrue(value)", f"self.assertNotNull(value)\n        {call}")
                 head = self.tree("head", {PYTHON_PATH: weakened})
                 code, out, _ = self.run_check(base, head)
                 self.assertEqual(code, 1)
@@ -355,13 +373,24 @@ class TypeScriptIntegrityTest(TreeTest):
         equal_message = TS_TEST.replace("assert.ok(value)", "assert.strictEqual(value, value, 'message')")
         deep_message = TS_TEST.replace("assert.ok(value)", "assert.deepEqual(value, value, 'message')")
         expect = TS_TEST.replace("assert.ok(value)", "expect(true).toBe(true)")
-        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (equal_message, "V5"), (deep_message, "V5"), (expect, "V5")):
+        expect_self = TS_TEST.replace("assert.ok(value)", "expect(value).toBe(value)")
+        expect_equal = TS_TEST.replace("assert.ok(value)", "expect(value).toEqual(value)")
+        expect_strict = TS_TEST.replace("assert.ok(value)", "expect(value).toStrictEqual(value)")
+        commented = TS_TEST.replace("assert.ok(value)", "assert.strictEqual(value, /* copied value */ value)")
+        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (equal_message, "V5"), (deep_message, "V5"), (expect, "V5"), (expect_self, "V5"), (expect_equal, "V5"), (expect_strict, "V5"), (commented, "V5")):
             with self.subTest(rule=rule, head_text=head_text):
                 base = self.tree("base", {TS_PATH: TS_TEST})
                 head = self.tree("head", {TS_PATH: head_text})
                 code, out, _ = self.run_check(base, head)
                 self.assertEqual(code, 1)
                 self.assertIn(f": {rule}:", out)
+
+    def test_typescript_different_expect_values_pass(self):
+        for assertion in ("expect(value).toBe(other)", 'expect("expected").toBe("actual")'):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                self.assertEqual(self.run_check(base, head)[0], 0)
 
 
 class InfrastructureTest(TreeTest):

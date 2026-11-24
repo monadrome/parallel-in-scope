@@ -114,6 +114,7 @@ class TestFile:
 class Source:
     text: str
     code: str
+    comparable: str
 
     def line_of(self, offset: int) -> int:
         return self.text.count("\n", 0, offset) + 1
@@ -157,23 +158,27 @@ def javascript_regex_span(text: str, start: int) -> tuple[int, int] | None:
 
 
 def mask_c_like(text: str, javascript: bool = False) -> Source:
-    """Blank comments and literal contents while preserving offsets and quote delimiters."""
+    """Return masked code and a comment-free comparison view, preserving offsets."""
     out: list[str] = []
+    comparable_out: list[str] = []
     i, n = 0, len(text)
     while i < n:
         if text.startswith("//", i):
             end = text.find("\n", i)
             end = n if end < 0 else end
             out.append(blank(text[i:end]))
+            comparable_out.append(blank(text[i:end]))
             i = end
         elif text.startswith("/*", i):
             end = text.find("*/", i + 2)
             end = n if end < 0 else end + 2
             out.append(blank(text[i:end]))
+            comparable_out.append(blank(text[i:end]))
             i = end
         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
             close, end = span
             out.append("/" + blank(text[i + 1:close]) + text[close:end])
+            comparable_out.append(text[i:end])
             i = end
         elif text[i] in "\"'`":
             quote = '"""' if text.startswith('"""', i) else text[i]
@@ -188,14 +193,17 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             closed = text.startswith(quote, j)
             end = j + len(quote) if closed else j
             out.append(quote + blank(text[i + len(quote):j]) + (quote if closed else ""))
+            comparable_out.append(text[i:end])
             i = end
         else:
             out.append(text[i])
+            comparable_out.append(text[i])
             i += 1
     code = "".join(out)
-    if len(code) != len(text):
+    comparable = "".join(comparable_out)
+    if len(code) != len(text) or len(comparable) != len(text):
         raise CheckError("internal error: masking changed the text length")
-    return Source(text, code)
+    return Source(text, code, comparable)
 
 
 def matching_delimiter(code: str, open_index: int, opening: str = "(", closing: str = ")") -> int:
@@ -233,8 +241,8 @@ def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[str
         return [], [], -1
     arguments = split_arguments(source.code, open_index, close_index)
     values = [normalize(source.code[start:end]) for start, end in arguments]
-    original = [normalize(source.text[start:end]) for start, end in arguments]
-    return values, original, close_index
+    comparable = [normalize(source.comparable[start:end]) for start, end in arguments]
+    return values, comparable, close_index
 
 
 def skip_space(code: str, index: int) -> int:
@@ -310,7 +318,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
         if name not in {"assertTrue", "assertFalse", "assertEquals", "assertSame", "assertThat"}:
             continue
         open_index = match.end() - 1
-        values, original, close_index = call_arguments(source, open_index)
+        values, comparable, close_index = call_arguments(source, open_index)
         if close_index < 0:
             continue
         noop = False
@@ -319,7 +327,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
             noop = True
         elif name == "assertFalse" and values and (values[0] == "false" or values[-1] == "false"):
             noop = True
-        elif name in {"assertEquals", "assertSame"} and len(original) >= 2 and original[0] == original[1]:
+        elif name in {"assertEquals", "assertSame"} and len(comparable) >= 2 and comparable[0] == comparable[1]:
             noop = True
         elif name == "assertThat" and values in (["true"], ["false"]):
             chain = re.match(r"\s*\.\s*(?P<method>isTrue|isFalse)\s*\(\s*\)", code[end:])
@@ -358,6 +366,25 @@ def dotted_name(node: ast.AST) -> str:
         prefix = dotted_name(node.value)
         return f"{prefix}.{node.attr}" if prefix else node.attr
     return ""
+
+
+def python_import_aliases(tree: ast.AST) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname and (alias.name == "pytest" or alias.name.startswith("pytest.")):
+                    aliases[alias.asname] = alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module and (node.module == "pytest" or node.module.startswith("pytest.")):
+            for alias in node.names:
+                aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+    return aliases
+
+
+def python_resolved_name(node: ast.AST, aliases: dict[str, str]) -> str:
+    name = dotted_name(node)
+    head, separator, tail = name.partition(".")
+    return aliases.get(head, head) + separator + tail
 
 
 PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
@@ -422,6 +449,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
                 visit(child, prefix)
 
     visit(tree)
+    aliases = python_import_aliases(tree)
     markers = list(python_noops(tree, path, text))
     decorator_calls: set[int] = set()
     for node in ast.walk(tree):
@@ -438,7 +466,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or id(node) in decorator_calls:
             continue
-        name = dotted_name(node.func)
+        name = python_resolved_name(node.func, aliases)
         if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
             segment = ast.get_source_segment(text, node) or name
             markers.append(Violation(path, node.lineno, "V3", "new runtime test skip or xfail", normalize(segment)))
@@ -455,9 +483,8 @@ TS_ASSERTION = re.compile(r"(?<![\w$])(?:assert(?:\s*\.\s*[A-Za-z_$][\w$]*)?|exp
 TS_ASSERT_CALL = re.compile(
     r"(?<![\w$])assert(?:\s*\.\s*(?P<method>ok|equal|strictEqual|deepEqual|deepStrictEqual))?\s*\("
 )
-TS_EXPECT_NOOP = re.compile(
-    r"(?<![\w$])expect\s*\(\s*(?P<value>true|false)\s*\)\s*\.\s*toBe\s*\(\s*(?P=value)\s*\)"
-)
+TS_EXPECT_CALL = re.compile(r"(?<![\w$])expect\s*\(")
+TS_EXPECT_EQUALITY = re.compile(r"\s*\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(")
 
 
 def scan_typescript(path: str, text: str, digest: str) -> TestFile:
@@ -491,21 +518,27 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
     )
     for match in TS_ASSERT_CALL.finditer(code):
         open_index = match.end() - 1
-        values, original, close_index = call_arguments(source, open_index)
+        values, comparable, close_index = call_arguments(source, open_index)
         if close_index < 0:
             continue
         method = match["method"]
         noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
             method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
-            and len(original) >= 2
-            and original[0] == original[1]
+            and len(comparable) >= 2
+            and comparable[0] == comparable[1]
         )
         if noop:
             markers.append(violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion"))
-    markers.extend(
-        violation(source, path, match.start(), match.end(), "V5", "new constant expect assertion")
-        for match in TS_EXPECT_NOOP.finditer(code)
-    )
+    for match in TS_EXPECT_CALL.finditer(code):
+        _, received, close_index = call_arguments(source, match.end() - 1)
+        if close_index < 0 or len(received) != 1:
+            continue
+        chain = TS_EXPECT_EQUALITY.match(code, close_index + 1)
+        if chain is None:
+            continue
+        _, expected, expectation_close = call_arguments(source, chain.end() - 1)
+        if expectation_close >= 0 and len(expected) == 1 and received[0] == expected[0]:
+            markers.append(violation(source, path, match.start(), expectation_close + 1, "V5", "new constant or self-comparing expect assertion"))
     return TestFile(digest, tuple(tests), tuple(markers))
 
 
