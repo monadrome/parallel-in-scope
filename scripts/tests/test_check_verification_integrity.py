@@ -318,6 +318,7 @@ class PythonIntegrityTest(TreeTest):
             ("from pytest import *\n", "importorskip('missing')"),
             ("from pytest import *\n", "mark.skip('reason')"),
             ("from pytest.mark import *\n", "skip('reason')"),
+            ("from pytest import *\nfrom pytest.mark import *\n", "importorskip('missing')"),
         ):
             with self.subTest(imports=imports, call=call):
                 base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
@@ -485,6 +486,35 @@ class TypeScriptIntegrityTest(TreeTest):
                 base = self.tree("base", {TS_PATH: TS_TEST})
                 head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
                 self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_typescript_template_and_member_self_comparisons_fail(self):
+        for assertion in (
+            "assert.strictEqual(`value`, `value`)",
+            "assert.deepStrictEqual(`value`, `value`)",
+            'assert.strictEqual("a`", "a`")',
+            "expect(`value`).toBe(`value`)",
+            "assert.strictEqual([1].length, [1].length)",
+            "assert.strictEqual({a: 1}.a, {a: 1}.a)",
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V5:", out)
+
+    def test_typescript_expect_trailing_commas_fail(self):
+        for assertion in (
+            "expect(value).toBe(value,)",
+            "expect(value,).toEqual(value)",
+            "expect(\n  value,\n).toStrictEqual(\n  value,\n)",
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V5:", out)
 
     def test_typescript_deep_equality_and_pure_operands_fail(self):
         for assertion in (

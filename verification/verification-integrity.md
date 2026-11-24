@@ -22,10 +22,11 @@ The gate scans Java tests under every `src/test` directory, Python
 
 V5 ignores self-comparison text containing calls, assignments, construction,
 updates, or other potentially side-effecting expressions. JavaScript identity
-matchers do not treat newly allocated objects, arrays, or regular expressions
-as the same reference; deep-equality matchers still reject structural
-self-comparisons. Literal contents, including internal whitespace, remain
-significant when comparing operands.
+matchers do not treat whole newly allocated objects, arrays, or regular
+expressions as the same reference; member expressions remain comparable, and
+deep-equality matchers still reject structural self-comparisons. Literal
+contents, including internal whitespace, remain significant when comparing
+operands. A trailing TypeScript argument comma does not add an operand.
 
 Java assertions are `assertXxx`, `fail`, and Mockito `verify` calls. Python uses
 the AST to count `assert` statements, `assertXxx` calls, and `pytest.raises` or

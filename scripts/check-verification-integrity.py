@@ -289,10 +289,11 @@ def self_comparing(
     operand = source.code[start:end]
     if C_LIKE_SIDE_EFFECT.search(operand) or C_LIKE_CALL.search(operand) or C_LIKE_ASSIGNMENT.search(operand):
         return False
-    if javascript and TAGGED_TEMPLATE.search(source.comparable[start:end]):
+    if javascript and TAGGED_TEMPLATE.search(source.code[start:end]):
         return False
     if by_identity and javascript:
-        if source.comparable[start] in "{[":
+        opening = source.comparable[start]
+        if opening in "{[" and matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]") == end - 1:
             return False
         if source.comparable[start] == "/" and source.literals.get(start) == end:
             return False
@@ -303,7 +304,11 @@ def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[tup
     close_index = matching_delimiter(source.code, open_index)
     if close_index < 0:
         return [], [], -1
-    arguments = split_arguments(source.code, open_index, close_index)
+    arguments = [
+        (start, end)
+        for start, end in split_arguments(source.code, open_index, close_index)
+        if normalize(source.code[start:end])
+    ]
     values = [normalize(source.code[start:end]) for start, end in arguments]
     return values, arguments, close_index
 
@@ -431,8 +436,9 @@ def dotted_name(node: ast.AST) -> str:
     return ""
 
 
-def python_import_aliases(tree: ast.AST) -> dict[str, str]:
+def python_import_aliases(tree: ast.AST) -> tuple[dict[str, str], list[str]]:
     aliases: dict[str, str] = {}
+    wildcard_imports: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -441,17 +447,18 @@ def python_import_aliases(tree: ast.AST) -> dict[str, str]:
         elif isinstance(node, ast.ImportFrom) and node.module and (node.module == "pytest" or node.module.startswith("pytest.")):
             for alias in node.names:
                 if alias.name == "*":
-                    aliases["*"] = node.module
+                    wildcard_imports.append(node.module)
                 else:
                     aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
-    return aliases
+    return aliases, wildcard_imports
 
 
-def python_resolved_name(node: ast.AST, aliases: dict[str, str]) -> str:
+def python_resolved_name(node: ast.AST, aliases: dict[str, str], wildcard_imports: list[str]) -> str:
     name = dotted_name(node)
     head, separator, tail = name.partition(".")
-    if head not in aliases and head in PYTEST_WILDCARD_NAMES and "*" in aliases:
-        return f"{aliases['*']}.{name}"
+    if head not in aliases and head in PYTEST_WILDCARD_NAMES and wildcard_imports:
+        candidates = [f"{module}.{name}" for module in wildcard_imports]
+        return next((candidate for candidate in candidates if candidate in PYTHON_RUNTIME_DISABLED), candidates[0])
     return aliases.get(head, head) + separator + tail
 
 
@@ -518,7 +525,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
                 visit(child, prefix)
 
     visit(tree)
-    aliases = python_import_aliases(tree)
+    aliases, wildcard_imports = python_import_aliases(tree)
     markers = list(python_noops(tree, path, text))
     decorator_calls: set[int] = set()
     for node in ast.walk(tree):
@@ -528,14 +535,14 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
             if isinstance(decorator, ast.Call):
                 decorator_calls.add(id(decorator))
             target = decorator.func if isinstance(decorator, ast.Call) else decorator
-            name = python_resolved_name(target, aliases)
+            name = python_resolved_name(target, aliases, wildcard_imports)
             if name.rsplit(".", 1)[-1].lower() in PYTHON_DISABLED:
                 segment = ast.get_source_segment(text, decorator) or name
                 markers.append(Violation(path, decorator.lineno, "V3", "new skip, expected-failure, or xfail decorator", normalize(segment)))
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or id(node) in decorator_calls:
             continue
-        name = python_resolved_name(node.func, aliases)
+        name = python_resolved_name(node.func, aliases, wildcard_imports)
         if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
             segment = ast.get_source_segment(text, node) or name
             markers.append(Violation(path, node.lineno, "V3", "new runtime test skip or xfail", normalize(segment)))
