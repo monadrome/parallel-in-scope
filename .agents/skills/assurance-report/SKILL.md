@@ -1,7 +1,7 @@
 ---
 name: assurance-report
 description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
-version: "1.5.1"
+version: "1.5.2"
 disable-model-invocation: true
 ---
 # Assurance Report

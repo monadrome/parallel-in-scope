@@ -55,6 +55,29 @@ def gate_name_errors(value, field: str) -> list[str]:
     return errors
 
 
+def disposition_policy_errors(policy) -> list[str]:
+    if not isinstance(policy, dict):
+        return ["must be an object"]
+    errors = []
+    allowed_statuses = policy.get("allowedRawStatuses")
+    if (
+        not isinstance(allowed_statuses, list)
+        or not allowed_statuses
+        or any(not isinstance(status, str) or not status.strip() for status in allowed_statuses)
+        or len(set(allowed_statuses)) != len(allowed_statuses)
+    ):
+        errors.append("invalid allowedRawStatuses")
+    required_evidence = policy.get("requiredEvidence")
+    if (
+        not isinstance(required_evidence, list)
+        or not required_evidence
+        or any(not isinstance(category, str) or not category.strip() for category in required_evidence)
+        or len(set(required_evidence)) != len(required_evidence)
+    ):
+        errors.append("invalid requiredEvidence")
+    return errors
+
+
 def canonical_path(value: str) -> bool:
     path = Path(value)
     return (
@@ -296,6 +319,16 @@ def verify(run_dir: Path) -> list[str]:
 
     adapter = manifest.get("adapter", {})
     accepted_policy = adapter.get("acceptedDispositions") if isinstance(adapter, dict) else None
+    if accepted_policy is not None:
+        if not isinstance(accepted_policy, dict):
+            errors.append("adapter.acceptedDispositions must be an object")
+        else:
+            for disposition, policy in accepted_policy.items():
+                if not isinstance(disposition, str) or not disposition.strip():
+                    errors.append("adapter accepted disposition names must be non-blank strings")
+                for error in disposition_policy_errors(policy):
+                    prefix = f"adapter accepted disposition {disposition}"
+                    errors.append(f"{prefix} {error}" if error == "must be an object" else f"{prefix} has {error}")
     adapter_required_gates = adapter.get("requiredGates") if isinstance(adapter, dict) else None
     errors.extend(gate_name_errors(adapter_required_gates, "adapter.requiredGates"))
     accepted_exceptions = manifest.get("acceptedExceptions", [])
@@ -328,20 +361,13 @@ def verify(run_dir: Path) -> list[str]:
             if not isinstance(policy, dict):
                 errors.append(f"accepted exception {index} disposition is not allowed by adapter: {disposition}")
             else:
-                allowed_statuses = policy.get("allowedRawStatuses")
-                if not isinstance(allowed_statuses, list) or any(
-                    not isinstance(value, str) for value in allowed_statuses
-                ):
+                policy_errors = disposition_policy_errors(policy)
+                if "invalid allowedRawStatuses" in policy_errors:
                     errors.append(f"accepted exception {index} has invalid allowedRawStatuses: {disposition}")
-                elif raw_status not in allowed_statuses:
+                elif raw_status not in policy["allowedRawStatuses"]:
                     errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
                 required_evidence = policy.get("requiredEvidence")
-                if (
-                    not isinstance(required_evidence, list)
-                    or not required_evidence
-                    or any(not isinstance(category, str) or not category.strip() for category in required_evidence)
-                    or len(set(required_evidence)) != len(required_evidence)
-                ):
+                if "invalid requiredEvidence" in policy_errors:
                     errors.append(f"accepted exception {index} has invalid requiredEvidence: {disposition}")
                     required_evidence = []
         evidence = exception.get("evidence")
@@ -468,7 +494,10 @@ def verify(run_dir: Path) -> list[str]:
     if not isinstance(inputs, dict) or not inputs:
         errors.append("inputs must contain frozen files under inputs/")
     else:
-        inputs_root = (run_dir / "inputs").resolve()
+        inputs_path = run_dir / "inputs"
+        if inputs_path.is_symlink():
+            errors.append("inputs directory must not be a symbolic link")
+        inputs_root = inputs_path.resolve()
         for relative in inputs:
             if not isinstance(relative, str) or not canonical_path(relative) or not relative.startswith("inputs/"):
                 errors.append(f"inputs must contain only files under inputs/: {relative}")
