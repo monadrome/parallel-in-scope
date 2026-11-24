@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_efda58e1e2f725::t_7c5c3b63949176 216-218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "fc1d26a1542642ae0e3345061da1c9ac82056554",
+  "prompts": {},
+  "sessions": {
+    "s_efda58e1e2f725": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a208d8-040e-74b3-961a-4a412015a8e3",
+        "model": "ctrip-ada/claude-auto[1M]"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
