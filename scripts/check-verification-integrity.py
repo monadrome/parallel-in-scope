@@ -163,19 +163,22 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
     out: list[str] = []
     comparison_view_out: list[str] = []
     literal_spans: dict[int, int] = {}
+
+    def append_both(segment: str) -> None:
+        out.append(segment)
+        comparison_view_out.append(segment)
+
     i, n = 0, len(text)
     while i < n:
         if text.startswith("//", i):
             end = text.find("\n", i)
             end = n if end < 0 else end
-            out.append(blank(text[i:end]))
-            comparison_view_out.append(blank(text[i:end]))
+            append_both(blank(text[i:end]))
             i = end
         elif text.startswith("/*", i):
             end = text.find("*/", i + 2)
             end = n if end < 0 else end + 2
-            out.append(blank(text[i:end]))
-            comparison_view_out.append(blank(text[i:end]))
+            append_both(blank(text[i:end]))
             i = end
         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
             close, end = span
@@ -200,8 +203,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             comparison_view_out.append(text[i:end])
             i = end
         else:
-            out.append(text[i])
-            comparison_view_out.append(text[i])
+            append_both(text[i])
             i += 1
     code = "".join(out)
     comparison_view = "".join(comparison_view_out)
