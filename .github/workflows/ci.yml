@@ -203,7 +203,10 @@ jobs:
         run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests spotless:check
 
       - name: Run hidden contract regression suite
-        run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests -am test
+        run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests -am clean test
+
+      - name: Check hidden contract test execution evidence
+        run: python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
 
       - name: Upload hidden contract test reports
         if: ${{ failure() || cancelled() }}

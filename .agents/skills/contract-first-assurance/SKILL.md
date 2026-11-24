@@ -340,19 +340,30 @@ A candidate is eligible only when all of these hold:
 - reverse verification produced the expected failure and restored the production source exactly;
 - its frozen contract provides a decidable public observable expectation.
 
+Write `${RUN_DIR}/promotion-status.csv` with this exact header:
+
+```text
+candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason
+```
+
+Every row has a non-empty reason and status `promoted` or `blocked`. For a promoted row, the
+allocated ID is `C-nnnn`, the target is a safe repository-relative path, and the archive is a
+run-relative path under `promotions/` whose file exists and is SHA-256 hashed in the run manifest.
+Promoted contract IDs, target paths, and archive paths are unique. A header-only CSV is valid when
+no candidate is eligible.
+
 For each eligible candidate:
 
-1. Allocate the next unused four-digit contract ID in the resolved suite. Record the candidate ID,
-   run-local contract ID, allocated `C-nnnn`, target path, status, and reason in
-   `${RUN_DIR}/promotion-status.csv`.
+1. Allocate the next unused four-digit contract ID in the resolved suite. Record the candidate and
+   its promotion disposition in the CSV.
 2. Adapt only package and build integration. Preserve the precondition state, operation sequence,
    observation window, and assertions. Save the adapted test under `${RUN_DIR}/promotions/` and
    copy it to the suite, applying the suite's scoped contract-ID metadata convention. Contract IDs
    are unique within the persistent suite.
-3. Run the suite's configured metadata check and test command after all additions. A candidate is
-   `promoted` only when both pass. Otherwise retain its adapted copy and failure evidence under
-   `RUN_DIR`, and remove the unconfirmed new target file so the checkout contains no partial
-   promotion.
+3. Run the suite's configured metadata check, clean test command, and execution-evidence check
+   after all additions. A candidate is `promoted` only when all three pass and its archived copy is
+   hashed in the manifest. Otherwise retain its adapted copy and failure evidence under `RUN_DIR`,
+   and remove the unconfirmed new target file so the checkout contains no partial promotion.
 
 Keep the sealed candidates unchanged and retain the adaptation diff for audit. When no candidate is eligible,
 write the header-only promotion CSV, create an empty `promotions/` directory, and report the phase

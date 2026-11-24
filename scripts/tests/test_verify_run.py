@@ -32,7 +32,14 @@ class VerifyRunTest(unittest.TestCase):
         ):
             path = run / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            content = f"evidence\nFinal gate: {final_gate}\n" if relative == "report.md" else "evidence\n"
+            if relative == "report.md":
+                content = f"evidence\nFinal gate: {final_gate}\n"
+            elif relative == "promotion-status.csv":
+                content = (
+                    "candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason\n"
+                )
+            else:
+                content = "evidence\n"
             path.write_text(content, encoding="utf-8")
 
         digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -63,6 +70,24 @@ class VerifyRunTest(unittest.TestCase):
         }
         (run / "run-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         return run
+
+    def set_promotion_status(self, run, rows):
+        path = run / "promotion-status.csv"
+        header = "candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason\n"
+        path.write_text(header + "".join(f"{row}\n" for row in rows), encoding="utf-8")
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["artifacts"]["promotion-status.csv"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def add_promoted_copy(self, run, relative="promotions/C0001TaskIdContractTest.java"):
+        path = run / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("class C0001TaskIdContractTest {}\n", encoding="utf-8")
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["artifacts"][relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     def set_report(self, run, content):
         report = run / "report.md"
@@ -186,6 +211,84 @@ class VerifyRunTest(unittest.TestCase):
         self.update_manifest(run, requiredGates=["docs"])
         errors = verify_run.verify(run)
         self.assertIn("requiredGates does not match adapter.requiredGates", errors)
+
+    def test_rejects_promoted_row_without_archived_copy(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,C-0001,"
+                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
+            ],
+        )
+        errors = verify_run.verify(run)
+        self.assertTrue(any("promoted archive is missing" in error for error in errors))
+        self.assertTrue(any("promoted archive is not hashed in artifacts" in error for error in errors))
+
+    def test_accepts_promoted_row_with_a_hashed_archive(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.add_promoted_copy(run)
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,C-0001,"
+                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
+            ],
+        )
+        self.assertEqual(verify_run.verify(run), [])
+
+    def test_rejects_invalid_promotion_status_and_empty_reason(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,,,,blocked,",
+                "CONTRACT-TDD-002,C-0002,,,,unknown,no eligible candidate",
+            ],
+        )
+        errors = verify_run.verify(run)
+        self.assertTrue(any("reason must be non-empty" in error for error in errors))
+        self.assertTrue(any("unsupported status: unknown" in error for error in errors))
+
+    def test_rejects_invalid_promoted_identity_and_paths(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,C-1,/tmp/C0001TaskIdContractTest.java,"
+                "../C0001TaskIdContractTest.java,promoted,passed promotion gates"
+            ],
+        )
+        errors = verify_run.verify(run)
+        self.assertTrue(any("invalid promoted contract_id: C-1" in error for error in errors))
+        self.assertTrue(any("safe path under promotions/" in error for error in errors))
+        self.assertTrue(any("safe repository-relative path: /tmp/" in error for error in errors))
+
+    def test_rejects_duplicate_promoted_identity_and_paths(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.add_promoted_copy(run)
+        row = (
+            "CONTRACT-TDD-001,C-0001,C-0001,"
+            "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+            "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
+        )
+        self.set_promotion_status(run, [row, row.replace("CONTRACT-TDD-001", "CONTRACT-TDD-002")])
+        errors = verify_run.verify(run)
+        for field in ("contract_id", "archive_path", "target_path"):
+            self.assertTrue(any(f"duplicates promoted {field}" in error for error in errors))
+
+    def test_rejects_invalid_promotion_header(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.set_promotion_status(run, [])
+        (run / "promotion-status.csv").write_text("candidate_id,status\n", encoding="utf-8")
+        errors = verify_run.verify(run)
+        self.assertTrue(any("promotion-status.csv header must be" in error for error in errors))
+
+    def test_accepts_header_only_promotion_status(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.assertEqual(verify_run.verify(run), [])
 
     def test_requires_hashes_for_promoted_test_copies(self):
         run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})

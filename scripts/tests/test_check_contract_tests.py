@@ -1,6 +1,7 @@
 import importlib.util
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -23,6 +24,22 @@ class CheckContractTestsTest(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def write_reports(self, testcases):
+        reports = self.root / "surefire-reports"
+        reports.mkdir(exist_ok=True)
+        suite = ET.Element("testsuite")
+        for class_name, method_name, outcome in testcases:
+            testcase = ET.SubElement(
+                suite,
+                "testcase",
+                classname=f"example.{class_name}",
+                name=method_name,
+            )
+            if outcome is not None:
+                ET.SubElement(testcase, outcome)
+        ET.ElementTree(suite).write(reports / "TEST-contracts.xml", encoding="utf-8", xml_declaration=True)
+        return reports
+
     def test_accepts_matching_unique_contract_ids(self):
         self.write_test("C0001SubjectContractTest.java", "0001")
         self.write_test("C0002SubjectContractTest.java", "0002")
@@ -42,13 +59,39 @@ class CheckContractTestsTest(unittest.TestCase):
         errors = check_contract_tests.verify(self.root)
         self.assertTrue(any("immediately above the class" in error for error in errors))
 
-    def test_rejects_a_class_without_tests(self):
+    def test_metadata_does_not_depend_on_lexical_test_annotations(self):
         (self.root / "C0001SubjectContractTest.java").write_text(
             'import org.junit.jupiter.api.Tag;\n@Tag("C-0001")\nclass C0001SubjectContractTest {}\n',
             encoding="utf-8",
         )
-        errors = check_contract_tests.verify(self.root)
-        self.assertTrue(any("at least one @Test method" in error for error in errors))
+        self.assertEqual(check_contract_tests.verify(self.root), [])
+
+    def test_execution_check_accepts_a_passing_testcase(self):
+        self.write_test("C0001SubjectContractTest.java", "0001")
+        reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
+        self.assertEqual(check_contract_tests.verify(self.root, reports), [])
+
+    def test_execution_check_rejects_a_commented_test_annotation_without_execution(self):
+        (self.root / "C0001SubjectContractTest.java").write_text(
+            'import org.junit.jupiter.api.Tag;\n@Tag("C-0001")\nclass C0001SubjectContractTest {\n// @Test\n}\n',
+            encoding="utf-8",
+        )
+        reports = self.write_reports([("C0002OtherContractTest", "contract", None)])
+        errors = check_contract_tests.verify(self.root, reports)
+        self.assertTrue(any("no executed testcase" in error for error in errors))
+
+    def test_execution_check_rejects_skipped_failed_and_error_testcases(self):
+        for outcome in ("skipped", "failure", "error"):
+            with self.subTest(outcome=outcome):
+                self.write_test("C0001SubjectContractTest.java", "0001")
+                reports = self.write_reports([("C0001SubjectContractTest", "contract", outcome)])
+                errors = check_contract_tests.verify(self.root, reports)
+                self.assertTrue(any(f"testcase contract has {outcome}" in error for error in errors))
+
+    def test_execution_check_rejects_a_missing_report(self):
+        self.write_test("C0001SubjectContractTest.java", "0001")
+        errors = check_contract_tests.verify(self.root, self.root / "missing")
+        self.assertTrue(any("no Surefire XML reports" in error for error in errors))
 
     def test_rejects_duplicate_contract_ids(self):
         self.write_test("C0001SubjectContractTest.java", "0001")

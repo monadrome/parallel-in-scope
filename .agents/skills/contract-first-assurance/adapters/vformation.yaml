@@ -24,7 +24,8 @@ build_commands:
 regression_suite:
   path: verification/contract-tests/
   check_command: python3 scripts/check-contract-tests.py
-  test_command: mvn -Pcontract-tests -pl verification/contract-tests -am test
+  test_command: mvn -Pcontract-tests -pl verification/contract-tests -am clean test
+  execution_check_command: python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
 
 format_commands:
   - mvn spotless:check

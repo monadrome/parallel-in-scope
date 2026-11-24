@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -29,6 +31,74 @@ FINAL_GATE_RUN_STATUSES = {
 }
 PASSING_FINAL_GATES = {"PASS", "PASS WITH ACCEPTED EXCEPTIONS"}
 ACCEPTED_EXCEPTION_FIELDS = ("phase", "rawStatus", "disposition", "accepted", "evidence", "approvedBy")
+PROMOTION_FIELDS = (
+    "candidate_id",
+    "source_contract_id",
+    "contract_id",
+    "target_path",
+    "archive_path",
+    "status",
+    "reason",
+)
+PROMOTION_CONTRACT_RE = re.compile(r"C-[0-9]{4}")
+
+
+def verify_promotions(run_dir: Path, artifacts: dict) -> list[str]:
+    errors = []
+    path = run_dir / "promotion-status.csv"
+    try:
+        with path.open(encoding="utf-8", newline="") as stream:
+            reader = csv.DictReader(stream)
+            if reader.fieldnames != list(PROMOTION_FIELDS):
+                return [f"promotion-status.csv header must be {','.join(PROMOTION_FIELDS)}"]
+            rows = list(reader)
+    except (OSError, UnicodeError, csv.Error) as error:
+        return [f"cannot read promotion-status.csv: {error}"]
+
+    contract_ids = set()
+    archive_paths = set()
+    target_paths = set()
+    for index, row in enumerate(rows, start=2):
+        prefix = f"promotion-status.csv row {index}"
+        if None in row or any(value is None for value in row.values()):
+            errors.append(f"{prefix} does not match the promotion CSV schema")
+            continue
+        status = row["status"]
+        if status not in {"promoted", "blocked"}:
+            errors.append(f"{prefix} has unsupported status: {status}")
+        if not row["reason"].strip():
+            errors.append(f"{prefix} reason must be non-empty")
+        if status != "promoted":
+            continue
+
+        contract_id = row["contract_id"]
+        if PROMOTION_CONTRACT_RE.fullmatch(contract_id) is None:
+            errors.append(f"{prefix} has invalid promoted contract_id: {contract_id}")
+        archive_path = row["archive_path"]
+        archive = Path(archive_path)
+        if archive.is_absolute() or ".." in archive.parts or not archive.parts or archive.parts[0] != "promotions":
+            errors.append(f"{prefix} promoted archive must be a safe path under promotions/: {archive_path}")
+        else:
+            archived_copy = run_dir / archive
+            if not archived_copy.is_file():
+                errors.append(f"{prefix} promoted archive is missing: {archive_path}")
+            if archive_path not in artifacts:
+                errors.append(f"{prefix} promoted archive is not hashed in artifacts: {archive_path}")
+        target_path = row["target_path"]
+        target = Path(target_path)
+        if not target_path or target.is_absolute() or ".." in target.parts:
+            errors.append(f"{prefix} target_path must be a safe repository-relative path: {target_path}")
+
+        for kind, value, seen in (
+            ("contract_id", contract_id, contract_ids),
+            ("archive_path", archive_path, archive_paths),
+            ("target_path", target_path, target_paths),
+        ):
+            if value in seen:
+                errors.append(f"{prefix} duplicates promoted {kind}: {value}")
+            else:
+                seen.add(value)
+    return errors
 
 
 def safe_path(run_dir: Path, relative: str) -> Path:
@@ -235,6 +305,7 @@ def verify(run_dir: Path) -> list[str]:
     verify_hashes("inputs")
     verify_hashes("artifacts")
     artifacts = manifest.get("artifacts", {})
+    errors.extend(verify_promotions(run_dir, artifacts if isinstance(artifacts, dict) else {}))
     if isinstance(artifacts, dict):
         for required in REQUIRED_FILES:
             if required not in artifacts:

@@ -17,15 +17,17 @@ The implementation agent works from that report and the owning contract rather t
 The `contract-first-assurance` promotion phase owns eligibility and audit artifacts for additions.
 Assign the next unused four-digit contract ID. Name the class `Cnnnn<Subject>ContractTest`, put
 `@Tag("C-nnnn")` immediately above it, and keep the two IDs equal. Contract IDs are unique across
-classes; one class may contain several tests for its contract and contains at least one JUnit
-`@Test` method. Tests exercise public behavior only.
+classes; one class may contain several tests for its contract. Every class must have at least one
+passing, non-skipped testcase in the Surefire XML produced by the explicit suite run. Tests exercise
+public behavior only.
 
 Keep this module out of the default reactor and core test sources. Run its checks explicitly:
 
 ```bash
 python3 scripts/check-contract-tests.py
 mvn -Pcontract-tests -pl verification/contract-tests spotless:apply
-mvn -Pcontract-tests -pl verification/contract-tests -am test
+mvn -Pcontract-tests -pl verification/contract-tests -am clean test
+python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
 ```
 
 Promoting every candidate was rejected because duplicate, unstable, and wrong-assumption candidates

@@ -20,7 +20,7 @@ maintenance instructions:
 | `mutation_policy` | Whether mutation testing applies and which command owns its scope. |
 | `route_gates` | Required gates for each route; the resolved `adapter.requiredGates` must be non-empty for a passing run. |
 | `artifact_root` | Run directory; defaults to `.contract-first-assurance`. |
-| `regression_suite` | Promotion destination plus its metadata-check and test commands. |
+| `regression_suite` | Promotion destination plus its metadata-check, test, and execution-evidence commands. |
 
 The adapter may also provide `contract_paths`, `public_api_paths`,
 `design_paths`, `source_paths`, and `test_paths` to narrow reads. If a required
@@ -28,8 +28,9 @@ value is missing, record the affected phase as `BLOCKED` or `INCONCLUSIVE` and
 explain the missing input. Do not infer a Maven, Java, Gradle, npm, or PIT
 workflow from the repository name.
 
-`regression_suite` contains `path`, `check_command`, and `test_command`. The path is
-repository-relative; the commands validate contract-ID metadata and execute the persistent suite.
+`regression_suite` contains `path`, `check_command`, `test_command`, and `execution_check_command`.
+The path is repository-relative. The commands validate contract-ID metadata, execute the persistent
+suite from a clean build, and verify each contract class against its resulting execution reports.
 They run only in the main verification worktree, never in the isolated test generator's context.
 
 ## Resolution order
