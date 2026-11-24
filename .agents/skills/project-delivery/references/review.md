@@ -33,13 +33,16 @@ otherwise high-risk changes, run the full independent review with its own budget
 after the initial commit. Use the commit diff as the review baseline so review and
 fixes can continue in later sessions:
 
-- Use a different model than the implementer; a different harness alone does not
-  satisfy this. Run it through
+- Use two reviewers so the implementer and reviewers cover three distinct model
+  types; different harnesses alone do not satisfy this. Run them through
   `/multi-review` (`.agents/skills/multi-review/SKILL.md`) on the commit range,
-  which keeps reviewers read-only on a snapshot; when no reviewer CLI can run,
-  use a fresh-context agent on another model in a clone without a remote. The
-  reviewer must not edit files. Name attack surfaces: interleavings, contract
-  versus implementation, test quality, Java 8, and generics.
+  which keeps reviewers read-only on snapshots. Codex and a Magpie-routed reviewer
+  are permitted when each run pins its concrete model. When no reviewer CLI can
+  run, use fresh-context agents on the required models in a clone without a
+  remote. If two distinct reviewer models are unavailable, record the review as
+  blocked rather than reducing coverage. Reviewers must not edit files. Name
+  attack surfaces: interleavings, contract versus implementation, test quality,
+  Java 8, and generics.
 - When refactoring-review ran, review the range from its base, including its
   `refactor:` commits. Read its report as settled findings, and add behavior
   preservation of each refactor commit and each applied `T1` item as attack

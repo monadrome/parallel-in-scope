@@ -49,6 +49,12 @@ By default, available real CLIs on `PATH` are auto-selected; fixtures are never 
 
 ### Reviewer selection
 
+Full reviews require three distinct model types across the implementer and two reviewers, as
+owned by [review procedure](../project-delivery/references/review.md). Codex plus a second
+Magpie-routed model is one valid combination. When both seats use the `codex` adapter, run them
+as separate cases with explicit models; restore the previous Magpie selection after any
+temporary override, and record the actual routed model in each run.
+
 When `magpie` is on `PATH`, start with `magpie ls`: it is the default source of truth for the
 agents and models it manages. For each selected managed agent, query `magpie <agent> model` and
 `magpie <agent> effort`. These commands print labelled lines, not bare values:
