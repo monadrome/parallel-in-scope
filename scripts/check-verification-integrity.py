@@ -506,7 +506,10 @@ def python_function_bindings(function: ast.FunctionDef | ast.AsyncFunctionDef) -
             if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
                 names.add(child.id)
             elif isinstance(child, (ast.Import, ast.ImportFrom)):
-                names.update(alias.asname or alias.name.split(".")[0] for alias in child.names if alias.name != "*")
+                for alias in child.names:
+                    module = child.module if isinstance(child, ast.ImportFrom) else alias.name
+                    if alias.name != "*" and (module is None or (module != "pytest" and not module.startswith("pytest."))):
+                        names.add(alias.asname or alias.name.split(".")[0])
             elif isinstance(child, ast.ExceptHandler) and child.name:
                 names.add(child.name)
             collect(child)

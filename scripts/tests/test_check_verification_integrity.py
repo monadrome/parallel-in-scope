@@ -331,6 +331,17 @@ class PythonIntegrityTest(TreeTest):
                 self.assertEqual(code, 1)
                 self.assertIn(": V3: new runtime test skip or xfail", out)
 
+    def test_function_local_pytest_alias_fails(self):
+        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+        changed = PYTHON_TEST.replace(
+            "self.assertTrue(value)",
+            "from pytest import skip as suppress\n        suppress('reason')\n        self.assertTrue(value)",
+        )
+        head = self.tree("head", {PYTHON_PATH: changed})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new runtime test skip or xfail", out)
+
     def test_local_pytest_alias_shadowing_passes(self):
         for binding in ("suppress = str", "def suppress(value):\n            return value"):
             with self.subTest(binding=binding):
