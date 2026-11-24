@@ -180,6 +180,8 @@ class JavaIntegrityTest(TreeTest):
             "assertEquals(value, value, \"message\")",
             "assertSame(value, value, \"message\")",
             "assertEquals(value, /* copied value */ value)",
+            "assertEquals(String.class, String.class)",
+            "assertSame(String.class, String.class)",
             "assertThat(true).isTrue()",
         ):
             with self.subTest(replacement=replacement):
@@ -215,6 +217,7 @@ class JavaIntegrityTest(TreeTest):
             "assertSame(compute(), compute())",
             "assertEquals(obj.getValue(), obj.getValue())",
             "assertEquals(value++, value++)",
+            "assertEquals(factory.<String>create(), factory.<String>create())",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {JAVA_PATH: JAVA_TEST})
@@ -327,6 +330,17 @@ class PythonIntegrityTest(TreeTest):
                 code, out, _ = self.run_check(base, head)
                 self.assertEqual(code, 1)
                 self.assertIn(": V3: new runtime test skip or xfail", out)
+
+    def test_local_pytest_alias_shadowing_passes(self):
+        for binding in ("suppress = str", "def suppress(value):\n            return value"):
+            with self.subTest(binding=binding):
+                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+                changed = "from pytest import skip as suppress\n" + PYTHON_TEST.replace(
+                    "self.assertTrue(value)",
+                    f"{binding}\n        suppress('ordinary')\n        self.assertTrue(value)",
+                )
+                head = self.tree("head", {PYTHON_PATH: changed})
+                self.assertEqual(self.run_check(base, head)[0], 0)
 
     def test_parametrized_pytest_skip_mark_fails(self):
         base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
@@ -467,6 +481,8 @@ class TypeScriptIntegrityTest(TreeTest):
             "assert.deepEqual(obj.getValue(), obj.getValue())",
             "expect(value++).toBe(value++)",
             "expect(value = 1).toBe(value = 1)",
+            "expect(`${Math.random()}`).toBe(`${Math.random()}`)",
+            "expect(factory.create<string>()).toBe(factory.create<string>())",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})
@@ -481,6 +497,9 @@ class TypeScriptIntegrityTest(TreeTest):
             "assert.strictEqual({}, {})",
             "assert.strictEqual(/a/, /a/)",
             "assert.equal([1], [1])",
+            "assert.strictEqual([1] as const, [1] as const)",
+            "expect({a: 1} satisfies Foo).toBe({a: 1} satisfies Foo)",
+            "expect([1]!).toBe([1]!)",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})
@@ -495,6 +514,9 @@ class TypeScriptIntegrityTest(TreeTest):
             "expect(`value`).toBe(`value`)",
             "assert.strictEqual([1].length, [1].length)",
             "assert.strictEqual({a: 1}.a, {a: 1}.a)",
+            "assert.strictEqual(\"value\", 'value')",
+            "expect(\"value\").toEqual('value')",
+            "expect(`${value}`).toBe(`${value}`)",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})

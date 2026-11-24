@@ -252,7 +252,7 @@ def comparison_span(source: Source, start: int, end: int) -> tuple[int, int]:
     return start, end
 
 
-def comparison_form(source: Source, start: int, end: int) -> str:
+def comparison_form(source: Source, start: int, end: int, javascript: bool = False) -> str:
     start, end = comparison_span(source, start, end)
     parts = []
     cursor = start
@@ -262,16 +262,41 @@ def comparison_form(source: Source, start: int, end: int) -> str:
         if literal_start >= end:
             break
         parts.append(normalize(source.comparison_view[cursor:literal_start]))
-        parts.append(source.comparison_view[literal_start:literal_end])
+        literal = source.comparison_view[literal_start:literal_end]
+        if javascript and literal[:1] in {"'", '"', "`"} and literal[-1:] == literal[:1]:
+            literal = literal[1:-1]
+        parts.append(literal)
         cursor = literal_end
     parts.append(normalize(source.comparison_view[cursor:end]))
     return "".join(parts)
 
 
 C_LIKE_SIDE_EFFECT = re.compile(r"\b(?:new|delete|yield|await|function|class)\b|=>|->|\+\+|--|::")
-C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?\s*\(|\)\s*\(")
+C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?(?:\s*<[^<>()]*>)?\s*\(|\)\s*\(")
 C_LIKE_ASSIGNMENT = re.compile(r"(?<![=!<>])(?:\+|-|\*|/|%|&|\||\^|>>>|>>|<<)?=(?!=|>)")
 TAGGED_TEMPLATE = re.compile(r"[\w$)\]]\s*`")
+TEMPLATE_SUBSTITUTION = re.compile(r"\$\{(.*?)\}", re.DOTALL)
+TS_IDENTITY_SUFFIX = re.compile(r"!+|(?:as|satisfies)\s+[\w$.,<>\[\]\s|&-]+")
+
+
+def c_like_side_effect(code: str) -> bool:
+    without_class_literals = re.sub(r"\.\s*class\b", "", code)
+    return bool(
+        C_LIKE_SIDE_EFFECT.search(without_class_literals)
+        or C_LIKE_CALL.search(code)
+        or C_LIKE_ASSIGNMENT.search(code)
+    )
+
+
+def template_side_effect(source: Source, start: int, end: int) -> bool:
+    for literal_start, literal_end in source.literal_spans.items():
+        if literal_start < start or literal_end > end or source.comparison_view[literal_start] != "`":
+            continue
+        template = source.comparison_view[literal_start:literal_end]
+        for match in TEMPLATE_SUBSTITUTION.finditer(template):
+            if c_like_side_effect(mask_c_like(match[1], javascript=True).code):
+                return True
+    return False
 
 
 def self_comparing(
@@ -281,20 +306,23 @@ def self_comparing(
     javascript: bool,
     by_identity: bool,
 ) -> bool:
-    if comparison_form(source, *left_span) != comparison_form(source, *right_span):
+    if comparison_form(source, *left_span, javascript=javascript) != comparison_form(source, *right_span, javascript=javascript):
         return False
     start, end = comparison_span(source, *left_span)
     if start == end:
         return False
     operand = source.code[start:end]
-    if C_LIKE_SIDE_EFFECT.search(operand) or C_LIKE_CALL.search(operand) or C_LIKE_ASSIGNMENT.search(operand):
+    if c_like_side_effect(operand):
         return False
-    if javascript and TAGGED_TEMPLATE.search(source.code[start:end]):
+    if javascript and (TAGGED_TEMPLATE.search(operand) or template_side_effect(source, start, end)):
         return False
     if by_identity and javascript:
         opening = source.comparison_view[start]
-        if opening in "{[" and matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]") == end - 1:
-            return False
+        if opening in "{[":
+            close = matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]")
+            suffix = normalize(source.comparison_view[close + 1:end]) if close >= 0 else ""
+            if close >= 0 and (not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix)):
+                return False
         if source.comparison_view[start] == "/" and source.literal_spans.get(start) == end:
             return False
     return True
@@ -462,6 +490,49 @@ def python_resolved_name(node: ast.AST, aliases: dict[str, str], wildcard_import
     return aliases.get(head, head) + separator + tail
 
 
+def python_function_bindings(function: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    arguments = function.args
+    names = {
+        argument.arg
+        for argument in (*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs)
+    }
+    names.update(argument.arg for argument in (arguments.vararg, arguments.kwarg) if argument is not None)
+
+    def collect(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.add(child.name)
+                continue
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                names.add(child.id)
+            elif isinstance(child, (ast.Import, ast.ImportFrom)):
+                names.update(alias.asname or alias.name.split(".")[0] for alias in child.names if alias.name != "*")
+            elif isinstance(child, ast.ExceptHandler) and child.name:
+                names.add(child.name)
+            collect(child)
+
+    collect(function)
+    return names
+
+
+def python_shadowed_calls(tree: ast.AST, aliases: dict[str, str]) -> set[int]:
+    shadowed: set[int] = set()
+
+    def visit(node: ast.AST, scopes: list[set[str]]) -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            scopes = [*scopes, python_function_bindings(node)]
+        if isinstance(node, ast.Call):
+            head = dotted_name(node.func).partition(".")[0]
+            if head in aliases or head in PYTEST_WILDCARD_NAMES or head == "pytest":
+                if any(head in scope for scope in scopes):
+                    shadowed.add(id(node))
+        for child in ast.iter_child_nodes(node):
+            visit(child, scopes)
+
+    visit(tree, [])
+    return shadowed
+
+
 PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
 PYTEST_WILDCARD_NAMES = PYTHON_DISABLED | {"importorskip", "mark"}
 PYTHON_RUNTIME_DISABLED = {
@@ -526,6 +597,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
 
     visit(tree)
     aliases, wildcard_imports = python_pytest_imports(tree)
+    shadowed_calls = python_shadowed_calls(tree, aliases)
     markers = list(python_noops(tree, path, text))
     decorator_calls: set[int] = set()
     for node in ast.walk(tree):
@@ -540,7 +612,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
                 segment = ast.get_source_segment(text, decorator) or name
                 markers.append(Violation(path, decorator.lineno, "V3", "new skip, expected-failure, or xfail decorator", normalize(segment)))
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or id(node) in decorator_calls:
+        if not isinstance(node, ast.Call) or id(node) in decorator_calls or id(node) in shadowed_calls:
             continue
         name = python_resolved_name(node.func, aliases, wildcard_imports)
         if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
