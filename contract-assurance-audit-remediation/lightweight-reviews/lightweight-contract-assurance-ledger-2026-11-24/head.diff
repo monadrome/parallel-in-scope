@@ -1,0 +1,576 @@
+commit e5dcecbd04aa45b4092bab1c2e3087d36fdc6ca4
+Author:     Eric Lin <linqinghua4@gmail.com>
+AuthorDate: Tue Nov 24 07:35:34 2026 -0800
+Commit:     Eric Lin <linqinghua4@gmail.com>
+CommitDate: Tue Nov 24 07:35:34 2026 -0800
+
+    chore: record delivery contract-assurance-audit-remediation
+---
+ ...11-24-contract-assurance-audit-remediation.json | 559 +++++++++++++++++++++
+ 1 file changed, 559 insertions(+)
+
+diff --git a/ledger/2026-11-24-contract-assurance-audit-remediation.json b/ledger/2026-11-24-contract-assurance-audit-remediation.json
+new file mode 100644
+index 00000000..4740f124
+--- /dev/null
++++ b/ledger/2026-11-24-contract-assurance-audit-remediation.json
+@@ -0,0 +1,559 @@
++{
++  "schemaVersion": "process-ledger/v1",
++  "id": "2026-11-24-contract-assurance-audit-remediation",
++  "date": "2026-11-24",
++  "topic": "contract-assurance-audit-remediation",
++  "routes": [
++    "contract",
++    "defect",
++    "docs"
++  ],
++  "implementer": {
++    "agent": "kimi",
++    "model": null
++  },
++  "change": {
++    "commits": [
++      "fix: bind assurance evidence and frozen inputs",
++      "docs: record assurance audit remediation",
++      "fix: close assurance policy and input aliases",
++      "fix: validate assurance policies and input root",
++      "chore: record delivery contract-assurance-gate",
++      "docs: map assurance disposition policy keys",
++      "test: promote assurance verifier regressions"
++    ],
++    "files": 18,
++    "insertions": 820,
++    "deletions": 65
++  },
++  "reviews": {
++    "adversarial": [
++      {
++        "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032036-fdbe91",
++        "status": "failed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "failed",
++            "attempts": 1,
++            "durationMs": 14259,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032315-a22c4e",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 698186,
++            "findings": {
++              "total": 5,
++              "adjudicated": 5,
++              "confirmed": 5,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 5,
++          "adjudicated": 5,
++          "confirmed": 5,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-4106c379-20261124-091836-cd3938",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 556501,
++            "findings": {
++              "total": 4,
++              "adjudicated": 4,
++              "confirmed": 4,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 4,
++          "adjudicated": 4,
++          "confirmed": 4,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 494140,
++            "findings": {
++              "total": 2,
++              "adjudicated": 2,
++              "confirmed": 2,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 2,
++          "adjudicated": 2,
++          "confirmed": 2,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095244-58c501",
++        "status": "failed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "failed",
++            "attempts": 1,
++            "durationMs": 7092,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 729683,
++            "findings": {
++              "total": 1,
++              "adjudicated": 1,
++              "confirmed": 0,
++              "rejected": 1,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": {
++              "inputTokens": null,
++              "outputTokens": null,
++              "totalTokens": 113544,
++              "cost": null,
++              "currency": null
++            }
++          }
++        ],
++        "clusters": {
++          "total": 1,
++          "adjudicated": 1,
++          "confirmed": 0,
++          "rejected": 1,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": 113544,
++          "systemsWithUsage": 1,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-c3400a6b-20261124-145234-862461",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 684072,
++            "findings": {
++              "total": 1,
++              "adjudicated": 1,
++              "confirmed": 1,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": {
++              "inputTokens": null,
++              "outputTokens": null,
++              "totalTokens": 103787,
++              "cost": null,
++              "currency": null
++            }
++          }
++        ],
++        "clusters": {
++          "total": 1,
++          "adjudicated": 1,
++          "confirmed": 1,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": 103787,
++          "systemsWithUsage": 1,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-3434e3fd-20261124-151740-2bff31",
++        "status": "failed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "timed_out",
++            "attempts": 1,
++            "durationMs": 554888,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 242007,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": {
++              "inputTokens": null,
++              "outputTokens": null,
++              "totalTokens": 66499,
++              "cost": null,
++              "currency": null
++            }
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": 66499,
++          "systemsWithUsage": 1,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      }
++    ],
++    "refactoring": [
++      {
++        "run": "refactoring-agent-contract-assurance-audit-remediation-2026-11-23",
++        "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "reverted"
++          },
++          {
++            "id": "R2",
++            "rules": [
++              "T05"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "rejected"
++          },
++          {
++            "id": "R3",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "reverted"
++          }
++        ]
++      },
++      {
++        "run": "refactoring-contract-assurance-verifier-fix-2026-11-24",
++        "head": "ff9410715e0a2788aaa43484ef91f4944a7969ba",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R2",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R3",
++            "rules": [
++              "T05"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          }
++        ]
++      },
++      {
++        "run": "refactoring-contract-assurance-policy-fix-2026-11-24",
++        "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
++        "incompleteAgents": 1,
++        "findings": []
++      },
++      {
++        "run": "refactoring-contract-assurance-policy-validation-2026-11-24",
++        "head": "4b20479a9dd5180b305a57cac8bea89d53cf5338",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          }
++        ]
++      },
++      {
++        "run": "refactoring-contract-assurance-promotion-2026-11-24",
++        "head": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": [
++              "M05"
++            ],
++            "tier": "T1",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "rejected"
++          },
++          {
++            "id": "R2",
++            "rules": [
++              "T04"
++            ],
++            "tier": "T1",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          }
++        ]
++      }
++    ]
++  },
++  "gates": {
++    "failures": {
++      "review tool build": 1,
++      "Codex reviewer model probe": 1,
++      "mvn test default JDK enforcer": 1,
++      "Codex refactoring detector": 1,
++      "Kiro refactoring runner": 1,
++      "Kiro monthly quota review": 1,
++      "assurance candidate fixture contract": 1,
++      "assurance independent review": 1,
++      "assurance promotion adapter": 1,
++      "assurance reverse completeness": 1,
++      "contrary mutation construction": 2,
++      "promoted reverse runner construction": 1,
++      "archive policy check": 1,
++      "assurance cache manifest": 1,
++      "incremental review timeout": 1,
++      "adopt compile default JDK": 1
++    }
++  },
++  "pit": [],
++  "interventions": {
++    "asks": 0,
++    "corrections": 0
++  },
++  "usage": {
++    "totalTokens": null,
++    "cost": null,
++    "currency": null
++  },
++  "notes": "PIT: SKIPPED — Python assurance tooling, tests, and workflow documents only; no Java production mutation site. Assurance history: round 1 FAIL (fixture contract gaps), round 2 FAIL (two confirmed review defects), round 3 BLOCKED (Python promotion adapter and two missing reverse failures), round 4 PASS with four promoted targets and verifier OK. Fixed-model Kiro reviews used gpt-5.6-terra max; Codex final reviews used magpie deepseek-v4-pro. Kiro MONTHLY_REQUEST_COUNT failure is retained, not clean evidence. Eleven verifier defects were fixed; the rebased full review confirmed one additional host-adapter documentation mapping gap, fixed without relaxing strict key validation. Local JDK 25 preflight: clean install 3446 + 2 tests passed, Javadoc and hidden-contract execution passed, 135 classes verified at Java 8, all four adoption probes passed after rerunning the default-JDK-21 failure under JDK 25. Strict MkDocs and design/ADR/proposal checks passed. Final incremental Codex review contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644 completed with zero findings across all five follow-up files and explicitly confirmed the later documentation/test-only assurance SKIPPED disposition. Root, demo, and hidden-contract Spotless checks passed; demo package and four Java 8 demo classes passed."
++}
