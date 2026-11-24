@@ -41,7 +41,7 @@ PROMOTION_FIELDS = (
     "reason",
 )
 PROMOTION_CONTRACT_RE = re.compile(r"C-[0-9]{4}")
-COMMIT_ID_RE = re.compile(r"[0-9a-f]{40}")
+COMMIT_ID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 
 
 def gate_name_errors(value, field: str) -> list[str]:
@@ -336,8 +336,11 @@ def verify(run_dir: Path) -> list[str]:
                 elif raw_status not in allowed_statuses:
                     errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
                 required_evidence = policy.get("requiredEvidence")
-                if not isinstance(required_evidence, list) or any(
-                    not isinstance(category, str) or not category for category in required_evidence
+                if (
+                    not isinstance(required_evidence, list)
+                    or not required_evidence
+                    or any(not isinstance(category, str) or not category.strip() for category in required_evidence)
+                    or len(set(required_evidence)) != len(required_evidence)
                 ):
                     errors.append(f"accepted exception {index} has invalid requiredEvidence: {disposition}")
                     required_evidence = []
@@ -465,9 +468,18 @@ def verify(run_dir: Path) -> list[str]:
     if not isinstance(inputs, dict) or not inputs:
         errors.append("inputs must contain frozen files under inputs/")
     else:
+        inputs_root = (run_dir / "inputs").resolve()
         for relative in inputs:
             if not isinstance(relative, str) or not canonical_path(relative) or not relative.startswith("inputs/"):
                 errors.append(f"inputs must contain only files under inputs/: {relative}")
+                continue
+            try:
+                resolved = safe_path(run_dir, relative)
+            except ValueError as error:
+                errors.append(str(error))
+                continue
+            if inputs_root not in resolved.parents:
+                errors.append(f"inputs entries must resolve beneath inputs/: {relative}")
 
     verify_hashes("inputs")
     verify_hashes("artifacts")

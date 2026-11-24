@@ -15,10 +15,10 @@ manifest has this shape:
   "schemaVersion": "contract-assurance-run/v2",
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
-  "package": {"name": "contract-first-assurance", "version": "1.5.0"},
+  "package": {"name": "contract-first-assurance", "version": "1.5.1"},
   "adapter": {
     "name": "vformation",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
     "acceptedDispositions": {
       "EXPECTED_MUTATION_LIVENESS": {
@@ -48,7 +48,10 @@ manifest has this shape:
     "independent-review": "pass",
     "docs": "pass"
   },
-  "inputs": {"inputs/contract-source.md": "<sha256>"},
+  "inputs": {
+    "inputs/contract-source.md": "<sha256>",
+    "inputs/pit-audit.md": "<sha256>"
+  },
   "commands": [
     {
       "phase": "full-suite",
@@ -88,10 +91,12 @@ manifest has this shape:
 
 Rules:
 
-- `base`, `head`, and `finalHead` are full resolved commit IDs, never symbolic refs alone;
+- `base`, `head`, and `finalHead` are full resolved 40-character SHA-1 or 64-character SHA-256
+  commit IDs, never symbolic refs alone;
 - `adapter.requiredGates` is the resolved route's required-gate list; gate names are non-blank
   and unique, the top-level `requiredGates` matches it, and `checks` contains a result for every gate;
-- `inputs` is non-empty and contains only frozen files beneath `inputs/`;
+- `inputs` is non-empty and contains only frozen files whose declared and resolved paths remain
+  beneath `inputs/`; an input symlink to a root output or another run directory is invalid;
 - a dirty workspace must include its binary patch under `inputs/`;
 - every copied contract, API view, adapter, command log, promotion record, promoted test copy,
   and report is hashed;
@@ -107,8 +112,8 @@ Rules:
 - an accepted exception may make the final gate `pass`, but only when its raw
   status, disposition, evidence, and approver are recorded and the disposition is
   allowed by the resolved host adapter; copy each disposition's `allowedRawStatuses`
-  and `requiredEvidence` policy into the manifest, map every required evidence category
-  to existing paths, and hash those paths under `inputs` or `artifacts` so
+  and non-empty, non-blank, unique `requiredEvidence` policy into the manifest, map every
+  required evidence category to existing paths, and hash those paths under `inputs` or `artifacts` so
   `verify_run.py` can enforce the policy without reading a mutable parent checkout;
 - frozen metadata, input snapshots, and their hashes are written before tests run and are never
   rewritten; `status`, `requiredGates`, `checks`, `acceptedExceptions`, command results, and
