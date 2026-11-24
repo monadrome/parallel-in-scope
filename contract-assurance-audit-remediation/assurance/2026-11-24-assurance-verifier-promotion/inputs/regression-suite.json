@@ -1,0 +1,35 @@
+{
+  "path": "scripts",
+  "regression-metadata": [
+    "python3",
+    "scripts/check-verification-integrity.py",
+    "--base",
+    "6981df77ec413177b9c5d076cf82eb1388036a2a"
+  ],
+  "regression-tests": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "scripts",
+    "-t",
+    "scripts"
+  ],
+  "regression-execution": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "scripts",
+    "-t",
+    "scripts",
+    "-v"
+  ],
+  "sources": [
+    ".github/workflows/ci.yml: Test repository scripts",
+    "verification/verification-integrity.md: Usage"
+  ],
+  "executionEvidence": "Verbose repetition of the canonical Python discovery command records each test name and result; it is not a separate coverage claim."
+}

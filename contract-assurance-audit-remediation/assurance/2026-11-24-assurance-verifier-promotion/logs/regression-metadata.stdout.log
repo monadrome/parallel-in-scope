@@ -1,0 +1,6 @@
+PROTECTED scripts/tests/test_c0001_wrong_policy_field.py: added; CODEOWNERS review required
+PROTECTED scripts/tests/test_c0002_non_object_policy.py: added; CODEOWNERS review required
+PROTECTED scripts/tests/test_c0003_absolute_input_path.py: added; CODEOWNERS review required
+PROTECTED scripts/tests/test_c0004_nested_input_symlink.py: added; CODEOWNERS review required
+PROTECTED scripts/tests/test_verify_run.py: modified; CODEOWNERS review required
+Verification integrity: no new violations; 5 protected change(s) reported

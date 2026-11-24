@@ -1,0 +1,34 @@
+{
+  "currentVerifier": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/.agents/skills/contract-first-assurance/scripts/verify_run.py",
+    "sha256": "826da46f47e3822bee71e247286151eae90fc55d995a25048b455156ff190779"
+  },
+  "baseVerifier": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_base.py",
+    "sha256": "d6e9649ffbc9e192fe15ecf9f1311a3f3df15263c7857aba17947254560d150f"
+  },
+  "contraryVerifier": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_contrary.py",
+    "sha256": "5db97c0e0b110172593ef42ba9048b0a055d83da5f0a2dfc9de32c452b445d88"
+  },
+  "runner": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/run_promoted_reverse.py",
+    "sha256": "6f08ead0f4be14328c44411cb5653bd74bafbfbaa46747159cfff5f7efcb6978"
+  },
+  "target:test_c0001_wrong_policy_field.py": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/scripts/tests/test_c0001_wrong_policy_field.py",
+    "sha256": "f87062eb4284d32a72a8c09cb87ef7a2f241782cb248ce2dc3fd1bad49c650f0"
+  },
+  "target:test_c0002_non_object_policy.py": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/scripts/tests/test_c0002_non_object_policy.py",
+    "sha256": "a450db83428d2993d74b4ec58205068555f72f3ee4d932e3bff1bac2b595f95d"
+  },
+  "target:test_c0003_absolute_input_path.py": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/scripts/tests/test_c0003_absolute_input_path.py",
+    "sha256": "340b8da0641ecd3f7b458f02c20d3442bd031cc27fc03258831d8f66218a22fa"
+  },
+  "target:test_c0004_nested_input_symlink.py": {
+    "path": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/scripts/tests/test_c0004_nested_input_symlink.py",
+    "sha256": "b1078f77bd809d6354e13ccbd998fd8d6020b8f12e1d4ed488663b06deed59a6"
+  }
+}

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/run_promoted_reverse.py", line 39, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/run_promoted_reverse.py", line 31, in main
+    raise RuntimeError(f"{name} does not expose its verifier module")
+RuntimeError: tests.test_c0001_wrong_policy_field does not expose its verifier module

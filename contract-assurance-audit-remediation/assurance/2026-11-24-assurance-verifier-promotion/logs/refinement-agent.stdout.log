@@ -1,0 +1,21 @@
+任务已完成。四个推广测试文件已改为组合复用 `VerifyRunTest` 夹具，并同步刷新了运行目录内的全部推广证据。
+
+**测试文件重构**
+- 四个目标文件各保留唯一一个测试方法，不再复制约 140 行的自建夹具，改为组合 `_fixture.VerifyRunTest` 实例并在 `setUp` 注册 `doCleanups`，通过 `_fixture.verify_run.verify()` 调用真实边界。
+- 采用「导入夹具模块」而非「导入 `VerifyRunTest` 类名」的方式，避免 Python 3.14 `loadTestsFromModule` 将夹具用例重复收集（实测从 192 条回落到 4 条）。
+- 保留全部 ID、前置条件突变与断言：`scripts/tests/test_c0001_wrong_policy_field.py`、`scripts/tests/test_c0002_non_object_policy.py`、`scripts/tests/test_c0003_absolute_input_path.py`、`scripts/tests/test_c0004_nested_input_symlink.py`。
+
+**证据刷新**
+- 6 个预重构回归日志已重命名为 `logs/pre-refactor-regression-{metadata,tests,execution}.{stdout,stderr}.log`。
+- `promotions/` 4 个归档与 `promotion-targets/scripts/tests/` 4 个快照均已 `cmp` 逐字节匹配最终目标文件。
+- `promotion-status.csv` 已重写（7 字段表头 + 4 行，ID 与路径未变）。
+- `promotion-results.json` 已写入 5 条实际命令与真实退出码。
+
+**命令结果（全部退出码 0）**
+- targeted-tests：`discover -s scripts/tests -p 'test_c000*.py' -v` → Ran 4 tests, OK
+- direct-discovery：`discover -s scripts/tests` → Ran 364 tests, OK
+- regression-metadata：`check-verification-integrity.py --base 6981...` → 无新违规，5 条 protected 变更
+- regression-tests：`discover -s scripts -t scripts` → Ran 477 tests, OK
+- regression-execution：`discover -s scripts -t scripts -v` → Ran 477 tests, OK
+
+四个新用例在 canonical 与 direct 两种发现形式下均各运行且仅运行一次。唯一残留是只读 `.agents/.../scripts/__pycache__/` 下被测试运行生成的未跟踪缓存目录（sandbox 对 `.agents` 只读，无法删除），不影响四个测试文件与推广证据。

@@ -1,0 +1,164 @@
+.F......FFFFFF..FFF.F.FFF.F..
+======================================================================
+FAIL: test_CONTRACT_TDD_002_valid_accepted_exception_baseline (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_002_valid_accepted_exception_baseline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 173, in test_CONTRACT_TDD_002_valid_accepted_exception_baseline
+    self.assertNoErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 162, in assertNoErrors
+    self.assertEqual([], errors)
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_009_unused_policy_empty_allowed_raw_statuses (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_009_unused_policy_empty_allowed_raw_statuses)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 229, in test_CONTRACT_TDD_009_unused_policy_empty_allowed_raw_statuses
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_010_unused_policy_empty_required_evidence (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_010_unused_policy_empty_required_evidence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 240, in test_CONTRACT_TDD_010_unused_policy_empty_required_evidence
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_011_unused_policy_blank_value (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_011_unused_policy_blank_value)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 251, in test_CONTRACT_TDD_011_unused_policy_blank_value
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_012_unused_policy_duplicate_value (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_012_unused_policy_duplicate_value)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 265, in test_CONTRACT_TDD_012_unused_policy_duplicate_value
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_013_unused_policy_non_object (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_013_unused_policy_non_object)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 273, in test_CONTRACT_TDD_013_unused_policy_non_object
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_014_empty_inputs (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_014_empty_inputs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 279, in test_CONTRACT_TDD_014_empty_inputs
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_017_root_output_alias_input (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_017_root_output_alias_input)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 297, in test_CONTRACT_TDD_017_root_output_alias_input
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_018_output_symlink_input (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_018_output_symlink_input)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 304, in test_CONTRACT_TDD_018_output_symlink_input
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_019_symlinked_inputs_root (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_019_symlinked_inputs_root)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 313, in test_CONTRACT_TDD_019_symlinked_inputs_root
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_021_nested_symlink_input (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_021_nested_symlink_input)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 327, in test_CONTRACT_TDD_021_nested_symlink_input
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_023_symbolic_ref_head (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_023_symbolic_ref_head)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 342, in test_CONTRACT_TDD_023_symbolic_ref_head
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_024_short_id_head (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_024_short_id_head)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 349, in test_CONTRACT_TDD_024_short_id_head
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_025_uppercase_id_head (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_025_uppercase_id_head)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 356, in test_CONTRACT_TDD_025_uppercase_id_head
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_027_other_length_head (test_contract_verifier.ContractVerifierTest.test_CONTRACT_TDD_027_other_length_head)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 369, in test_CONTRACT_TDD_027_other_length_head
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+----------------------------------------------------------------------
+Ran 29 tests in 0.247s
+
+FAILED (failures=15)

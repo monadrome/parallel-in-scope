@@ -1,0 +1,9 @@
+2026-11-24 07:00:49 #9 triage: ok
+2026-11-24 07:00:49 triage: tick budget $5.00 used; the remaining issues wait for the next tick
+2026-11-24 07:00:49 #7: recording the outcome failed; the next tick recovers it from the run directory: github is down
+2026-11-24 07:00:49 work: #7 is claimed by another runner (tags/issue-agent-claim/issue-7); it expires after 24 hours
+2026-11-24 07:00:50 #7: the claim stays until the next tick: gh exited 1: github is down
+2026-11-24 07:00:50 o/r#7 agent run r1 lost its claim; left the issue to its new owner (blocked: r)
+2026-11-24 07:00:50 o/r#7: claim tag issue-agent-claim/issue-7 has no readable owner or age; delete it by hand if no runner is working the issue
+2026-11-24 07:00:50 housekeeping: #7's claim waits for the next tick: gh exited 1: github is down
+2026-11-24 07:00:50 o/r#7: claim tag issue-agent-claim/issue-7 has no readable owner or age; delete it by hand if no runner is working the issue

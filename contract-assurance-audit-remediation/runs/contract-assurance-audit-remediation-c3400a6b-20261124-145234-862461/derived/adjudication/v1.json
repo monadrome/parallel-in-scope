@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "contract-assurance-audit-remediation-c3400a6b-20261124-145234-862461",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T15:06:04.881Z",
+  "judge": {
+    "kind": "agent",
+    "name": "Kimi",
+    "model": "kimi",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Reproduced with a policy using allowed_raw_statuses and required_evidence: the verifier correctly rejects it under the strict manifest schema. The actionable defect is the missing mapping in host-adapter.md, not validator permissiveness. The fix documents the translation and forbids copying or aliasing the snake_case keys.",
+      "confidence": 0.9
+    }
+  ]
+}

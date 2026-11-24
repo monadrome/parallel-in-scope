@@ -1,0 +1,25 @@
+test_CONTRACT_TDD_008_C0001_wrong_policy_field (tests.test_c0001_wrong_policy_field.ContractVerifierTest.test_CONTRACT_TDD_008_C0001_wrong_policy_field) ... ok
+test_CONTRACT_TDD_013_C0002_unused_policy_non_object (tests.test_c0002_non_object_policy.ContractVerifierTest.test_CONTRACT_TDD_013_C0002_unused_policy_non_object) ... FAIL
+test_CONTRACT_TDD_015_C0003_absolute_input_path (tests.test_c0003_absolute_input_path.ContractVerifierTest.test_CONTRACT_TDD_015_C0003_absolute_input_path) ... ok
+test_CONTRACT_TDD_021_C0004_nested_input_symlink (tests.test_c0004_nested_input_symlink.ContractVerifierTest.test_CONTRACT_TDD_021_C0004_nested_input_symlink) ... FAIL
+
+======================================================================
+FAIL: test_CONTRACT_TDD_013_C0002_unused_policy_non_object (tests.test_c0002_non_object_policy.ContractVerifierTest.test_CONTRACT_TDD_013_C0002_unused_policy_non_object)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/scripts/tests/test_c0002_non_object_policy.py", line 22, in test_CONTRACT_TDD_013_C0002_unused_policy_non_object
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_021_C0004_nested_input_symlink (tests.test_c0004_nested_input_symlink.ContractVerifierTest.test_CONTRACT_TDD_021_C0004_nested_input_symlink)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/scripts/tests/test_c0004_nested_input_symlink.py", line 28, in test_CONTRACT_TDD_021_C0004_nested_input_symlink
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.044s
+
+FAILED (failures=2)

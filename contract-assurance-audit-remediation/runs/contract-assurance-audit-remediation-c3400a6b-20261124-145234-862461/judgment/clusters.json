@@ -1,0 +1,9 @@
+{
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": ["codex:0"],
+      "note": "The strict JSON validator intentionally rejects aliases, but the host-adapter contract did not specify the required YAML-to-JSON key translation."
+    }
+  ]
+}

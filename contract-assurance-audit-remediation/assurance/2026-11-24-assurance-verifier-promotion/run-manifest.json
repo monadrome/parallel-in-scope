@@ -1,0 +1,512 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "runId": "2026-11-24-assurance-verifier-promotion",
+  "createdAt": "2026-11-24T12:43:19Z",
+  "package": {
+    "name": "contract-first-assurance",
+    "version": "1.5.2"
+  },
+  "adapter": {
+    "name": "vformation",
+    "version": "1.5.2",
+    "requiredGates": [
+      "candidate-tests",
+      "reverse-verification",
+      "existing-tests",
+      "docs",
+      "independent-review",
+      "regression-tests"
+    ],
+    "regressionSuite": {
+      "path": "scripts",
+      "regression-metadata": [
+        "python3",
+        "scripts/check-verification-integrity.py",
+        "--base",
+        "6981df77ec413177b9c5d076cf82eb1388036a2a"
+      ],
+      "regression-tests": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts"
+      ],
+      "regression-execution": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts",
+        "-v"
+      ]
+    },
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": {
+        "allowedRawStatuses": [
+          "TIMED_OUT"
+        ],
+        "requiredEvidence": [
+          "repeatable-focused-rerun",
+          "unmutated-tests-pass",
+          "complete-xml-and-logs",
+          "source-level-liveness-invariant",
+          "maintainer-or-independent-review"
+        ]
+      }
+    }
+  },
+  "workspace": {
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "4b20479a9dd5180b305a57cac8bea89d53cf5338",
+    "dirty": false
+  },
+  "finalHead": "4b20479a9dd5180b305a57cac8bea89d53cf5338",
+  "inputs": {
+    "inputs/AGENTS.md": "a3039eaa2d0d9f38d375db31f8bc16dbbeae6d27e876f0686bc72eb7c7898c5a",
+    "inputs/adapter.yaml": "bc2ae2b867fbd48eadd493d9bba88e8860a0eb7dca29c4c2545ddc99465c842e",
+    "inputs/assurance-routing.md": "a253c5166cb1255384342e62456828eacc779ab4e84e6541d6cb2f696704c5fb",
+    "inputs/change.patch": "bcb227c0791e1a920f86f4a1510c5f156397bd3fe50b23e202f956bb3cd139d9",
+    "inputs/independent-review/attempt-1.json": "e84ed3754b5f405863f7455cbf55b5875aeec6c5095ab9f2027925b79efd26ce",
+    "inputs/independent-review/run.json": "4dd35c29219ee484ce6fbc121ffaa241806e4daa44bbe26b16098483ed50c543",
+    "inputs/independent-review/state.json": "62110c66288898ae05c9479f2dfa6413bf3424ae39152ed533b114782a7af12e",
+    "inputs/independent-review/verdicts.json": "cad868b955e9bd4c21437bfc375b63ea87a59750e1f330c0fbce850b74a61376",
+    "inputs/pit.md": "241a6126103d2c22979051da4c8cd085b5a2819dfcd0844deddafd941a41e028",
+    "inputs/prior-candidates/candidate-plan.csv": "56acf3d9e4b9059177242006a0ed8a4353e9706bb439d4633cd9f217873eee34",
+    "inputs/prior-candidates/test_contract_verifier.py": "3342c913f1e9307baddf45fa9698f2bddeb442bcb83378323c3fb78658483705",
+    "inputs/prior-run-manifest.json": "8d33ba1789c0e910eca62f4e7de2719dbf773bf64c7d7868d4587a85419b182d",
+    "inputs/promotion-task.md": "22230ff7f603effdf5b5b406a3ea3bbed35a01adac60e19e95d42aed289f6ce7",
+    "inputs/regression-suite.json": "aa6740c7359b02783f81e806f25b59336dee54e51b5da558147979e836532567",
+    "inputs/reproducible-runs.md": "ee75a97505f29a4812f9a672a26d495cd6a716195341840cd50139909d7293df",
+    "inputs/sanitized_verify_run_api.py": "35ff4aa6adc8e245977b35e774dad8b2339c9755e8468d3f23d7c07d9cc901c6"
+  },
+  "status": "pass",
+  "requiredGates": [
+    "candidate-tests",
+    "reverse-verification",
+    "existing-tests",
+    "docs",
+    "independent-review",
+    "regression-tests"
+  ],
+  "checks": {
+    "candidate-tests": "pass",
+    "reverse-verification": "pass",
+    "existing-tests": "pass",
+    "docs": "pass",
+    "independent-review": "pass",
+    "regression-tests": "pass",
+    "promotion": "pass"
+  },
+  "acceptedExceptions": [],
+  "commands": [
+    {
+      "phase": "candidate-tests",
+      "argv": [
+        "env",
+        "VERIFY_RUN_PATH=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/.agents/skills/contract-first-assurance/scripts/verify_run.py",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates",
+        "-p",
+        "test_*.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/candidate-tests.stdout.log",
+      "stderr": "logs/candidate-tests.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "env",
+        "VERIFY_RUN_PATH=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_base.py",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates",
+        "-p",
+        "test_*.py"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/base-reverse-verification.stdout.log",
+      "stderr": "logs/base-reverse-verification.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "env",
+        "VERIFY_RUN_PATH=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_contrary.py",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "python3",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py",
+        "ContractVerifierTest.test_CONTRACT_TDD_008_wrong_policy_field_name",
+        "ContractVerifierTest.test_CONTRACT_TDD_015_absolute_input_path"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/contrary-reverse-verification.stdout.log",
+      "stderr": "logs/contrary-reverse-verification.stderr.log"
+    },
+    {
+      "phase": "promoted-current",
+      "argv": [
+        "python3",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/run_promoted_reverse.py",
+        "--worktree",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2",
+        "--verifier",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2/.agents/skills/contract-first-assurance/scripts/verify_run.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/promoted-current.stdout.log",
+      "stderr": "logs/promoted-current.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "python3",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/run_promoted_reverse.py",
+        "--worktree",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2",
+        "--verifier",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_contrary.py"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/promoted-contrary.stdout.log",
+      "stderr": "logs/promoted-contrary.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "python3",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/run_promoted_reverse.py",
+        "--worktree",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2",
+        "--verifier",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_base.py"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/promoted-base.stdout.log",
+      "stderr": "logs/promoted-base.stderr.log"
+    },
+    {
+      "phase": "existing-tests",
+      "argv": [
+        "env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/existing-tests.stdout.log",
+      "stderr": "logs/existing-tests.stderr.log"
+    },
+    {
+      "phase": "existing-tests",
+      "argv": [
+        "env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/existing-canonical.stdout.log",
+      "stderr": "logs/existing-canonical.stderr.log"
+    },
+    {
+      "phase": "existing-tests",
+      "argv": [
+        "mvn",
+        "test"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/maven-full.stdout.log",
+      "stderr": "logs/maven-full.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "python3",
+        "scripts/check-doc-refs.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/doc-refs.stdout.log",
+      "stderr": "logs/doc-refs.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "python3",
+        "scripts/check-local-links.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/local-links.stdout.log",
+      "stderr": "logs/local-links.stderr.log"
+    },
+    {
+      "phase": "worktree-skills",
+      "argv": [
+        "python3",
+        "scripts/check-worktree-skills.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/worktree-skills.stdout.log",
+      "stderr": "logs/worktree-skills.stderr.log"
+    },
+    {
+      "phase": "verification-integrity",
+      "argv": [
+        "python3",
+        "scripts/check-verification-integrity.py",
+        "--base",
+        "origin/dev/v0.5.0"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/verification-integrity.stdout.log",
+      "stderr": "logs/verification-integrity.stderr.log"
+    },
+    {
+      "phase": "independent-review",
+      "argv": [
+        "codex",
+        "exec",
+        "-C",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a/snapshot",
+        "--sandbox",
+        "read-only",
+        "--add-dir",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a/agent-output/codex/attempt-1",
+        "--output-last-message",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a/agent-output/codex/attempt-1/last-message.json",
+        "--model",
+        "deepseek-v4-pro",
+        "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 6981df77ec413177b9c5d076cf82eb1388036a2a to 4b20479a9dd5180b305a57cac8bea89d53cf5338. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review Context (generated by llm-review-bench)\n\nThis file is immutable for this run. Every reviewer receives the same case facts and no\naccess to gold labels, other reviewer output, or adjudication records.\n\n## 1. Objective\n\nfix: validate assurance policies and input root\n\nMUST: Validate every accepted-disposition policy even when unused, require non-empty unique status and evidence lists, and reject a symbolic-link inputs root.\n\nMUST NOT: Accept malformed dormant policies or output-backed input roots as reproducible passing runs.\n\nPIT: SKIPPED — Python assurance tooling and workflow documents only; no core Java production classes or mutation sites are affected.\n\nReview: confirmed Kiro findings C01 and C02; regression tests reproduced seven failures before the fix. Package 1.5.2; 360 script tests and documentation checks pass.\n\n## 2. Review range\n\n- Mode: live\n- Source: commit\n- Repository: `/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation`\n- Review range: `6981df77..4b20479a`\n- Base: `6981df77ec413177b9c5d076cf82eb1388036a2a`\n- Head: `4b20479a9dd5180b305a57cac8bea89d53cf5338`\n- Fix commit: (live case, no fix commit)\n- Review worktree: current working directory (checked out at the head commit)\n- Unified diff: `/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a/inputs/diff.patch`\n\n### Change statistics\n\n- Files: 13\n- Additions: 495\n- Deletions: 59\n\n### Files\n\n- `.agents/skills/assurance-report/SKILL.md` (M, +1/-1)\n- `.agents/skills/contract-diff/SKILL.md` (M, +1/-1)\n- `.agents/skills/contract-extract/SKILL.md` (M, +1/-1)\n- `.agents/skills/contract-first-assurance/SKILL.md` (M, +1/-1)\n- `.agents/skills/contract-first-assurance/adapters/vformation.yaml` (M, +1/-1)\n- `.agents/skills/contract-first-assurance/evals/evals.json` (M, +2/-2)\n- `.agents/skills/contract-first-assurance/package.yaml` (M, +6/-6)\n- `.agents/skills/contract-first-assurance/references/mutation-dispositions.md` (M, +7/-1)\n- `.agents/skills/contract-first-assurance/references/reproducible-runs.md` (M, +47/-13)\n- `.agents/skills/contract-first-assurance/scripts/verify_run.py` (M, +118/-23)\n- `.agents/skills/isolated-test-generation/SKILL.md` (M, +1/-1)\n- `ledger/2026-11-23-contract-assurance-gate.json` (M, +143/-2)\n- `scripts/tests/test_verify_run.py` (M, +166/-6)\n\n## 3. Applicable repository rules\n\n- `AGENTS.md` (read it from the snapshot)\n- `CONTRIBUTING.md` (read it from the snapshot)\n- `README.md` (read it from the snapshot)\n\n## 4. Review focus\n\n- Correctness of the changed behavior, including error, cancellation, timeout, and\n  partial-failure paths.\n- Concurrency, ordering, visibility, and lifecycle invariants when the diff touches them.\n- API and documented-contract drift caused by the change.\n- Missing tests only when the missing test protects a concrete failure mode introduced\n  or revealed by the diff.\n\nDo not report style-only nits, pre-existing defects outside the diff, or speculative\nconcerns without a concrete trigger and observable consequence.\n\n## 5. Scope and independence\n\n- Review only the change in the range above. The parent state is the base commit.\n- The current working directory is a read-only checkout at the head commit. Do not modify it.\n- Gold labels and other reviewers' findings are intentionally unavailable.\n- Return one JSON object as specified by the run prompt; an empty findings array is a\n  valid review.\n"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/independent-review.stdout.log",
+      "stderr": "logs/independent-review.stderr.log"
+    },
+    {
+      "phase": "promotion-agent",
+      "argv": [
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--model",
+        "deepseek-v4-pro",
+        "--sandbox",
+        "workspace-write",
+        "-C",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2",
+        "--add-dir",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion",
+        "Read /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/inputs/promotion-task.md and execute that frozen promotion task exactly. Do not inspect or modify anything outside its allowed scope."
+      ],
+      "exitCode": 0,
+      "stdout": "logs/promotion-agent.stdout.log",
+      "stderr": "logs/promotion-agent.stderr.log"
+    },
+    {
+      "phase": "promotion-refinement",
+      "argv": [
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--model",
+        "deepseek-v4-pro",
+        "--sandbox",
+        "workspace-write",
+        "-C",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.worktrees/assurance-verifier-1-5-2",
+        "--add-dir",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion",
+        "Read /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/maintenance-refinement-task.md and execute it exactly. Keep the change limited to the four promoted test files and the run's promotion evidence."
+      ],
+      "exitCode": 0,
+      "stdout": "logs/refinement-agent.stdout.log",
+      "stderr": "logs/refinement-agent.stderr.log"
+    },
+    {
+      "phase": "targeted-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests",
+        "-p",
+        "test_c000*.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/targeted-tests.stdout.log",
+      "stderr": "logs/targeted-tests.stderr.log"
+    },
+    {
+      "phase": "direct-discovery",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/direct-discovery.stdout.log",
+      "stderr": "logs/direct-discovery.stderr.log"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-verification-integrity.py",
+        "--base",
+        "6981df77ec413177b9c5d076cf82eb1388036a2a"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/regression-metadata.stdout.log",
+      "stderr": "logs/regression-metadata.stderr.log"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/regression-tests.stdout.log",
+      "stderr": "logs/regression-tests.stderr.log"
+    },
+    {
+      "phase": "regression-execution",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts",
+        "-v"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/regression-execution.stdout.log",
+      "stderr": "logs/regression-execution.stderr.log"
+    }
+  ],
+  "promotionTargets": {
+    "scripts/tests/test_c0001_wrong_policy_field.py": "promotion-targets/scripts/tests/test_c0001_wrong_policy_field.py",
+    "scripts/tests/test_c0002_non_object_policy.py": "promotion-targets/scripts/tests/test_c0002_non_object_policy.py",
+    "scripts/tests/test_c0003_absolute_input_path.py": "promotion-targets/scripts/tests/test_c0003_absolute_input_path.py",
+    "scripts/tests/test_c0004_nested_input_symlink.py": "promotion-targets/scripts/tests/test_c0004_nested_input_symlink.py"
+  },
+  "artifacts": {
+    "candidate-status.csv": "0a4617bd65f04fe074c05278aac9179cca505d94c8ea9750ff24e4f557ebb45c",
+    "candidates/candidate-plan.csv": "56acf3d9e4b9059177242006a0ed8a4353e9706bb439d4633cd9f217873eee34",
+    "candidates/test_contract_verifier.py": "3342c913f1e9307baddf45fa9698f2bddeb442bcb83378323c3fb78658483705",
+    "contract-gaps.md": "50f6061f78640028df869ffa47e14257be02f49f8819033b93c914f854f763cc",
+    "contract.md": "eef8eff45a5c84a67e4d7c56c4da852ca1179caf927fe716a92ce44d6a419710",
+    "logs/base-reverse-verification.stderr.log": "84f6816c9c0546e5ab123cc739cd5335ee9b2837bd09095d77d1ffe8c0faa70e",
+    "logs/base-reverse-verification.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/candidate-tests.stderr.log": "9a4edc291cf0ee12e870613745d47da54cada317ed258c8a9ceef2c6edeffdf5",
+    "logs/candidate-tests.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/contrary-reverse-verification-attempt-1.stderr.log": "aeec59ae3ec923a511573f27e7c9c0021202a8d10dc1e3b531333c7f4b5996b7",
+    "logs/contrary-reverse-verification-attempt-1.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/contrary-reverse-verification-attempt-2.stderr.log": "460f11e80af257bcf8414fa27f6dc00679b9600f01a974af313b078693090e8c",
+    "logs/contrary-reverse-verification-attempt-2.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/contrary-reverse-verification.stderr.log": "04abeeb67ec73592afa703b6dd4bc8dd67f562abad4b8b8bab578b82b7dbae96",
+    "logs/contrary-reverse-verification.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/direct-discovery.stderr.log": "4820a1bb18c0dc19b2672b05a454bc89cc1b2ad00868c0e7abdcdad463e2aa7b",
+    "logs/direct-discovery.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/doc-refs.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/doc-refs.stdout.log": "972f50c61c2d961fc3f493f09960d7babd78287559b21a4b9cd8936e1e0b1b7a",
+    "logs/existing-canonical.stderr.log": "0048c15a5cb397d33954f63608955abe007021105b17cef7201da6dbf7bd3d23",
+    "logs/existing-canonical.stdout.log": "b04d77cbd05f0171bdb05ce2eba48979ee94ab45b3c7c940a4dc3f76ed8fa5d6",
+    "logs/existing-tests.stderr.log": "d168ea66321e6c380e9c3b6cffeeb4885831aa107549ca8cd07855276063845a",
+    "logs/existing-tests.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/independent-review.stderr.log": "0f13032acc6f7e274182ea443488e3cf6e8b86eeff661cb156ec3455e329b625",
+    "logs/independent-review.stdout.log": "c6ea197a347882a7a33433e3f72a8875ec0dc61e02edb555883880c33766fc9e",
+    "logs/local-links.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/local-links.stdout.log": "ffdccee4676a13921a45635d0c19268779b3ab8fed21fc90e7387306ad6ed775",
+    "logs/maven-full.stderr.log": "a0ca4b58b8cb75e64da7672c03bfa399f15f8c9d4c8ec89b9b0b55ac22f32e3d",
+    "logs/maven-full.stdout.log": "3033654b0134cf3ffe09c81ef088469d96597ceefa87b956bdf196a64dead060",
+    "logs/pre-refactor-regression-execution.stderr.log": "009de219b1f7fe8c05ea1d919c1a568a25c9afa6cd3c2780bc80b8ab20076ba2",
+    "logs/pre-refactor-regression-execution.stdout.log": "cba24fb8f2aa68f7eee71cbedaf9c1c91a9c14bef1cde0c74fb773c8313eff9a",
+    "logs/pre-refactor-regression-metadata.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/pre-refactor-regression-metadata.stdout.log": "ede25c0aa132b02b5c3203cd21768f45bdf6bc34923932e27526c5626d363cc7",
+    "logs/pre-refactor-regression-tests.stderr.log": "6bfa58e5f495096e7c2f9eecb601e05eedeb252a2010eddba26a611e1d5571f8",
+    "logs/pre-refactor-regression-tests.stdout.log": "ab0e0108d7792e3158100cb02a1a429bf9d589ac7dfa71322f898bea261f3693",
+    "logs/promoted-base.stderr.log": "56350b64149808f0e5c4a30d042812af40aeff4de1881e184f577db81bb3b1f1",
+    "logs/promoted-base.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/promoted-contrary.stderr.log": "c5b2c61132edd413c5ca6813881235ac7df7ecde6674b640036331b125446615",
+    "logs/promoted-contrary.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/promoted-current-attempt-1.stderr.log": "105d848b24d391426f0371582163783fc8567cd904625f6db772fff0f2d34724",
+    "logs/promoted-current-attempt-1.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/promoted-current.stderr.log": "f67f28f1bdea663493fb8dea723bf2cffefc6be137568b41cdc23e6ca796dc4f",
+    "logs/promoted-current.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/promotion-agent.stderr.log": "9a62f01a7080e85998fecc954f39a5e8e600b2f2dc787f24ab44cb5b9d1407bf",
+    "logs/promotion-agent.stdout.log": "ca0112214390c1f5e4eb2352ec64337d20eacacc741e81bbde11a7c3f8ce0eeb",
+    "logs/refinement-agent.stderr.log": "4335a008cba6e57a1c454f00ed8860c9ba32a09804a8d2bdd608e1663169abfb",
+    "logs/refinement-agent.stdout.log": "f59d88e16cc7def5c99675bf08d141d8dca6fb8b2c82bff7990831abb4fe9904",
+    "logs/regression-execution.stderr.log": "d8ac699fb74d9e7d9fd5239bf0fa6980f2789cd7bc8bb2784f3321f5bd175849",
+    "logs/regression-execution.stdout.log": "37f92d2e99ea981ba63df1c3d4f33668b6976c0fed965c18ad7f2762ef91aa26",
+    "logs/regression-metadata.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/regression-metadata.stdout.log": "ede25c0aa132b02b5c3203cd21768f45bdf6bc34923932e27526c5626d363cc7",
+    "logs/regression-tests.stderr.log": "93bd799de8334c9edba9996a0bacb83fad0ef098bd0defb8c7f6a6eb0280685c",
+    "logs/regression-tests.stdout.log": "bb70d81783e5be21c2487e82b41c8a7992fe895bf6f3e87d6f07a6537dc5270a",
+    "logs/targeted-tests.stderr.log": "3036410ed4294b1381bb78c00cadbc719f808b8b94cebfdcac18fe5b895255ad",
+    "logs/targeted-tests.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/verification-integrity.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/verification-integrity.stdout.log": "744589f300572cf7f7951a6c43ce818ac462c8fb95672dc520f788883463aac6",
+    "logs/worktree-skills.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/worktree-skills.stdout.log": "ef8a98d31c6e3d629a0e6f1c829b6caee2134688d4001a177d5ea3aff3211dce",
+    "maintenance-refinement-task.md": "6fed3a93c9f27a2036fa5d170ba6df1b069ddf1834c16e084f3ae8dc26d5f3ad",
+    "promotion-results.json": "658f57e1447380107cd93058cac493a68a9044a6347b8d849da0171ae94df532",
+    "promotion-status.csv": "135b72167f5d83785127f4738e6570c560d7831f6412d311f278b2bd1ed309ab",
+    "promotion-targets/scripts/tests/test_c0001_wrong_policy_field.py": "f87062eb4284d32a72a8c09cb87ef7a2f241782cb248ce2dc3fd1bad49c650f0",
+    "promotion-targets/scripts/tests/test_c0002_non_object_policy.py": "a450db83428d2993d74b4ec58205068555f72f3ee4d932e3bff1bac2b595f95d",
+    "promotion-targets/scripts/tests/test_c0003_absolute_input_path.py": "340b8da0641ecd3f7b458f02c20d3442bd031cc27fc03258831d8f66218a22fa",
+    "promotion-targets/scripts/tests/test_c0004_nested_input_symlink.py": "b1078f77bd809d6354e13ccbd998fd8d6020b8f12e1d4ed488663b06deed59a6",
+    "promotions/C0001WrongPolicyFieldContractTest.py": "f87062eb4284d32a72a8c09cb87ef7a2f241782cb248ce2dc3fd1bad49c650f0",
+    "promotions/C0002NonObjectPolicyContractTest.py": "a450db83428d2993d74b4ec58205068555f72f3ee4d932e3bff1bac2b595f95d",
+    "promotions/C0003AbsoluteInputPathContractTest.py": "340b8da0641ecd3f7b458f02c20d3442bd031cc27fc03258831d8f66218a22fa",
+    "promotions/C0004NestedInputSymlinkContractTest.py": "b1078f77bd809d6354e13ccbd998fd8d6020b8f12e1d4ed488663b06deed59a6",
+    "report.md": "24f9d6d206378b51c7c4b86eb8d118eafa5d51a805d13a29639c7f47a5364ef8",
+    "reverse-verification/promoted-reverse-input-hashes.json": "b97bc00686dfe621fed37e4077452c5ea97c2cf77885fdc6c37612d1a0169c8b",
+    "reverse-verification/run_promoted_reverse.py": "6f08ead0f4be14328c44411cb5653bd74bafbfbaa46747159cfff5f7efcb6978",
+    "reverse-verification/verify_run_base.py": "d6e9649ffbc9e192fe15ecf9f1311a3f3df15263c7857aba17947254560d150f",
+    "reverse-verification/verify_run_contrary.py": "5db97c0e0b110172593ef42ba9048b0a055d83da5f0a2dfc9de32c452b445d88",
+    "verification-summary.md": "3338dc633ca5327a9f8248b804efb47338628b1926e03ee9c0a9053add755b25"
+  }
+}

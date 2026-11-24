@@ -1,0 +1,25 @@
+FF
+======================================================================
+FAIL: test_CONTRACT_TDD_008_wrong_policy_field_name (__main__.ContractVerifierTest.test_CONTRACT_TDD_008_wrong_policy_field_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 218, in test_CONTRACT_TDD_008_wrong_policy_field_name
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+======================================================================
+FAIL: test_CONTRACT_TDD_015_absolute_input_path (__main__.ContractVerifierTest.test_CONTRACT_TDD_015_absolute_input_path)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 285, in test_CONTRACT_TDD_015_absolute_input_path
+    self.assertHasErrors(_verify(self.run))
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 165, in assertHasErrors
+    self.assertTrue(errors, "expected one or more errors, got []")
+AssertionError: [] is not true : expected one or more errors, got []
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.034s
+
+FAILED (failures=2)

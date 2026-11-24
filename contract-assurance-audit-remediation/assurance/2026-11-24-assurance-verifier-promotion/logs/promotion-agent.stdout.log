@@ -1,0 +1,27 @@
+冻结的晋升任务已按范围完整执行完毕，无阻塞项。
+
+**晋升结果**
+- `CONTRACT-TDD-008 → C-0001`：拒绝用 `rawStatuses` 替代 `allowedRawStatuses`
+- `CONTRACT-TDD-013 → C-0002`：拒绝未使用的非对象 disposition 策略
+- `CONTRACT-TDD-015 → C-0003`：拒绝绝对路径 frozen input
+- `CONTRACT-TDD-021 → C-0004`：拒绝解析到根输出的嵌套输入符号链接链
+
+**新增文件**（worktree `scripts/tests/`，各含恰好一个 `test_*` 方法，方法名含候选 ID 与晋升契约 ID）
+- `scripts/tests/test_c0001_wrong_policy_field.py`
+- `scripts/tests/test_c0002_non_object_policy.py`
+- `scripts/tests/test_c0003_absolute_input_path.py`
+- `scripts/tests/test_c0004_nested_input_symlink.py`
+
+**测试与退出码**
+- 定向测试：4 个测试全部通过（`Ran 4 tests ... OK`）
+- `regression-metadata`（`scripts/check-verification-integrity.py --base 6981df77...`）：exit 0
+- `regression-tests`（`python3 -m unittest discover -s scripts -t scripts`）：exit 0，`Ran 477 tests ... OK`
+- `regression-execution`（同上加 `-v`）：exit 0，`Ran 477 tests ... OK`，四条新用例均为 `ok`
+
+**运行目录产物**（`.contract-first-assurance/2026-11-24-assurance-verifier-promotion/`）
+- `logs/regression-{metadata,tests,execution}.{stdout,stderr}.log`（6 个日志）
+- `promotion-results.json`：三条精确 argv 与真实 exit code（均为 0）
+- `promotion-status.csv`：七字段头 + 4 行 `promoted`
+- `promotions/C000{1..4}*ContractTest.py` 与 `promotion-targets/scripts/tests/test_c000{1..4}_*.py`，均已 `cmp` 验证逐字节一致
+
+**未执行**：按任务要求，最终 `verify_run.py --run-dir` 验证留待 orchestrator 定稿 manifest 后再运行；当前 `run-manifest.json` 尚无 `artifacts/commands/checks/promotionTargets` 等字段，属预期状态。

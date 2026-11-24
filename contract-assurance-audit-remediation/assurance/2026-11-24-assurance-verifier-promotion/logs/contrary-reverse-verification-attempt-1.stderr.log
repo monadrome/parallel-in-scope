@@ -1,0 +1,20 @@
+E.
+======================================================================
+ERROR: test_CONTRACT_TDD_008_wrong_policy_field_name (__main__.ContractVerifierTest.test_CONTRACT_TDD_008_wrong_policy_field_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 218, in test_CONTRACT_TDD_008_wrong_policy_field_name
+    self.assertHasErrors(_verify(self.run))
+                         ^^^^^^^^^^^^^^^^^
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/candidates/test_contract_verifier.py", line 150, in _verify
+    return _verifier().verify(run_dir)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-promotion/reverse-verification/verify_run_contrary.py", line 361, in verify
+    elif raw_status not in policy["allowedRawStatuses"]:
+                           ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'allowedRawStatuses'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.031s
+
+FAILED (errors=1)

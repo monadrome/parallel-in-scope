@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "commands": [
+    {
+      "phase": "targeted-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests",
+        "-p",
+        "test_c000*.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/targeted-tests.stdout.log",
+      "stderr": "logs/targeted-tests.stderr.log"
+    },
+    {
+      "phase": "direct-discovery",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/direct-discovery.stdout.log",
+      "stderr": "logs/direct-discovery.stderr.log"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-verification-integrity.py",
+        "--base",
+        "6981df77ec413177b9c5d076cf82eb1388036a2a"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/regression-metadata.stdout.log",
+      "stderr": "logs/regression-metadata.stderr.log"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/regression-tests.stdout.log",
+      "stderr": "logs/regression-tests.stderr.log"
+    },
+    {
+      "phase": "regression-execution",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts",
+        "-v"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/regression-execution.stdout.log",
+      "stderr": "logs/regression-execution.stderr.log"
+    }
+  ]
+}

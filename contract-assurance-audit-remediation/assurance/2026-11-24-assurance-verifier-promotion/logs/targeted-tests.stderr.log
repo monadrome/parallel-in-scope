@@ -1,0 +1,9 @@
+test_CONTRACT_TDD_008_C0001_wrong_policy_field (test_c0001_wrong_policy_field.ContractVerifierTest.test_CONTRACT_TDD_008_C0001_wrong_policy_field) ... ok
+test_CONTRACT_TDD_013_C0002_unused_policy_non_object (test_c0002_non_object_policy.ContractVerifierTest.test_CONTRACT_TDD_013_C0002_unused_policy_non_object) ... ok
+test_CONTRACT_TDD_015_C0003_absolute_input_path (test_c0003_absolute_input_path.ContractVerifierTest.test_CONTRACT_TDD_015_C0003_absolute_input_path) ... ok
+test_CONTRACT_TDD_021_C0004_nested_input_symlink (test_c0004_nested_input_symlink.ContractVerifierTest.test_CONTRACT_TDD_021_C0004_nested_input_symlink) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.055s
+
+OK

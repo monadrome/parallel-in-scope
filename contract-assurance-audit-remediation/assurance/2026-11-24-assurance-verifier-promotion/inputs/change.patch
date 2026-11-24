@@ -1,0 +1,863 @@
+diff --git a/.agents/skills/assurance-report/SKILL.md b/.agents/skills/assurance-report/SKILL.md
+index 7337fefd..d78a1cc3 100644
+--- a/.agents/skills/assurance-report/SKILL.md
++++ b/.agents/skills/assurance-report/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: assurance-report
+ description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.4.0"
++version: "1.5.2"
+ disable-model-invocation: true
+ ---
+ # Assurance Report
+diff --git a/.agents/skills/contract-diff/SKILL.md b/.agents/skills/contract-diff/SKILL.md
+index 13e553d1..259df671 100644
+--- a/.agents/skills/contract-diff/SKILL.md
++++ b/.agents/skills/contract-diff/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-diff
+ description: Contract diff merging: compares candidate tests, existing tests, and real-implementation results, identifying contract gaps and behavioral-evidence differences. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.4.0"
++version: "1.5.2"
+ disable-model-invocation: true
+ ---
+ # Contract Diff
+diff --git a/.agents/skills/contract-extract/SKILL.md b/.agents/skills/contract-extract/SKILL.md
+index 51cbe048..8010ce8f 100644
+--- a/.agents/skills/contract-extract/SKILL.md
++++ b/.agents/skills/contract-extract/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-extract
+ description: Contract extraction: organizes frozen, executable behavioral contracts from a PR or worktree changes. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.4.0"
++version: "1.5.2"
+ disable-model-invocation: true
+ ---
+ # Contract Extract
+diff --git a/.agents/skills/contract-first-assurance/SKILL.md b/.agents/skills/contract-first-assurance/SKILL.md
+index 46f9da69..eaf16be8 100644
+--- a/.agents/skills/contract-first-assurance/SKILL.md
++++ b/.agents/skills/contract-first-assurance/SKILL.md
+@@ -2,7 +2,7 @@
+ name: contract-first-assurance
+ description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
+ compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
+-version: "1.4.0"
++version: "1.5.2"
+ ---
+ 
+ # Contract-First Independent Assurance
+diff --git a/.agents/skills/contract-first-assurance/adapters/vformation.yaml b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+index 8b3d3528..ff7d8b08 100644
+--- a/.agents/skills/contract-first-assurance/adapters/vformation.yaml
++++ b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+@@ -1,5 +1,5 @@
+ name: vformation
+-version: 1.4.0
++version: 1.5.2
+ workspace_root: repository-root
+ base_ref: origin/dev/v0.5.0
+ artifact_root: .contract-first-assurance
+diff --git a/.agents/skills/contract-first-assurance/evals/evals.json b/.agents/skills/contract-first-assurance/evals/evals.json
+index b2987026..69c14204 100644
+--- a/.agents/skills/contract-first-assurance/evals/evals.json
++++ b/.agents/skills/contract-first-assurance/evals/evals.json
+@@ -1,6 +1,6 @@
+ {
+   "skill_name": "contract-first-assurance",
+-  "version": "1.4.0",
++  "version": "1.5.2",
+   "evals": [
+     {
+       "id": 1,
+@@ -41,7 +41,7 @@
+       "expected_output": "A report that keeps TIMED_OUT as the raw status, records EXPECTED_MUTATION_LIVENESS as an accepted exception, and reports the normalized PIT gate as pass with accepted exceptions.",
+       "assertions": [
+         "Preserves TIMED_OUT in raw mutation evidence",
+-        "Requires evidence paths and approver for the accepted exception",
++        "Requires category-mapped, hashed evidence and an approver for the accepted exception",
+         "Reports unresolved or weakly evidenced timeouts as inconclusive"
+       ]
+     }
+diff --git a/.agents/skills/contract-first-assurance/package.yaml b/.agents/skills/contract-first-assurance/package.yaml
+index 4d8dcd43..27257863 100644
+--- a/.agents/skills/contract-first-assurance/package.yaml
++++ b/.agents/skills/contract-first-assurance/package.yaml
+@@ -1,6 +1,6 @@
+ package:
+   name: contract-first-assurance
+-  version: 1.4.0
++  version: 1.5.2
+   schema: 1
+   entrypoint: SKILL.md
+   layout: sibling-skills
+@@ -9,16 +9,16 @@ package:
+ components:
+   - path: ../contract-extract
+     kind: phase
+-    version: 1.4.0
++    version: 1.5.2
+   - path: ../isolated-test-generation
+     kind: phase
+-    version: 1.4.0
++    version: 1.5.2
+   - path: ../contract-diff
+     kind: phase
+-    version: 1.4.0
++    version: 1.5.2
+   - path: ../assurance-report
+     kind: phase
+-    version: 1.4.0
++    version: 1.5.2
+ 
+ references:
+   invocation: references/invocation-modes.md
+@@ -29,7 +29,7 @@ references:
+ host_adapters:
+   - path: adapters/vformation.yaml
+     applies_to: parallel-in-scope
+-    version: 1.4.0
++    version: 1.5.2
+ 
+ runtime:
+   required:
+diff --git a/.agents/skills/contract-first-assurance/references/mutation-dispositions.md b/.agents/skills/contract-first-assurance/references/mutation-dispositions.md
+index 1c386c1a..8afb3989 100644
+--- a/.agents/skills/contract-first-assurance/references/mutation-dispositions.md
++++ b/.agents/skills/contract-first-assurance/references/mutation-dispositions.md
+@@ -23,7 +23,13 @@ Use this representation in `run-manifest.json` and `report.md`:
+   "rawStatus": "TIMED_OUT",
+   "disposition": "EXPECTED_MUTATION_LIVENESS",
+   "accepted": true,
+-  "evidence": ["logs/pit.log", "inputs/pit-audit.md"],
++  "evidence": {
++    "repeatable-focused-rerun": ["logs/pit.log"],
++    "unmutated-tests-pass": ["logs/pit.log"],
++    "complete-xml-and-logs": ["logs/pit.log", "inputs/pit-audit.md"],
++    "source-level-liveness-invariant": ["inputs/pit-audit.md"],
++    "maintainer-or-independent-review": ["inputs/pit-audit.md"]
++  },
+   "approvedBy": "maintainer"
+ }
+ ```
+diff --git a/.agents/skills/contract-first-assurance/references/reproducible-runs.md b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+index 90b45f79..7e8a5a3e 100644
+--- a/.agents/skills/contract-first-assurance/references/reproducible-runs.md
++++ b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+@@ -15,18 +15,30 @@ manifest has this shape:
+   "schemaVersion": "contract-assurance-run/v2",
+   "runId": "2026-11-12-example",
+   "createdAt": "2026-11-12T12:00:00Z",
+-  "package": {"name": "contract-first-assurance", "version": "1.4.0"},
++  "package": {"name": "contract-first-assurance", "version": "1.5.2"},
+   "adapter": {
+     "name": "vformation",
+-    "version": "1.4.0",
++    "version": "1.5.2",
+     "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
+-    "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
++    "acceptedDispositions": {
++      "EXPECTED_MUTATION_LIVENESS": {
++        "allowedRawStatuses": ["TIMED_OUT"],
++        "requiredEvidence": [
++          "repeatable-focused-rerun",
++          "unmutated-tests-pass",
++          "complete-xml-and-logs",
++          "source-level-liveness-invariant",
++          "maintainer-or-independent-review"
++        ]
++      }
++    }
+   },
+   "workspace": {
+     "base": "<resolved commit>",
+     "head": "<resolved commit>",
+     "dirty": false
+   },
++  "finalHead": "<resolved commit>",
+   "status": "pass",
+   "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
+   "checks": {
+@@ -36,7 +48,10 @@ manifest has this shape:
+     "independent-review": "pass",
+     "docs": "pass"
+   },
+-  "inputs": {"inputs/contract-source.md": "<sha256>"},
++  "inputs": {
++    "inputs/contract-source.md": "<sha256>",
++    "inputs/pit-audit.md": "<sha256>"
++  },
+   "commands": [
+     {
+       "phase": "full-suite",
+@@ -46,14 +61,28 @@ manifest has this shape:
+       "stderr": "logs/full-suite.stderr.log"
+     }
+   ],
+-  "artifacts": {"report.md": "<sha256>"},
++  "artifacts": {
++    "contract.md": "<sha256>",
++    "contract-gaps.md": "<sha256>",
++    "candidate-status.csv": "<sha256>",
++    "promotion-status.csv": "<sha256>",
++    "verification-summary.md": "<sha256>",
++    "report.md": "<sha256>",
++    "logs/pit.stdout.log": "<sha256>"
++  },
+   "acceptedExceptions": [
+     {
+       "phase": "pit",
+       "rawStatus": "TIMED_OUT",
+       "disposition": "EXPECTED_MUTATION_LIVENESS",
+       "accepted": true,
+-      "evidence": ["logs/pit.stdout.log", "inputs/pit-audit.md"],
++      "evidence": {
++        "repeatable-focused-rerun": ["logs/pit.stdout.log"],
++        "unmutated-tests-pass": ["logs/pit.stdout.log"],
++        "complete-xml-and-logs": ["logs/pit.stdout.log", "inputs/pit-audit.md"],
++        "source-level-liveness-invariant": ["inputs/pit-audit.md"],
++        "maintainer-or-independent-review": ["inputs/pit-audit.md"]
++      },
+       "approvedBy": "maintainer"
+     }
+   ]
+@@ -62,9 +91,13 @@ manifest has this shape:
+ 
+ Rules:
+ 
+-- `base` and `head` are resolved commit IDs, never symbolic refs alone;
+-- `adapter.requiredGates` is the resolved route's required-gate list; the top-level
+-  `requiredGates` must match it, and `checks` must contain a result for every gate;
++- `base`, `head`, and `finalHead` are full resolved 40-character SHA-1 or 64-character SHA-256
++  commit IDs, never symbolic refs alone;
++- `adapter.requiredGates` is the resolved route's required-gate list; gate names are non-blank
++  and unique, the top-level `requiredGates` matches it, and `checks` contains a result for every gate;
++- `inputs` is non-empty and contains only frozen files whose declared and resolved paths remain
++  beneath `inputs/`; the `inputs/` directory itself and any path to a root output or another run
++  directory MUST NOT be a symbolic link;
+ - a dirty workspace must include its binary patch under `inputs/`;
+ - every copied contract, API view, adapter, command log, promotion record, promoted test copy,
+   and report is hashed;
+@@ -78,10 +111,11 @@ Rules:
+ - a timeout, missing log, missing hash, or hash mismatch makes the run
+   `INCONCLUSIVE`, never successful;
+ - an accepted exception may make the final gate `pass`, but only when its raw
+-  status, disposition, evidence paths, and approver are recorded and the
+-  disposition is allowed by the resolved host adapter; copy the adapter's
+-  `acceptedDispositions` policy into the manifest so `verify_run.py` can enforce
+-  the same allowlist without reading a mutable parent checkout;
++  status, disposition, evidence, and approver are recorded and the disposition is
++  allowed by the resolved host adapter; every declared disposition, including an unused one,
++  MUST have non-empty, non-blank, unique `allowedRawStatuses` and `requiredEvidence` lists;
++  map every required evidence category to existing paths, and hash those paths under `inputs` or `artifacts` so
++  `verify_run.py` can enforce the policy without reading a mutable parent checkout;
+ - frozen metadata, input snapshots, and their hashes are written before tests run and are never
+   rewritten; `status`, `requiredGates`, `checks`, `acceptedExceptions`, command results, and
+   final-artifact hashes are appended at finalization, including for failed or inconclusive runs.
+diff --git a/.agents/skills/contract-first-assurance/scripts/verify_run.py b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+index e19da7fa..38f26806 100644
+--- a/.agents/skills/contract-first-assurance/scripts/verify_run.py
++++ b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+@@ -41,6 +41,41 @@ PROMOTION_FIELDS = (
+     "reason",
+ )
+ PROMOTION_CONTRACT_RE = re.compile(r"C-[0-9]{4}")
++COMMIT_ID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
++
++
++def gate_name_errors(value, field: str) -> list[str]:
++    if not isinstance(value, list) or not value or any(not isinstance(gate, str) for gate in value):
++        return [f"{field} must be a non-empty list of strings"]
++    errors = []
++    if any(not gate.strip() for gate in value):
++        errors.append(f"{field} gate names must be non-blank")
++    if len(set(value)) != len(value):
++        errors.append(f"{field} gate names must be unique")
++    return errors
++
++
++def disposition_policy_errors(policy) -> list[str]:
++    if not isinstance(policy, dict):
++        return ["must be an object"]
++    errors = []
++    allowed_statuses = policy.get("allowedRawStatuses")
++    if (
++        not isinstance(allowed_statuses, list)
++        or not allowed_statuses
++        or any(not isinstance(status, str) or not status.strip() for status in allowed_statuses)
++        or len(set(allowed_statuses)) != len(allowed_statuses)
++    ):
++        errors.append("invalid allowedRawStatuses")
++    required_evidence = policy.get("requiredEvidence")
++    if (
++        not isinstance(required_evidence, list)
++        or not required_evidence
++        or any(not isinstance(category, str) or not category.strip() for category in required_evidence)
++        or len(set(required_evidence)) != len(required_evidence)
++    ):
++        errors.append("invalid requiredEvidence")
++    return errors
+ 
+ 
+ def canonical_path(value: str) -> bool:
+@@ -260,12 +295,22 @@ def verify(run_dir: Path) -> list[str]:
+         if key not in manifest:
+             errors.append(f"run manifest is missing {key}")
+     workspace = manifest.get("workspace", {})
++    if not isinstance(workspace, dict):
++        errors.append("workspace must be an object")
++        workspace = {}
+     for key in ("base", "head", "dirty"):
+         if key not in workspace:
+             errors.append(f"workspace metadata is missing {key}")
++    if isinstance(workspace, dict):
++        for key in ("base", "head"):
++            value = workspace.get(key)
++            if not isinstance(value, str) or COMMIT_ID_RE.fullmatch(value) is None:
++                errors.append(f"workspace.{key} must be a full commit ID")
+ 
+     final_head = manifest.get("finalHead")
+-    if final_head is not None and final_head != workspace.get("head"):
++    if not isinstance(final_head, str) or COMMIT_ID_RE.fullmatch(final_head) is None:
++        errors.append("finalHead must be the full final commit ID")
++    elif final_head != workspace.get("head"):
+         errors.append("finalHead does not match workspace.head")
+ 
+     status = manifest.get("status")
+@@ -274,13 +319,18 @@ def verify(run_dir: Path) -> list[str]:
+ 
+     adapter = manifest.get("adapter", {})
+     accepted_policy = adapter.get("acceptedDispositions") if isinstance(adapter, dict) else None
++    if accepted_policy is not None:
++        if not isinstance(accepted_policy, dict):
++            errors.append("adapter.acceptedDispositions must be an object")
++        else:
++            for disposition, policy in accepted_policy.items():
++                if not isinstance(disposition, str) or not disposition.strip():
++                    errors.append("adapter accepted disposition names must be non-blank strings")
++                for error in disposition_policy_errors(policy):
++                    prefix = f"adapter accepted disposition {disposition}"
++                    errors.append(f"{prefix} {error}" if error == "must be an object" else f"{prefix} has {error}")
+     adapter_required_gates = adapter.get("requiredGates") if isinstance(adapter, dict) else None
+-    if (
+-        not isinstance(adapter_required_gates, list)
+-        or not adapter_required_gates
+-        or any(not isinstance(gate, str) for gate in adapter_required_gates)
+-    ):
+-        errors.append("adapter.requiredGates must be a non-empty list of strings")
++    errors.extend(gate_name_errors(adapter_required_gates, "adapter.requiredGates"))
+     accepted_exceptions = manifest.get("acceptedExceptions", [])
+     if not isinstance(accepted_exceptions, list):
+         errors.append("acceptedExceptions must be a list")
+@@ -303,36 +353,61 @@ def verify(run_dir: Path) -> list[str]:
+             errors.append(f"accepted exception {index} disposition must be a non-empty string")
+         if exception.get("accepted") is not True:
+             errors.append(f"accepted exception {index} accepted must be true")
++        required_evidence = []
+         if not isinstance(accepted_policy, dict):
+             errors.append("adapter.acceptedDispositions is required when acceptedExceptions are present")
+         elif isinstance(disposition, str):
+-            allowed_statuses = accepted_policy.get(disposition)
+-            if not isinstance(allowed_statuses, list) or any(not isinstance(value, str) for value in allowed_statuses):
++            policy = accepted_policy.get(disposition)
++            if not isinstance(policy, dict):
+                 errors.append(f"accepted exception {index} disposition is not allowed by adapter: {disposition}")
+-            elif raw_status not in allowed_statuses:
+-                errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
++            else:
++                policy_errors = disposition_policy_errors(policy)
++                if "invalid allowedRawStatuses" in policy_errors:
++                    errors.append(f"accepted exception {index} has invalid allowedRawStatuses: {disposition}")
++                elif raw_status not in policy["allowedRawStatuses"]:
++                    errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
++                required_evidence = policy.get("requiredEvidence")
++                if "invalid requiredEvidence" in policy_errors:
++                    errors.append(f"accepted exception {index} has invalid requiredEvidence: {disposition}")
++                    required_evidence = []
+         evidence = exception.get("evidence")
+-        if not isinstance(evidence, list) or not evidence or any(not isinstance(path, str) for path in evidence):
+-            errors.append(f"accepted exception {index} evidence must contain relative paths")
++        if not isinstance(evidence, dict):
++            errors.append(f"accepted exception {index} evidence must map required evidence categories to paths")
+         else:
+-            for path in evidence:
+-                try:
+-                    exists = safe_path(run_dir, path).is_file()
+-                except (TypeError, ValueError) as error:
+-                    errors.append(f"accepted exception {index} evidence path is invalid: {error}")
++            for category in required_evidence:
++                paths = evidence.get(category)
++                if not isinstance(paths, list) or not paths or any(not isinstance(path, str) for path in paths):
++                    errors.append(f"accepted exception {index} is missing required evidence: {category}")
++            hashed = {
++                path
++                for field in ("inputs", "artifacts")
++                for path in (manifest.get(field, {}) if isinstance(manifest.get(field, {}), dict) else {})
++            }
++            for category, paths in evidence.items():
++                if not isinstance(paths, list):
+                     continue
+-                if not exists:
+-                    errors.append(f"accepted exception {index} references missing evidence: {path}")
++                for path in paths:
++                    if not isinstance(path, str):
++                        errors.append(f"accepted exception {index} evidence path for {category} must be a string")
++                        continue
++                    try:
++                        exists = safe_path(run_dir, path).is_file()
++                    except (TypeError, ValueError) as error:
++                        errors.append(f"accepted exception {index} evidence path is invalid: {error}")
++                        continue
++                    if not exists:
++                        errors.append(f"accepted exception {index} references missing evidence: {path}")
++                    if path not in hashed:
++                        errors.append(f"accepted exception {index} evidence is not hashed: {path}")
+         approved_by = exception.get("approvedBy")
+-        if not isinstance(approved_by, str) or not approved_by:
++        if not isinstance(approved_by, str) or not approved_by.strip():
+             errors.append(f"accepted exception {index} approvedBy must be non-empty")
+     required_gates = manifest.get("requiredGates", [])
+     checks = manifest.get("checks", {})
+     if not isinstance(required_gates, list) or not isinstance(checks, dict):
+         errors.append("requiredGates must be a list and checks must be an object")
+     else:
+-        if not required_gates or any(not isinstance(gate, str) for gate in required_gates):
+-            errors.append("requiredGates must be a non-empty list of strings")
++        errors.extend(gate_name_errors(required_gates, "requiredGates"))
+         if not checks:
+             errors.append("checks must contain the resolved gate results")
+         if isinstance(adapter_required_gates, list) and required_gates != adapter_required_gates:
+@@ -415,6 +490,26 @@ def verify(run_dir: Path) -> list[str]:
+             elif not isinstance(expected, str) or len(expected) != 64 or sha256(path) != expected:
+                 errors.append(f"{field} hash mismatch: {relative}")
+ 
++    inputs = manifest.get("inputs")
++    if not isinstance(inputs, dict) or not inputs:
++        errors.append("inputs must contain frozen files under inputs/")
++    else:
++        inputs_path = run_dir / "inputs"
++        if inputs_path.is_symlink():
++            errors.append("inputs directory must not be a symbolic link")
++        inputs_root = inputs_path.resolve()
++        for relative in inputs:
++            if not isinstance(relative, str) or not canonical_path(relative) or not relative.startswith("inputs/"):
++                errors.append(f"inputs must contain only files under inputs/: {relative}")
++                continue
++            try:
++                resolved = safe_path(run_dir, relative)
++            except ValueError as error:
++                errors.append(str(error))
++                continue
++            if inputs_root not in resolved.parents:
++                errors.append(f"inputs entries must resolve beneath inputs/: {relative}")
++
+     verify_hashes("inputs")
+     verify_hashes("artifacts")
+     artifacts = manifest.get("artifacts", {})
+diff --git a/.agents/skills/isolated-test-generation/SKILL.md b/.agents/skills/isolated-test-generation/SKILL.md
+index 86332d48..15d2ccfc 100644
+--- a/.agents/skills/isolated-test-generation/SKILL.md
++++ b/.agents/skills/isolated-test-generation/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: isolated-test-generation
+ description: Isolated test generation: generates candidate tests solely from the frozen contract and sanitized APIs. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.4.0"
++version: "1.5.2"
+ disable-model-invocation: true
+ ---
+ # Isolated Test Generation
+diff --git a/ledger/2026-11-23-contract-assurance-gate.json b/ledger/2026-11-23-contract-assurance-gate.json
+index 70799ce9..2d1ca140 100644
+--- a/ledger/2026-11-23-contract-assurance-gate.json
++++ b/ledger/2026-11-23-contract-assurance-gate.json
+@@ -195,9 +195,150 @@
+           "systemsTotal": 1,
+           "costsByCurrency": []
+         }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032036-fdbe91",
++        "status": "failed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "failed",
++            "attempts": 1,
++            "durationMs": 14259,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032315-a22c4e",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 698186,
++            "findings": {
++              "total": 5,
++              "adjudicated": 5,
++              "confirmed": 5,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 5,
++          "adjudicated": 5,
++          "confirmed": 5,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
+       }
+     ],
+-    "refactoring": []
++    "refactoring": [
++      {
++        "run": "refactoring-agent-contract-assurance-audit-remediation-2026-11-23",
++        "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": ["T04"],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "reverted"
++          },
++          {
++            "id": "R2",
++            "rules": ["T05"],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "rejected"
++          },
++          {
++            "id": "R3",
++            "rules": ["T04"],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "reverted"
++          }
++        ]
++      },
++      {
++        "run": "refactoring-contract-assurance-verifier-fix-2026-11-24",
++        "head": "ff9410715e0a2788aaa43484ef91f4944a7969ba",
++        "incompleteAgents": 0,
++        "findings": [
++          {
++            "id": "R1",
++            "rules": ["T04"],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R2",
++            "rules": ["T04"],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          },
++          {
++            "id": "R3",
++            "rules": ["T05"],
++            "tier": "T0",
++            "scope": "in-diff",
++            "mechanizable": false,
++            "disposition": "deferred"
++          }
++        ]
++      }
++    ]
+   },
+   "gates": {
+     "failures": {
+@@ -214,5 +355,5 @@
+     "cost": null,
+     "currency": null
+   },
+-  "notes": "assurance: SKIPPED — agent-workflow-only change with no library runtime contract or behavioral evidence; ZCode confirmed the skip, round 1 found three P3 issues now fixed, round 2 found none; failed benchmark runs are retained separately."
++  "notes": "assurance: originally SKIPPED for an agent-workflow-only change; the independent review then identified silent-false-success risk, so the current remediation requires the assurance gate. PIT: SKIPPED — Python assurance tooling and workflow documents only; no affected core Java production classes or mutation sites. Retrospective refactoring-review completed with R1/R3 reverted by the growth stop rule and R2 rejected because the rename had already landed. Fixed-model review used kiro-cli 3.5.0 with provider kiro, model gpt-5.6-terra, effort max; the Codex gpt-6.1-terra attempt failed because the provider did not support that model and is retained as failed evidence. Kiro confirmed five verifier defects, all fixed in ff9410715e0a2788aaa43484ef91f4944a7969ba; its follow-up refactoring run deferred three test-only suggestions with reasons in the run report."
+ }
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 0ea97af8..8ac19854 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -51,7 +51,8 @@ class VerifyRunTest(unittest.TestCase):
+             "createdAt": "2026-01-01T00:00:00Z",
+             "package": {},
+             "adapter": {"acceptedDispositions": policy, "requiredGates": ["pit"]},
+-            "workspace": {"base": "a", "head": "a", "dirty": False},
++            "workspace": {"base": "a" * 40, "head": "a" * 40, "dirty": False},
++            "finalHead": "a" * 40,
+             "inputs": {"inputs/pit-audit.md": digest(run / "inputs/pit-audit.md")},
+             "commands": [],
+             "artifacts": {
+@@ -63,6 +64,7 @@ class VerifyRunTest(unittest.TestCase):
+                     "promotion-status.csv",
+                     "verification-summary.md",
+                     "report.md",
++                    "logs/pit.log",
+                 )
+             },
+             "status": "pass",
+@@ -174,22 +176,42 @@ class VerifyRunTest(unittest.TestCase):
+         manifest.update(updates)
+         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+ 
++    def mutation_policy(self):
++        return {
++            "EXPECTED_MUTATION_LIVENESS": {
++                "allowedRawStatuses": ["TIMED_OUT"],
++                "requiredEvidence": [
++                    "repeatable-focused-rerun",
++                    "unmutated-tests-pass",
++                    "complete-xml-and-logs",
++                    "source-level-liveness-invariant",
++                    "maintainer-or-independent-review",
++                ],
++            }
++        }
++
+     def exception(self, raw_status="TIMED_OUT", disposition="EXPECTED_MUTATION_LIVENESS"):
+         return {
+             "phase": "pit",
+             "rawStatus": raw_status,
+             "disposition": disposition,
+             "accepted": True,
+-            "evidence": ["logs/pit.log", "inputs/pit-audit.md"],
++            "evidence": {
++                "repeatable-focused-rerun": ["logs/pit.log"],
++                "unmutated-tests-pass": ["logs/pit.log"],
++                "complete-xml-and-logs": ["logs/pit.log", "inputs/pit-audit.md"],
++                "source-level-liveness-invariant": ["inputs/pit-audit.md"],
++                "maintainer-or-independent-review": ["inputs/pit-audit.md"],
++            },
+             "approvedBy": "maintainer",
+         }
+ 
+     def test_accepts_status_allowed_by_adapter(self):
+-        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        run = self.make_run(self.exception(), self.mutation_policy())
+         self.assertEqual(verify_run.verify(run), [])
+ 
+     def test_rejects_status_not_allowed_by_adapter(self):
+-        run = self.make_run(self.exception("MEMORY_ERROR"), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        run = self.make_run(self.exception("MEMORY_ERROR"), self.mutation_policy())
+         errors = verify_run.verify(run)
+         self.assertTrue(any("rawStatus MEMORY_ERROR is not allowed" in error for error in errors))
+ 
+@@ -231,7 +253,7 @@ class VerifyRunTest(unittest.TestCase):
+     def test_rejects_pass_with_unreported_exceptions(self):
+         run = self.make_run(
+             self.exception(),
+-            {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]},
++            self.mutation_policy(),
+             final_gate="PASS",
+         )
+         errors = verify_run.verify(run)
+@@ -456,11 +478,149 @@ class VerifyRunTest(unittest.TestCase):
+         self.assertEqual(verify_run.verify(run), [])
+ 
+     def test_requires_hashes_for_promoted_test_copies(self):
+-        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        run = self.make_run(self.exception(), self.mutation_policy())
+         (run / "promotions/C0001ContractTest.java").write_text("class C0001ContractTest {}\n", encoding="utf-8")
+         errors = verify_run.verify(run)
+         self.assertTrue(any("artifacts does not hash promoted test copy" in error for error in errors))
+ 
++    def test_rejects_placeholder_accepted_exception_evidence(self):
++        exception = self.exception()
++        del exception["evidence"]["source-level-liveness-invariant"]
++        run = self.make_run(exception, self.mutation_policy())
++        errors = verify_run.verify(run)
++        self.assertIn(
++            "accepted exception 0 is missing required evidence: source-level-liveness-invariant",
++            errors,
++        )
++
++    def test_rejects_unhashed_accepted_exception_evidence(self):
++        run = self.make_run(self.exception(), self.mutation_policy())
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        del manifest["artifacts"]["logs/pit.log"]
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertIn("accepted exception 0 evidence is not hashed: logs/pit.log", errors)
++
++    def test_rejects_empty_frozen_inputs(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, inputs={})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs must contain frozen files under inputs/", errors)
++
++    def test_rejects_frozen_input_outside_inputs_directory(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        digest = hashlib.sha256((run / "contract.md").read_bytes()).hexdigest()
++        self.update_manifest(run, inputs={"contract.md": digest})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs must contain only files under inputs/: contract.md", errors)
++
++    def test_rejects_symbolic_workspace_revisions(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(
++            run,
++            workspace={"base": "origin/dev/v0.5.0", "head": "HEAD", "dirty": False},
++            finalHead=None,
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("workspace.base must be a full commit ID" in error for error in errors))
++        self.assertTrue(any("workspace.head must be a full commit ID" in error for error in errors))
++        self.assertIn("finalHead must be the full final commit ID", errors)
++
++    def test_rejects_blank_and_duplicate_required_gates(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(
++            run,
++            requiredGates=[" ", "pit", "pit"],
++            checks={" ": "pass", "pit": "pass"},
++        )
++        self.update_manifest(run, adapter={"acceptedDispositions": {}, "requiredGates": [" ", "pit", "pit"]})
++        errors = verify_run.verify(run)
++        self.assertTrue(any("gate names must be non-blank" in error for error in errors))
++        self.assertTrue(any("gate names must be unique" in error for error in errors))
++
++    def test_rejects_empty_blank_and_duplicate_required_evidence_policies(self):
++        for required_evidence in ([], [" "], ["complete-xml-and-logs", "complete-xml-and-logs"]):
++            with self.subTest(required_evidence=required_evidence):
++                policy = self.mutation_policy()
++                policy["EXPECTED_MUTATION_LIVENESS"]["requiredEvidence"] = required_evidence
++                exception = self.exception()
++                exception["evidence"] = {category: ["logs/pit.log"] for category in required_evidence}
++                run = self.make_run(exception, policy)
++                errors = verify_run.verify(run)
++                self.assertIn(
++                    "accepted exception 0 has invalid requiredEvidence: EXPECTED_MUTATION_LIVENESS",
++                    errors,
++                )
++
++    def test_rejects_frozen_input_symlink_to_output_artifact(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        alias = run / "inputs/output-alias.md"
++        alias.symlink_to(run / "contract.md")
++        digest = hashlib.sha256(alias.read_bytes()).hexdigest()
++        self.update_manifest(run, inputs={"inputs/output-alias.md": digest})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs entries must resolve beneath inputs/: inputs/output-alias.md", errors)
++
++    def test_accepts_full_sha256_workspace_revisions(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(
++            run,
++            workspace={"base": "a" * 64, "head": "b" * 64, "dirty": False},
++            finalHead="b" * 64,
++        )
++        self.assertEqual(verify_run.verify(run), [])
++
++    def test_completed_manifest_example_hashes_all_evidence_paths(self):
++        reference = (
++            Path(__file__).resolve().parents[2]
++            / ".agents/skills/contract-first-assurance/references/reproducible-runs.md"
++        )
++        example = reference.read_text(encoding="utf-8").split("```json", 1)[1].split("```", 1)[0]
++        manifest = json.loads(example)
++        hashed = set(manifest["inputs"]) | set(manifest["artifacts"])
++        evidence = {
++            path
++            for exception in manifest["acceptedExceptions"]
++            for paths in exception["evidence"].values()
++            for path in paths
++        }
++        self.assertTrue(evidence <= hashed, f"unhashed example evidence: {sorted(evidence - hashed)}")
++
++    def test_rejects_unused_policy_with_invalid_allowed_raw_statuses(self):
++        for allowed_statuses in ([], [" "], ["TIMED_OUT", "TIMED_OUT"]):
++            with self.subTest(allowed_statuses=allowed_statuses):
++                policy = self.mutation_policy()
++                policy["EXPECTED_MUTATION_LIVENESS"]["allowedRawStatuses"] = allowed_statuses
++                run = self.make_run(None, policy, final_gate="PASS")
++                errors = verify_run.verify(run)
++                self.assertIn(
++                    "adapter accepted disposition EXPECTED_MUTATION_LIVENESS has invalid allowedRawStatuses",
++                    errors,
++                )
++
++    def test_rejects_symlinked_inputs_root(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        (run / "inputs/pit-audit.md").unlink()
++        (run / "inputs").rmdir()
++        (run / "inputs").symlink_to(run, target_is_directory=True)
++        digest = hashlib.sha256((run / "contract.md").read_bytes()).hexdigest()
++        self.update_manifest(run, inputs={"inputs/contract.md": digest})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs directory must not be a symbolic link", errors)
++
++    def test_rejects_malformed_unused_accepted_disposition_policy(self):
++        for required_evidence in ([], [" "], ["complete-xml-and-logs", "complete-xml-and-logs"]):
++            with self.subTest(required_evidence=required_evidence):
++                policy = self.mutation_policy()
++                policy["EXPECTED_MUTATION_LIVENESS"]["requiredEvidence"] = required_evidence
++                run = self.make_run(None, policy, final_gate="PASS")
++                errors = verify_run.verify(run)
++                self.assertIn(
++                    "adapter accepted disposition EXPECTED_MUTATION_LIVENESS has invalid requiredEvidence",
++                    errors,
++                )
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

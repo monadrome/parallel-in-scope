@@ -1,0 +1,5 @@
+candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason
+CONTRACT-TDD-008,C-2,C-0001,scripts/tests/test_c0001_wrong_policy_field.py,promotions/C0001WrongPolicyFieldContractTest.py,promoted,Rejects a policy using rawStatuses instead of allowedRawStatuses
+CONTRACT-TDD-013,C-3,C-0002,scripts/tests/test_c0002_non_object_policy.py,promotions/C0002NonObjectPolicyContractTest.py,promoted,Rejects an unused non-object accepted-disposition policy
+CONTRACT-TDD-015,C-4,C-0003,scripts/tests/test_c0003_absolute_input_path.py,promotions/C0003AbsoluteInputPathContractTest.py,promoted,Rejects an absolute frozen-input path
+CONTRACT-TDD-021,C-4,C-0004,scripts/tests/test_c0004_nested_input_symlink.py,promotions/C0004NestedInputSymlinkContractTest.py,promoted,Rejects a nested input symlink chain resolving to a root output
