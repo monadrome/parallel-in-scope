@@ -1,0 +1,219 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "self_comparing",
+      "refactoring": "Encapsulate literal spans on Source (e.g. Source#literal_end(offset) -> int | None with a docstring stating keys are offsets into `comparable` and values are exclusive end offsets, including regex-literal flags)",
+      "rules": [
+        "M07"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "`comparison_form` iterates `sorted(source.literals.items())` assuming each key is a literal start offset into `comparable`, and `self_comparing` uses `source.literals.get(start) == end` plus `source.comparable[start] == \"/\"` to recognize a regex-literal operand versus division. These invariants live only in `mask_c_like`'s implementation, not in `Source`'s declaration, so a future change to how literals are recorded would silently flip identity-assertion classification. Moving the literal-span queries onto `Source` with a stated contract keeps the knowledge where the fields are produced and makes the two callers depend on a promise instead of raw bookkeeping."
+      ],
+      "behaviorRisks": [
+        "Must preserve exact classification: a literal recorded by `mask_c_like` at offset `start` must still yield the same end offset, regex literals must still include their flags in the recorded end, and `comparable` must keep preserving literal contents verbatim while blanking comments, so `comparison_form`'s output and `self_comparing`'s operand checks are unchanged."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M07"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "check_verification_integrity#scan_typescript",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The change grew the inlined assertion-noop detection into two parallel loops (TS_ASSERT_CALL and TS_EXPECT_CALL) while test detection and selection markers stay in the same function, so one reading must hold five passes. Extracting the noop passes (e.g. `typescript_assert_noops` and `typescript_expect_noops`, or one `typescript_noops`) mirrors the existing `java_noops`/`python_noops` split and makes each V5 rule independently changeable and testable."
+      ],
+      "behaviorRisks": [
+        "Marker insertion order is not observable (final output is sorted by path, line, rule, key), but the extraction must preserve the V5 rule id, the two distinct message strings, the regex semantics, and the `close_index < 0` / arity guards exactly."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "Source#comparable",
+      "refactoring": "Rename",
+      "rules": [
+        "S01"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "`comparable` reads as an adjective or boolean, but it holds a full text-length string view with comments blanked and literal contents preserved; `literals` likewise hides that it is a start-offset-to-end-offset map. Renaming to `comparison_view` and `literal_spans` makes the offset-preserving single-pass contract in `mask_c_like` self-documenting."
+      ],
+      "behaviorRisks": [
+        "None; the tests exercise the script through its entry point and do not reference these fields, so a module-internal rename is behavior-preserving."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S01"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "check_verification_integrity#python_import_aliases",
+      "refactoring": "Rename",
+      "rules": [
+        "S01"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The function returns two distinct things, `aliases` and `wildcard_imports`, but the name describes only the first; the call site `aliases, wildcard_imports = python_import_aliases(tree)` is surprising. A name such as `python_pytest_imports` or `python_import_resolutions` reveals both results and the pytest scope."
+      ],
+      "behaviorRisks": [
+        "None; rename only, all call sites stay in the same file and tests exercise behavior through the script entry point."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S01"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TypeScriptIntegrityTest#test_typescript_non_pure_equality_calls_pass",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Seven new methods in TypeScriptIntegrityTest repeat the same loop body: build base tree, build head via TS_TEST.replace(\"assert.ok(value)\", assertion), run_check, then assert either exit 0 (four pass variants) or exit 1 with \": V5:\" in output (three fail variants). Extracting two private helpers (one pass, one fail) that take the assertion iterable makes adding a new self-comparison case a one-line data entry instead of a full method, and makes the expected verdict explicit in a single place."
+      ],
+      "behaviorRisks": [
+        "Keep each assertion input unchanged, the subTest(assertion=...) label, the exact TS_TEST.replace(\"assert.ok(value)\", assertion) substitution, and the pass verdict (exit code 0) versus fail verdict (exit code 1 plus \": V5:\" in output)."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R5"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "PythonIntegrityTest#test_imported_pytest_skip_aliases_fail",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The two new runtime-skip methods (test_imported_pytest_skip_aliases_fail and test_wildcard_pytest_runtime_skips_fail) repeat the same base/weakened/head/run_check/assert block, and together with the pre-existing test_runtime_python_skips_fail there are now three near-identical copies differing only in the import prefix, call text, and the presence of the V4 negative assertion. A helper parameterized by those three knobs removes the duplication and keeps new skip aliases a data-only addition."
+      ],
+      "behaviorRisks": [
+        "Preserve each imports/call tuple, the subTest(imports=..., call=...) label, the imports + prefix concatenation, the \"self.assertTrue(value)\" replacement target, the exit-1 plus \": V3: new runtime test skip or xfail\" assertion, and the assertNotIn(\": V4:\", out) check only where it exists today."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R6"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 6,
+    "byTier": {
+      "T0": 5,
+      "T1": 1,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

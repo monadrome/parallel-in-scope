@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-ece0c43e-20261124-145021-60c108",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T15:06:35.815Z",
+  "judge": {
+    "kind": "human",
+    "name": "kimi-code/k3.1-pro",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Java class-literal noops failed before and are detected after class-literal-aware purity scanning in 9375b334.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Mixed-quote noops failed before and are detected after delimiter normalization that preserves literal contents.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Effectful template substitutions were false positives before and now bypass V5; pure substitutions remain detected.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C04",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "TypeScript generic calls were false positives before and are excluded after type-argument-aware call detection; Java generic calls remain covered.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C05",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Local assignment and nested-function shadowing produced V3 before and now pass, while self.skipTest remains detected.",
+      "confidence": 1
+    }
+  ]
+}

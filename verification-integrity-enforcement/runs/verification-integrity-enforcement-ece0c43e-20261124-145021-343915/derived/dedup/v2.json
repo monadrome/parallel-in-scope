@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-enforcement-ece0c43e-20261124-145021-343915",
+  "version": 2,
+  "createdAt": "2026-11-24T15:06:35.579Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Fresh allocated literals keep identity semantics through TypeScript type and non-null suffixes."
+    }
+  ]
+}

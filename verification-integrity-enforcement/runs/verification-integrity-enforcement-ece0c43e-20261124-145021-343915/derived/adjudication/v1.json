@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-ece0c43e-20261124-145021-343915",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T15:06:35.603Z",
+  "judge": {
+    "kind": "human",
+    "name": "kimi-code/k3.1-pro",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "as const, satisfies, and non-null identity cases failed before and pass after suffix-aware whole-literal matching in 9375b334.",
+      "confidence": 1
+    }
+  ]
+}

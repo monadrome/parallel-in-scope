@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-enforcement-ece0c43e-20261124-145021-60c108",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T14:50:22.070Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "ece0c43eeaa80b9d385176f151ff52354ba3e8e8",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "to": "ece0c43eeaa80b9d385176f151ff52354ba3e8e8",
+    "label": "06efaae4..ece0c43e"
+  },
+  "objective": {
+    "subject": "refactor: name comparison and pytest import views",
+    "body": "R3/R4: behavior-preserving renames guarded by JavaIntegrityTest, TypeScriptIntegrityTest, and PythonIntegrityTest.\n\nMUST: Preserve all comparison and pytest suppression outcomes.\n\nMUST NOT: Change test inputs, assertions, or scanner control flow."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "b5d44d66f3d2523d014a59c35699665acd431d136f656cd5c74c22fa19997680",
+    "bytes": 31698,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 6
+      },
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 130,
+        "deletions": 21
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 173,
+        "deletions": 2
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "07a97f06ef1cc558a96fde2f2e5e02505a10218f7da45bbfc69fc0f72b6f523f",
+    "bytes": 1986,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "ece0c43eeaa80b9d385176f151ff52354ba3e8e8",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
