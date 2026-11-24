@@ -31,8 +31,8 @@ All detectors completed in the first attempt with an unmodified snapshot.
 
 - Spotless: skipped; no Java source changed in this refactor.
 - Targeted integrity and baseline tests: pass, 56 tests.
-- Full `mvn test` on JDK 25: pending final rerun.
-- Full script discovery: pending final rerun.
+- Full `mvn test` on JDK 25: pass.
+- Full script discovery: pass, 472 tests.
 - Documentation references and local links: pass.
 - Verification integrity against `origin/dev/v0.5.0`: pass; three protected changes reported.
 - `check-race-claims.py`: skipped; no T1 concurrency item.

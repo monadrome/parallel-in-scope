@@ -1,0 +1,304 @@
+diff --git a/scripts/check-verification-integrity.py b/scripts/check-verification-integrity.py
+index c5cd9ea4..aa127d88 100644
+--- a/scripts/check-verification-integrity.py
++++ b/scripts/check-verification-integrity.py
+@@ -163,19 +163,22 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
+     out: list[str] = []
+     comparison_view_out: list[str] = []
+     literal_spans: dict[int, int] = {}
++
++    def append_both(segment: str) -> None:
++        out.append(segment)
++        comparison_view_out.append(segment)
++
+     i, n = 0, len(text)
+     while i < n:
+         if text.startswith("//", i):
+             end = text.find("\n", i)
+             end = n if end < 0 else end
+-            out.append(blank(text[i:end]))
+-            comparison_view_out.append(blank(text[i:end]))
++            append_both(blank(text[i:end]))
+             i = end
+         elif text.startswith("/*", i):
+             end = text.find("*/", i + 2)
+             end = n if end < 0 else end + 2
+-            out.append(blank(text[i:end]))
+-            comparison_view_out.append(blank(text[i:end]))
++            append_both(blank(text[i:end]))
+             i = end
+         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
+             close, end = span
+@@ -200,8 +203,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
+             comparison_view_out.append(text[i:end])
+             i = end
+         else:
+-            out.append(text[i])
+-            comparison_view_out.append(text[i])
++            append_both(text[i])
+             i += 1
+     code = "".join(out)
+     comparison_view = "".join(comparison_view_out)
+@@ -252,7 +254,7 @@ def comparison_span(source: Source, start: int, end: int) -> tuple[int, int]:
+     return start, end
+ 
+ 
+-def comparison_form(source: Source, start: int, end: int) -> str:
++def comparison_form(source: Source, start: int, end: int, javascript: bool = False) -> str:
+     start, end = comparison_span(source, start, end)
+     parts = []
+     cursor = start
+@@ -262,16 +264,41 @@ def comparison_form(source: Source, start: int, end: int) -> str:
+         if literal_start >= end:
+             break
+         parts.append(normalize(source.comparison_view[cursor:literal_start]))
+-        parts.append(source.comparison_view[literal_start:literal_end])
++        literal = source.comparison_view[literal_start:literal_end]
++        if javascript and literal[:1] in {"'", '"', "`"} and literal[-1:] == literal[:1]:
++            literal = literal[1:-1]
++        parts.append(literal)
+         cursor = literal_end
+     parts.append(normalize(source.comparison_view[cursor:end]))
+     return "".join(parts)
+ 
+ 
+ C_LIKE_SIDE_EFFECT = re.compile(r"\b(?:new|delete|yield|await|function|class)\b|=>|->|\+\+|--|::")
+-C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?\s*\(|\)\s*\(")
++C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?(?:\s*<[^<>()]*>)?\s*\(|\)\s*\(")
+ C_LIKE_ASSIGNMENT = re.compile(r"(?<![=!<>])(?:\+|-|\*|/|%|&|\||\^|>>>|>>|<<)?=(?!=|>)")
+ TAGGED_TEMPLATE = re.compile(r"[\w$)\]]\s*`")
++TEMPLATE_SUBSTITUTION = re.compile(r"\$\{(.*?)\}", re.DOTALL)
++TS_IDENTITY_SUFFIX = re.compile(r"!+|(?:as|satisfies)\s+[\w$.,<>\[\]\s|&-]+")
++
++
++def c_like_side_effect(code: str) -> bool:
++    without_class_literals = re.sub(r"\.\s*class\b", "", code)
++    return bool(
++        C_LIKE_SIDE_EFFECT.search(without_class_literals)
++        or C_LIKE_CALL.search(code)
++        or C_LIKE_ASSIGNMENT.search(code)
++    )
++
++
++def template_side_effect(source: Source, start: int, end: int) -> bool:
++    for literal_start, literal_end in source.literal_spans.items():
++        if literal_start < start or literal_end > end or source.comparison_view[literal_start] != "`":
++            continue
++        template = source.comparison_view[literal_start:literal_end]
++        for match in TEMPLATE_SUBSTITUTION.finditer(template):
++            if c_like_side_effect(mask_c_like(match[1], javascript=True).code):
++                return True
++    return False
+ 
+ 
+ def self_comparing(
+@@ -281,20 +308,23 @@ def self_comparing(
+     javascript: bool,
+     by_identity: bool,
+ ) -> bool:
+-    if comparison_form(source, *left_span) != comparison_form(source, *right_span):
++    if comparison_form(source, *left_span, javascript=javascript) != comparison_form(source, *right_span, javascript=javascript):
+         return False
+     start, end = comparison_span(source, *left_span)
+     if start == end:
+         return False
+     operand = source.code[start:end]
+-    if C_LIKE_SIDE_EFFECT.search(operand) or C_LIKE_CALL.search(operand) or C_LIKE_ASSIGNMENT.search(operand):
++    if c_like_side_effect(operand):
+         return False
+-    if javascript and TAGGED_TEMPLATE.search(source.code[start:end]):
++    if javascript and (TAGGED_TEMPLATE.search(operand) or template_side_effect(source, start, end)):
+         return False
+     if by_identity and javascript:
+         opening = source.comparison_view[start]
+-        if opening in "{[" and matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]") == end - 1:
+-            return False
++        if opening in "{[":
++            close = matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]")
++            suffix = normalize(source.comparison_view[close + 1:end]) if close >= 0 else ""
++            if close >= 0 and (not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix)):
++                return False
+         if source.comparison_view[start] == "/" and source.literal_spans.get(start) == end:
+             return False
+     return True
+@@ -462,6 +492,52 @@ def python_resolved_name(node: ast.AST, aliases: dict[str, str], wildcard_import
+     return aliases.get(head, head) + separator + tail
+ 
+ 
++def python_function_bindings(function: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
++    arguments = function.args
++    names = {
++        argument.arg
++        for argument in (*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs)
++    }
++    names.update(argument.arg for argument in (arguments.vararg, arguments.kwarg) if argument is not None)
++
++    def collect(node: ast.AST) -> None:
++        for child in ast.iter_child_nodes(node):
++            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
++                names.add(child.name)
++                continue
++            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
++                names.add(child.id)
++            elif isinstance(child, (ast.Import, ast.ImportFrom)):
++                for alias in child.names:
++                    module = child.module if isinstance(child, ast.ImportFrom) else alias.name
++                    if alias.name != "*" and (module is None or (module != "pytest" and not module.startswith("pytest."))):
++                        names.add(alias.asname or alias.name.split(".")[0])
++            elif isinstance(child, ast.ExceptHandler) and child.name:
++                names.add(child.name)
++            collect(child)
++
++    collect(function)
++    return names
++
++
++def python_shadowed_calls(tree: ast.AST, aliases: dict[str, str]) -> set[int]:
++    shadowed: set[int] = set()
++
++    def visit(node: ast.AST, scopes: list[set[str]]) -> None:
++        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
++            scopes = [*scopes, python_function_bindings(node)]
++        if isinstance(node, ast.Call):
++            head = dotted_name(node.func).partition(".")[0]
++            if head in aliases or head in PYTEST_WILDCARD_NAMES or head == "pytest":
++                if any(head in scope for scope in scopes):
++                    shadowed.add(id(node))
++        for child in ast.iter_child_nodes(node):
++            visit(child, scopes)
++
++    visit(tree, [])
++    return shadowed
++
++
+ PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
+ PYTEST_WILDCARD_NAMES = PYTHON_DISABLED | {"importorskip", "mark"}
+ PYTHON_RUNTIME_DISABLED = {
+@@ -526,6 +602,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
+ 
+     visit(tree)
+     aliases, wildcard_imports = python_pytest_imports(tree)
++    shadowed_calls = python_shadowed_calls(tree, aliases)
+     markers = list(python_noops(tree, path, text))
+     decorator_calls: set[int] = set()
+     for node in ast.walk(tree):
+@@ -540,7 +617,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
+                 segment = ast.get_source_segment(text, decorator) or name
+                 markers.append(Violation(path, decorator.lineno, "V3", "new skip, expected-failure, or xfail decorator", normalize(segment)))
+     for node in ast.walk(tree):
+-        if not isinstance(node, ast.Call) or id(node) in decorator_calls:
++        if not isinstance(node, ast.Call) or id(node) in decorator_calls or id(node) in shadowed_calls:
+             continue
+         name = python_resolved_name(node.func, aliases, wildcard_imports)
+         if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
+diff --git a/scripts/tests/test_check_verification_integrity.py b/scripts/tests/test_check_verification_integrity.py
+index ab147bc4..ee07a6bc 100644
+--- a/scripts/tests/test_check_verification_integrity.py
++++ b/scripts/tests/test_check_verification_integrity.py
+@@ -180,6 +180,8 @@ class JavaIntegrityTest(TreeTest):
+             "assertEquals(value, value, \"message\")",
+             "assertSame(value, value, \"message\")",
+             "assertEquals(value, /* copied value */ value)",
++            "assertEquals(String.class, String.class)",
++            "assertSame(String.class, String.class)",
+             "assertThat(true).isTrue()",
+         ):
+             with self.subTest(replacement=replacement):
+@@ -215,6 +217,7 @@ class JavaIntegrityTest(TreeTest):
+             "assertSame(compute(), compute())",
+             "assertEquals(obj.getValue(), obj.getValue())",
+             "assertEquals(value++, value++)",
++            "assertEquals(factory.<String>create(), factory.<String>create())",
+         ):
+             with self.subTest(assertion=assertion):
+                 base = self.tree("base", {JAVA_PATH: JAVA_TEST})
+@@ -328,6 +331,28 @@ class PythonIntegrityTest(TreeTest):
+                 self.assertEqual(code, 1)
+                 self.assertIn(": V3: new runtime test skip or xfail", out)
+ 
++    def test_function_local_pytest_alias_fails(self):
++        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
++        changed = PYTHON_TEST.replace(
++            "self.assertTrue(value)",
++            "from pytest import skip as suppress\n        suppress('reason')\n        self.assertTrue(value)",
++        )
++        head = self.tree("head", {PYTHON_PATH: changed})
++        code, out, _ = self.run_check(base, head)
++        self.assertEqual(code, 1)
++        self.assertIn(": V3: new runtime test skip or xfail", out)
++
++    def test_local_pytest_alias_shadowing_passes(self):
++        for binding in ("suppress = str", "def suppress(value):\n            return value"):
++            with self.subTest(binding=binding):
++                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
++                changed = "from pytest import skip as suppress\n" + PYTHON_TEST.replace(
++                    "self.assertTrue(value)",
++                    f"{binding}\n        suppress('ordinary')\n        self.assertTrue(value)",
++                )
++                head = self.tree("head", {PYTHON_PATH: changed})
++                self.assertEqual(self.run_check(base, head)[0], 0)
++
+     def test_parametrized_pytest_skip_mark_fails(self):
+         base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+         decorated = PYTHON_TEST.replace(
+@@ -467,6 +492,8 @@ class TypeScriptIntegrityTest(TreeTest):
+             "assert.deepEqual(obj.getValue(), obj.getValue())",
+             "expect(value++).toBe(value++)",
+             "expect(value = 1).toBe(value = 1)",
++            "expect(`${Math.random()}`).toBe(`${Math.random()}`)",
++            "expect(factory.create<string>()).toBe(factory.create<string>())",
+         ):
+             with self.subTest(assertion=assertion):
+                 base = self.tree("base", {TS_PATH: TS_TEST})
+@@ -481,6 +508,9 @@ class TypeScriptIntegrityTest(TreeTest):
+             "assert.strictEqual({}, {})",
+             "assert.strictEqual(/a/, /a/)",
+             "assert.equal([1], [1])",
++            "assert.strictEqual([1] as const, [1] as const)",
++            "expect({a: 1} satisfies Foo).toBe({a: 1} satisfies Foo)",
++            "expect([1]!).toBe([1]!)",
+         ):
+             with self.subTest(assertion=assertion):
+                 base = self.tree("base", {TS_PATH: TS_TEST})
+@@ -495,6 +525,9 @@ class TypeScriptIntegrityTest(TreeTest):
+             "expect(`value`).toBe(`value`)",
+             "assert.strictEqual([1].length, [1].length)",
+             "assert.strictEqual({a: 1}.a, {a: 1}.a)",
++            "assert.strictEqual(\"value\", 'value')",
++            "expect(\"value\").toEqual('value')",
++            "expect(`${value}`).toBe(`${value}`)",
+         ):
+             with self.subTest(assertion=assertion):
+                 base = self.tree("base", {TS_PATH: TS_TEST})
+diff --git a/verification/verification-integrity.md b/verification/verification-integrity.md
+index 869b5038..ee9a6f40 100644
+--- a/verification/verification-integrity.md
++++ b/verification/verification-integrity.md
+@@ -20,13 +20,20 @@ The gate scans Java tests under every `src/test` directory, Python
+ | V5 constant assertion | The head adds a constant-true/false or self-comparing assertion, including self-comparisons with trailing message or delta arguments. Existing occurrences are grandfathered by baseline subtraction. |
+ | V6 owner-protection loss | A required `.github/CODEOWNERS` entry is absent or no longer contains `@monadrome`, a later matching rule removes that owner's effective coverage of a protected file (including an ownerless rule), or the file reaches GitHub's 3 MB loading limit. This rule has no exception mechanism. |
+ 
+-V5 ignores self-comparison text containing calls, assignments, construction,
+-updates, or other potentially side-effecting expressions. JavaScript identity
+-matchers do not treat whole newly allocated objects, arrays, or regular
+-expressions as the same reference; member expressions remain comparable, and
+-deep-equality matchers still reject structural self-comparisons. Literal
+-contents, including internal whitespace, remain significant when comparing
+-operands. A trailing TypeScript argument comma does not add an operand.
++V3 resolves pytest aliases only while the imported name is not shadowed by a
++function-local binding, and retains every wildcard import source.
++
++V5 ignores self-comparison text containing calls (including type arguments),
++assignments, construction, updates, or other potentially side-effecting
++expressions. Calls inside template substitutions count as side effects; Java
++class literals do not. JavaScript string delimiters do not make otherwise
++identical literal contents distinct. JavaScript identity matchers do not treat
++whole newly allocated objects, arrays, or regular expressions as the same
++reference, including literals with a TypeScript type/non-null suffix; member
++expressions remain comparable, and deep-equality matchers still reject
++structural self-comparisons. Literal contents, including internal whitespace,
++remain significant when comparing operands. A trailing TypeScript argument
++comma does not add an operand.
+ 
+ Java assertions are `assertXxx`, `fail`, and Mockito `verify` calls. Python uses
+ the AST to count `assert` statements, `assertXxx` calls, and `pytest.raises` or

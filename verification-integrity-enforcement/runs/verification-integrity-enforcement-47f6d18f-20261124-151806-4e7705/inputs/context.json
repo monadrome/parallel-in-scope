@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-enforcement-47f6d18f-20261124-151806-4e7705",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T15:18:08.945Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "to": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "label": "06efaae4..47f6d18f"
+  },
+  "objective": {
+    "subject": "refactor: synchronize masked view appends",
+    "body": "R2: behavior-preserving append pairing guarded by JavaIntegrityTest and TypeScriptIntegrityTest.\n\nMUST: Preserve byte lengths, offsets, and contents of both source views.\n\nMUST NOT: Change test inputs, assertions, or literal handling."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "0149ebbac06ad57b659db9508e5b32ece530a826380dbd15803203ed83bcf01c",
+    "bytes": 37620,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 6
+      },
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 211,
+        "deletions": 25
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 206,
+        "deletions": 2
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "M",
+        "additions": 15,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "9e9bfdad5106879261ffb19fe26652cdacd6d75ba8b410011127ccbfc9578726",
+    "bytes": 2294,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

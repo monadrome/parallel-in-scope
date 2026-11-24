@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-enforcement-47f6d18f-20261124-152611-667305",
+  "version": 2,
+  "createdAt": "2026-11-24T15:37:10.745Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Later pytest imports override earlier local bindings."
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": "Nested template substitutions need balanced extraction."
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": "Regex literals retain identity through type/non-null suffixes."
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "codex:3"
+      ],
+      "note": "Computed property calls can have side effects."
+    },
+    {
+      "clusterId": "C05",
+      "findingIds": [
+        "codex:4"
+      ],
+      "note": "Decorator aliases honor local shadowing."
+    }
+  ]
+}

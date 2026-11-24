@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-47f6d18f-20261124-152611-667305",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T15:37:10.781Z",
+  "judge": {
+    "kind": "human",
+    "name": "kimi-code/k3.1-pro",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Helper-then-pytest local imports were missed before ordered binding updates in 08b8df42.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Nested object and string-brace substitutions now scan complete expressions.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Regex non-null and as-RegExp identity cases failed before suffix-aware literal handling.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C04",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "registry[name]() and optional computed calls were false V5 positives before computed-call detection.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C05",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Bare and called local decorator aliases were false V3 positives before shadowed-reference filtering.",
+      "confidence": 1
+    }
+  ]
+}

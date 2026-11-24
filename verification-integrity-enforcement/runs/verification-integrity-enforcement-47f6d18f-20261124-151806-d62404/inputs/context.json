@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-enforcement-47f6d18f-20261124-151806-d62404",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T15:18:08.955Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "ece0c43eeaa80b9d385176f151ff52354ba3e8e8",
+    "head": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "ece0c43eeaa80b9d385176f151ff52354ba3e8e8",
+    "to": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "label": "ece0c43e..47f6d18f"
+  },
+  "objective": {
+    "subject": "refactor: synchronize masked view appends",
+    "body": "R2: behavior-preserving append pairing guarded by JavaIntegrityTest and TypeScriptIntegrityTest.\n\nMUST: Preserve byte lengths, offsets, and contents of both source views.\n\nMUST NOT: Change test inputs, assertions, or literal handling."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "f4d0107f751247a133dac2827c6d9d7f6d5a5b64abc35f55364abd792b1df39a",
+    "bytes": 15727,
+    "files": [
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 92,
+        "deletions": 15
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 33,
+        "deletions": 0
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "M",
+        "additions": 14,
+        "deletions": 7
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "9c6b142535d538b7089174c2b77646980ff2e45839cde79e14ae165f652a130e",
+    "bytes": 1187,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

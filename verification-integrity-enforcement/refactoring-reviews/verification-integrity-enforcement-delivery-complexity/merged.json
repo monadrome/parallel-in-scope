@@ -1,0 +1,190 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "check_verification_integrity#scan_typescript",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "scan_typescript now mixes test discovery, selection markers, assertion noops, and the new expect-chain noop scan in one reading. Extracting the TS_EXPECT_CALL loop into a typescript_expect_noops generator keeps one step per function and makes the expect grammar independently testable."
+      ],
+      "behaviorRisks": [
+        "must preserve marker emission order (expect markers appended after the assert markers, before the TestFile return) and the exact message 'new constant or self-comparing expect assertion'"
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "check_verification_integrity#mask_c_like",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S03"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "mask_c_like builds code and comparison_view in lockstep; the comment and code branches append identical content to both lists, so a future token type must remember to update both. A local append-both helper reduces the chance of updating only one view, which the length guard catches only at runtime."
+      ],
+      "behaviorRisks": [
+        "none; both views must stay byte-identical in length and offsets, already verified by the length guard"
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S03"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TypeScriptIntegrityTest#test_typescript_non_pure_equality_calls_pass",
+      "refactoring": "Extract Function into a test helper, e.g. _assert_typescript_assertion_passes(assertion)",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Four new pass-case tests (test_typescript_different_expect_values_pass, test_typescript_different_literal_whitespace_passes, test_typescript_non_pure_equality_calls_pass, test_typescript_identity_assertions_with_allocated_literals_pass) repeat the identical body: build base/head trees from TS_TEST.replace(\"assert.ok(value)\", assertion), run_check, and assert exit code 0. Extracting the body leaves each test owning only its data tuple, so a new pass case is a one-line entry instead of a full method."
+      ],
+      "behaviorRisks": [
+        "Each subTest must keep its exact assertion string, the identical base/head tree construction, and the assertEqual(code, 0) check."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TypeScriptIntegrityTest#test_typescript_template_and_member_self_comparisons_fail",
+      "refactoring": "Extract Function into a test helper, e.g. _assert_typescript_assertion_fails(assertion)",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Three new fail-case tests (test_typescript_template_and_member_self_comparisons_fail, test_typescript_expect_trailing_commas_fail, test_typescript_deep_equality_and_pure_operands_fail) repeat the identical body: build trees, run_check, assert exit code 1 and \": V5:\" in output. Extracting the body makes each test a data-only entry and keeps the V5 assertion defined once."
+      ],
+      "behaviorRisks": [
+        "Each subTest must keep its exact assertion string and the identical assertEqual(code, 1) plus assertIn(\": V5:\", out) checks."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "PythonIntegrityTest#test_imported_pytest_skip_aliases_fail",
+      "refactoring": "Extract Function into a test helper, e.g. _assert_python_runtime_skip_fails(imports, call, expect_not_v4=False)",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The change adds the second and third copies of the runtime-skip fail body: test_imported_pytest_skip_aliases_fail and test_wildcard_pytest_runtime_skips_fail repeat test_runtime_python_skips_fail's build-trees/run_check/assert-code-1/assertIn-V3 body, differing only in inputs and whether assertNotIn(\": V4:\", out) is asserted. A helper with an optional V4 flag removes the triplicated body and makes the V3/V4 contract live in one place."
+      ],
+      "behaviorRisks": [
+        "Keep the exact imports/call strings and preserve per-test assertions, including assertNotIn(\": V4:\", out) only where it currently appears (test_runtime_python_skips_fail and test_imported_pytest_skip_aliases_fail)."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R5"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 5,
+    "byTier": {
+      "T0": 5,
+      "T1": 0,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

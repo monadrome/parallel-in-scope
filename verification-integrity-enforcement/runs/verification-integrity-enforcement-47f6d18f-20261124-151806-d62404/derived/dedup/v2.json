@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-enforcement-47f6d18f-20261124-151806-d62404",
+  "version": 2,
+  "createdAt": "2026-11-24T15:37:03.905Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Template substitutions require balanced, literal-aware extraction."
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": "Comprehension targets do not leak into function scope."
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": "Boolean operators are not TypeScript type suffixes."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-47f6d18f-20261124-151806-d62404",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T15:37:03.939Z",
+  "judge": {
+    "kind": "human",
+    "name": "kimi-code/k3.1-pro",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Nested-object and string-brace template calls were false V5 positives before balanced extraction in 08b8df42.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "A comprehension target named skip hid pytest.skip before comprehension-scope handling in 08b8df42.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "|| and && suffix expressions bypassed V5 before the suffix guard in 08b8df42.",
+      "confidence": 1
+    }
+  ]
+}
