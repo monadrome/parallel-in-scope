@@ -1,0 +1,310 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-23-hidden-contract-regression",
+  "date": "2026-11-23",
+  "topic": "hidden-contract-regression",
+  "routes": [
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kimi",
+    "model": "kimi-code/k3.1-pro"
+  },
+  "change": {
+    "commits": [
+      "feat: persist assurance contract regressions",
+      "refactor: rename assurance run verifier tests",
+      "fix: reject hollow contract regression classes",
+      "fix: verify promoted contract test evidence",
+      "test: record reviewed verifier test rename",
+      "fix: bind promotion evidence to sealed candidates",
+      "fix: seal contract promotion destinations"
+    ],
+    "files": 21,
+    "insertions": 1024,
+    "deletions": 35
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "hidden-contract-regression-cad34059-20261123-095358-311496",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 2,
+            "durationMs": 1709512,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "hidden-contract-regression-a6214b44-20261123-150107-16afa3",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 1398228,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "hidden-contract-regression-a6214b44-20261123-152612-6444e8",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 894571,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "hidden-contract-regression-2cf9df18-20261124-012349-829543",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 992195,
+            "findings": {
+              "total": 4,
+              "adjudicated": 4,
+              "confirmed": 4,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 4,
+          "adjudicated": 4,
+          "confirmed": 4,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "hidden-contract-regression-7df3a3b2-20261124-015503-c455b8",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 842313,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-hidden-contract-regression-2026-11-23",
+        "head": "c495b6ccb020a9b092d04701b9fa2007af48902f",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "reverted"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "T05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "python3 -m unittest discover -s scripts -t scripts": 2,
+      "python3 -m unittest scripts.tests.test_check_contract_tests scripts.tests.test_verify_run": 3,
+      "mvn -Pcontract-tests hidden clean test": 1,
+      "python3 scripts/check-verification-integrity.py": 1,
+      "contract-first-assurance verify_run": 1,
+      "consumer-jdk11 container mount": 2,
+      "refactoring-review.py detect": 1,
+      "refactoring-review.py verify": 1
+    }
+  },
+  "pit": [
+    {
+      "source": ".contract-first-assurance/2026-11-23-hidden-contract-regression-final2/reverse-verification/taskid-pit-mutations.xml",
+      "statuses": {
+        "KILLED": 7,
+        "SURVIVED": 1
+      },
+      "total": 8,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "assurance required after Kiro rejected skip; three Kiro rounds confirmed nine findings, all fixed; JDK 11 verified in container; TaskId hashCode survivor is equivalent"
+}
