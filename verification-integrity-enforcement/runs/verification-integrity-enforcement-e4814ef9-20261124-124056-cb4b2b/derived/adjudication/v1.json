@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T14:42:19.876Z",
+  "judge": {
+    "kind": "human",
+    "name": "kimi-code/k3.1-pro",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Reproduced plain-template and string-content bypasses; masked-code tag detection fixes them with regressions in 42586e6a.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Reproduced member-expression bypasses; complete-delimiter checks restore V5 while whole allocated literals remain exempt.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "One-line and multiline trailing-comma expect cases failed before filtering empty argument spans and pass after 42586e6a.",
+      "confidence": 1
+    }
+  ]
+}

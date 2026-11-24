@@ -1,0 +1,163 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "normalize_comparison",
+      "refactoring": "Encapsulate invariant: iterate sorted(source.literals.items()), or state the ascending-offset order on Source.literals in mask_c_like/Source",
+      "rules": [
+        "M07"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "normalize_comparison rebuilds a string by slicing source.comparable between literal spans in the order source.literals is iterated. Correct output depends on mask_c_like inserting literal spans in ascending source-offset order, but Source.literals (dict[int, int]) does not promise that order. Sorting the spans makes the helper self-contained and immune to a future refactor of mask_c_like that builds the map out of order."
+      ],
+      "behaviorRisks": [
+        "Sorting the keys yields the identical ascending sequence mask_c_like currently produces, so comparable argument strings are unchanged; all V5 self-comparison outcomes stay the same."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M07"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "scan_typescript",
+      "refactoring": "Extract Function (typescript_expect_noops)",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The change adds an ~11-line expect-chain noop scan inline, so scan_typescript now interleaves test discovery, selection scans, and two distinct V5 scans. Extracting the new loop into a helper mirrors java_noops and makes the function a named sequence of steps, each independently testable."
+      ],
+      "behaviorRisks": [
+        "Preserve marker ordering (expect markers appended after assertion and selection markers), the exact rule 'V5' and message 'new constant or self-comparing expect assertion', and the violation offsets passed to violation()."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "self_comparing",
+      "refactoring": "Remove Dead Code (collapse the redundant two-operand loop to a single pass over left)",
+      "rules": [
+        "S06"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "After the guard 'if not left or left != right: return False' both operands are provably identical, so 'for operand in (left, right)' runs the same pure checks twice over the same string. A single pass over left is equivalent and avoids double mask/regex work, making the equality precondition explicit."
+      ],
+      "behaviorRisks": [
+        "None; the loop body is pure and left == right after the guard, so checking left once returns the same boolean."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S06"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TypeScriptIntegrityTest#test_typescript_different_expect_values_pass",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "test_typescript_different_expect_values_pass, test_typescript_different_literal_whitespace_passes, test_typescript_non_pure_equality_calls_pass, and test_typescript_identity_assertions_with_allocated_literals_pass all repeat the same body (base = self.tree(\"base\", {TS_PATH: TS_TEST}); head = self.tree(\"head\", {TS_PATH: TS_TEST.replace(\"assert.ok(value)\", assertion)}); assertEqual(run_check(base, head)[0], 0)). A private helper such as _assert_typescript_replacements_pass(self, assertions) makes each test a one-line call over its assertion tuple, so adding or correcting a pass-case only touches one place."
+      ],
+      "behaviorRisks": [
+        "The helper must preserve each test's exact inputs (the TS_TEST template and per-assertion replacement), the subTest(assertion=...) label, and the single assertEqual(run_check(base, head)[0], 0) assertion; no assertion, input, or timing may change."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 4,
+    "byTier": {
+      "T0": 3,
+      "T1": 1,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

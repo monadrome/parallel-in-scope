@@ -1,0 +1,9 @@
+5aef14d5 fix: respect equality semantics in noop scans
+8afa3129 fix: resolve wildcard pytest suppression imports
+87be1a7c fix: preserve literal whitespace in comparisons
+7b288f07 fix: resolve pytest suppression decorator aliases
+e0bd5bb8 refactor: restore inline typescript noop scanners
+413aa468 docs: require three model types for full reviews
+656cc677 refactor: separate typescript noop scanners
+8e1121b8 fix: close remaining verification integrity bypasses
+610aba30 docs: record verification integrity assurance skip

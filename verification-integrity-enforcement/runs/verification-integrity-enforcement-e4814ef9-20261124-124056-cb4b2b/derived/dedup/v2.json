@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b",
+  "version": 2,
+  "createdAt": "2026-11-24T14:42:19.854Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Tagged-template detection must use masked code rather than literal contents."
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": "Whole allocated identity literals differ from member expressions on those literals."
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": "Trailing TypeScript commas do not add expect operands."
+    }
+  ]
+}

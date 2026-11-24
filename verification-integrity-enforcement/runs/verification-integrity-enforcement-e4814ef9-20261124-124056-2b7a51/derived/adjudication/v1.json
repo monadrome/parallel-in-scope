@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-2b7a51",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T14:42:19.744Z",
+  "judge": {
+    "kind": "human",
+    "name": "kimi-code/k3.1-pro",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Plain template and backtick-in-string regressions failed before the fix and pass after masked-code tag detection in 42586e6a.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Array/object member self-comparisons failed before the fix; matching the complete outer literal restores V5 detection in 42586e6a.",
+      "confidence": 1
+    }
+  ]
+}

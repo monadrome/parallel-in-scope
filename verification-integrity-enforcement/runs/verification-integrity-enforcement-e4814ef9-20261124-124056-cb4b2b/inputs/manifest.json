@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T12:40:58.247Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "e4814ef939f7596316aab6c44cf3e12d2f112316",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "to": "e4814ef939f7596316aab6c44cf3e12d2f112316",
+    "label": "06efaae4..e4814ef9"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "fcc0a1f8452cdb22e02645ebada9449dc5d9ff01c3006e98a2558ff65b7767f1",
+    "bytes": 29336,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 6
+      },
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 122,
+        "deletions": 20
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 143,
+        "deletions": 2
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "76b7893f0ce8717a55833a1498320f98f439dc8a99d3aba98cb2b1a2cc1da0ff",
+    "bytes": 2761,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "f0c63b4448c24fc7ea8f5733820a1005b3797888a3b278b3fdbb425c554fc960",
+    "bytes": 2539
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "e4814ef939f7596316aab6c44cf3e12d2f112316",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

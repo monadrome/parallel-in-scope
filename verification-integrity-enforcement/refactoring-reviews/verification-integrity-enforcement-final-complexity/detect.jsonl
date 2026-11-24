@@ -1,0 +1,8 @@
+{"agent": "M", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 283, "findings": null, "progress": "agents/M/attempt-1.progress.jsonl"}
+{"agent": "D", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 135, "findings": 0, "progress": "agents/D/attempt-1.progress.jsonl"}
+{"agent": "S", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 225, "findings": 3, "progress": "agents/S/attempt-1.progress.jsonl"}
+{"agent": "T", "reviewer": "codex", "attempt": 1, "status": "snapshot-modified", "seconds": 219, "findings": 2, "progress": "agents/T/attempt-1.progress.jsonl"}
+{"agent": "M", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 356, "findings": 1, "progress": "agents/M/attempt-2.progress.jsonl"}
+{"agent": "D", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 106, "findings": 0, "progress": "agents/D/attempt-2.progress.jsonl"}
+{"agent": "S", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 350, "findings": 2, "progress": "agents/S/attempt-2.progress.jsonl"}
+{"agent": "T", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 342, "findings": 1, "progress": "agents/T/attempt-2.progress.jsonl"}

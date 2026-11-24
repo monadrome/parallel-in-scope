@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-24T12:40:58.435Z",
+  "endedAt": "2026-11-24T12:50:40.173Z",
+  "durationMs": 581046,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek-flash",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 06efaae43c0f343efc6e2bb6c289b907b218b9be to e4814ef939f7596316aab6c44cf3e12d2f112316. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 5 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Verification-integrity final review through equality semantics\n\nRead the complete `06efaae43c0f343efc6e2bb6c289b907b218b9be..e4814ef939f7596316aab6c44cf3e12d2f112316` diff and every changed file read-only. This remediates the original assurance skip rejection, verification-gate bypasses and false positives, and adds the maintainer-directed three-model review rule.\n\nSettled findings from earlier review and assurance:\n1. GitHub required-check and code-owner enforcement is tracked separately; do not re-report missing server settings in this repository diff.\n2. Imported pytest skip/xfail runtime aliases and renamed decorators bypassed V3; alias resolution and before-failing regressions were added.\n3. Java and TypeScript comments bypassed self-comparison detection; comment-free comparison views and regressions were added.\n4. TypeScript nonliteral expect self-comparisons bypassed V5; `toBe`, `toEqual`, and `toStrictEqual` are covered.\n5. Distinct string/regex literals with different internal whitespace were false V5 positives. `87be1a7c` records literal spans and normalizes only code outside them; six subcases failed before and pass after the fix.\n6. Wildcard pytest runtime suppressions bypassed V3. `8afa3129` resolves known names imported from pytest and pytest.mark; five subcases failed before and pass after the fix.\n7. Repeated non-pure calls were false self-comparisons, and `toBe`/`strictEqual` wrongly treated allocated object/array/regex literals as identities. `5aef14d5` restricts comparisons to side-effect-free operands, separates identity from deep equality, and handles redundant outer parentheses. Negative cases failed before and pass after; pure and deep-equality noops remain detected.\n\nRefactoring R3 and R6 were withdrawn and their net diff is zero. The final refactoring detector produced four findings: literal spans are now sorted and only one normalized operand is checked in `e4814ef9`; scanner extraction and test-helper extraction were rejected for the documented growth and V4-attribution reasons. Its verification passed with no oracle edits and growth ratio 0.2055. The stale ledger assurance note is scheduled for correction after the required final assurance run; do not treat that known metadata correction as a new code defect.\n\nAttack surfaces: decorator/runtime/wildcard alias correctness; literal/comment/regex offsets and exact contents; side-effect detection; identity versus deep equality; expect-chain parsing; V3/V4/V5 baseline subtraction; three-model review contract consistency; test quality and behavior preservation. Verify the settled fixes and look beyond them for concrete new defects. Return at most five findings with triggers and observable consequences, or an empty findings list promptly.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 175228,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the full 06efaae4..e4814ef9 range, re-ran the new comparison helpers against adversarial TypeScript inputs, and verified the settled alias/comment/literal fixes. The pytest alias work and literal-span/comment handling look correct, but the new V5 exemptions and expect scanner still leave concrete bypasses: two regressions versus the parent revision and one hole in the newly added expect coverage.",
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 274,
+      "lineEnd": 293,
+      "title": "TAGGED_TEMPLATE matches closing backticks and strings, reopening V5 bypasses",
+      "trigger": "A head test adds `assert.strictEqual(`a`, `a`)`, `assert.deepStrictEqual(`a`, `a`)`, `assert.strictEqual(`abc`.length, `abc`.length)`, or `assert.strictEqual(\"a`\", \"a`\")`: every operand contains a backtick immediately preceded by a word character, `)` or `]`, so the tagged-template regex matches even though the operand is an untagged template or an ordinary string.",
+      "consequence": "The gate exits 0 with no V5 marker and accepts an assertion that always passes; the parent revision flagged the same inputs, so a no-op-assertion bypass is reopened. The new expect path is affected too: `expect(`a`).toBe(`a`)` is not reported.",
+      "evidence": "`TAGGED_TEMPLATE` is defined at scripts/check-verification-integrity.py:274 and searched over the whole operand at scripts/check-verification-integrity.py:292-293. `mask_c_like` records the entire untagged template or string as a literal at scripts/check-verification-integrity.py:196-200, so the regex sees the literal body and matches its closing backtick. The parent scanner compared normalized original operands without this exemption.",
+      "severity": "P2",
+      "confidence": 0.9,
+      "suggestedFix": "Treat an operand as tagged only when a tag token immediately precedes the opening backtick at `start` (check text before `start` or the recorded literal start), rather than searching for any word/`]`/`)` followed by a backtick; add regressions for plain templates, templates ending in `)`/`]`, and backticks inside string literals.",
+      "id": "codex:0",
+      "reviewer": "codex",
+      "attempt": 1
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 294,
+      "lineEnd": 296,
+      "title": "Identity exemption also exempts member expressions on array/object literals",
+      "trigger": "A head test adds `assert.strictEqual([1].length, [1].length)`, `assert.equal([1,2].length, [1,2].length)`, `assert.strictEqual({}.toString, {}.toString)`, or `assert.strictEqual([1].includes, [1].includes)`.",
+      "consequence": "Both operands evaluate to the same number or shared function, so the assertion always passes, yet the gate emits no V5. The parent revision detected these inputs, so a previously closed self-comparison bypass is reopened.",
+      "evidence": "scripts/check-verification-integrity.py:294-296 exempts every operand whose first non-space comparable character is `{` or `[`, without checking that the matching bracket ends the operand. `assert.strictEqual` and `assert.equal` reach this branch with `by_identity=True` at scripts/check-verification-integrity.py:597, so `[1].length` and `{}.toString` are treated as if they were freshly allocated arrays/objects.",
+      "severity": "P2",
+      "confidence": 0.85,
+      "suggestedFix": "Exempt only operands that are exactly an object/array literal (the matching `}`/`]` is at `end-1`); otherwise fall through to the self-comparison result. Add member-expression regressions such as `[1].length` and `{}.toString`.",
+      "id": "codex:1",
+      "reviewer": "codex",
+      "attempt": 1
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 601,
+      "lineEnd": 609,
+      "title": "Expect self-comparison is skipped when a call has a trailing comma",
+      "trigger": "A head test adds `expect(value).toBe(value,)` or the formatted multiline form `expect(\\n  value,\\n).toBe(\\n  value,\\n)`; trailing commas are legal and common in formatted TypeScript.",
+      "consequence": "`split_arguments` appends an empty trailing span, so the `len(received) != 1` and `len(expected) == 1` guards fail and no V5 is emitted. The added expect still increments the assertion count, so V4 passes and a no-op assertion is accepted.",
+      "evidence": "scripts/check-verification-integrity.py:235-238 always appends the final `(start, close_index)` span, which is empty after a trailing comma. The new expect scanner at scripts/check-verification-integrity.py:601-609 requires exactly one argument on each side before calling `self_comparing`.",
+      "severity": "P2",
+      "confidence": 0.8,
+      "suggestedFix": "Filter empty or whitespace-only argument spans before the arity checks (or use a single-argument parser), and add one-line and multiline trailing-comma regressions for `toBe`, `toEqual`, and `toStrictEqual`.",
+      "id": "codex:2",
+      "reviewer": "codex",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 274,
+      "lineEnd": 293,
+      "title": "TAGGED_TEMPLATE matches closing backticks and strings, reopening V5 bypasses",
+      "trigger": "A head test adds `assert.strictEqual(`a`, `a`)`, `assert.deepStrictEqual(`a`, `a`)`, `assert.strictEqual(`abc`.length, `abc`.length)`, or `assert.strictEqual(\"a`\", \"a`\")`: every operand contains a backtick immediately preceded by a word character, `)` or `]`, so the tagged-template regex matches even though the operand is an untagged template or an ordinary string.",
+      "consequence": "The gate exits 0 with no V5 marker and accepts an assertion that always passes; the parent revision flagged the same inputs, so a no-op-assertion bypass is reopened. The new expect path is affected too: `expect(`a`).toBe(`a`)` is not reported.",
+      "evidence": "`TAGGED_TEMPLATE` is defined at scripts/check-verification-integrity.py:274 and searched over the whole operand at scripts/check-verification-integrity.py:292-293. `mask_c_like` records the entire untagged template or string as a literal at scripts/check-verification-integrity.py:196-200, so the regex sees the literal body and matches its closing backtick. The parent scanner compared normalized original operands without this exemption.",
+      "severity": "P2",
+      "confidence": 0.9,
+      "suggestedFix": "Treat an operand as tagged only when a tag token immediately precedes the opening backtick at `start` (check text before `start` or the recorded literal start), rather than searching for any word/`]`/`)` followed by a backtick; add regressions for plain templates, templates ending in `)`/`]`, and backticks inside string literals."
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 294,
+      "lineEnd": 296,
+      "title": "Identity exemption also exempts member expressions on array/object literals",
+      "trigger": "A head test adds `assert.strictEqual([1].length, [1].length)`, `assert.equal([1,2].length, [1,2].length)`, `assert.strictEqual({}.toString, {}.toString)`, or `assert.strictEqual([1].includes, [1].includes)`.",
+      "consequence": "Both operands evaluate to the same number or shared function, so the assertion always passes, yet the gate emits no V5. The parent revision detected these inputs, so a previously closed self-comparison bypass is reopened.",
+      "evidence": "scripts/check-verification-integrity.py:294-296 exempts every operand whose first non-space comparable character is `{` or `[`, without checking that the matching bracket ends the operand. `assert.strictEqual` and `assert.equal` reach this branch with `by_identity=True` at scripts/check-verification-integrity.py:597, so `[1].length` and `{}.toString` are treated as if they were freshly allocated arrays/objects.",
+      "severity": "P2",
+      "confidence": 0.85,
+      "suggestedFix": "Exempt only operands that are exactly an object/array literal (the matching `}`/`]` is at `end-1`); otherwise fall through to the self-comparison result. Add member-expression regressions such as `[1].length` and `{}.toString`."
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 601,
+      "lineEnd": 609,
+      "title": "Expect self-comparison is skipped when a call has a trailing comma",
+      "trigger": "A head test adds `expect(value).toBe(value,)` or the formatted multiline form `expect(\\n  value,\\n).toBe(\\n  value,\\n)`; trailing commas are legal and common in formatted TypeScript.",
+      "consequence": "`split_arguments` appends an empty trailing span, so the `len(received) != 1` and `len(expected) == 1` guards fail and no V5 is emitted. The added expect still increments the assertion count, so V4 passes and a no-op assertion is accepted.",
+      "evidence": "scripts/check-verification-integrity.py:235-238 always appends the final `(start, close_index)` span, which is empty after a trailing comma. The new expect scanner at scripts/check-verification-integrity.py:601-609 requires exactly one argument on each side before calling `self_comparing`.",
+      "severity": "P2",
+      "confidence": 0.8,
+      "suggestedFix": "Filter empty or whitespace-only argument spans before the arity checks (or use a single-argument parser), and add one-line and multiline trailing-comma regressions for `toBe`, `toEqual`, and `toStrictEqual`."
+    }
+  ],
+  "error": null
+}

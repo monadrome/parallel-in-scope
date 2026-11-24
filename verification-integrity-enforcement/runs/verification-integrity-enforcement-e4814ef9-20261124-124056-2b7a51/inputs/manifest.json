@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-2b7a51",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T12:40:58.113Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "head": "e4814ef939f7596316aab6c44cf3e12d2f112316",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "to": "e4814ef939f7596316aab6c44cf3e12d2f112316",
+    "label": "7b288f07..e4814ef9"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "1b824e465b2cde9a8d32aadf2650aa8db53e8045aa0319f29ee7d675362c8065",
+    "bytes": 17721,
+    "files": [
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 82,
+        "deletions": 13
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 99,
+        "deletions": 0
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "6c6c6683d2a25d061be02a458fc14b24fb9a2af866f2d207ed61a46fa7ac7529",
+    "bytes": 1759,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "fb2242374fe75c9fa27b18b6fdf52f0eeb8992d354112a55744b7401d9065fb3",
+    "bytes": 2078
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "e4814ef939f7596316aab6c44cf3e12d2f112316",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
