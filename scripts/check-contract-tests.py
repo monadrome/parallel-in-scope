@@ -21,20 +21,19 @@ def verify_execution(reports: Path, classes: dict[str, Path]) -> list[str]:
     if not report_paths:
         return [f"no Surefire XML reports found under {reports}"]
 
-    testcases = {class_name: [] for class_name in classes}
-    for report_path in report_paths:
+    for class_name, relative in classes.items():
+        report_path = reports / f"TEST-{class_name}.xml"
+        if not report_path.is_file():
+            errors.append(f"{relative}: no executed testcase for {class_name}")
+            continue
         try:
             root = ET.parse(report_path).getroot()
         except (OSError, ET.ParseError) as error:
             errors.append(f"cannot parse Surefire report {report_path}: {error}")
             continue
-        for testcase in root.iter("testcase"):
-            class_name = testcase.get("classname", "")
-            if class_name in testcases:
-                testcases[class_name].append(testcase)
-
-    for class_name, relative in classes.items():
-        matches = testcases[class_name]
+        matches = [
+            testcase for testcase in root.iter("testcase") if testcase.get("classname") == class_name
+        ]
         if not matches:
             errors.append(f"{relative}: no executed testcase for {class_name}")
         for testcase in matches:

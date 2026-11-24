@@ -38,7 +38,8 @@ class CheckContractTestsTest(unittest.TestCase):
             )
             if outcome is not None:
                 ET.SubElement(testcase, outcome)
-        ET.ElementTree(suite).write(reports / "TEST-contracts.xml", encoding="utf-8", xml_declaration=True)
+        report_name = f"TEST-example.{testcases[0][0]}.xml"
+        ET.ElementTree(suite).write(reports / report_name, encoding="utf-8", xml_declaration=True)
         return reports
 
     def test_accepts_matching_unique_contract_ids(self):
@@ -71,6 +72,13 @@ class CheckContractTestsTest(unittest.TestCase):
         self.write_test("C0001SubjectContractTest.java", "0001")
         reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
         self.assertEqual(check_contract_tests.verify(self.root, reports), [])
+
+    def test_execution_check_rejects_an_aggregate_report_file(self):
+        self.write_test("C0001SubjectContractTest.java", "0001")
+        reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
+        (reports / "TEST-example.C0001SubjectContractTest.xml").rename(reports / "TEST-contracts.xml")
+        errors = check_contract_tests.verify(self.root, reports)
+        self.assertTrue(any("no executed testcase for example.C0001SubjectContractTest" in error for error in errors))
 
     def test_execution_check_rejects_the_same_simple_name_in_another_package(self):
         self.write_test("C0001SubjectContractTest.java", "0001", package="expected")

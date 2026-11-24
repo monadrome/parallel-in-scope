@@ -350,9 +350,11 @@ Every row has a non-empty reason and status `promoted` or `blocked`. For a promo
 candidate ID is non-empty, unique, and sealed in `candidate-status.csv`; the source contract ID is
 non-empty; and the allocated ID is `C-nnnn`. Target and archive paths use one canonical
 repository-relative spelling with no empty, `.` or `..` components. The archive is under
-`promotions/`, exists, and is SHA-256 hashed in the run manifest. Promoted candidate IDs, contract
-IDs, target paths, and archive paths are unique. A header-only CSV is valid when no candidate is
-eligible.
+`promotions/`, exists, and is SHA-256 hashed in the run manifest. The final destination is frozen
+byte-for-byte at `promotion-targets/<target_path>`, with `promotionTargets` mapping the target to
+that hashed snapshot; the target must be under the adapter's regression-suite root. Promoted
+candidate IDs, contract IDs, target paths, and archive paths are unique. Sealed candidate IDs are
+also non-empty and unique. A header-only CSV is valid when no candidate is eligible.
 
 For each eligible candidate:
 
@@ -361,7 +363,8 @@ For each eligible candidate:
 2. Adapt only package and build integration. Preserve the precondition state, operation sequence,
    observation window, and assertions. Save the adapted test under `${RUN_DIR}/promotions/` and
    copy it to the suite, applying the suite's scoped contract-ID metadata convention. Contract IDs
-   are unique within the persistent suite.
+   are unique within the persistent suite. Freeze the final destination bytes under
+   `promotion-targets/<target_path>` and record that snapshot in `promotionTargets`.
 3. Run the suite's configured metadata check, clean test command, and execution-evidence check
    after all additions. Freeze their exact argv values in `adapter.regressionSuite`, record them as
    successful `regression-metadata`, `regression-tests`, and `regression-execution` commands, and

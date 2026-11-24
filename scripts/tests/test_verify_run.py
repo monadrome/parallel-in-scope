@@ -124,7 +124,14 @@ class VerifyRunTest(unittest.TestCase):
                 "verification/contract-tests/target/surefire-reports",
             ],
         }
-        manifest["adapter"]["regressionSuite"] = commands
+        manifest["adapter"]["regressionSuite"] = {**commands, "path": "verification/contract-tests"}
+        target = "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java"
+        snapshot = f"promotion-targets/{target}"
+        snapshot_path = run / snapshot
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_bytes((run / "promotions/C0001TaskIdContractTest.java").read_bytes())
+        manifest["promotionTargets"] = {target: snapshot}
+        manifest["artifacts"][snapshot] = hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
         for phase, argv in commands.items():
             stdout = f"logs/{phase}.stdout.log"
             stderr = f"logs/{phase}.stderr.log"
@@ -290,6 +297,26 @@ class VerifyRunTest(unittest.TestCase):
     def test_accepts_promoted_row_with_a_hashed_archive(self):
         run = self.make_promoted_run()
         self.assertEqual(verify_run.verify(run), [])
+
+    def test_rejects_promoted_row_without_frozen_target_snapshot(self):
+        run = self.make_promoted_run()
+        self.update_manifest(run, promotionTargets={})
+        errors = verify_run.verify(run)
+        self.assertTrue(any("missing frozen target snapshot" in error for error in errors))
+
+    def test_rejects_promoted_target_snapshot_that_differs_from_archive(self):
+        run = self.make_promoted_run()
+        target = "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java"
+        snapshot = run / "promotion-targets" / target
+        snapshot.write_text("changed\n", encoding="utf-8")
+        errors = verify_run.verify(run)
+        self.assertTrue(any("target snapshot does not byte-match archive" in error for error in errors))
+
+    def test_rejects_duplicate_sealed_candidate_ids(self):
+        run = self.make_promoted_run()
+        self.set_candidates(run, ["CONTRACT-TDD-001", "CONTRACT-TDD-001"])
+        errors = verify_run.verify(run)
+        self.assertTrue(any("duplicate sealed candidate_id" in error for error in errors))
 
     def test_rejects_promoted_row_without_regression_command_evidence(self):
         run = self.make_promoted_run()

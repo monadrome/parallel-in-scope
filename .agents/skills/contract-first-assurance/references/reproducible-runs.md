@@ -71,6 +71,8 @@ Rules:
 - every promoted row also requires a passing `regression-tests` gate and successful exact-argv
   command records for `regression-metadata`, `regression-tests`, and `regression-execution`, with
   those argv values frozen in `adapter.regressionSuite`;
+- every promoted target has a `promotionTargets` entry and a hashed, byte-identical frozen copy at
+  `promotion-targets/<target_path>` beneath the configured suite root;
 - command records preserve the exact argv, exit code, stdout path, and stderr path;
 - paths in the manifest are relative to `${RUN_DIR}` and must not contain `..`;
 - a timeout, missing log, missing hash, or hash mismatch makes the run

@@ -60,13 +60,25 @@ def sealed_candidates(run_dir: Path) -> tuple[set[str], list[str]]:
             reader = csv.DictReader(stream)
             if reader.fieldnames is None or "candidate_id" not in reader.fieldnames:
                 return set(), ["candidate-status.csv must contain a candidate_id column for promoted rows"]
-            candidates = {row["candidate_id"] for row in reader if row.get("candidate_id")}
+            errors = []
+            candidates = set()
+            for index, row in enumerate(reader, start=2):
+                candidate_id = row.get("candidate_id")
+                if not candidate_id:
+                    errors.append(f"candidate-status.csv row {index} candidate_id must be non-empty")
+                elif candidate_id in candidates:
+                    errors.append(f"candidate-status.csv row {index} has duplicate sealed candidate_id: {candidate_id}")
+                else:
+                    candidates.add(candidate_id)
     except (OSError, UnicodeError, csv.Error) as error:
         return set(), [f"cannot read candidate-status.csv for promoted rows: {error}"]
-    return candidates, []
+    return candidates, errors
 
 
-def verify_promotions(run_dir: Path, artifacts: dict) -> tuple[list[str], list[dict]]:
+def verify_promotions(run_dir: Path, manifest: dict) -> tuple[list[str], list[dict]]:
+    artifacts = manifest.get("artifacts", {})
+    if not isinstance(artifacts, dict):
+        artifacts = {}
     errors = []
     path = run_dir / "promotion-status.csv"
     try:
@@ -82,6 +94,10 @@ def verify_promotions(run_dir: Path, artifacts: dict) -> tuple[list[str], list[d
     if any(row.get("status") == "promoted" for row in rows):
         candidates, candidate_errors = sealed_candidates(run_dir)
         errors.extend(candidate_errors)
+    adapter = manifest.get("adapter", {})
+    suite = adapter.get("regressionSuite", {}) if isinstance(adapter, dict) else {}
+    suite_root = suite.get("path") if isinstance(suite, dict) else None
+    target_records = manifest.get("promotionTargets", {})
     candidate_ids = set()
     contract_ids = set()
     archive_paths = set()
@@ -124,6 +140,32 @@ def verify_promotions(run_dir: Path, artifacts: dict) -> tuple[list[str], list[d
         target_path = row["target_path"]
         if not canonical_path(target_path):
             errors.append(f"{prefix} target_path must be canonical safe repository-relative path: {target_path}")
+        else:
+            snapshot_path = target_records.get(target_path) if isinstance(target_records, dict) else None
+            expected_snapshot = f"promotion-targets/{target_path}"
+            if snapshot_path != expected_snapshot:
+                errors.append(f"{prefix} missing frozen target snapshot: expected {expected_snapshot}")
+            elif not isinstance(suite_root, str) or not target_path.startswith(f"{suite_root}/"):
+                errors.append(f"{prefix} target_path must stay under the configured regression suite root")
+            else:
+                snapshot = run_dir / snapshot_path
+                if not snapshot.is_file():
+                    errors.append(f"{prefix} frozen target snapshot is missing: {snapshot_path}")
+                if snapshot_path not in artifacts:
+                    errors.append(f"{prefix} frozen target snapshot is not hashed in artifacts: {snapshot_path}")
+                archived_copy = run_dir / archive_path
+                archive_is_safe = (
+                    canonical_path(archive_path)
+                    and bool(archive.parts)
+                    and archive.parts[0] == "promotions"
+                )
+                if (
+                    archive_is_safe
+                    and snapshot.is_file()
+                    and archived_copy.is_file()
+                    and snapshot.read_bytes() != archived_copy.read_bytes()
+                ):
+                    errors.append(f"{prefix} target snapshot does not byte-match archive: {archive_path}")
 
         for kind, value, seen in (
             ("candidate_id", candidate_id, candidate_ids),
@@ -376,7 +418,7 @@ def verify(run_dir: Path) -> list[str]:
     verify_hashes("inputs")
     verify_hashes("artifacts")
     artifacts = manifest.get("artifacts", {})
-    promotion_errors, promotion_rows = verify_promotions(run_dir, artifacts if isinstance(artifacts, dict) else {})
+    promotion_errors, promotion_rows = verify_promotions(run_dir, manifest)
     errors.extend(promotion_errors)
     errors.extend(verify_promotion_execution(manifest, promotion_rows))
     if isinstance(artifacts, dict):

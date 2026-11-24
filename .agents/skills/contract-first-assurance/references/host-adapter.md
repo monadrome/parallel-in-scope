@@ -31,8 +31,9 @@ workflow from the repository name.
 `regression_suite` contains `path`, `check_command`, `test_command`, and `execution_check_command`.
 The path is repository-relative. The commands validate contract-ID metadata, execute the persistent
 suite from a clean build, and verify each contract class against its resulting execution reports.
-A run with a promoted row records these exact argv values as `adapter.regressionSuite`, adds
-`regression-tests` to both required-gate lists, and retains successful command records under the
+A run with a promoted row records these exact argv values and the suite root as
+`adapter.regressionSuite`, adds `regression-tests` to both required-gate lists, and retains
+successful command records under the
 `regression-metadata`, `regression-tests`, and `regression-execution` phases. The commands run only
 in the main verification worktree, never in the isolated test generator's context.
 

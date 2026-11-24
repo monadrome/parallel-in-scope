@@ -18,9 +18,9 @@ The `contract-first-assurance` promotion phase owns eligibility and audit artifa
 Assign the next unused four-digit contract ID. Name the class `Cnnnn<Subject>ContractTest`, put
 `@Tag("C-nnnn")` immediately above it, and keep the two IDs equal. Contract IDs are unique across
 classes; one class may contain several tests for its contract. Every class must have at least one
-passing, non-skipped testcase in the Surefire XML produced by the explicit suite run. The testcase
-`classname` must equal the source file's fully qualified class name and its method name must be
-non-empty. Tests exercise public behavior only.
+passing, non-skipped testcase in the canonical `TEST-<FQCN>.xml` Surefire report produced by the
+explicit suite run. The testcase `classname` must equal the source file's fully qualified class name
+and its method name must be non-empty. Tests exercise public behavior only.
 
 Keep this module out of the default reactor and core test sources. Run its checks explicitly:
 
