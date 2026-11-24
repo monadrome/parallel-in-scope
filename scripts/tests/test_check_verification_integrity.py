@@ -198,6 +198,17 @@ class JavaIntegrityTest(TreeTest):
         head = self.tree("head", {JAVA_PATH: different})
         self.assertEqual(self.run_check(self.tree("different-base", {JAVA_PATH: JAVA_TEST}), head)[0], 0)
 
+    def test_different_literal_whitespace_is_not_a_self_comparison(self):
+        for assertion in (
+            'assertEquals("a  b", /* distinct */ "a b")',
+            'assertSame("a  b", /* distinct */ "a b")',
+        ):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {JAVA_PATH: JAVA_TEST})
+                changed = JAVA_TEST.replace("assertEquals(2, value)", assertion)
+                head = self.tree("head", {JAVA_PATH: changed})
+                self.assertEqual(self.run_check(base, head)[0], 0)
+
     def test_parameterized_test_annotations_and_arguments_are_parsed(self):
         parameterized = JAVA_TEST.replace("@Test", '@ParameterizedTest(name = "{0}")\n    @MethodSource("values")')
         base = self.tree("base", {JAVA_PATH: parameterized})
@@ -400,6 +411,18 @@ class TypeScriptIntegrityTest(TreeTest):
 
     def test_typescript_different_expect_values_pass(self):
         for assertion in ("expect(value).toBe(other)", 'expect("expected").toBe("actual")'):
+            with self.subTest(assertion=assertion):
+                base = self.tree("base", {TS_PATH: TS_TEST})
+                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
+                self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_typescript_different_literal_whitespace_passes(self):
+        for assertion in (
+            'assert.strictEqual("a  b", /* distinct */ "a b")',
+            'assert.strictEqual(/a  b/, /* distinct */ /a b/)',
+            'expect("a  b").toEqual(/* distinct */ "a b")',
+            'expect(/a  b/).toStrictEqual(/* distinct */ /a b/)',
+        ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})
                 head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})

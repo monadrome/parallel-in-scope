@@ -115,6 +115,7 @@ class Source:
     text: str
     code: str
     comparable: str
+    literals: dict[int, int]
 
     def line_of(self, offset: int) -> int:
         return self.text.count("\n", 0, offset) + 1
@@ -161,6 +162,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
     """Return masked code and a comment-free comparison view, preserving offsets."""
     out: list[str] = []
     comparable_out: list[str] = []
+    literals: dict[int, int] = {}
     i, n = 0, len(text)
     while i < n:
         if text.startswith("//", i):
@@ -177,6 +179,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             i = end
         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
             close, end = span
+            literals[i] = end
             out.append("/" + blank(text[i + 1:close]) + text[close:end])
             comparable_out.append(text[i:end])
             i = end
@@ -192,6 +195,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             j = min(j, n)
             closed = text.startswith(quote, j)
             end = j + len(quote) if closed else j
+            literals[i] = end
             out.append(quote + blank(text[i + len(quote):j]) + (quote if closed else ""))
             comparable_out.append(text[i:end])
             i = end
@@ -203,7 +207,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
     comparable = "".join(comparable_out)
     if len(code) != len(text) or len(comparable) != len(text):
         raise CheckError("internal error: masking changed the text length")
-    return Source(text, code, comparable)
+    return Source(text, code, comparable, literals)
 
 
 def matching_delimiter(code: str, open_index: int, opening: str = "(", closing: str = ")") -> int:
@@ -235,13 +239,28 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
     return spans
 
 
+def normalize_comparison(source: Source, start: int, end: int) -> str:
+    parts = []
+    cursor = start
+    for literal_start, literal_end in source.literals.items():
+        if literal_end <= start:
+            continue
+        if literal_start >= end:
+            break
+        parts.append(normalize(source.comparable[cursor:literal_start]))
+        parts.append(source.comparable[literal_start:literal_end])
+        cursor = literal_end
+    parts.append(normalize(source.comparable[cursor:end]))
+    return "".join(parts)
+
+
 def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[str], int]:
     close_index = matching_delimiter(source.code, open_index)
     if close_index < 0:
         return [], [], -1
     arguments = split_arguments(source.code, open_index, close_index)
     values = [normalize(source.code[start:end]) for start, end in arguments]
-    comparable = [normalize(source.comparable[start:end]) for start, end in arguments]
+    comparable = [normalize_comparison(source, start, end) for start, end in arguments]
     return values, comparable, close_index
 
 
