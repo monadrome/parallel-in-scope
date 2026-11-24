@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "hidden-contract-regression-a6214b44-20261123-152612-6444e8",
+  "version": 1,
+  "createdAt": "2026-11-23T15:41:07.953Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "head": "a6214b44766c8b502d192c4621f692258216d47a"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "hidden-contract-regression-a6214b44-20261123-152612-6444e8",
+  "agent": "kiro",
+  "attempt": 1,
+  "startedAt": "2026-11-23T15:26:13.108Z",
+  "endedAt": "2026-11-23T15:41:07.885Z",
+  "durationMs": 894571,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kiro-cli",
+    "args": [
+      "chat",
+      "--v3",
+      "--no-interactive",
+      "--trust-all-tools",
+      "--model",
+      "gpt-5.6-terra",
+      "--effort",
+      "max",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 0e804a8b08a8c5bfcce12e9d831dc44b197b557e to a6214b44766c8b502d192c4621f692258216d47a. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-152612-6444e8/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-152612-6444e8/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Final independent review: hidden assurance regressions\n\nReview the complete range `0e804a8b08a8c5bfcce12e9d831dc44b197b557e..a6214b44766c8b502d192c4621f692258216d47a`.\nRead the immutable diff supplied by the prompt and every changed file below in the head snapshot.\n\n## Changed paths\n\n- `.agents/skills/assurance-report/SKILL.md`\n- `.agents/skills/contract-diff/SKILL.md`\n- `.agents/skills/contract-extract/SKILL.md`\n- `.agents/skills/contract-first-assurance/SKILL.md`\n- `.agents/skills/contract-first-assurance/adapters/vformation.yaml`\n- `.agents/skills/contract-first-assurance/evals/evals.json`\n- `.agents/skills/contract-first-assurance/package.yaml`\n- `.agents/skills/contract-first-assurance/references/host-adapter.md`\n- `.agents/skills/contract-first-assurance/references/reproducible-runs.md`\n- `.agents/skills/contract-first-assurance/scripts/verify_run.py`\n- `.agents/skills/isolated-test-generation/SKILL.md`\n- `.github/workflows/ci.yml`\n- `AGENTS.md`\n- `pom.xml`\n- `scripts/check-contract-tests.py`\n- `scripts/tests/test_check_contract_tests.py`\n- `scripts/tests/test_verify_run.py`\n- `verification/contract-tests/AGENTS.md`\n- `verification/contract-tests/pom.xml`\n- `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java`\n\n## Attack surfaces\n\n- Profile activation and default-reactor exclusion; Maven dependency resolution, Java 8 production bytecode, Java 11 test compilation, and JUnit discovery.\n- Concrete triggers that let missing/mismatched IDs or empty test classes silently pass; duplicate IDs across files and Surefire file-name discovery.\n- Assurance v2 finalization, required-gate handling, promotion eligibility, and SHA-256 coverage of every promoted copy.\n- Consistency between every added workflow MUST/MUST NOT and the actual scripts, POMs, CI job, and agent instructions.\n- Context isolation between implementation, isolated test generation, assurance promotion, and independent review.\n- The C-0001 public contract and whether its assertions can detect the opposite behavior.\n- R4 renamed only the Python verifier test class; confirm no discovery or assertion regression.\n\n## Assurance classification requiring independent confirmation\n\nThe initial commit records `assurance: SKIPPED` because production behavior and existing behavioral\nevidence are unchanged, and the workflow/test additions do not weaken, remove, or replace existing\nevidence. Confirm or reject this against `.agents/skills/project-delivery/references/assurance.md`\nand the complete diff. A question or rejection upgrades the run to required.\n\nThe earlier review of a pre-rebase snapshot timed out twice and produced no findings; it supplies no\nclean baseline. Refactoring review settled R1 as deferred, R2 as reverted for excess growth, R3 as\nrejected, and R4 as applied. Do not treat a timed-out review as evidence.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-152612-6444e8/snapshot"
+  },
+  "stdoutPath": "logs/kiro-attempt-1.stdout.log",
+  "stderrPath": "logs/kiro-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kiro",
+    "version": "kiro-cli 3.5.0",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "revision": null,
+    "effort": "max"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Review found two assurance-integrity defects: the metadata checker can accept a C-class with no executable JUnit test, and the run verifier can accept a claimed promotion without its required archived copy. These possible silent successes mean the recorded assurance skip cannot be confirmed.",
+  "findings": [
+    {
+      "file": "scripts/check-contract-tests.py",
+      "lineStart": 14,
+      "lineEnd": 48,
+      "title": "Lexical @Test detection accepts hollow contract classes",
+      "trigger": "Add a correctly named and tagged C0002<Subject>ContractTest whose body contains a block-comment line beginning with @Test but declares no test method. The existing C0001 test remains in the module.",
+      "consequence": "The metadata check succeeds and Surefire still succeeds by running C0001, while C0002 contributes no executable regression coverage. A later behavior regression covered only by C0002 can therefore pass CI.",
+      "evidence": "scripts/check-contract-tests.py:14 searches raw source text without removing comments or associating the annotation with the C-class, and :47-48 accepts any match. verification/contract-tests/pom.xml:58-60 only rejects a module with zero discovered tests, not an individual hollow class.",
+      "severity": "P1",
+      "confidence": 0.99,
+      "suggestedFix": "Use a Java parser or post-Surefire XML validation to require at least one non-skipped org.junit.jupiter.api.Test method on each matched C-class. Do not treat annotations in comments, strings, unrelated nested types, shadow annotations, or disabled tests as evidence.",
+      "id": "kiro:0",
+      "reviewer": "kiro",
+      "attempt": 1
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 237,
+      "lineEnd": 248,
+      "title": "Verifier accepts claimed promotions without archived copies",
+      "trigger": "A run records a candidate as promoted in promotion-status.csv, hashes that CSV, leaves promotions/ empty, and has passing ordinary required gates and Final gate: PASS.",
+      "consequence": "The verifier accepts a passing assurance run even though no adapted promoted test is retained or SHA-256-bound to the claimed C-nnnn result. The promotion cannot be independently reproduced or audited as required.",
+      "evidence": "verify_run.py:237-248 verifies hashes only for files that already happen to exist under promotions/ and never reads promotion-status.csv. Phase seven requires each eligible promotion to save its adapted test under RUN_DIR/promotions/ in .agents/skills/contract-first-assurance/SKILL.md:345-354.",
+      "severity": "P1",
+      "confidence": 0.98,
+      "suggestedFix": "Define a machine-readable promotion-status schema and validate it in verify_run.py. For every promoted row, require a referenced file under promotions/, a verified artifact hash, and the recorded target identity; reject a passing final gate when any claimed promotion lacks this evidence.",
+      "id": "kiro:1",
+      "reviewer": "kiro",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "scripts/check-contract-tests.py",
+      "lineStart": 14,
+      "lineEnd": 48,
+      "title": "Lexical @Test detection accepts hollow contract classes",
+      "trigger": "Add a correctly named and tagged C0002<Subject>ContractTest whose body contains a block-comment line beginning with @Test but declares no test method. The existing C0001 test remains in the module.",
+      "consequence": "The metadata check succeeds and Surefire still succeeds by running C0001, while C0002 contributes no executable regression coverage. A later behavior regression covered only by C0002 can therefore pass CI.",
+      "evidence": "scripts/check-contract-tests.py:14 searches raw source text without removing comments or associating the annotation with the C-class, and :47-48 accepts any match. verification/contract-tests/pom.xml:58-60 only rejects a module with zero discovered tests, not an individual hollow class.",
+      "severity": "P1",
+      "confidence": 0.99,
+      "suggestedFix": "Use a Java parser or post-Surefire XML validation to require at least one non-skipped org.junit.jupiter.api.Test method on each matched C-class. Do not treat annotations in comments, strings, unrelated nested types, shadow annotations, or disabled tests as evidence."
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 237,
+      "lineEnd": 248,
+      "title": "Verifier accepts claimed promotions without archived copies",
+      "trigger": "A run records a candidate as promoted in promotion-status.csv, hashes that CSV, leaves promotions/ empty, and has passing ordinary required gates and Final gate: PASS.",
+      "consequence": "The verifier accepts a passing assurance run even though no adapted promoted test is retained or SHA-256-bound to the claimed C-nnnn result. The promotion cannot be independently reproduced or audited as required.",
+      "evidence": "verify_run.py:237-248 verifies hashes only for files that already happen to exist under promotions/ and never reads promotion-status.csv. Phase seven requires each eligible promotion to save its adapted test under RUN_DIR/promotions/ in .agents/skills/contract-first-assurance/SKILL.md:345-354.",
+      "severity": "P1",
+      "confidence": 0.98,
+      "suggestedFix": "Define a machine-readable promotion-status schema and validate it in verify_run.py. For every promoted row, require a referenced file under promotions/, a verified artifact hash, and the recorded target identity; reject a passing final gate when any claimed promotion lacks this evidence."
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,12 @@
+source_revision=cad34059834b8f7a8de4c01e2e5db9dd1cae79af
+build_jdk=OpenJDK 25.0.4.1
+history_input=none
+production_scope=io.github.monadrome.parallelinscope.TaskId*
+test_scope=io.github.monadrome.parallelinscope.TaskIdTest*,io.github.monadrome.parallelinscope.TaskIdentityTest*
+mutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS
+command=mvn -o -B -ntp -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage -DtargetClasses=io.github.monadrome.parallelinscope.TaskId* -DtargetTests=io.github.monadrome.parallelinscope.TaskIdTest*,io.github.monadrome.parallelinscope.TaskIdentityTest* -Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS
+raw_results=KILLED 7; SURVIVED 1; NO_COVERAGE 0; TIMED_OUT 0; MEMORY_ERROR 0; NON_VIABLE 0; RUN_ERROR 0
+survivor_disposition=TaskId.hashCode constant zero is equivalent for the Java equals/hashCode contract: equal objects retain equal hashes and unequal objects may collide; no performance contract is documented.
+reverse_verification=TaskId.unit/group temporarily trimmed labels; C-0001 failed on exact-label equality; source restored exactly and unmutated C-0001 passed.
+evidence=taskid-pit-mutations.xml and taskid-pit-final.log were copied from a fresh detached worktree created for this run before its removal.
+post_rebase=Incoming development-line commits changed delivery/PIT documentation only; no production class, core test, dependency, or build input in this PIT scope changed.

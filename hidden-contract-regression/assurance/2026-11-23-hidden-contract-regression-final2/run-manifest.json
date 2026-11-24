@@ -1,0 +1,424 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "runId": "2026-11-23-hidden-contract-regression-final2",
+  "createdAt": "2026-11-24T02:18:33.633592Z",
+  "package": {
+    "name": "contract-first-assurance",
+    "version": "1.4.0"
+  },
+  "adapter": {
+    "name": "vformation",
+    "version": "1.4.0",
+    "requiredGates": [
+      "full-suite",
+      "consumer",
+      "pit",
+      "independent-review",
+      "docs"
+    ],
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": [
+        "TIMED_OUT"
+      ]
+    }
+  },
+  "workspace": {
+    "base": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "head": "4a16413aa43eda10a4e0b00e0b91fa23e8896574",
+    "dirty": false
+  },
+  "finalHead": "4a16413aa43eda10a4e0b00e0b91fa23e8896574",
+  "status": "pass",
+  "requiredGates": [
+    "full-suite",
+    "consumer",
+    "pit",
+    "independent-review",
+    "docs"
+  ],
+  "checks": {
+    "full-suite": "pass",
+    "consumer": "pass",
+    "pit": "pass",
+    "independent-review": "pass",
+    "docs": "pass"
+  },
+  "inputs": {
+    "inputs/adapter.yaml": "1b4039bbe64345294406abbc98adecd2be0990452e4b43f7429ad0384bb4725c",
+    "inputs/assurance-routing.md": "a253c5166cb1255384342e62456828eacc779ab4e84e6541d6cb2f696704c5fb",
+    "inputs/change.diff": "51c339e77e44ca5139e7aab66fc83235e8909858855c33a15f991a19acd73592",
+    "inputs/contract-gaps-initial.md": "8fc7f59c9116ffac9b3da9863fa25e23c815887641fda9cfa6351e644038a481",
+    "inputs/contract.md": "3b0670f0d6c4f875eddb9fdef03fcd9658b2e1dcca482e052bf09cb2cffbe1a9",
+    "inputs/generator-commands.md": "3eb2b213103fe3a1cafd7a875c51859c7dfdece451520eeca83573c614510861",
+    "inputs/generator-prompt.md": "fc9e75588fd9aed21d7e37e932628d11f09eabba85342ef8fb72fe92a49c485c",
+    "inputs/hidden-suite-AGENTS.md": "7ae555248795546bc782dd565011b88aa2128f6439cc6f1340b853eb66ae5425",
+    "inputs/package.yaml": "a21aa179b23a05af639d32364507b9fcdcfc8bef25b6e12414699dcaaea64062",
+    "inputs/pit.md": "241a6126103d2c22979051da4c8cd085b5a2819dfcd0844deddafd941a41e028",
+    "inputs/root-AGENTS.md": "a3039eaa2d0d9f38d375db31f8bc16dbbeae6d27e876f0686bc72eb7c7898c5a",
+    "inputs/sanitized-api.md": "5d626451772be74d44b639941b881aeb0b3c6202d0bac2b326f7e35f6daceebb",
+    "inputs/verification-integrity.md": "e425f184dd6fd5ce5ba64b23e940b662c2ea6308ba6d14e570fec5fadf1901cf"
+  },
+  "commands": [
+    {
+      "phase": "docs",
+      "argv": [
+        "bash",
+        "-lc",
+        "python3 scripts/check-doc-refs.py && python3 scripts/check-local-links.py && python3 scripts/check-english-docs.py && python3 scripts/check-adr.py && python3 scripts/check-design-routes.py && python3 scripts/check-proposal.py && python3 scripts/check-project-baseline.py && python3 scripts/check-worktree-skills.py && python3 scripts/check-verification-integrity.py && python3 .agents/skills/contract-first-assurance/scripts/verify_package.py && mkdocs build --strict --config-file mkdocs/mkdocs.yml"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/001-docs.stdout.log",
+      "stderr": "logs/001-docs.stderr.log"
+    },
+    {
+      "phase": "full-suite",
+      "argv": [
+        "env",
+        "JAVA_HOME=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "mvn",
+        "-B",
+        "-ntp",
+        "test"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/002-full-suite.stdout.log",
+      "stderr": "logs/002-full-suite.stderr.log"
+    },
+    {
+      "phase": "isolated-generation",
+      "argv": [
+        "kiro-cli",
+        "chat",
+        "--no-interactive",
+        "--trust-workspace",
+        "--trust-tools=fs_read,fs_write",
+        "--model",
+        "gpt-5.6-terra",
+        "--effort",
+        "max",
+        "You are a fresh isolated contract-test generator. Read only `contract.md`, `api.md`, and `commands.md` in the current directory. Do not read parent directories, repository source, existing tests, hidden suites, Git history, or any other file. Generate minimal deterministic Python unittest candidates for C-102 and C-103 from the contract and sanitized CLI only. Prioritize exact FQCN evidence in canonical class-specific reports, cross-package and aggregate-report rejection, empty method names, missing reports, and nonpassing outcomes. Write exactly `candidates/candidate_tests.py` and `candidates/generation-notes.md` as instructed by api.md. Do not execute the candidates or contact the real implementation. Seal the files and stop."
+      ],
+      "exitCode": 0,
+      "stdout": "logs/003-isolated-generation.stdout.log",
+      "stderr": "logs/003-isolated-generation.stderr.log"
+    },
+    {
+      "phase": "related-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-t",
+        "scripts"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/004-related-tests.stdout.log",
+      "stderr": "logs/004-related-tests.stderr.log"
+    },
+    {
+      "phase": "consumer-build",
+      "argv": [
+        "env",
+        "JAVA_HOME=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.test.skip=true",
+        "-Dmaven.javadoc.skip=true",
+        "clean",
+        "install"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/005-consumer-build.stdout.log",
+      "stderr": "logs/005-consumer-build.stderr.log"
+    },
+    {
+      "phase": "pit",
+      "argv": [
+        "env",
+        "JAVA_HOME=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-Ppitest",
+        "-pl",
+        "core",
+        "test-compile",
+        "org.pitest:pitest-maven:1.30.1:mutationCoverage",
+        "-DtargetClasses=io.github.monadrome.parallelinscope.TaskId*",
+        "-DtargetTests=io.github.monadrome.parallelinscope.TaskIdTest*,io.github.monadrome.parallelinscope.TaskIdentityTest*",
+        "-Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/006-pit.stdout.log",
+      "stderr": "logs/006-pit.stderr.log"
+    },
+    {
+      "phase": "hidden-regression-suite",
+      "argv": [
+        "bash",
+        "-lc",
+        "export JAVA_HOME=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home; export PATH=\"$JAVA_HOME/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin\"; python3 scripts/check-contract-tests.py && mvn -B -ntp -Pcontract-tests -pl verification/contract-tests -am clean test && python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/007-hidden-regression-suite.stdout.log",
+      "stderr": "logs/007-hidden-regression-suite.stderr.log"
+    },
+    {
+      "phase": "consumer-local-matrix",
+      "argv": [
+        "bash",
+        "-lc",
+        "set -e; for HOME_DIR in /Users/linqh/Library/Java/JavaVirtualMachines/azul-1.8.0_432/Contents/Home /Users/linqh/Library/Java/JavaVirtualMachines/corretto-17.0.14/Contents/Home /Users/linqh/Library/Java/JavaVirtualMachines/temurin-21.0.5/Contents/Home /opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home; do export JAVA_HOME=\"$HOME_DIR\"; export PATH=\"$JAVA_HOME/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin\"; java -version; export MAVEN_BASEDIR=\"$PWD/verification/maven-central-consumer\"; mvn -B -ntp -f verification/maven-central-consumer/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test; export MAVEN_BASEDIR=\"$PWD/demo\"; mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT test; done"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/008-consumer-local-matrix.stdout.log",
+      "stderr": "logs/008-consumer-local-matrix.stderr.log"
+    },
+    {
+      "phase": "candidate-compile",
+      "argv": [
+        "python3",
+        "-m",
+        "py_compile",
+        "candidate_tests.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/009-candidate-compile.stdout.log",
+      "stderr": "logs/009-candidate-compile.stderr.log"
+    },
+    {
+      "phase": "candidate-initial-run",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/010-candidate-initial-run.stdout.log",
+      "stderr": "logs/010-candidate-initial-run.stderr.log"
+    },
+    {
+      "phase": "reverse-candidate-tdd-001",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_001_metadata_accepts_one_matching_class"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/011-reverse-candidate-tdd-001.stdout.log",
+      "stderr": "logs/011-reverse-candidate-tdd-001.stderr.log"
+    },
+    {
+      "phase": "reverse-restored-tdd-001",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_001_metadata_accepts_one_matching_class"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/012-reverse-restored-tdd-001.stdout.log",
+      "stderr": "logs/012-reverse-restored-tdd-001.stderr.log"
+    },
+    {
+      "phase": "reverse-candidate-tdd-008",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_malformed_canonical_xml_is_rejected"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/013-reverse-candidate-tdd-008.stdout.log",
+      "stderr": "logs/013-reverse-candidate-tdd-008.stderr.log"
+    },
+    {
+      "phase": "reverse-restored-tdd-008",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_malformed_canonical_xml_is_rejected"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/014-reverse-restored-tdd-008.stdout.log",
+      "stderr": "logs/014-reverse-restored-tdd-008.stderr.log"
+    },
+    {
+      "phase": "reverse-candidate-tdd-008-corrected",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_execution_rejects_malformed_canonical_report"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/015-reverse-candidate-tdd-008-corrected.stdout.log",
+      "stderr": "logs/015-reverse-candidate-tdd-008-corrected.stderr.log"
+    },
+    {
+      "phase": "reverse-restored-tdd-008-corrected",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_execution_rejects_malformed_canonical_report"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/016-reverse-restored-tdd-008-corrected.stdout.log",
+      "stderr": "logs/016-reverse-restored-tdd-008-corrected.stderr.log"
+    },
+    {
+      "phase": "reverse-candidate-tdd-009",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/017-reverse-candidate-tdd-009.stdout.log",
+      "stderr": "logs/017-reverse-candidate-tdd-009.stderr.log"
+    },
+    {
+      "phase": "reverse-restored-tdd-009",
+      "argv": [
+        "env",
+        "ASSURANCE_REPO=/tmp/hidden-contract-assurance-verify-4a16413a",
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/018-reverse-restored-tdd-009.stdout.log",
+      "stderr": "logs/018-reverse-restored-tdd-009.stderr.log"
+    },
+    {
+      "phase": "consumer-jdk11",
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression:/workspace",
+        "-v",
+        "/Users/linqh/.m2/repository:/root/.m2/repository",
+        "-w",
+        "/workspace",
+        "maven:3.9.11-eclipse-temurin-11",
+        "bash",
+        "-lc",
+        "java -version; export MAVEN_BASEDIR=/workspace/verification/maven-central-consumer; mvn -B -ntp -f verification/maven-central-consumer/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test; export MAVEN_BASEDIR=/workspace/demo; mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT test"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/019-consumer-jdk11.stdout.log",
+      "stderr": "logs/019-consumer-jdk11.stderr.log"
+    },
+    {
+      "phase": "final-verify",
+      "argv": [
+        "python3",
+        ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+        "--run-dir",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.contract-first-assurance/2026-11-23-hidden-contract-regression-final2"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/020-final-verify.stdout.log",
+      "stderr": "logs/020-final-verify.stderr.log"
+    }
+  ],
+  "artifacts": {
+    "candidate-status.csv": "92a7dcd7397cbee68dbf27f60702aae138e1b71c27db075f08c5ddae66f0f5ed",
+    "candidates/candidate_tests.py": "bb601fa12e908979bc0b32bcd23bc529a08ec596597dfa783d52da4595c267f4",
+    "candidates/generation-notes.md": "ae20e80ef4639e259bef30e604a5805d5bf71f20765be040ef61e4f744d8b212",
+    "contract-gaps.md": "52c85d57041af052b77ed84fa611eef041a17c82d40c343576ee07e7ea0e8d3c",
+    "contract.md": "3b0670f0d6c4f875eddb9fdef03fcd9658b2e1dcca482e052bf09cb2cffbe1a9",
+    "logs/001-docs.stderr.log": "1165f37802d7404a5c1f8f7106f1e5095f9e5705aa0167666d94879f89137529",
+    "logs/001-docs.stdout.log": "9a39085786df6062ad2a5285471ff2d8489845d6ddf848f9987fa2cc255021e2",
+    "logs/002-full-suite.stderr.log": "e03c36cd629efac50d4d26300c090b83c881d271d31d5054a7d11e06e65a287f",
+    "logs/002-full-suite.stdout.log": "2f3444f85ba8f5600821e2325d3f29703c510f47120b53e899e5616fad0d4333",
+    "logs/003-isolated-generation.stderr.log": "c0c8a7164ff66e59e3aac56558ec5b82d51fac76056f71e63506345429a8f01b",
+    "logs/003-isolated-generation.stdout.log": "092da3438be17bc4e883a56b9834851d7fd17cf0b95f2bb2ab47ca7a8c8088ed",
+    "logs/004-related-tests.stderr.log": "e53b0d92cee77ecedf4e775d8b1666279f4ddf1e1769a24ec3c0d173ab9878ed",
+    "logs/004-related-tests.stdout.log": "b0630e423d185f971b1dbe13fb067c0182ee30705db6081a6bb91ceac21e6516",
+    "logs/005-consumer-build.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/005-consumer-build.stdout.log": "888ded7189246195a542ed7678552d382f4340459b66b9eb2195c3e0ca9f3bc1",
+    "logs/006-pit.stderr.log": "ff55768d38b4376f559c992bbac1d0cf33fc5894b6bacb25fa460d96d8a3ea0d",
+    "logs/006-pit.stdout.log": "472e9eca72294aae9719f0d5bf945a3eef69ac367b43dd619403c471fef78ecf",
+    "logs/007-hidden-regression-suite.stderr.log": "b4802078fae3446b24446abc2011cc665bdbcd56e79c12bafb0b501743fb4cb1",
+    "logs/007-hidden-regression-suite.stdout.log": "8461ca6c8ac192d9a2029c5b2f4832cf02b5a90717c3156587bc40f7fe4400a6",
+    "logs/008-consumer-local-matrix.stderr.log": "0d7cc0d215160e7c8c7a6768cd327a4cf27c43fd402c9925baca20c41f28feb3",
+    "logs/008-consumer-local-matrix.stdout.log": "390e381a0b4b4ec9c6b78d6fe1fce37b9394fca925083417328c16107e41d860",
+    "logs/009-candidate-compile.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/009-candidate-compile.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/010-candidate-initial-run.stderr.log": "f6c497c3bab830dc76ebdae3180ff093d663a0a9f86130669fe3ba149c865736",
+    "logs/010-candidate-initial-run.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/011-reverse-candidate-tdd-001.stderr.log": "b71b1f2ef3ce65acd7365f47c0ed52b1566e6e9126f8f4c4c42ec6e390bab353",
+    "logs/011-reverse-candidate-tdd-001.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/012-reverse-restored-tdd-001.stderr.log": "2fd4910a98554824bf3039b02ae09b38535a15dbb5985d7bb693934d5f7141a3",
+    "logs/012-reverse-restored-tdd-001.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/013-reverse-candidate-tdd-008.stderr.log": "44d6cb4f569c316df4084671a31c656afc4ee34229ab20f507cde88181164ff9",
+    "logs/013-reverse-candidate-tdd-008.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/014-reverse-restored-tdd-008.stderr.log": "44d6cb4f569c316df4084671a31c656afc4ee34229ab20f507cde88181164ff9",
+    "logs/014-reverse-restored-tdd-008.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/015-reverse-candidate-tdd-008-corrected.stderr.log": "399fad2f45ba172d4e6f71b8bf31bbe67d443cc176f2aabd96a21ec7904fc8e1",
+    "logs/015-reverse-candidate-tdd-008-corrected.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/016-reverse-restored-tdd-008-corrected.stderr.log": "78825c7c0bb7ff74c03880a2bc294d1c787d63d36896b315f295e168de8beba4",
+    "logs/016-reverse-restored-tdd-008-corrected.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/017-reverse-candidate-tdd-009.stderr.log": "37df9293e9e2fc271ec31be76986d607723993fdc8a8608d49544cc6e7af237b",
+    "logs/017-reverse-candidate-tdd-009.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/018-reverse-restored-tdd-009.stderr.log": "d903d78af8850992059107ac755077b798687573579f8968e4b9dd7ed3dc0bbd",
+    "logs/018-reverse-restored-tdd-009.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/019-consumer-jdk11.stderr.log": "be5131bb212313833a64be0ced36e8e3b8f65fc7171eeaf49a821e330d69c343",
+    "logs/019-consumer-jdk11.stdout.log": "6be9248c7fb26affea2f4e1c24dd2ac9d86a7821f7919caa54a59566c3382cae",
+    "logs/020-final-verify.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/020-final-verify.stdout.log": "7473f3199c282e0c985de06055c26e9889d77a513a6831ef5e7e71513780fa39",
+    "promotion-status.csv": "41c550bf65be1cd29b0643d45f39eebceb83400e0b6d2d07528a6e063e85abcb",
+    "report.md": "4a2fcb4ab5d068b9578676a06f41d5cea0396576c6da1ba7cb8c059a50993572",
+    "reverse-verification/README.md": "6702c30bac1e951258c43b9d099354ca63b738734620a202d9e155159d5ba453",
+    "reverse-verification/independent-review.md": "0536b58aa0bdc79b1d7197f6f1a53390b3a6a1f1305b354f475d7e8f706a8a32",
+    "reverse-verification/review-round-1.json": "c68c27de0f2146c64c6ae7868eb67c501c9e4171cbfae2baf948b43b6486a657",
+    "reverse-verification/review-round-2.json": "32262d8bf92330ee3c83e09f76c3a2f0469a5d12e5f42d916b4c0e19d611bcc1",
+    "reverse-verification/review-round-3.json": "b2574cac5ca30e0be29b0c9b1dd0a42cf24050da08afe6219b0a952d7f8bd89f",
+    "reverse-verification/taskid-pit-disposition.md": "c05317d4bb816e017db91ff93eb57cb26ca0bad39402685865ffe890f6c094c0",
+    "reverse-verification/taskid-pit-mutations.xml": "584eabea552568ec91e21069037c54337ce9086c91c4f988255bc2b5b83126ff",
+    "verification-summary.md": "a1ff727708cb54833b9a5b2303f9abe41b405d7016f999be331c249519976cb0"
+  },
+  "acceptedExceptions": []
+}

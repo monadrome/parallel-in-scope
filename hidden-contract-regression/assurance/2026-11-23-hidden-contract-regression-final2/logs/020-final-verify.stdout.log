@@ -1,0 +1,2 @@
+ERROR: command 19 stdout log is missing: logs/020-final-verify.stdout.log
+ERROR: command 19 stderr log is missing: logs/020-final-verify.stderr.log

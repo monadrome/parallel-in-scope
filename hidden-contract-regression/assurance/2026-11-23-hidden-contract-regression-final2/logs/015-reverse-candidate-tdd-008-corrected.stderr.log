@@ -1,0 +1,22 @@
+test_contract_tdd_008_execution_rejects_malformed_canonical_report (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_execution_rejects_malformed_canonical_report)
+CONTRACT-TDD-008 ... FAIL
+
+======================================================================
+FAIL: test_contract_tdd_008_execution_rejects_malformed_canonical_report (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_execution_rejects_malformed_canonical_report)
+CONTRACT-TDD-008
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 413, in test_contract_tdd_008_execution_rejects_malformed_canonical_report
+    self._assert_execution_rejected(completed)
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 51, in _assert_execution_rejected
+    self.assertNotEqual(0, completed.returncode, self._diagnostics(completed))
+AssertionError: 0 == 0 : stdout:
+OK: hidden contract regression metadata and execution evidence under /private/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpp7l9zxis/test-root
+
+stderr:
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.380s
+
+FAILED (failures=1)

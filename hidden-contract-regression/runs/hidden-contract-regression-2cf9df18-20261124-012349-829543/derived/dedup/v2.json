@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "hidden-contract-regression-2cf9df18-20261124-012349-829543",
+  "version": 2,
+  "createdAt": "2026-11-24T01:45:50.416Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "Simple-name matching permits cross-package execution evidence substitution."
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "Promoted rows lack mandatory successful regression command evidence."
+    },
+    {
+      "clusterId": "C05",
+      "findingIds": [
+        "kiro:2"
+      ],
+      "note": "Non-canonical paths alias duplicate archive and target identities."
+    },
+    {
+      "clusterId": "C06",
+      "findingIds": [
+        "kiro:3"
+      ],
+      "note": "Promoted rows lack sealed candidate and source-contract traceability."
+    }
+  ]
+}

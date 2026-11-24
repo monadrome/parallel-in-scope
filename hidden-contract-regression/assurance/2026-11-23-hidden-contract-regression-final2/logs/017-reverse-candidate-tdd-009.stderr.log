@@ -1,0 +1,58 @@
+test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes)
+CONTRACT-TDD-009 ... 
+  test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes) (outcome='skipped')
+CONTRACT-TDD-009 ... FAIL
+  test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes) (outcome='failure')
+CONTRACT-TDD-009 ... FAIL
+  test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes) (outcome='error')
+CONTRACT-TDD-009 ... FAIL
+
+======================================================================
+FAIL: test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes) (outcome='skipped')
+CONTRACT-TDD-009
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 444, in test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes
+    self._assert_execution_rejected(self._run_checker(test_root, reports))
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 51, in _assert_execution_rejected
+    self.assertNotEqual(0, completed.returncode, self._diagnostics(completed))
+AssertionError: 0 == 0 : stdout:
+OK: hidden contract regression metadata and execution evidence under /private/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpwppft2of/test-root
+
+stderr:
+
+
+======================================================================
+FAIL: test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes) (outcome='failure')
+CONTRACT-TDD-009
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 444, in test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes
+    self._assert_execution_rejected(self._run_checker(test_root, reports))
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 51, in _assert_execution_rejected
+    self.assertNotEqual(0, completed.returncode, self._diagnostics(completed))
+AssertionError: 0 == 0 : stdout:
+OK: hidden contract regression metadata and execution evidence under /private/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpomdout9g/test-root
+
+stderr:
+
+
+======================================================================
+FAIL: test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes) (outcome='error')
+CONTRACT-TDD-009
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 444, in test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes
+    self._assert_execution_rejected(self._run_checker(test_root, reports))
+  File "/private/tmp/hidden-contract-assurance-verify-4a16413a/assurance-candidates/candidate_tests.py", line 51, in _assert_execution_rejected
+    self.assertNotEqual(0, completed.returncode, self._diagnostics(completed))
+AssertionError: 0 == 0 : stdout:
+OK: hidden contract regression metadata and execution evidence under /private/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpk0y184qf/test-root
+
+stderr:
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.256s
+
+FAILED (failures=3)

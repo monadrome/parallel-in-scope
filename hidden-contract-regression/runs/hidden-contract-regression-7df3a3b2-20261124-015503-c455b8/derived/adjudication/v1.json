@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "hidden-contract-regression-7df3a3b2-20261124-015503-c455b8",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T02:10:34.613Z",
+  "judge": {
+    "kind": "agent",
+    "name": "Kimi",
+    "model": "kimi-code/k3.1-pro",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C07",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Surefire emits class-specific reports; accepting an aggregate file allows unrelated generated XML to impersonate execution.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C08",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "The verifier validates only target syntax, not that a frozen destination copy beneath the suite root byte-matches the archive.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C09",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "The set conversion collapses duplicate sealed candidate IDs and loses unique provenance.",
+      "confidence": 1
+    }
+  ]
+}

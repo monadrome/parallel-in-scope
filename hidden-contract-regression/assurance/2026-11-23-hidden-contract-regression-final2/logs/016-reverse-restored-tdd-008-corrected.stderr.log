@@ -1,0 +1,7 @@
+test_contract_tdd_008_execution_rejects_malformed_canonical_report (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_execution_rejects_malformed_canonical_report)
+CONTRACT-TDD-008 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.138s
+
+OK

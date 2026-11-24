@@ -1,0 +1,4 @@
+candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason
+CONTRACT-TDD-001,C-102,,,,blocked,The new coverage is a Python CLI fixture; the resolved hidden suite accepts Java public-behavior tests only so no target or archive was created
+CONTRACT-TDD-008,C-103,,,,blocked,The new coverage is a Python CLI fixture; the resolved hidden suite accepts Java public-behavior tests only so no target or archive was created
+CONTRACT-TDD-009,C-103,,,,blocked,The new coverage is a Python CLI fixture; the resolved hidden suite accepts Java public-behavior tests only so no target or archive was created

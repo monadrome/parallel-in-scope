@@ -1,0 +1,23 @@
+test_contract_tdd_001_metadata_accepts_one_matching_class (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_001_metadata_accepts_one_matching_class)
+CONTRACT-TDD-001 ... ok
+test_contract_tdd_002_metadata_rejects_invalid_or_empty_suites (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_002_metadata_rejects_invalid_or_empty_suites)
+CONTRACT-TDD-002 ... ok
+test_contract_tdd_003_execution_accepts_canonical_exact_fqcn_evidence (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_003_execution_accepts_canonical_exact_fqcn_evidence)
+CONTRACT-TDD-003 ... ok
+test_contract_tdd_004_execution_rejects_same_name_from_another_package (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_004_execution_rejects_same_name_from_another_package)
+CONTRACT-TDD-004 ... ok
+test_contract_tdd_005_execution_rejects_aggregate_report (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_005_execution_rejects_aggregate_report)
+CONTRACT-TDD-005 ... ok
+test_contract_tdd_006_execution_rejects_empty_testcase_names (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_006_execution_rejects_empty_testcase_names)
+CONTRACT-TDD-006 ... ok
+test_contract_tdd_007_execution_rejects_missing_report_despite_lexical_test (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_007_execution_rejects_missing_report_despite_lexical_test)
+CONTRACT-TDD-007 ... ok
+test_contract_tdd_008_execution_rejects_malformed_canonical_report (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_008_execution_rejects_malformed_canonical_report)
+CONTRACT-TDD-008 ... ok
+test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes)
+CONTRACT-TDD-009 ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 2.022s
+
+OK

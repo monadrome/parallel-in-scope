@@ -1,0 +1,14 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+6:21:13 PM PIT >> INFO : Verbose logging is disabled. If you encounter a problem, please enable it before reporting an issue.
+6:21:13 PM PIT >> INFO : Created 1 mutation test units in pre scan
+6:21:13 PM PIT >> INFO : Sending 2 test classes to minion
+6:21:13 PM PIT >> INFO : Sent tests to minion
+6:21:13 PM PIT >> INFO : Calculated coverage in 0 seconds.
+6:21:13 PM PIT >> INFO : 0 tests took longer than 2000 ms
+6:21:13 PM PIT >> INFO : Slowest test ([engine:junit-jupiter]/[class:io.github.monadrome.parallelinscope.TaskIdentityTest]/[method:aGroupRunIsNotAUnitSoItsSummaryCarriesOnlyAGroupId()]) took 56 ms
+6:21:13 PM PIT >> INFO : Largest test ([engine:junit-jupiter]/[class:io.github.monadrome.parallelinscope.TaskIdentityTest]/[method:aGroupMemberCarriesAUnitIdThatIsNeverTheGroupId()]) covered 56 blocks
+6:21:13 PM PIT >> INFO : Created 1 mutation test units
+6:21:14 PM PIT >> INFO : Completed in 1 seconds

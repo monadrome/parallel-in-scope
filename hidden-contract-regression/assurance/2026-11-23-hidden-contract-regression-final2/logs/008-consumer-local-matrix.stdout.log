@@ -1,0 +1,615 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --< io.github.monadrome.verification:parallel-in-scope-maven-central-consumer >--
+[INFO] Building parallel-in-scope-maven-central-consumer 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Deleting /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-maven-central-consumer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-maven-central-consumer ---
+[WARNING] I/O error reading dependency state: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug target 8] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running verification.MavenCentralConsumerTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.747 s -- in verification.MavenCentralConsumerTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.094 s
+[INFO] Finished at: 2026-11-23T18:21:37-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< io.github.monadrome:parallel-in-scope-demo >-------------
+[INFO] Building parallel-in-scope-demo 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-demo ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 4 source files with javac [debug release 8] to target/classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-demo ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 23 source files with javac [debug release 8] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-demo ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running demo.ArchitectureConstraintsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.105 s -- in demo.ArchitectureConstraintsTest
+[INFO] Running demo.basic.BasicParDemoTest
+=== BasicParDemo ===
+演示 Par.map() 基本用法
+
+输入数据: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+并行度: 3
+
+开始并行处理...
+  [pool-2-thread-1] 处理: 1
+  [pool-2-thread-3] 处理: 3
+  [pool-2-thread-2] 处理: 2
+  [pool-2-thread-4] 处理: 4
+  [pool-2-thread-1] 处理: 5
+  [pool-2-thread-4] 处理: 6
+  [pool-2-thread-1] 处理: 7
+  [pool-2-thread-3] 处理: 8
+  [pool-2-thread-4] 处理: 9
+  [pool-2-thread-3] 处理: 10
+
+处理完成!
+结果: SUCCESS:10
+值: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+任务体已退出: true
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.083 s -- in demo.basic.BasicParDemoTest
+[INFO] Running demo.article.QuickStartTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in demo.article.QuickStartTest
+[INFO] Running demo.article.BatchBestPracticesTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.787 s -- in demo.article.BatchBestPracticesTest
+[INFO] Running demo.article.E1_QueueFloodingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.176 s -- in demo.article.E1_QueueFloodingTest
+[INFO] Running demo.article.D2_LateBindRaceConditionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.588 s -- in demo.article.D2_LateBindRaceConditionTest
+[INFO] Running demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.562 s -- in demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Running demo.article.G2_BatchResultReportTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in demo.article.G2_BatchResultReportTest
+[INFO] Running demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.014 s -- in demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Running demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.521 s -- in demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Running demo.article.C2_CachedVsFixedPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.009 s -- in demo.article.C2_CachedVsFixedPoolTest
+[INFO] Running demo.article.H1_NullEmptyInputTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in demo.article.H1_NullEmptyInputTest
+[INFO] Running demo.article.A3_LeanVsFatExceptionTest
+Lean exceptions (10000): 7 ms
+Standard exceptions (10000): 34 ms
+Par.map 100 tasks with 200ms timeout: 3218 ms
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.272 s -- in demo.article.A3_LeanVsFatExceptionTest
+[INFO] Running demo.article.B1_MdcContextLostTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in demo.article.B1_MdcContextLostTest
+[INFO] Running demo.article.A1_CancelTrueInvalidTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.519 s -- in demo.article.A1_CancelTrueInvalidTest
+[INFO] Running demo.article.G4_NamedExecutorPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in demo.article.G4_NamedExecutorPoolTest
+[INFO] Running demo.article.G6_BatchDbQueryTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.910 s -- in demo.article.G6_BatchDbQueryTest
+[INFO] Running demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.321 s -- in demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Running demo.article.B2_FunctionSignatureBloatTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.019 s -- in demo.article.B2_FunctionSignatureBloatTest
+[INFO] Running demo.article.F1_CpuTaskQueuingTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.69 s -- in demo.article.F1_CpuTaskQueuingTest
+[INFO] Running demo.article.G5_BatchHttpCallsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.931 s -- in demo.article.G5_BatchHttpCallsTest
+[INFO] Running demo.article.A2_NestedCancelPropagationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.539 s -- in demo.article.A2_NestedCancelPropagationTest
+[INFO] Running demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.355 s -- in demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:12 min
+[INFO] Finished at: 2026-11-23T18:22:51-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --< io.github.monadrome.verification:parallel-in-scope-maven-central-consumer >--
+[INFO] Building parallel-in-scope-maven-central-consumer 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Deleting /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-maven-central-consumer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-maven-central-consumer ---
+[WARNING] I/O error reading dependency state: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug target 8] to target/test-classes
+[WARNING] bootstrap class path not set in conjunction with -source 8
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running verification.MavenCentralConsumerTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.858 s -- in verification.MavenCentralConsumerTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  10.047 s
+[INFO] Finished at: 2026-11-23T18:23:04-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< io.github.monadrome:parallel-in-scope-demo >-------------
+[INFO] Building parallel-in-scope-demo 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-demo ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 4 source files with javac [debug release 8] to target/classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-demo ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 23 source files with javac [debug release 8] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-demo ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running demo.ArchitectureConstraintsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.376 s -- in demo.ArchitectureConstraintsTest
+[INFO] Running demo.basic.BasicParDemoTest
+=== BasicParDemo ===
+演示 Par.map() 基本用法
+
+输入数据: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+并行度: 3
+
+开始并行处理...
+  [pool-2-thread-1] 处理: 1
+  [pool-2-thread-2] 处理: 2
+  [pool-2-thread-3] 处理: 3
+  [pool-2-thread-4] 处理: 4
+  [pool-2-thread-4] 处理: 7
+  [pool-2-thread-3] 处理: 5
+  [pool-2-thread-2] 处理: 6
+  [pool-2-thread-1] 处理: 8
+  [pool-2-thread-2] 处理: 10
+  [pool-2-thread-4] 处理: 9
+
+处理完成!
+结果: SUCCESS:10
+值: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+任务体已退出: true
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.856 s -- in demo.basic.BasicParDemoTest
+[INFO] Running demo.article.QuickStartTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.242 s -- in demo.article.QuickStartTest
+[INFO] Running demo.article.BatchBestPracticesTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.933 s -- in demo.article.BatchBestPracticesTest
+[INFO] Running demo.article.E1_QueueFloodingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.272 s -- in demo.article.E1_QueueFloodingTest
+[INFO] Running demo.article.D2_LateBindRaceConditionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.650 s -- in demo.article.D2_LateBindRaceConditionTest
+[INFO] Running demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.572 s -- in demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Running demo.article.G2_BatchResultReportTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in demo.article.G2_BatchResultReportTest
+[INFO] Running demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.035 s -- in demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Running demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.539 s -- in demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Running demo.article.C2_CachedVsFixedPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.029 s -- in demo.article.C2_CachedVsFixedPoolTest
+[INFO] Running demo.article.H1_NullEmptyInputTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in demo.article.H1_NullEmptyInputTest
+[INFO] Running demo.article.A3_LeanVsFatExceptionTest
+Lean exceptions (10000): 5 ms
+Standard exceptions (10000): 44 ms
+Par.map 100 tasks with 200ms timeout: 3234 ms
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.301 s -- in demo.article.A3_LeanVsFatExceptionTest
+[INFO] Running demo.article.B1_MdcContextLostTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in demo.article.B1_MdcContextLostTest
+[INFO] Running demo.article.A1_CancelTrueInvalidTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.543 s -- in demo.article.A1_CancelTrueInvalidTest
+[INFO] Running demo.article.G4_NamedExecutorPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in demo.article.G4_NamedExecutorPoolTest
+[INFO] Running demo.article.G6_BatchDbQueryTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.939 s -- in demo.article.G6_BatchDbQueryTest
+[INFO] Running demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.333 s -- in demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Running demo.article.B2_FunctionSignatureBloatTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.025 s -- in demo.article.B2_FunctionSignatureBloatTest
+[INFO] Running demo.article.F1_CpuTaskQueuingTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.78 s -- in demo.article.F1_CpuTaskQueuingTest
+[INFO] Running demo.article.G5_BatchHttpCallsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.965 s -- in demo.article.G5_BatchHttpCallsTest
+[INFO] Running demo.article.A2_NestedCancelPropagationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.563 s -- in demo.article.A2_NestedCancelPropagationTest
+[INFO] Running demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.360 s -- in demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:20 min
+[INFO] Finished at: 2026-11-23T18:24:27-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --< io.github.monadrome.verification:parallel-in-scope-maven-central-consumer >--
+[INFO] Building parallel-in-scope-maven-central-consumer 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Deleting /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-maven-central-consumer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-maven-central-consumer ---
+[WARNING] I/O error reading dependency state: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug target 8] to target/test-classes
+[WARNING] bootstrap class path not set in conjunction with -source 8
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[WARNING] target value 8 is obsolete and will be removed in a future release
+[WARNING] To suppress warnings about obsolete options, use -Xlint:-options.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running verification.MavenCentralConsumerTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.612 s -- in verification.MavenCentralConsumerTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.119 s
+[INFO] Finished at: 2026-11-23T18:24:31-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< io.github.monadrome:parallel-in-scope-demo >-------------
+[INFO] Building parallel-in-scope-demo 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-demo ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running demo.ArchitectureConstraintsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.047 s -- in demo.ArchitectureConstraintsTest
+[INFO] Running demo.basic.BasicParDemoTest
+=== BasicParDemo ===
+演示 Par.map() 基本用法
+
+输入数据: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+并行度: 3
+
+开始并行处理...
+  [pool-2-thread-3] 处理: 3
+  [pool-2-thread-1] 处理: 1
+  [pool-2-thread-2] 处理: 2
+  [pool-2-thread-1] 处理: 5
+  [pool-2-thread-2] 处理: 6
+  [pool-2-thread-4] 处理: 4
+  [pool-2-thread-2] 处理: 8
+  [pool-2-thread-3] 处理: 7
+  [pool-2-thread-3] 处理: 10
+  [pool-2-thread-4] 处理: 9
+
+处理完成!
+结果: SUCCESS:10
+值: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+任务体已退出: true
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.051 s -- in demo.basic.BasicParDemoTest
+[INFO] Running demo.article.QuickStartTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in demo.article.QuickStartTest
+[INFO] Running demo.article.BatchBestPracticesTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.768 s -- in demo.article.BatchBestPracticesTest
+[INFO] Running demo.article.E1_QueueFloodingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.192 s -- in demo.article.E1_QueueFloodingTest
+[INFO] Running demo.article.D2_LateBindRaceConditionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.614 s -- in demo.article.D2_LateBindRaceConditionTest
+[INFO] Running demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.543 s -- in demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Running demo.article.G2_BatchResultReportTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in demo.article.G2_BatchResultReportTest
+[INFO] Running demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.015 s -- in demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Running demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.536 s -- in demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Running demo.article.C2_CachedVsFixedPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.010 s -- in demo.article.C2_CachedVsFixedPoolTest
+[INFO] Running demo.article.H1_NullEmptyInputTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in demo.article.H1_NullEmptyInputTest
+[INFO] Running demo.article.A3_LeanVsFatExceptionTest
+Lean exceptions (10000): 2 ms
+Standard exceptions (10000): 26 ms
+Par.map 100 tasks with 200ms timeout: 3217 ms
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.259 s -- in demo.article.A3_LeanVsFatExceptionTest
+[INFO] Running demo.article.B1_MdcContextLostTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in demo.article.B1_MdcContextLostTest
+[INFO] Running demo.article.A1_CancelTrueInvalidTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.538 s -- in demo.article.A1_CancelTrueInvalidTest
+[INFO] Running demo.article.G4_NamedExecutorPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in demo.article.G4_NamedExecutorPoolTest
+[INFO] Running demo.article.G6_BatchDbQueryTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.915 s -- in demo.article.G6_BatchDbQueryTest
+[INFO] Running demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.323 s -- in demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Running demo.article.B2_FunctionSignatureBloatTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.013 s -- in demo.article.B2_FunctionSignatureBloatTest
+[INFO] Running demo.article.F1_CpuTaskQueuingTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.71 s -- in demo.article.F1_CpuTaskQueuingTest
+[INFO] Running demo.article.G5_BatchHttpCallsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.937 s -- in demo.article.G5_BatchHttpCallsTest
+[INFO] Running demo.article.A2_NestedCancelPropagationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.522 s -- in demo.article.A2_NestedCancelPropagationTest
+[INFO] Running demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.337 s -- in demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:08 min
+[INFO] Finished at: 2026-11-23T18:25:40-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --< io.github.monadrome.verification:parallel-in-scope-maven-central-consumer >--
+[INFO] Building parallel-in-scope-maven-central-consumer 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Deleting /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-maven-central-consumer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-maven-central-consumer ---
+[WARNING] I/O error reading dependency state: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/verification/maven-central-consumer/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug target 8] to target/test-classes
+[WARNING] bootstrap class path is not set in conjunction with -source 8
+  not setting the bootstrap class path may lead to class files that cannot run on JDK 8
+    --release 8 is recommended instead of -source 8 -target 8 because it sets the bootstrap class path automatically
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[WARNING] target value 8 is obsolete and will be removed in a future release
+[WARNING] To suppress warnings about obsolete options, use -Xlint:-options.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running verification.MavenCentralConsumerTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.618 s -- in verification.MavenCentralConsumerTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.880 s
+[INFO] Finished at: 2026-11-23T18:25:43-08:00
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< io.github.monadrome:parallel-in-scope-demo >-------------
+[INFO] Building parallel-in-scope-demo 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/demo/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-demo ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running demo.ArchitectureConstraintsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.052 s -- in demo.ArchitectureConstraintsTest
+[INFO] Running demo.basic.BasicParDemoTest
+=== BasicParDemo ===
+演示 Par.map() 基本用法
+
+输入数据: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+并行度: 3
+
+开始并行处理...
+  [pool-2-thread-3] 处理: 3
+  [pool-2-thread-1] 处理: 1
+  [pool-2-thread-2] 处理: 2
+  [pool-2-thread-4] 处理: 4
+  [pool-2-thread-2] 处理: 5
+  [pool-2-thread-1] 处理: 6
+  [pool-2-thread-4] 处理: 7
+  [pool-2-thread-4] 处理: 8
+  [pool-2-thread-3] 处理: 10
+  [pool-2-thread-1] 处理: 9
+
+处理完成!
+结果: SUCCESS:10
+值: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+任务体已退出: true
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.052 s -- in demo.basic.BasicParDemoTest
+[INFO] Running demo.article.QuickStartTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in demo.article.QuickStartTest
+[INFO] Running demo.article.BatchBestPracticesTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.802 s -- in demo.article.BatchBestPracticesTest
+[INFO] Running demo.article.E1_QueueFloodingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.204 s -- in demo.article.E1_QueueFloodingTest
+[INFO] Running demo.article.D2_LateBindRaceConditionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.588 s -- in demo.article.D2_LateBindRaceConditionTest
+[INFO] Running demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.546 s -- in demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Running demo.article.G2_BatchResultReportTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in demo.article.G2_BatchResultReportTest
+[INFO] Running demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.010 s -- in demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Running demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.536 s -- in demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Running demo.article.C2_CachedVsFixedPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.023 s -- in demo.article.C2_CachedVsFixedPoolTest
+[INFO] Running demo.article.H1_NullEmptyInputTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.054 s -- in demo.article.H1_NullEmptyInputTest
+[INFO] Running demo.article.A3_LeanVsFatExceptionTest
+Lean exceptions (10000): 10 ms
+Standard exceptions (10000): 129 ms
+Par.map 100 tasks with 200ms timeout: 3215 ms
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.412 s -- in demo.article.A3_LeanVsFatExceptionTest
+[INFO] Running demo.article.B1_MdcContextLostTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in demo.article.B1_MdcContextLostTest
+[INFO] Running demo.article.A1_CancelTrueInvalidTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.529 s -- in demo.article.A1_CancelTrueInvalidTest
+[INFO] Running demo.article.G4_NamedExecutorPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in demo.article.G4_NamedExecutorPoolTest
+[INFO] Running demo.article.G6_BatchDbQueryTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.914 s -- in demo.article.G6_BatchDbQueryTest
+[INFO] Running demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.338 s -- in demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Running demo.article.B2_FunctionSignatureBloatTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.017 s -- in demo.article.B2_FunctionSignatureBloatTest
+[INFO] Running demo.article.F1_CpuTaskQueuingTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.71 s -- in demo.article.F1_CpuTaskQueuingTest
+[INFO] Running demo.article.G5_BatchHttpCallsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.939 s -- in demo.article.G5_BatchHttpCallsTest
+[INFO] Running demo.article.A2_NestedCancelPropagationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.554 s -- in demo.article.A2_NestedCancelPropagationTest
+[INFO] Running demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.326 s -- in demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:08 min
+[INFO] Finished at: 2026-11-23T18:26:53-08:00
+[INFO] ------------------------------------------------------------------------

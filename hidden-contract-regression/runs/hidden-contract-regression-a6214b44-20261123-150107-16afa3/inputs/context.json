@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "hidden-contract-regression-a6214b44-20261123-150107-16afa3",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T15:01:07.809Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression",
+    "name": "hidden-contract-regression",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "head": "a6214b44766c8b502d192c4621f692258216d47a",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "to": "a6214b44766c8b502d192c4621f692258216d47a",
+    "label": "0e804a8b..a6214b44"
+  },
+  "objective": {
+    "subject": "fix: reject hollow contract regression classes",
+    "body": "MUST: Require every promoted contract class to contain at least one JUnit @Test method and upload both core and hidden reports when the dedicated CI job fails.\n\nMUST NOT: Allow a tagged empty class to pass as a persistent assurance regression."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "0e17b62e6283edfe69f531e4a1c58986071ce8959861fd539fe74e544f8c4eed",
+    "bytes": 36884,
+    "files": [
+      {
+        "path": ".agents/skills/assurance-report/SKILL.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 3
+      },
+      {
+        "path": ".agents/skills/contract-diff/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-extract/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/SKILL.md",
+        "status": "M",
+        "additions": 47,
+        "deletions": 8
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+        "status": "M",
+        "additions": 6,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+        "status": "M",
+        "additions": 3,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/package.yaml",
+        "status": "M",
+        "additions": 8,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/host-adapter.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 0
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 3
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+        "status": "M",
+        "additions": 9,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/isolated-test-generation/SKILL.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 4
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "status": "M",
+        "additions": 36,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 0
+      },
+      {
+        "path": "pom.xml",
+        "status": "M",
+        "additions": 9,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/check-contract-tests.py",
+        "status": "A",
+        "additions": 73,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_check_contract_tests.py",
+        "status": "A",
+        "additions": 65,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_verify_run.py",
+        "status": "M",
+        "additions": 11,
+        "deletions": 3
+      },
+      {
+        "path": "verification/contract-tests/AGENTS.md",
+        "status": "A",
+        "additions": 33,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/pom.xml",
+        "status": "A",
+        "additions": 64,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java",
+        "status": "A",
+        "additions": 19,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "94b4dae21d53bbc18b03a010800c6b51651b8fd3c4ae7a8c3ee63d62335e853a",
+    "bytes": 2876,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "a6214b44766c8b502d192c4621f692258216d47a",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "hidden-contract-regression-a6214b44-20261123-152612-6444e8",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T15:26:13.058Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression",
+    "name": "hidden-contract-regression"
+  },
+  "commits": {
+    "base": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "head": "a6214b44766c8b502d192c4621f692258216d47a",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "openai",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 2100,
+      "reviewSeconds": 1800,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "94b4dae21d53bbc18b03a010800c6b51651b8fd3c4ae7a8c3ee63d62335e853a",
+    "contextJsonSha256": "efe47856d3e51ab266f0b33afed0095fbfc52d06c470e4ccf0538d97e32d3e0c",
+    "diffSha256": "0e17b62e6283edfe69f531e4a1c58986071ce8959861fd539fe74e544f8c4eed",
+    "caseManifestSha256": "6589868aa5021619e49c388c800454bf49214708983a30287e3352400c5acdf8",
+    "promptSha256": "3eb5462b1ed08bfc87b3558c02ab20378b3987e2b081ccacdd25ed679d8ca69e"
+  },
+  "promptPath": "inputs/prompt.md"
+}

@@ -1,0 +1,170 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/tests/test_check_contract_tests.py",
+      "symbol": "CheckContractTestsTest",
+      "refactoring": "Extract Function\uff08\u628a spec_from_file_location + module_from_spec + exec_module \u6536\u62e2\u4e3a scripts/tests \u5305\u5185\u5171\u4eab\u7684 load_script(name)\uff0c\u5e76\u5728\u672c\u6a21\u5757\u8c03\u7528\uff09",
+      "rules": [
+        "M05"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "\u540c\u4e00\u6837\u677f\u5df2\u5728 test_check_api_surface.py\u3001test_check_english_docs.py\u3001test_check_project_baseline.py\u3001test_check_java_conventions.py\u3001test_check_race_claims.py\u3001test_watch_delivery_ci.py \u7b49\u5904\u4ee5 load_script() \u5f62\u5f0f\u5b58\u5728\uff0c\u672c\u6b21\u65b0\u589e\u7684\u662f\u7b2c N \u4efd\u526f\u672c\u4e14\u56de\u5f52\u4e86 sys.modules \u6ce8\u518c\uff1b\u5171\u4eab\u540e\u811a\u672c\u52a0\u8f7d\u65b9\u5f0f\u53ea\u9700\u6539\u4e00\u5904\uff0c\u65b0\u589e\u68c0\u67e5\u811a\u672c\u7684\u6d4b\u8bd5\u4e0d\u5fc5\u518d\u590d\u5236\u8fd9\u6bb5\u6837\u677f\u3002"
+      ],
+      "behaviorRisks": [
+        "\u52a0\u8f7d\u8bed\u4e49\u5fc5\u987b\u4fdd\u6301\uff1a\u4ee5\u6587\u4ef6\u8def\u5f84\u6309\u6a21\u5757\u540d\u52a0\u8f7d\u3001\u6a21\u5757\u9876\u5c42\u4ee3\u7801\u7167\u5e38\u6267\u884c\uff0c\u4e14\u4e0d\u5f97\u6539\u53d8 verify() \u7684\u8fd4\u56de\u503c\u6216\u65ad\u8a00\u884c\u4e3a\uff1b\u82e5\u6cbf\u7528\u5144\u5f1f\u6a21\u5757\u7684 sys.modules[spec.name] = module \u5199\u6cd5\uff0c\u53ea\u5f71\u54cd\u6a21\u5757\u6ce8\u518c\uff0c\u4e0d\u5f71\u54cd\u672c\u6d4b\u8bd5\u89c2\u5bdf\u5230\u7684\u884c\u4e3a\u3002"
+      ],
+      "guardingTests": [
+        "CheckContractTestsTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M05"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-contract-tests.py",
+      "symbol": "verify",
+      "refactoring": "Extract Function into named steps: a per-file `validate_test_file(path, test_root, id_owners)` returning the collected errors, and a small `previous_non_blank_line(lines, index)` helper for the tag-adjacency scan, leaving `verify` to read as discovery + dispatch + aggregation",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Separates the directory walk from the per-file metadata rules so a new rule (for example a required package declaration) is a local addition in one function instead of another branch in a 35-line loop; the line-offset arithmetic stops sitting next to path discovery at a different abstraction level, which makes both reviewable and unit-testable in isolation"
+      ],
+      "behaviorRisks": [
+        "Must keep the exact error strings, their insertion order in the returned list, the single error appended when a file has zero or several matching classes plus the `continue` that suppresses the remaining checks for it, and the order in which IDs are entered into `owners` so the 'already used by' message names the same earlier file"
+      ],
+      "guardingTests": [
+        "CheckContractTestsTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/check-contract-tests.py",
+      "symbol": "verify",
+      "refactoring": "Extract Shared Constant / Extract Function: hoist the contract-ID width into one `ID_PATTERN` fragment composed into both `CLASS_RE` and `CONTRACT_TAG_RE`, and derive both the expected tag line and the tag error messages from a single `contract_tag(contract_id)` helper",
+      "rules": [
+        "S03"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The `\\d{4}` rule currently lives in two independent regexes while the `C-<id>` tag literal is re-assembled in the expected-tag comparison and again in two error messages; with one source, widening IDs or changing the tag spelling is a one-line edit that cannot leave `CLASS_RE` and `CONTRACT_TAG_RE` disagreeing, and the emitted messages stay in lockstep with what was actually matched"
+      ],
+      "behaviorRisks": [
+        "Must preserve the accepted sets of both regexes exactly (including the `^class C...ContractTest\\b` anchoring and the multiline flag) and reproduce byte-identical error text for the missing-tag, mismatched-tag, and duplicate-ID cases"
+      ],
+      "guardingTests": [
+        "CheckContractTestsTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S",
+          "rule": "S03"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunAcceptedExceptionTest",
+      "refactoring": "Rename Class to VerifyRunTest",
+      "rules": [
+        "T05"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The added test test_requires_hashes_for_promoted_test_copies checks artifact hashing of promotions, which is unrelated to accepted-exception validation. After the change the class name (and the module docstring that mirrors it) under-describes the suite, so a reader scanning failures or deciding where a new verifier test belongs is misled; renaming the class makes the covered surface visible without touching any test body."
+      ],
+      "behaviorRisks": [
+        "None observable: test inputs, fixtures, assertions, and timing stay identical; only the unittest-reported class name changes."
+      ],
+      "guardingTests": [
+        "VerifyRunAcceptedExceptionTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T05"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    }
+  ],
+  "conflicts": [
+    {
+      "file": "scripts/check-contract-tests.py",
+      "symbol": "verify",
+      "ids": [
+        "R2",
+        "R3"
+      ]
+    }
+  ],
+  "uncovered": [],
+  "totals": {
+    "findings": 4,
+    "byTier": {
+      "T0": 3,
+      "T1": 1,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "hidden-contract-regression-a6214b44-20261123-150107-16afa3",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-23T15:01:07.865Z",
+  "endedAt": "2026-11-23T15:24:26.365Z",
+  "durationMs": 1398228,
+  "exitCode": 1,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-150107-16afa3/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-150107-16afa3/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-150107-16afa3/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "ctrip-ada/claude-auto[1M]",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 0e804a8b08a8c5bfcce12e9d831dc44b197b557e to a6214b44766c8b502d192c4621f692258216d47a. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-150107-16afa3/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-150107-16afa3/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Final independent review: hidden assurance regressions\n\nReview the complete range `0e804a8b08a8c5bfcce12e9d831dc44b197b557e..a6214b44766c8b502d192c4621f692258216d47a`.\nRead the immutable diff supplied by the prompt and every changed file below in the head snapshot.\n\n## Changed paths\n\n- `.agents/skills/assurance-report/SKILL.md`\n- `.agents/skills/contract-diff/SKILL.md`\n- `.agents/skills/contract-extract/SKILL.md`\n- `.agents/skills/contract-first-assurance/SKILL.md`\n- `.agents/skills/contract-first-assurance/adapters/vformation.yaml`\n- `.agents/skills/contract-first-assurance/evals/evals.json`\n- `.agents/skills/contract-first-assurance/package.yaml`\n- `.agents/skills/contract-first-assurance/references/host-adapter.md`\n- `.agents/skills/contract-first-assurance/references/reproducible-runs.md`\n- `.agents/skills/contract-first-assurance/scripts/verify_run.py`\n- `.agents/skills/isolated-test-generation/SKILL.md`\n- `.github/workflows/ci.yml`\n- `AGENTS.md`\n- `pom.xml`\n- `scripts/check-contract-tests.py`\n- `scripts/tests/test_check_contract_tests.py`\n- `scripts/tests/test_verify_run.py`\n- `verification/contract-tests/AGENTS.md`\n- `verification/contract-tests/pom.xml`\n- `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java`\n\n## Attack surfaces\n\n- Profile activation and default-reactor exclusion; Maven dependency resolution, Java 8 production bytecode, Java 11 test compilation, and JUnit discovery.\n- Concrete triggers that let missing/mismatched IDs or empty test classes silently pass; duplicate IDs across files and Surefire file-name discovery.\n- Assurance v2 finalization, required-gate handling, promotion eligibility, and SHA-256 coverage of every promoted copy.\n- Consistency between every added workflow MUST/MUST NOT and the actual scripts, POMs, CI job, and agent instructions.\n- Context isolation between implementation, isolated test generation, assurance promotion, and independent review.\n- The C-0001 public contract and whether its assertions can detect the opposite behavior.\n- R4 renamed only the Python verifier test class; confirm no discovery or assertion regression.\n\n## Assurance classification requiring independent confirmation\n\nThe initial commit records `assurance: SKIPPED` because production behavior and existing behavioral\nevidence are unchanged, and the workflow/test additions do not weaken, remove, or replace existing\nevidence. Confirm or reject this against `.agents/skills/project-delivery/references/assurance.md`\nand the complete diff. A question or rejection upgrades the run to required.\n\nThe earlier review of a pre-rebase snapshot timed out twice and produced no findings; it supplies no\nclean baseline. Refactoring review settled R1 as deferred, R2 as reverted for excess growth, R3 as\nrejected, and R4 as applied. Do not treat a timed-out review as evidence.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-a6214b44-20261123-150107-16afa3/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "ctrip-ada",
+    "model": "ctrip-ada/claude-auto[1M]",
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": null,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "failed",
+  "summary": null,
+  "findings": null,
+  "rawFindings": null,
+  "error": "reviewer exited with code 1"
+}

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "hidden-contract-regression-7df3a3b2-20261124-015503-c455b8",
+  "agent": "kiro",
+  "attempt": 1,
+  "startedAt": "2026-11-24T01:55:04.150Z",
+  "endedAt": "2026-11-24T02:09:06.677Z",
+  "durationMs": 842313,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kiro-cli",
+    "args": [
+      "chat",
+      "--v3",
+      "--no-interactive",
+      "--trust-all-tools",
+      "--model",
+      "gpt-5.6-terra",
+      "--effort",
+      "max",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from e15010cf224e9ddbd2dfeca8262f6c1961eddee2 to 7df3a3b2a056235feb88f9a19bffcbad3fd37e0a. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-7df3a3b2-20261124-015503-c455b8/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-7df3a3b2-20261124-015503-c455b8/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Third independent review: hidden assurance regressions\n\nReview the complete range `e15010cf224e9ddbd2dfeca8262f6c1961eddee2..7df3a3b2a056235feb88f9a19bffcbad3fd37e0a`.\nRead the immutable diff supplied by the prompt and every changed file below in the head snapshot.\nThis is the third and final fresh review round. Verify all six settled findings and look for remaining blocking defects.\n\n## Changed paths\n\n- `.agents/skills/assurance-report/SKILL.md`\n- `.agents/skills/contract-diff/SKILL.md`\n- `.agents/skills/contract-extract/SKILL.md`\n- `.agents/skills/contract-first-assurance/SKILL.md`\n- `.agents/skills/contract-first-assurance/adapters/vformation.yaml`\n- `.agents/skills/contract-first-assurance/evals/evals.json`\n- `.agents/skills/contract-first-assurance/package.yaml`\n- `.agents/skills/contract-first-assurance/references/host-adapter.md`\n- `.agents/skills/contract-first-assurance/references/reproducible-runs.md`\n- `.agents/skills/contract-first-assurance/scripts/verify_run.py`\n- `.agents/skills/isolated-test-generation/SKILL.md`\n- `.github/workflows/ci.yml`\n- `AGENTS.md`\n- `pom.xml`\n- `scripts/check-contract-tests.py`\n- `scripts/check-verification-integrity.py`\n- `scripts/tests/test_check_contract_tests.py`\n- `scripts/tests/test_verify_run.py`\n- `verification/contract-tests/AGENTS.md`\n- `verification/contract-tests/pom.xml`\n- `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java`\n\n## Settled findings and required fixes\n\n- C01: lexical `@Test` was not execution evidence. Require per-class Surefire XML and reject missing/skipped/failed/error outcomes after a clean run.\n- C02: promoted rows need existing hashed archive copies, exact CSV schema, allowed statuses, reasons, safe unique IDs and paths.\n- C03: same simple class names in another package must not satisfy execution evidence. Match the source package plus class exactly and reject empty method names.\n- C04: every promoted row requires a passing `regression-tests` gate and successful exact-argv command records for `regression-metadata`, `regression-tests`, and `regression-execution`, frozen in `adapter.regressionSuite`.\n- C05: reject non-canonical empty/dot/dot-dot path components so aliases cannot bypass uniqueness.\n- C06: promoted candidate IDs must be non-empty, unique, and sealed in `candidate-status.csv`; source contract IDs must be non-empty.\n\nAll six were reproduced by failing tests before their fixes. Review the implementation and tests, not just the presence of documentation.\n\n## Attack surfaces\n\n- Profile activation and default-reactor exclusion; Maven dependency resolution, Java 8 production bytecode, Java 11 test compilation, and JUnit discovery.\n- Metadata, fully qualified per-class execution evidence, clean reports, malformed XML, and Surefire matching.\n- Assurance v2 finalization, conditional promotion gates, exact argv matching, command logs, CSV parser edge cases, canonical paths, sealed candidate origins, and SHA-256 coverage.\n- Consistency between every workflow MUST/MUST NOT and the scripts, POMs, CI job, and agent instructions.\n- Context isolation between implementation, isolated test generation, assurance promotion, and independent review.\n- C-0001 public behavior and reverse verification.\n- The verifier test class rename and its sixteen exact verification-integrity exceptions; no unrelated exception is allowed.\n- Incoming verification-integrity behavior and protected-path reporting.\n\n## Required assurance classification\n\nThe first Kiro review rejected `assurance: SKIPPED`; a full run remains required. The second Kiro review confirmed four additional defects, so its in-progress assurance artifacts are superseded by the final head and cannot finalize the gate.\n\nThe first Codex review timed out twice and a later Codex attempt hit `max_output_tokens`; none produced findings or a clean baseline. Refactoring review settled R1 as deferred, R2 as reverted for excess growth, R3 as rejected, and R4 as applied. Review the complete final range rather than relying on those results.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/.review-benchmark/runs/hidden-contract-regression-7df3a3b2-20261124-015503-c455b8/snapshot"
+  },
+  "stdoutPath": "logs/kiro-attempt-1.stdout.log",
+  "stderrPath": "logs/kiro-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kiro",
+    "version": "kiro-cli 3.5.0",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "revision": null,
+    "effort": "max"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The new profile and baseline regression test build, but the evidence checks still allow a passing CI or assurance result without the claimed contract regression being executed or uniquely traceable.",
+  "findings": [
+    {
+      "file": "scripts/check-contract-tests.py",
+      "lineStart": 20,
+      "lineEnd": 46,
+      "title": "Execution evidence is not bound to a per-class Surefire report",
+      "trigger": "A new C0001 class has no discovered contract test, while another suite test creates target/surefire-reports/TEST-contracts.xml containing a passing testcase whose classname is the C0001 FQCN.",
+      "consequence": "The hidden-contract-regression job accepts C0001 as executed even though Surefire did not run that class's contract behavior.",
+      "evidence": "The checker scans every TEST-*.xml and associates testcase elements solely by their classname at scripts/check-contract-tests.py:20-34; it never requires TEST-<fully-qualified-class>.xml. Its own fixture writes TEST-contracts.xml at scripts/tests/test_check_contract_tests.py:28-42 and accepts it as execution evidence at scripts/tests/test_check_contract_tests.py:70-73.",
+      "severity": "P1",
+      "confidence": 0.99,
+      "suggestedFix": "Require one canonical TEST-<FQCN>.xml report for each source contract class and parse evidence only from that class-specific report; reject aggregate or unrelated report files as proof.",
+      "id": "kiro:0",
+      "reviewer": "kiro",
+      "attempt": 1
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 119,
+      "lineEnd": 126,
+      "title": "Promoted archive is never bound to the claimed suite destination",
+      "trigger": "A promoter records a new promoted C-nnnn row with an existing hashed arbitrary file under promotions/ and a canonical but nonexistent target_path, then runs the regression commands against the unchanged existing suite.",
+      "consequence": "verify_run can return success and the report can claim a persistent promoted regression even though no matching test was copied into the contract-test suite, so later regressions are not guarded.",
+      "evidence": "verify_promotions only checks that the archive is a file and appears in artifacts at .agents/skills/contract-first-assurance/scripts/verify_run.py:119-123, while target_path receives only a syntax check at :124-126. The accepted fixture creates an archive containing only an empty class at scripts/tests/test_verify_run.py:85-91, records a target path that omits the source package at :145-148, and expects successful verification at :290-292.",
+      "severity": "P1",
+      "confidence": 0.97,
+      "suggestedFix": "Freeze the destination suite root and destination-file digest in the run record, then require the target to exist beneath that root and byte-match the archived promoted copy before accepting a promoted row.",
+      "id": "kiro:1",
+      "reviewer": "kiro",
+      "attempt": 1
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 56,
+      "lineEnd": 66,
+      "title": "Candidate sealing silently collapses duplicate candidate IDs",
+      "trigger": "candidate-status.csv contains two records for CONTRACT-TDD-001 and a promoted row references that ID.",
+      "consequence": "The verifier accepts an ambiguous origin as one sealed candidate, so conflicting candidate records can be promoted without preserving the unique candidate provenance required by the assurance contract.",
+      "evidence": "sealed_candidates builds a set from candidate-status.csv at .agents/skills/contract-first-assurance/scripts/verify_run.py:61-64, discarding duplicate records. verify_promotions subsequently performs only set membership at :102-106, rather than requiring exactly one sealed source record.",
+      "severity": "P2",
+      "confidence": 0.91,
+      "suggestedFix": "Parse candidate-status.csv into counted records, reject blank or duplicate candidate IDs, and require exactly one sealed candidate record for every promoted candidate ID.",
+      "id": "kiro:2",
+      "reviewer": "kiro",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "scripts/check-contract-tests.py",
+      "lineStart": 20,
+      "lineEnd": 46,
+      "title": "Execution evidence is not bound to a per-class Surefire report",
+      "trigger": "A new C0001 class has no discovered contract test, while another suite test creates target/surefire-reports/TEST-contracts.xml containing a passing testcase whose classname is the C0001 FQCN.",
+      "consequence": "The hidden-contract-regression job accepts C0001 as executed even though Surefire did not run that class's contract behavior.",
+      "evidence": "The checker scans every TEST-*.xml and associates testcase elements solely by their classname at scripts/check-contract-tests.py:20-34; it never requires TEST-<fully-qualified-class>.xml. Its own fixture writes TEST-contracts.xml at scripts/tests/test_check_contract_tests.py:28-42 and accepts it as execution evidence at scripts/tests/test_check_contract_tests.py:70-73.",
+      "severity": "P1",
+      "confidence": 0.99,
+      "suggestedFix": "Require one canonical TEST-<FQCN>.xml report for each source contract class and parse evidence only from that class-specific report; reject aggregate or unrelated report files as proof."
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 119,
+      "lineEnd": 126,
+      "title": "Promoted archive is never bound to the claimed suite destination",
+      "trigger": "A promoter records a new promoted C-nnnn row with an existing hashed arbitrary file under promotions/ and a canonical but nonexistent target_path, then runs the regression commands against the unchanged existing suite.",
+      "consequence": "verify_run can return success and the report can claim a persistent promoted regression even though no matching test was copied into the contract-test suite, so later regressions are not guarded.",
+      "evidence": "verify_promotions only checks that the archive is a file and appears in artifacts at .agents/skills/contract-first-assurance/scripts/verify_run.py:119-123, while target_path receives only a syntax check at :124-126. The accepted fixture creates an archive containing only an empty class at scripts/tests/test_verify_run.py:85-91, records a target path that omits the source package at :145-148, and expects successful verification at :290-292.",
+      "severity": "P1",
+      "confidence": 0.97,
+      "suggestedFix": "Freeze the destination suite root and destination-file digest in the run record, then require the target to exist beneath that root and byte-match the archived promoted copy before accepting a promoted row."
+    },
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 56,
+      "lineEnd": 66,
+      "title": "Candidate sealing silently collapses duplicate candidate IDs",
+      "trigger": "candidate-status.csv contains two records for CONTRACT-TDD-001 and a promoted row references that ID.",
+      "consequence": "The verifier accepts an ambiguous origin as one sealed candidate, so conflicting candidate records can be promoted without preserving the unique candidate provenance required by the assurance contract.",
+      "evidence": "sealed_candidates builds a set from candidate-status.csv at .agents/skills/contract-first-assurance/scripts/verify_run.py:61-64, discarding duplicate records. verify_promotions subsequently performs only set membership at :102-106, rather than requiring exactly one sealed source record.",
+      "severity": "P2",
+      "confidence": 0.91,
+      "suggestedFix": "Parse candidate-status.csv into counted records, reject blank or duplicate candidate IDs, and require exactly one sealed candidate record for every promoted candidate ID."
+    }
+  ],
+  "error": null
+}

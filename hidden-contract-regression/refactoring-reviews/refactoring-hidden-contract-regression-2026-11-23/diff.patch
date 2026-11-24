@@ -1,0 +1,171 @@
+diff --git a/scripts/check-contract-tests.py b/scripts/check-contract-tests.py
+new file mode 100644
+index 00000000..bf4608e5
+--- /dev/null
++++ b/scripts/check-contract-tests.py
+@@ -0,0 +1,70 @@
++#!/usr/bin/env python3
++"""Check traceability metadata for hidden contract regression tests."""
++
++from __future__ import annotations
++
++import argparse
++import re
++import sys
++from pathlib import Path
++
++
++CLASS_RE = re.compile(r"^class (C(?P<contract_id>\d{4})[A-Za-z0-9]+ContractTest)\b", re.MULTILINE)
++CONTRACT_TAG_RE = re.compile(r'@Tag\("C-(\d{4})"\)')
++
++
++def verify(test_root: Path) -> list[str]:
++    errors = []
++    paths = sorted(test_root.rglob("*.java"))
++    if not paths:
++        return [f"no contract regression tests found under {test_root}"]
++
++    owners = {}
++    for path in paths:
++        text = path.read_text(encoding="utf-8")
++        matches = list(CLASS_RE.finditer(text))
++        relative = path.relative_to(test_root)
++        if len(matches) != 1:
++            errors.append(f"{relative}: expected one Cnnnn<Subject>ContractTest class")
++            continue
++        match = matches[0]
++        class_name = match.group(1)
++        if path.name != f"{class_name}.java":
++            errors.append(f"{relative}: file name must match {class_name}")
++        contract_id = match.group("contract_id")
++        expected_tag = f'@Tag("C-{contract_id}")'
++        lines = text.splitlines()
++        class_line = text[: match.start()].count("\n")
++        previous = class_line - 1
++        while previous >= 0 and not lines[previous].strip():
++            previous -= 1
++        if previous < 0 or lines[previous].strip() != expected_tag:
++            errors.append(f"{relative}: expected {expected_tag} immediately above the class")
++        tags = CONTRACT_TAG_RE.findall(text)
++        if tags != [contract_id]:
++            errors.append(f"{relative}: expected exactly one contract tag C-{contract_id}")
++        if contract_id in owners:
++            errors.append(f"{relative}: C-{contract_id} is already used by {owners[contract_id]}")
++        else:
++            owners[contract_id] = relative
++    return errors
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--test-root", type=Path)
++    args = parser.parse_args()
++    test_root = args.test_root
++    if test_root is None:
++        test_root = Path(__file__).resolve().parents[1] / "verification/contract-tests/src/test/java"
++    errors = verify(test_root.resolve())
++    if errors:
++        for error in errors:
++            print(f"ERROR: {error}")
++        return 1
++    print(f"OK: hidden contract regression metadata under {test_root.resolve()}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/tests/test_check_contract_tests.py b/scripts/tests/test_check_contract_tests.py
+new file mode 100644
+index 00000000..9246103c
+--- /dev/null
++++ b/scripts/tests/test_check_contract_tests.py
+@@ -0,0 +1,49 @@
++import importlib.util
++import tempfile
++import unittest
++from pathlib import Path
++
++
++SCRIPT = Path(__file__).resolve().parents[1] / "check-contract-tests.py"
++spec = importlib.util.spec_from_file_location("check_contract_tests", SCRIPT)
++check_contract_tests = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(check_contract_tests)
++
++
++class CheckContractTestsTest(unittest.TestCase):
++    def setUp(self):
++        temp = tempfile.TemporaryDirectory()
++        self.addCleanup(temp.cleanup)
++        self.root = Path(temp.name)
++
++    def write_test(self, name, contract_id, tag=None):
++        tag = contract_id if tag is None else tag
++        (self.root / name).write_text(
++            f'import org.junit.jupiter.api.Tag;\n@Tag("C-{tag}")\nclass C{contract_id}SubjectContractTest {{}}\n',
++            encoding="utf-8",
++        )
++
++    def test_accepts_matching_unique_contract_ids(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        self.write_test("C0002SubjectContractTest.java", "0002")
++        self.assertEqual(check_contract_tests.verify(self.root), [])
++
++    def test_rejects_missing_or_mismatched_tag(self):
++        self.write_test("C0001SubjectContractTest.java", "0001", tag="0002")
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("immediately above the class" in error for error in errors))
++        self.assertTrue(any("exactly one contract tag C-0001" in error for error in errors))
++
++    def test_rejects_duplicate_contract_ids(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        self.write_test("Other.java", "0001")
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("already used" in error for error in errors))
++
++    def test_rejects_an_empty_suite(self):
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("no contract regression tests" in error for error in errors))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 44f3c103..f90cafde 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -18,12 +18,13 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         temp = tempfile.TemporaryDirectory()
+         self.addCleanup(temp.cleanup)
+         run = Path(temp.name)
+-        for directory in ("inputs", "logs", "candidates", "reverse-verification"):
++        for directory in ("inputs", "logs", "candidates", "promotions", "reverse-verification"):
+             (run / directory).mkdir()
+         for relative in (
+             "contract.md",
+             "contract-gaps.md",
+             "candidate-status.csv",
++            "promotion-status.csv",
+             "verification-summary.md",
+             "report.md",
+             "inputs/pit-audit.md",
+@@ -49,6 +50,7 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+                     "contract.md",
+                     "contract-gaps.md",
+                     "candidate-status.csv",
++                    "promotion-status.csv",
+                     "verification-summary.md",
+                     "report.md",
+                 )
+@@ -85,6 +87,12 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         errors = verify_run.verify(run)
+         self.assertTrue(any("disposition is not allowed by adapter" in error for error in errors))
+ 
++    def test_requires_hashes_for_promoted_test_copies(self):
++        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        (run / "promotions/C0001ContractTest.java").write_text("class C0001ContractTest {}\n", encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertTrue(any("artifacts does not hash promoted test copy" in error for error in errors))
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

@@ -1,0 +1,7 @@
+test_contract_tdd_001_metadata_accepts_one_matching_class (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_001_metadata_accepts_one_matching_class)
+CONTRACT-TDD-001 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.088s
+
+OK

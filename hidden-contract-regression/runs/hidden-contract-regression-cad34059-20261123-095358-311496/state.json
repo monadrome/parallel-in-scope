@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "hidden-contract-regression-cad34059-20261123-095358-311496",
+  "status": "failed",
+  "createdAt": "2026-11-23T09:54:00.061Z",
+  "updatedAt": "2026-11-23T14:52:36.783Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T09:54:00.326Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "timed_out",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "timed_out",
+            "startedAt": "2026-11-23T09:54:00.365Z",
+            "endedAt": "2026-11-23T10:08:15.471Z",
+            "durationMs": 854563,
+            "exitCode": null,
+            "timedOut": true,
+            "error": "review exceeded the hard timeout of 840s; process group was terminated",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          },
+          {
+            "attempt": 2,
+            "status": "timed_out",
+            "startedAt": "2026-11-23T14:38:21.657Z",
+            "endedAt": "2026-11-23T14:52:36.702Z",
+            "durationMs": 854949,
+            "exitCode": null,
+            "timedOut": true,
+            "error": "review exceeded the hard timeout of 840s; process group was terminated",
+            "recordPath": "reviews/codex/attempt-2.json",
+            "logBase": "logs/codex-attempt-2"
+          }
+        ],
+        "updatedAt": "2026-11-23T14:52:36.708Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T10:08:15.559Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T10:08:15.612Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-23T10:08:15.677Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-23T09:54:00.061Z",
+      "error": null
+    }
+  },
+  "eventSeq": 132
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "hidden-contract-regression-cad34059-20261123-095358-311496",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-23T09:53:59.896Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression",
+    "name": "hidden-contract-regression"
+  },
+  "commits": {
+    "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+    "head": "cad34059834b8f7a8de4c01e2e5db9dd1cae79af",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "ctrip-ada",
+        "model": "ctrip-ada/claude-auto[1M]",
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "0f7ed3ea5f1b8596c5445cb659c10501d0d42e824f4ff448705a756d95ff7cac",
+    "contextJsonSha256": "b62269956d95024f29ad245186027c44ae925aeb440e05b2894554f2e7c48a37",
+    "diffSha256": "4899c32543da13617830bc19240c3780d67dd0df5fda26d7afd2401dc6454710",
+    "caseManifestSha256": "d292b4efd19d5386503d1c718d2d905cdfd19b047f7e20fe409475a96e478d23",
+    "promptSha256": "27e6c534f3fb4641c4f3ca520a8367fdb868616f0caa2e2ebe6e08e312961efb"
+  },
+  "promptPath": "inputs/prompt.md"
+}

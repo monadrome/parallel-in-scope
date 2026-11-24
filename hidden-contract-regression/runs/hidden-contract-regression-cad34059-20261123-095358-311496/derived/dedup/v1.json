@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "hidden-contract-regression-cad34059-20261123-095358-311496",
+  "version": 1,
+  "createdAt": "2026-11-23T10:08:15.520Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

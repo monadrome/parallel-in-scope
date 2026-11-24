@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "hidden-contract-regression-2cf9df18-20261124-012349-829543",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T01:45:50.438Z",
+  "judge": {
+    "kind": "agent",
+    "name": "Kimi",
+    "model": "kimi-code/k3.1-pro",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "The checker strips packages and accepts the same simple class name from another package; method names are also unconstrained.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C04",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "A promoted row currently passes with no commands and no regression-tests gate.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C05",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Path normalization makes dot and repeated-separator spellings resolve to the same file while raw-string uniqueness accepts them.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C06",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Empty and duplicate candidate IDs and empty source contract IDs currently pass, and sealed candidate-status.csv is not consulted.",
+      "confidence": 1
+    }
+  ]
+}

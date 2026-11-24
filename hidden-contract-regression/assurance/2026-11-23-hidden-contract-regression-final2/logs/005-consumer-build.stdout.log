@@ -1,0 +1,108 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 2 modules
+[INFO] Installing Central Publishing features
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] parallel-in-scope parent                                           [pom]
+[INFO] parallel-in-scope                                                  [jar]
+[INFO] 
+[INFO] ------------< io.github.monadrome:parallel-in-scope-parent >------------
+[INFO] Building parallel-in-scope parent 0.5.0-SNAPSHOT                   [1/2]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-parent ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ parallel-in-scope-parent ---
+[INFO] Installing /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/pom.xml to /Applications/dev_conf/repo/io/github/monadrome/parallel-in-scope-parent/0.5.0-SNAPSHOT/parallel-in-scope-parent-0.5.0-SNAPSHOT.pom
+[INFO] 
+[INFO] ---------------< io.github.monadrome:parallel-in-scope >----------------
+[INFO] Building parallel-in-scope 0.5.0-SNAPSHOT                          [2/2]
+[INFO]   from core/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope ---
+[INFO] Deleting /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/target
+[INFO] 
+[INFO] --- enforcer:3.7.0:enforce (enforce-jdk-25-plus) @ parallel-in-scope ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 72 source files with javac [debug release 8] to target/classes
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[WARNING] target value 8 is obsolete and will be removed in a future release
+[WARNING] To suppress warnings about obsolete options, use -Xlint:-options.
+[WARNING] unknown enum constant java.lang.annotation.ElementType.MODULE
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/package-info.java: unknown enum constant java.lang.annotation.ElementType.MODULE
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java:[136,15] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java:[434,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/TaskId.java:[60,26] [EqualsGetClass] Prefer instanceof to getClass when implementing Object#equals. Note that this may be a behaviour change.
+    (see https://errorprone.info/bugpattern/EqualsGetClass)
+  Did you mean 'return other instanceof TaskId && other instanceof TaskId && label.equals(((TaskId) other).label);'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java:[162,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java:[270,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java:[180,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java:[133,13] [NotJavadoc] This comment is attached to a method inside a local class, but methods inside local classes cannot be documented with Javadoc. Please convert this to a regular comment.
+    (see https://errorprone.info/bugpattern/NotJavadoc)
+  Did you mean '/*'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java:[179,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java:[134,41] [CollectionUndefinedEquality] Future does not have well-defined equals behavior.
+    (see https://errorprone.info/bugpattern/CollectionUndefinedEquality)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java:[1025,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java:[32,19] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (value.equals(owner)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java:[51,21] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (failure.equals(owner)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java:[196,15] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (lincheck-test) @ parallel-in-scope ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ parallel-in-scope ---
+[INFO] Building jar: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/target/parallel-in-scope-0.5.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- source:3.4.0:jar-no-fork (attach-sources) @ parallel-in-scope ---
+[INFO] Building jar: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/target/parallel-in-scope-0.5.0-SNAPSHOT-sources.jar
+[INFO] 
+[INFO] --- javadoc:3.12.0:jar (attach-javadocs) @ parallel-in-scope ---
+[INFO] Skipping javadoc generation
+[INFO] 
+[INFO] --- install:3.2.0:install (default-install) @ parallel-in-scope ---
+[INFO] Installing /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/pom.xml to /Applications/dev_conf/repo/io/github/monadrome/parallel-in-scope/0.5.0-SNAPSHOT/parallel-in-scope-0.5.0-SNAPSHOT.pom
+[INFO] Installing /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/target/parallel-in-scope-0.5.0-SNAPSHOT.jar to /Applications/dev_conf/repo/io/github/monadrome/parallel-in-scope/0.5.0-SNAPSHOT/parallel-in-scope-0.5.0-SNAPSHOT.jar
+[INFO] Installing /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/hidden-contract-regression/core/target/parallel-in-scope-0.5.0-SNAPSHOT-sources.jar to /Applications/dev_conf/repo/io/github/monadrome/parallel-in-scope/0.5.0-SNAPSHOT/parallel-in-scope-0.5.0-SNAPSHOT-sources.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for parallel-in-scope parent 0.5.0-SNAPSHOT:
+[INFO] 
+[INFO] parallel-in-scope parent ........................... SUCCESS [  0.081 s]
+[INFO] parallel-in-scope .................................. SUCCESS [  4.354 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.595 s
+[INFO] Finished at: 2026-11-23T18:21:05-08:00
+[INFO] ------------------------------------------------------------------------

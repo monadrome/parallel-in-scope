@@ -1,0 +1,1 @@
+c495b6cc feat: persist assurance contract regressions

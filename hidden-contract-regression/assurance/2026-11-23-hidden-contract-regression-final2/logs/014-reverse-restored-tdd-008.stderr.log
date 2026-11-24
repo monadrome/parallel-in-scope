@@ -1,0 +1,11 @@
+test_contract_tdd_008_malformed_canonical_xml_is_rejected (unittest.loader._FailedTest.test_contract_tdd_008_malformed_canonical_xml_is_rejected) ... ERROR
+
+======================================================================
+ERROR: test_contract_tdd_008_malformed_canonical_xml_is_rejected (unittest.loader._FailedTest.test_contract_tdd_008_malformed_canonical_xml_is_rejected)
+----------------------------------------------------------------------
+AttributeError: type object 'ContractTestCheckerCandidates' has no attribute 'test_contract_tdd_008_malformed_canonical_xml_is_rejected'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "baseRef": "origin/dev/v0.5.0",
+  "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+  "head": "c495b6ccb020a9b092d04701b9fa2007af48902f",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "20b2c58b9487a3c15284adca94d86954c3e4a67a",
+      "head": "c495b6ccb020a9b092d04701b9fa2007af48902f",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 0,
+        "touchedCandidates": 0,
+        "injectedCandidates": 0
+      },
+      "candidates": [],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "3 code file(s), 105 changed code line(s)",
+  "totals": {
+    "codeFiles": 3,
+    "codeLines": 105
+  },
+  "files": [
+    {
+      "path": "scripts/check-contract-tests.py",
+      "class": "script",
+      "codeLines": 58,
+      "commentLines": 1
+    },
+    {
+      "path": "scripts/tests/test_check_contract_tests.py",
+      "class": "test",
+      "codeLines": 38,
+      "commentLines": 0
+    },
+    {
+      "path": "scripts/tests/test_verify_run.py",
+      "class": "test",
+      "codeLines": 9,
+      "commentLines": 0
+    }
+  ],
+  "skippedFiles": [
+    {
+      "path": ".agents/skills/assurance-report/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-diff/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-extract/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/package.yaml",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/host-adapter.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/isolated-test-generation/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "reason": "not a code path"
+    },
+    {
+      "path": "AGENTS.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "pom.xml",
+      "reason": "not a code path"
+    },
+    {
+      "path": "verification/contract-tests/AGENTS.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "verification/contract-tests/pom.xml",
+      "reason": "not a code path"
+    },
+    {
+      "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java",
+      "reason": "not a code path"
+    }
+  ],
+  "lenses": [
+    "M",
+    "D",
+    "S",
+    "T"
+  ],
+  "mode": "per-lens",
+  "agents": [
+    {
+      "id": "M",
+      "lenses": [
+        "M"
+      ],
+      "shard": null,
+      "wholeDiff": true,
+      "files": [
+        "scripts/check-contract-tests.py",
+        "scripts/tests/test_check_contract_tests.py",
+        "scripts/tests/test_verify_run.py"
+      ],
+      "codeLines": 105,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/M/diff.patch",
+      "brief": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/M/brief.md",
+      "findings": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/M/findings.json"
+    },
+    {
+      "id": "D",
+      "lenses": [
+        "D"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "scripts/check-contract-tests.py"
+      ],
+      "codeLines": 58,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/D/diff.patch",
+      "brief": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/D/brief.md",
+      "findings": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/D/findings.json"
+    },
+    {
+      "id": "S",
+      "lenses": [
+        "S"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "scripts/check-contract-tests.py"
+      ],
+      "codeLines": 58,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/S/diff.patch",
+      "brief": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/S/brief.md",
+      "findings": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/S/findings.json"
+    },
+    {
+      "id": "T",
+      "lenses": [
+        "T"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "scripts/tests/test_check_contract_tests.py",
+        "scripts/tests/test_verify_run.py"
+      ],
+      "codeLines": 47,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/T/diff.patch",
+      "brief": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/T/brief.md",
+      "findings": ".agents/reviews/refactoring-hidden-contract-regression-2026-11-23/agents/T/findings.json"
+    }
+  ],
+  "uncovered": [],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

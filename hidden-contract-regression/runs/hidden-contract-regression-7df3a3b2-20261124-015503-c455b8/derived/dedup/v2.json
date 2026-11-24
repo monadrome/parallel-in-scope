@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "hidden-contract-regression-7df3a3b2-20261124-015503-c455b8",
+  "version": 2,
+  "createdAt": "2026-11-24T02:10:34.593Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C07",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "Execution evidence must come from each class's canonical Surefire report."
+    },
+    {
+      "clusterId": "C08",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "Promoted archives need byte-identical frozen destination snapshots under the configured suite root."
+    },
+    {
+      "clusterId": "C09",
+      "findingIds": [
+        "kiro:2"
+      ],
+      "note": "Sealed candidate IDs must be non-empty and unique."
+    }
+  ]
+}

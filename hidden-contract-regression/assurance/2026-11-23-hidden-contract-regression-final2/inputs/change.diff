@@ -1,0 +1,1458 @@
+diff --git a/.agents/skills/assurance-report/SKILL.md b/.agents/skills/assurance-report/SKILL.md
+index b5a652c3..7337fefd 100644
+--- a/.agents/skills/assurance-report/SKILL.md
++++ b/.agents/skills/assurance-report/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: assurance-report
+ description: Independent verification report: aggregates contracts, tests, reverse verification, and implementation improvement suggestions. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.3.0"
++version: "1.4.0"
+ disable-model-invocation: true
+ ---
+ # Assurance Report
+@@ -11,8 +11,10 @@ This phase is dispatched only by `contract-first-assurance`. Use the
+ or read other runs' intermediate artifacts.
+ 
+ Read this round's frozen contract, candidate statuses, real-implementation verification,
+-reverse verification, and contract gaps, and produce `${RUN_DIR}/report.md`. If a phase did not
+-run, the report must keep the `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE` status and the reason.
++reverse verification, promotion statuses, and contract gaps, and produce `${RUN_DIR}/report.md`.
++Name each promoted `C-nnnn` and its candidate origin, or record why promotion was skipped or
++blocked. If a phase did not run, the report must keep the `SKIPPED`, `BLOCKED`, or `INCONCLUSIVE`
++status and the reason.
+ 
+ The report must distinguish:
+ 
+diff --git a/.agents/skills/contract-diff/SKILL.md b/.agents/skills/contract-diff/SKILL.md
+index 52667a72..13e553d1 100644
+--- a/.agents/skills/contract-diff/SKILL.md
++++ b/.agents/skills/contract-diff/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-diff
+ description: Contract diff merging: compares candidate tests, existing tests, and real-implementation results, identifying contract gaps and behavioral-evidence differences. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.3.0"
++version: "1.4.0"
+ disable-model-invocation: true
+ ---
+ # Contract Diff
+diff --git a/.agents/skills/contract-extract/SKILL.md b/.agents/skills/contract-extract/SKILL.md
+index fc0147aa..51cbe048 100644
+--- a/.agents/skills/contract-extract/SKILL.md
++++ b/.agents/skills/contract-extract/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: contract-extract
+ description: Contract extraction: organizes frozen, executable behavioral contracts from a PR or worktree changes. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.3.0"
++version: "1.4.0"
+ disable-model-invocation: true
+ ---
+ # Contract Extract
+diff --git a/.agents/skills/contract-first-assurance/SKILL.md b/.agents/skills/contract-first-assurance/SKILL.md
+index fba734df..46f9da69 100644
+--- a/.agents/skills/contract-first-assurance/SKILL.md
++++ b/.agents/skills/contract-first-assurance/SKILL.md
+@@ -2,7 +2,7 @@
+ name: contract-first-assurance
+ description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
+ compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
+-version: "1.3.0"
++version: "1.4.0"
+ ---
+ 
+ # Contract-First Independent Assurance
+@@ -19,9 +19,9 @@ then resolve the host configuration in this order:
+ 4. the generic rules in `SKILL_ROOT/references/host-adapter.md`.
+ 
+ The host adapter supplies the workspace, change scope, baseline, build commands, format checks,
+-mutation policy, and output directories; this skill assumes nothing about Java, Maven, Gradle,
+-npm, or PIT. When a required adapter input is missing, keep `BLOCKED` or `INCONCLUSIVE`
+-evidence instead of guessing commands. Mutation raw statuses and verification conclusions must
++mutation policy, regression-suite promotion commands, and output directories; this skill assumes
++nothing about Java, Maven, Gradle, npm, or PIT. When a required adapter input is missing, keep
++`BLOCKED` or `INCONCLUSIVE` evidence instead of guessing commands. Mutation raw statuses and verification conclusions must
+ be recorded separately. Read
+ [references/mutation-dispositions.md](references/mutation-dispositions.md) for how to accept
+ well-evidenced mutation-induced liveness failures while preserving the `TIMED_OUT` raw status.
+@@ -184,7 +184,8 @@ paths or tools:
+ - the main agent's analysis, judgments, and conversation history;
+ - the implementation agent's prompts, reasoning, code drafts, or fix records;
+ - method bodies and private fields of the real production source;
+-- existing tests, test reports, PIT reports, and previous failure classifications;
++- existing tests, the hidden regression suite, test reports, PIT reports, and previous failure
++  classifications;
+ - other agents' candidate tests, assumptions, or `candidate-status.csv`;
+ - Git history, the parent worktree, the main checkout, or unfrozen material in hidden
+   directories.
+@@ -323,7 +324,61 @@ memory errors, missing XML, or partial runs must not be reported as passing; onl
+ satisfying the disposition rules and explicitly accepted may enter `PASS` at the gate layer,
+ with the raw status and exception record preserved.
+ 
+-## Phase seven: output improvement suggestions
++## Phase seven: promote confirmed regressions
++
++The main assurance agent owns promotion. Neither the isolated test generator nor the implementation
++agent receives the resolved regression suite. If the main assurance agent also implemented the
++change, a fresh assurance or maintenance context must own promotion; otherwise record it as
++`BLOCKED`. Resolve `regression_suite` from the host adapter. If an otherwise eligible candidate
++cannot be promoted because its path or commands are missing, record the promotion as `BLOCKED`
++rather than guessing a repository layout or build command.
++
++A candidate is eligible only when all of these hold:
++
++- its final classification is `new coverage`;
++- it passed on the real implementation;
++- reverse verification produced the expected failure and restored the production source exactly;
++- its frozen contract provides a decidable public observable expectation.
++
++Write `${RUN_DIR}/promotion-status.csv` with this exact header:
++
++```text
++candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason
++```
++
++Every row has a non-empty reason and status `promoted` or `blocked`. For a promoted row, the
++candidate ID is non-empty, unique, and sealed in `candidate-status.csv`; the source contract ID is
++non-empty; and the allocated ID is `C-nnnn`. Target and archive paths use one canonical
++repository-relative spelling with no empty, `.` or `..` components. The archive is under
++`promotions/`, exists, and is SHA-256 hashed in the run manifest. The final destination is frozen
++byte-for-byte at `promotion-targets/<target_path>`, with `promotionTargets` mapping the target to
++that hashed snapshot; the target must be under the adapter's regression-suite root. Promoted
++candidate IDs, contract IDs, target paths, and archive paths are unique. Sealed candidate IDs are
++also non-empty and unique. A header-only CSV is valid when no candidate is eligible.
++
++For each eligible candidate:
++
++1. Allocate the next unused four-digit contract ID in the resolved suite. Record the candidate and
++   its promotion disposition in the CSV.
++2. Adapt only package and build integration. Preserve the precondition state, operation sequence,
++   observation window, and assertions. Save the adapted test under `${RUN_DIR}/promotions/` and
++   copy it to the suite, applying the suite's scoped contract-ID metadata convention. Contract IDs
++   are unique within the persistent suite. Freeze the final destination bytes under
++   `promotion-targets/<target_path>` and record that snapshot in `promotionTargets`.
++3. Run the suite's configured metadata check, clean test command, and execution-evidence check
++   after all additions. Freeze their exact argv values in `adapter.regressionSuite`, record them as
++   successful `regression-metadata`, `regression-tests`, and `regression-execution` commands, and
++   add a passing `regression-tests` gate. A candidate is `promoted` only when all three pass and its
++   archived copy is hashed in the manifest. Otherwise retain its adapted copy and failure evidence
++   under `RUN_DIR`, and remove the unconfirmed new target file so the checkout contains no partial
++   promotion.
++
++Keep the sealed candidates unchanged and retain the adaptation diff for audit. When no candidate is eligible,
++write the header-only promotion CSV, create an empty `promotions/` directory, and report the phase
++as `SKIPPED` with the reason. Do not promote duplicate, unstable, wrong-assumption, or unverified
++candidates to make the suite grow.
++
++## Phase eight: output improvement suggestions
+ 
+ Finally produce:
+ 
+@@ -335,8 +390,8 @@ The report must answer:
+ 
+ 1. which contracts the PR actually commits to;
+ 2. which contracts lack exception, boundary, lifecycle, or concurrency details;
+-3. which candidate tests provided new evidence;
+-4. which tests are duplicate, wrong, or unstable;
++3. which candidate tests provided new evidence, and which promoted `C-nnnn` preserves each one;
++4. which tests are duplicate, wrong, unstable, or ineligible for promotion;
+ 5. which failures are implementation defects and which are test or documentation problems;
+ 6. what the code needs fixed;
+ 7. what the documentation/contract needs added;
+@@ -364,6 +419,7 @@ Once the skill is invoked:
+ - automatically run compilation, target tests, full tests, applicable PIT, and reverse
+   verification;
+ - automatically save intermediate artifacts and failure logs;
++- automatically promote confirmed regressions and run the persistent suite's configured checks;
+ - check processes, logs, and output every 1–2 minutes during long tasks;
+ - report and handle per the one-retry rule when finding no CPU, no output, or obvious stalls;
+ - report results and open items once at the end.
+@@ -390,6 +446,8 @@ ${RUN_DIR}/
+ ├── contract-gaps.md
+ ├── candidates/
+ ├── candidate-status.csv
++├── promotions/
++├── promotion-status.csv
+ ├── reverse-verification/
+ ├── verification-summary.md
+ └── report.md
+diff --git a/.agents/skills/contract-first-assurance/adapters/vformation.yaml b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+index 562a76cc..8b3d3528 100644
+--- a/.agents/skills/contract-first-assurance/adapters/vformation.yaml
++++ b/.agents/skills/contract-first-assurance/adapters/vformation.yaml
+@@ -1,5 +1,5 @@
+ name: vformation
+-version: 1.3.0
++version: 1.4.0
+ workspace_root: repository-root
+ base_ref: origin/dev/v0.5.0
+ artifact_root: .contract-first-assurance
+@@ -21,6 +21,12 @@ build_commands:
+   targeted_tests: mvn test -Dtest='<ClassName>#<methodName>'
+   full_suite: mvn test
+ 
++regression_suite:
++  path: verification/contract-tests/
++  check_command: python3 scripts/check-contract-tests.py
++  test_command: mvn -Pcontract-tests -pl verification/contract-tests -am clean test
++  execution_check_command: python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
++
+ format_commands:
+   - mvn spotless:check
+   - python3 scripts/check-doc-refs.py
+diff --git a/.agents/skills/contract-first-assurance/evals/evals.json b/.agents/skills/contract-first-assurance/evals/evals.json
+index f810cec6..b2987026 100644
+--- a/.agents/skills/contract-first-assurance/evals/evals.json
++++ b/.agents/skills/contract-first-assurance/evals/evals.json
+@@ -1,15 +1,16 @@
+ {
+   "skill_name": "contract-first-assurance",
+-  "version": "1.3.0",
++  "version": "1.4.0",
+   "evals": [
+     {
+       "id": 1,
+       "name": "concurrency-contract-assurance",
+       "prompt": "独立检查一个包含取消、deadline 和 execution exit 语义的 PR。请冻结可执行 contract，使用 fresh context 生成候选测试，在真实实现上分类验证结果，并给出反向验证和未决契约缺口。",
+-      "expected_output": "A report with stable contract IDs, isolated candidate tests, explicit result classifications, reverse-verification status, and contract gaps.",
++      "expected_output": "A report with stable contract IDs, isolated candidate tests, explicit result classifications, reverse-verification status, promoted hidden regressions, and contract gaps.",
+       "assertions": [
+         "Does not treat an unresolved timeout or partial PIT run as passing, while allowing a fully evidenced and approved mutation exception to pass the gate without changing the raw status",
+         "Separates implementation defects from test assumptions and missing oracle details",
++        "Promotes only new-coverage candidates that passed real implementation verification and reverse verification",
+         "Records the same run directory and adapter inputs across phases"
+       ]
+     },
+diff --git a/.agents/skills/contract-first-assurance/package.yaml b/.agents/skills/contract-first-assurance/package.yaml
+index 9fe35cb5..4d8dcd43 100644
+--- a/.agents/skills/contract-first-assurance/package.yaml
++++ b/.agents/skills/contract-first-assurance/package.yaml
+@@ -1,6 +1,6 @@
+ package:
+   name: contract-first-assurance
+-  version: 1.3.0
++  version: 1.4.0
+   schema: 1
+   entrypoint: SKILL.md
+   layout: sibling-skills
+@@ -9,16 +9,16 @@ package:
+ components:
+   - path: ../contract-extract
+     kind: phase
+-    version: 1.3.0
++    version: 1.4.0
+   - path: ../isolated-test-generation
+     kind: phase
+-    version: 1.3.0
++    version: 1.4.0
+   - path: ../contract-diff
+     kind: phase
+-    version: 1.3.0
++    version: 1.4.0
+   - path: ../assurance-report
+     kind: phase
+-    version: 1.3.0
++    version: 1.4.0
+ 
+ references:
+   invocation: references/invocation-modes.md
+@@ -29,7 +29,7 @@ references:
+ host_adapters:
+   - path: adapters/vformation.yaml
+     applies_to: parallel-in-scope
+-    version: 1.3.0
++    version: 1.4.0
+ 
+ runtime:
+   required:
+@@ -49,6 +49,8 @@ outputs:
+     - contract-gaps.md
+     - candidates/
+     - candidate-status.csv
++    - promotions/
++    - promotion-status.csv
+     - reverse-verification/
+     - verification-summary.md
+     - report.md
+diff --git a/.agents/skills/contract-first-assurance/references/host-adapter.md b/.agents/skills/contract-first-assurance/references/host-adapter.md
+index 5285a278..eebf0e4b 100644
+--- a/.agents/skills/contract-first-assurance/references/host-adapter.md
++++ b/.agents/skills/contract-first-assurance/references/host-adapter.md
+@@ -20,6 +20,7 @@ maintenance instructions:
+ | `mutation_policy` | Whether mutation testing applies and which command owns its scope. |
+ | `route_gates` | Required gates for each route; the resolved `adapter.requiredGates` must be non-empty for a passing run. |
+ | `artifact_root` | Run directory; defaults to `.contract-first-assurance`. |
++| `regression_suite` | Promotion destination plus its metadata-check, test, and execution-evidence commands. |
+ 
+ The adapter may also provide `contract_paths`, `public_api_paths`,
+ `design_paths`, `source_paths`, and `test_paths` to narrow reads. If a required
+@@ -27,6 +28,15 @@ value is missing, record the affected phase as `BLOCKED` or `INCONCLUSIVE` and
+ explain the missing input. Do not infer a Maven, Java, Gradle, npm, or PIT
+ workflow from the repository name.
+ 
++`regression_suite` contains `path`, `check_command`, `test_command`, and `execution_check_command`.
++The path is repository-relative. The commands validate contract-ID metadata, execute the persistent
++suite from a clean build, and verify each contract class against its resulting execution reports.
++A run with a promoted row records these exact argv values and the suite root as
++`adapter.regressionSuite`, adds `regression-tests` to both required-gate lists, and retains
++successful command records under the
++`regression-metadata`, `regression-tests`, and `regression-execution` phases. The commands run only
++in the main verification worktree, never in the isolated test generator's context.
++
+ ## Resolution order
+ 
+ Use the first source that explicitly defines a value:
+diff --git a/.agents/skills/contract-first-assurance/references/reproducible-runs.md b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+index 18715f2c..90b45f79 100644
+--- a/.agents/skills/contract-first-assurance/references/reproducible-runs.md
++++ b/.agents/skills/contract-first-assurance/references/reproducible-runs.md
+@@ -15,10 +15,10 @@ manifest has this shape:
+   "schemaVersion": "contract-assurance-run/v2",
+   "runId": "2026-11-12-example",
+   "createdAt": "2026-11-12T12:00:00Z",
+-  "package": {"name": "contract-first-assurance", "version": "1.3.0"},
++  "package": {"name": "contract-first-assurance", "version": "1.4.0"},
+   "adapter": {
+     "name": "vformation",
+-    "version": "1.3.0",
++    "version": "1.4.0",
+     "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
+     "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
+   },
+@@ -66,7 +66,13 @@ Rules:
+ - `adapter.requiredGates` is the resolved route's required-gate list; the top-level
+   `requiredGates` must match it, and `checks` must contain a result for every gate;
+ - a dirty workspace must include its binary patch under `inputs/`;
+-- every copied contract, API view, adapter, command log, and report is hashed;
++- every copied contract, API view, adapter, command log, promotion record, promoted test copy,
++  and report is hashed;
++- every promoted row also requires a passing `regression-tests` gate and successful exact-argv
++  command records for `regression-metadata`, `regression-tests`, and `regression-execution`, with
++  those argv values frozen in `adapter.regressionSuite`;
++- every promoted target has a `promotionTargets` entry and a hashed, byte-identical frozen copy at
++  `promotion-targets/<target_path>` beneath the configured suite root;
+ - command records preserve the exact argv, exit code, stdout path, and stderr path;
+ - paths in the manifest are relative to `${RUN_DIR}` and must not contain `..`;
+ - a timeout, missing log, missing hash, or hash mismatch makes the run
+@@ -91,6 +97,8 @@ ${RUN_DIR}/
+ ├── contract-gaps.md
+ ├── candidates/
+ ├── candidate-status.csv
++├── promotions/
++├── promotion-status.csv
+ ├── reverse-verification/
+ ├── verification-summary.md
+ └── report.md
+diff --git a/.agents/skills/contract-first-assurance/scripts/verify_run.py b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+index 274a4815..e19da7fa 100644
+--- a/.agents/skills/contract-first-assurance/scripts/verify_run.py
++++ b/.agents/skills/contract-first-assurance/scripts/verify_run.py
+@@ -4,8 +4,10 @@
+ from __future__ import annotations
+ 
+ import argparse
++import csv
+ import hashlib
+ import json
++import re
+ import sys
+ from pathlib import Path
+ 
+@@ -14,10 +16,11 @@ REQUIRED_FILES = (
+     "contract.md",
+     "contract-gaps.md",
+     "candidate-status.csv",
++    "promotion-status.csv",
+     "verification-summary.md",
+     "report.md",
+ )
+-REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "reverse-verification")
++REQUIRED_DIRECTORIES = ("inputs", "logs", "candidates", "promotions", "reverse-verification")
+ VALID_STATUSES = {"pass", "fail", "blocked", "inconclusive", "skipped"}
+ FINAL_GATE_RUN_STATUSES = {
+     "PASS": "pass",
+@@ -28,6 +31,187 @@ FINAL_GATE_RUN_STATUSES = {
+ }
+ PASSING_FINAL_GATES = {"PASS", "PASS WITH ACCEPTED EXCEPTIONS"}
+ ACCEPTED_EXCEPTION_FIELDS = ("phase", "rawStatus", "disposition", "accepted", "evidence", "approvedBy")
++PROMOTION_FIELDS = (
++    "candidate_id",
++    "source_contract_id",
++    "contract_id",
++    "target_path",
++    "archive_path",
++    "status",
++    "reason",
++)
++PROMOTION_CONTRACT_RE = re.compile(r"C-[0-9]{4}")
++
++
++def canonical_path(value: str) -> bool:
++    path = Path(value)
++    return (
++        bool(value)
++        and not path.is_absolute()
++        and all(part not in {"", ".", ".."} for part in value.split("/"))
++        and path.as_posix() == value
++    )
++
++
++def sealed_candidates(run_dir: Path) -> tuple[set[str], list[str]]:
++    path = run_dir / "candidate-status.csv"
++    try:
++        with path.open(encoding="utf-8", newline="") as stream:
++            reader = csv.DictReader(stream)
++            if reader.fieldnames is None or "candidate_id" not in reader.fieldnames:
++                return set(), ["candidate-status.csv must contain a candidate_id column for promoted rows"]
++            errors = []
++            candidates = set()
++            for index, row in enumerate(reader, start=2):
++                candidate_id = row.get("candidate_id")
++                if not candidate_id:
++                    errors.append(f"candidate-status.csv row {index} candidate_id must be non-empty")
++                elif candidate_id in candidates:
++                    errors.append(f"candidate-status.csv row {index} has duplicate sealed candidate_id: {candidate_id}")
++                else:
++                    candidates.add(candidate_id)
++    except (OSError, UnicodeError, csv.Error) as error:
++        return set(), [f"cannot read candidate-status.csv for promoted rows: {error}"]
++    return candidates, errors
++
++
++def verify_promotions(run_dir: Path, manifest: dict) -> tuple[list[str], list[dict]]:
++    artifacts = manifest.get("artifacts", {})
++    if not isinstance(artifacts, dict):
++        artifacts = {}
++    errors = []
++    path = run_dir / "promotion-status.csv"
++    try:
++        with path.open(encoding="utf-8", newline="") as stream:
++            reader = csv.DictReader(stream)
++            if reader.fieldnames != list(PROMOTION_FIELDS):
++                return [f"promotion-status.csv header must be {','.join(PROMOTION_FIELDS)}"], []
++            rows = list(reader)
++    except (OSError, UnicodeError, csv.Error) as error:
++        return [f"cannot read promotion-status.csv: {error}"], []
++
++    candidates = set()
++    if any(row.get("status") == "promoted" for row in rows):
++        candidates, candidate_errors = sealed_candidates(run_dir)
++        errors.extend(candidate_errors)
++    adapter = manifest.get("adapter", {})
++    suite = adapter.get("regressionSuite", {}) if isinstance(adapter, dict) else {}
++    suite_root = suite.get("path") if isinstance(suite, dict) else None
++    target_records = manifest.get("promotionTargets", {})
++    candidate_ids = set()
++    contract_ids = set()
++    archive_paths = set()
++    target_paths = set()
++    for index, row in enumerate(rows, start=2):
++        prefix = f"promotion-status.csv row {index}"
++        if None in row or any(value is None for value in row.values()):
++            errors.append(f"{prefix} does not match the promotion CSV schema")
++            continue
++        status = row["status"]
++        if status not in {"promoted", "blocked"}:
++            errors.append(f"{prefix} has unsupported status: {status}")
++        if not row["reason"].strip():
++            errors.append(f"{prefix} reason must be non-empty")
++        if status != "promoted":
++            continue
++
++        candidate_id = row["candidate_id"]
++        if not candidate_id:
++            errors.append(f"{prefix} candidate_id must be non-empty")
++        elif candidate_id not in candidates:
++            errors.append(f"{prefix} candidate_id is not sealed in candidate-status.csv: {candidate_id}")
++        if not row["source_contract_id"]:
++            errors.append(f"{prefix} source_contract_id must be non-empty")
++        contract_id = row["contract_id"]
++        if PROMOTION_CONTRACT_RE.fullmatch(contract_id) is None:
++            errors.append(f"{prefix} has invalid promoted contract_id: {contract_id}")
++        archive_path = row["archive_path"]
++        archive = Path(archive_path)
++        if not canonical_path(archive_path) or not archive.parts or archive.parts[0] != "promotions":
++            errors.append(
++                f"{prefix} archive_path must be canonical; promoted archive must be a safe path under promotions/: {archive_path}"
++            )
++        else:
++            archived_copy = run_dir / archive
++            if not archived_copy.is_file():
++                errors.append(f"{prefix} promoted archive is missing: {archive_path}")
++            if archive_path not in artifacts:
++                errors.append(f"{prefix} promoted archive is not hashed in artifacts: {archive_path}")
++        target_path = row["target_path"]
++        if not canonical_path(target_path):
++            errors.append(f"{prefix} target_path must be canonical safe repository-relative path: {target_path}")
++        else:
++            snapshot_path = target_records.get(target_path) if isinstance(target_records, dict) else None
++            expected_snapshot = f"promotion-targets/{target_path}"
++            if snapshot_path != expected_snapshot:
++                errors.append(f"{prefix} missing frozen target snapshot: expected {expected_snapshot}")
++            elif not isinstance(suite_root, str) or not target_path.startswith(f"{suite_root}/"):
++                errors.append(f"{prefix} target_path must stay under the configured regression suite root")
++            else:
++                snapshot = run_dir / snapshot_path
++                if not snapshot.is_file():
++                    errors.append(f"{prefix} frozen target snapshot is missing: {snapshot_path}")
++                if snapshot_path not in artifacts:
++                    errors.append(f"{prefix} frozen target snapshot is not hashed in artifacts: {snapshot_path}")
++                archived_copy = run_dir / archive_path
++                archive_is_safe = (
++                    canonical_path(archive_path)
++                    and bool(archive.parts)
++                    and archive.parts[0] == "promotions"
++                )
++                if (
++                    archive_is_safe
++                    and snapshot.is_file()
++                    and archived_copy.is_file()
++                    and snapshot.read_bytes() != archived_copy.read_bytes()
++                ):
++                    errors.append(f"{prefix} target snapshot does not byte-match archive: {archive_path}")
++
++        for kind, value, seen in (
++            ("candidate_id", candidate_id, candidate_ids),
++            ("contract_id", contract_id, contract_ids),
++            ("archive_path", archive_path, archive_paths),
++            ("target_path", target_path, target_paths),
++        ):
++            if value in seen:
++                errors.append(f"{prefix} duplicates promoted {kind}: {value}")
++            else:
++                seen.add(value)
++    return errors, rows
++
++
++def verify_promotion_execution(manifest: dict, rows: list[dict]) -> list[str]:
++    if not any(row.get("status") == "promoted" for row in rows):
++        return []
++    errors = []
++    required_gates = manifest.get("requiredGates", [])
++    checks = manifest.get("checks", {})
++    regression_status = checks.get("regression-tests") if isinstance(checks, dict) else None
++    if (
++        not isinstance(required_gates, list)
++        or "regression-tests" not in required_gates
++        or regression_status != "pass"
++    ):
++        errors.append("promoted run requires a passing regression-tests gate")
++    adapter = manifest.get("adapter", {})
++    suite = adapter.get("regressionSuite", {}) if isinstance(adapter, dict) else {}
++    commands = manifest.get("commands", [])
++    if not isinstance(commands, list):
++        commands = []
++    for phase in ("regression-metadata", "regression-tests", "regression-execution"):
++        expected = suite.get(phase) if isinstance(suite, dict) else None
++        if not isinstance(expected, list) or not expected or any(not isinstance(value, str) for value in expected):
++            errors.append(f"adapter.regressionSuite is missing a valid {phase} argv")
++            continue
++        if not any(
++            isinstance(command, dict)
++            and command.get("phase") == phase
++            and command.get("argv") == expected
++            and command.get("exitCode") == 0
++            for command in commands
++        ):
++            errors.append(f"promoted run is missing successful {phase} command")
++    return errors
+ 
+ 
+ def safe_path(run_dir: Path, relative: str) -> Path:
+@@ -234,10 +418,20 @@ def verify(run_dir: Path) -> list[str]:
+     verify_hashes("inputs")
+     verify_hashes("artifacts")
+     artifacts = manifest.get("artifacts", {})
++    promotion_errors, promotion_rows = verify_promotions(run_dir, manifest)
++    errors.extend(promotion_errors)
++    errors.extend(verify_promotion_execution(manifest, promotion_rows))
+     if isinstance(artifacts, dict):
+         for required in REQUIRED_FILES:
+             if required not in artifacts:
+                 errors.append(f"artifacts does not hash required file: {required}")
++        promotions = run_dir / "promotions"
++        if promotions.is_dir():
++            for path in sorted(promotions.rglob("*")):
++                if path.is_file():
++                    relative = path.relative_to(run_dir).as_posix()
++                    if relative not in artifacts:
++                        errors.append(f"artifacts does not hash promoted test copy: {relative}")
+ 
+     commands = manifest.get("commands", [])
+     if not isinstance(commands, list):
+diff --git a/.agents/skills/isolated-test-generation/SKILL.md b/.agents/skills/isolated-test-generation/SKILL.md
+index c148b094..86332d48 100644
+--- a/.agents/skills/isolated-test-generation/SKILL.md
++++ b/.agents/skills/isolated-test-generation/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: isolated-test-generation
+ description: Isolated test generation: generates candidate tests solely from the frozen contract and sanitized APIs. Invoked only by the contract-first-assurance main entry or explicitly by the user.
+-version: "1.3.0"
++version: "1.4.0"
+ disable-model-invocation: true
+ ---
+ # Isolated Test Generation
+@@ -13,9 +13,9 @@ context from the parent checkout, fixed repository paths, or hidden directories.
+ In a fresh context and an independent worktree, generate candidate tests solely from the frozen
+ `contract.md`, the sanitized API/type views, and the necessary build commands.
+ 
+-Do not read the real production source, existing tests, Git history, the main agent's
+-conversation, the implementation agent's reasoning, or real-implementation verification logs;
+-do not modify production code. Assign each candidate test a stable ID, write out the
++Do not read the real production source, existing tests, the hidden regression suite, Git history,
++the main agent's conversation, the implementation agent's reasoning, or real-implementation
++verification logs; do not modify production code. Assign each candidate test a stable ID, write out the
+ preconditions, operation sequence, observation points, assertions, and uncertainties, and write
+ the sealed artifacts into `${RUN_DIR}/candidates/`. Only after the candidate tests are sealed
+ may they be copied into the real verification worktree.
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index c3b55180..595200c1 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -180,6 +180,45 @@ jobs:
+           if-no-files-found: warn
+           retention-days: 7
+ 
++  hidden-contract-regression:
++    runs-on: ubuntu-latest
++    timeout-minutes: 20
++    permissions:
++      contents: read
++
++    steps:
++      - uses: actions/checkout@v7
++
++      - name: Set up build JDK 25
++        uses: actions/setup-java@v6
++        with:
++          java-version: 25
++          distribution: temurin
++          cache: maven
++
++      - name: Check hidden contract test metadata
++        run: python3 scripts/check-contract-tests.py
++
++      - name: Check hidden contract test formatting
++        run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests spotless:check
++
++      - name: Run hidden contract regression suite
++        run: mvn -B -ntp -Pcontract-tests -pl verification/contract-tests -am clean test
++
++      - name: Check hidden contract test execution evidence
++        run: python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
++
++      - name: Upload hidden contract test reports
++        if: ${{ failure() || cancelled() }}
++        uses: actions/upload-artifact@v4
++        with:
++          name: hidden-contract-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
++          path: |
++            core/target/surefire-reports/
++            verification/contract-tests/target/surefire-reports/
++          if-no-files-found: warn
++          retention-days: 7
++
+   runtime-consumer:
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+diff --git a/AGENTS.md b/AGENTS.md
+index edc1cdc1..158e0d7e 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -46,6 +46,9 @@ test, and migration path. Existing usage informs the impact assessment but does
+ Defect fixes and behavior-preservation requests treat reproduced behavior and its contracts as
+ requirements from the outset. A blanket documentation ban is rejected: deferred evidence is
+ mandatory before a decision.
++Implementation and production-fixing agents keep `verification/contract-tests/` unread by default.
++Its scoped instructions define the assurance-promotion, independent-review, and maintenance routes
++that may load it.
+ 
+ ## Task Routes
+ 
+@@ -170,6 +173,7 @@ Load only the matching row, then follow that document's subject-specific routes.
+ | Planned release work | `BACKLOG.md`; verify entries against current sources; remove landed entries |
+ | Issue automation | `design/issue-automation.md` before changing the runner, labels, or issue workflows |
+ | Delivery record | `verification/delivery-ledger.md` before delivery or process-metrics changes |
++| Hidden contract regression promotion or maintenance | `verification/contract-tests/AGENTS.md`; other implementation routes keep the suite unread |
+ | Java convention gate | `verification/java-conventions.md` when changing the gate or diagnosing a finding |
+ | Verification integrity gate | `verification/verification-integrity.md` when changing tests or verification infrastructure, or diagnosing a finding |
+ 
+diff --git a/pom.xml b/pom.xml
+index 81b401d4..2fc81b3a 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -96,4 +96,13 @@
+             </plugins>
+         </pluginManagement>
+     </build>
++
++    <profiles>
++        <profile>
++            <id>contract-tests</id>
++            <modules>
++                <module>verification/contract-tests</module>
++            </modules>
++        </profile>
++    </profiles>
+ </project>
+diff --git a/scripts/check-contract-tests.py b/scripts/check-contract-tests.py
+new file mode 100644
+index 00000000..d5e55931
+--- /dev/null
++++ b/scripts/check-contract-tests.py
+@@ -0,0 +1,112 @@
++#!/usr/bin/env python3
++"""Check traceability metadata for hidden contract regression tests."""
++
++from __future__ import annotations
++
++import argparse
++import re
++import sys
++import xml.etree.ElementTree as ET
++from pathlib import Path
++
++
++CLASS_RE = re.compile(r"^class (C(?P<contract_id>\d{4})[A-Za-z0-9]+ContractTest)\b", re.MULTILINE)
++PACKAGE_RE = re.compile(r"^package\s+([A-Za-z0-9_.]+)\s*;", re.MULTILINE)
++CONTRACT_TAG_RE = re.compile(r'@Tag\("C-(\d{4})"\)')
++
++
++def verify_execution(reports: Path, classes: dict[str, Path]) -> list[str]:
++    errors = []
++    report_paths = sorted(reports.rglob("TEST-*.xml"))
++    if not report_paths:
++        return [f"no Surefire XML reports found under {reports}"]
++
++    for class_name, relative in classes.items():
++        report_path = reports / f"TEST-{class_name}.xml"
++        if not report_path.is_file():
++            errors.append(f"{relative}: no executed testcase for {class_name}")
++            continue
++        try:
++            root = ET.parse(report_path).getroot()
++        except (OSError, ET.ParseError) as error:
++            errors.append(f"cannot parse Surefire report {report_path}: {error}")
++            continue
++        matches = [
++            testcase for testcase in root.iter("testcase") if testcase.get("classname") == class_name
++        ]
++        if not matches:
++            errors.append(f"{relative}: no executed testcase for {class_name}")
++        for testcase in matches:
++            method_name = testcase.get("name", "")
++            if not method_name:
++                errors.append(f"{relative}: testcase method name must be non-empty")
++            for outcome in ("skipped", "failure", "error"):
++                if testcase.find(outcome) is not None:
++                    errors.append(f"{relative}: testcase {method_name} has {outcome}")
++    return errors
++
++
++def verify(test_root: Path, reports: Path | None = None) -> list[str]:
++    errors = []
++    paths = sorted(test_root.rglob("*.java"))
++    if not paths:
++        return [f"no contract regression tests found under {test_root}"]
++
++    owners = {}
++    classes = {}
++    for path in paths:
++        text = path.read_text(encoding="utf-8")
++        matches = list(CLASS_RE.finditer(text))
++        relative = path.relative_to(test_root)
++        if len(matches) != 1:
++            errors.append(f"{relative}: expected one Cnnnn<Subject>ContractTest class")
++            continue
++        match = matches[0]
++        class_name = match.group(1)
++        package_match = PACKAGE_RE.search(text)
++        qualified_name = f"{package_match.group(1)}.{class_name}" if package_match else class_name
++        classes[qualified_name] = relative
++        if path.name != f"{class_name}.java":
++            errors.append(f"{relative}: file name must match {class_name}")
++        contract_id = match.group("contract_id")
++        expected_tag = f'@Tag("C-{contract_id}")'
++        lines = text.splitlines()
++        class_line = text[: match.start()].count("\n")
++        previous = class_line - 1
++        while previous >= 0 and not lines[previous].strip():
++            previous -= 1
++        if previous < 0 or lines[previous].strip() != expected_tag:
++            errors.append(f"{relative}: expected {expected_tag} immediately above the class")
++        tags = CONTRACT_TAG_RE.findall(text)
++        if tags != [contract_id]:
++            errors.append(f"{relative}: expected exactly one contract tag C-{contract_id}")
++        if contract_id in owners:
++            errors.append(f"{relative}: C-{contract_id} is already used by {owners[contract_id]}")
++        else:
++            owners[contract_id] = relative
++    if reports is not None:
++        errors.extend(verify_execution(reports, classes))
++    return errors
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--test-root", type=Path)
++    parser.add_argument("--reports", type=Path)
++    args = parser.parse_args()
++    test_root = args.test_root
++    if test_root is None:
++        test_root = Path(__file__).resolve().parents[1] / "verification/contract-tests/src/test/java"
++    reports = args.reports.resolve() if args.reports is not None else None
++    errors = verify(test_root.resolve(), reports)
++    if errors:
++        for error in errors:
++            print(f"ERROR: {error}")
++        return 1
++    scope = "metadata and execution evidence" if reports is not None else "metadata"
++    print(f"OK: hidden contract regression {scope} under {test_root.resolve()}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/check-verification-integrity.py b/scripts/check-verification-integrity.py
+index a6385782..d1946dbc 100644
+--- a/scripts/check-verification-integrity.py
++++ b/scripts/check-verification-integrity.py
+@@ -47,7 +47,27 @@ REQUIRED_CODEOWNERS = (
+     "/scripts/**/test_*.py",
+     "/verification/verification-integrity.md",
+ )
+-REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset()
++REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
++    ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
++    for method in (
++        "test_accepts_status_allowed_by_adapter",
++        "test_rejects_status_not_allowed_by_adapter",
++        "test_rejects_missing_adapter_policy",
++        "test_accepts_pass_without_exceptions",
++        "test_rejects_missing_final_gate",
++        "test_rejects_duplicate_final_gate",
++        "test_rejects_failing_final_gate",
++        "test_rejects_pass_with_accepted_exceptions_without_exceptions",
++        "test_rejects_pass_with_unreported_exceptions",
++        "test_rejects_content_after_final_gate",
++        "test_rejects_non_pass_required_gate",
++        "test_rejects_status_checks_mismatch",
++        "test_rejects_v1_schema",
++        "test_rejects_non_utf8_report",
++        "test_rejects_empty_required_gates_and_checks",
++        "test_rejects_adapter_required_gate_mismatch",
++    )
++)
+ NON_EXCEPTIBLE_RULES = frozenset({"V6"})
+ 
+ SKIPPED_DIRECTORIES = {
+diff --git a/scripts/tests/test_check_contract_tests.py b/scripts/tests/test_check_contract_tests.py
+new file mode 100644
+index 00000000..b01c26e3
+--- /dev/null
++++ b/scripts/tests/test_check_contract_tests.py
+@@ -0,0 +1,129 @@
++import importlib.util
++import tempfile
++import unittest
++import xml.etree.ElementTree as ET
++from pathlib import Path
++
++
++SCRIPT = Path(__file__).resolve().parents[1] / "check-contract-tests.py"
++spec = importlib.util.spec_from_file_location("check_contract_tests", SCRIPT)
++check_contract_tests = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(check_contract_tests)
++
++
++class CheckContractTestsTest(unittest.TestCase):
++    def setUp(self):
++        temp = tempfile.TemporaryDirectory()
++        self.addCleanup(temp.cleanup)
++        self.root = Path(temp.name)
++
++    def write_test(self, name, contract_id, tag=None, package="example"):
++        tag = contract_id if tag is None else tag
++        package_declaration = "" if package is None else f"package {package};\n"
++        (self.root / name).write_text(
++            f'{package_declaration}import org.junit.jupiter.api.Tag;\n@Tag("C-{tag}")\nclass C{contract_id}SubjectContractTest {{\n@Test\nvoid contract() {{}}\n}}\n',
++            encoding="utf-8",
++        )
++
++    def write_reports(self, testcases):
++        reports = self.root / "surefire-reports"
++        reports.mkdir(exist_ok=True)
++        suite = ET.Element("testsuite")
++        for class_name, method_name, outcome in testcases:
++            testcase = ET.SubElement(
++                suite,
++                "testcase",
++                classname=f"example.{class_name}",
++                name=method_name,
++            )
++            if outcome is not None:
++                ET.SubElement(testcase, outcome)
++        report_name = f"TEST-example.{testcases[0][0]}.xml"
++        ET.ElementTree(suite).write(reports / report_name, encoding="utf-8", xml_declaration=True)
++        return reports
++
++    def test_accepts_matching_unique_contract_ids(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        self.write_test("C0002SubjectContractTest.java", "0002")
++        self.assertEqual(check_contract_tests.verify(self.root), [])
++
++    def test_rejects_mismatched_tag(self):
++        self.write_test("C0001SubjectContractTest.java", "0001", tag="0002")
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("immediately above the class" in error for error in errors))
++        self.assertTrue(any("exactly one contract tag C-0001" in error for error in errors))
++
++    def test_rejects_missing_tag(self):
++        (self.root / "C0001SubjectContractTest.java").write_text(
++            "class C0001SubjectContractTest {\n@Test\nvoid contract() {}\n}\n",
++            encoding="utf-8",
++        )
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("immediately above the class" in error for error in errors))
++
++    def test_metadata_does_not_depend_on_lexical_test_annotations(self):
++        (self.root / "C0001SubjectContractTest.java").write_text(
++            'import org.junit.jupiter.api.Tag;\n@Tag("C-0001")\nclass C0001SubjectContractTest {}\n',
++            encoding="utf-8",
++        )
++        self.assertEqual(check_contract_tests.verify(self.root), [])
++
++    def test_execution_check_accepts_a_passing_testcase(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
++        self.assertEqual(check_contract_tests.verify(self.root, reports), [])
++
++    def test_execution_check_rejects_an_aggregate_report_file(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
++        (reports / "TEST-example.C0001SubjectContractTest.xml").rename(reports / "TEST-contracts.xml")
++        errors = check_contract_tests.verify(self.root, reports)
++        self.assertTrue(any("no executed testcase for example.C0001SubjectContractTest" in error for error in errors))
++
++    def test_execution_check_rejects_the_same_simple_name_in_another_package(self):
++        self.write_test("C0001SubjectContractTest.java", "0001", package="expected")
++        reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
++        errors = check_contract_tests.verify(self.root, reports)
++        self.assertTrue(any("no executed testcase for expected.C0001SubjectContractTest" in error for error in errors))
++
++    def test_execution_check_rejects_an_empty_method_name(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        reports = self.write_reports([("C0001SubjectContractTest", "", None)])
++        errors = check_contract_tests.verify(self.root, reports)
++        self.assertTrue(any("testcase method name must be non-empty" in error for error in errors))
++
++    def test_execution_check_rejects_a_commented_test_annotation_without_execution(self):
++        (self.root / "C0001SubjectContractTest.java").write_text(
++            'import org.junit.jupiter.api.Tag;\n@Tag("C-0001")\nclass C0001SubjectContractTest {\n// @Test\n}\n',
++            encoding="utf-8",
++        )
++        reports = self.write_reports([("C0002OtherContractTest", "contract", None)])
++        errors = check_contract_tests.verify(self.root, reports)
++        self.assertTrue(any("no executed testcase" in error for error in errors))
++
++    def test_execution_check_rejects_skipped_failed_and_error_testcases(self):
++        for outcome in ("skipped", "failure", "error"):
++            with self.subTest(outcome=outcome):
++                self.write_test("C0001SubjectContractTest.java", "0001")
++                reports = self.write_reports([("C0001SubjectContractTest", "contract", outcome)])
++                errors = check_contract_tests.verify(self.root, reports)
++                self.assertTrue(any(f"testcase contract has {outcome}" in error for error in errors))
++
++    def test_execution_check_rejects_a_missing_report(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        errors = check_contract_tests.verify(self.root, self.root / "missing")
++        self.assertTrue(any("no Surefire XML reports" in error for error in errors))
++
++    def test_rejects_duplicate_contract_ids(self):
++        self.write_test("C0001SubjectContractTest.java", "0001")
++        self.write_test("Other.java", "0001")
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("already used" in error for error in errors))
++
++    def test_rejects_an_empty_suite(self):
++        errors = check_contract_tests.verify(self.root)
++        self.assertTrue(any("no contract regression tests" in error for error in errors))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 9f1562fa..0ea97af8 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -1,4 +1,4 @@
+-"""Tests for assurance-run accepted mutation exception validation."""
++"""Tests for assurance-run verification."""
+ 
+ import hashlib
+ import importlib.util
+@@ -13,17 +13,18 @@ verify_run = importlib.util.module_from_spec(spec)
+ spec.loader.exec_module(verify_run)
+ 
+ 
+-class VerifyRunAcceptedExceptionTest(unittest.TestCase):
++class VerifyRunTest(unittest.TestCase):
+     def make_run(self, exception, policy, final_gate="PASS WITH ACCEPTED EXCEPTIONS"):
+         temp = tempfile.TemporaryDirectory()
+         self.addCleanup(temp.cleanup)
+         run = Path(temp.name)
+-        for directory in ("inputs", "logs", "candidates", "reverse-verification"):
++        for directory in ("inputs", "logs", "candidates", "promotions", "reverse-verification"):
+             (run / directory).mkdir()
+         for relative in (
+             "contract.md",
+             "contract-gaps.md",
+             "candidate-status.csv",
++            "promotion-status.csv",
+             "verification-summary.md",
+             "report.md",
+             "inputs/pit-audit.md",
+@@ -31,7 +32,16 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         ):
+             path = run / relative
+             path.parent.mkdir(parents=True, exist_ok=True)
+-            content = f"evidence\nFinal gate: {final_gate}\n" if relative == "report.md" else "evidence\n"
++            if relative == "report.md":
++                content = f"evidence\nFinal gate: {final_gate}\n"
++            elif relative == "promotion-status.csv":
++                content = (
++                    "candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason\n"
++                )
++            elif relative == "candidate-status.csv":
++                content = "candidate_id\n"
++            else:
++                content = "evidence\n"
+             path.write_text(content, encoding="utf-8")
+ 
+         digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+@@ -50,6 +60,7 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+                     "contract.md",
+                     "contract-gaps.md",
+                     "candidate-status.csv",
++                    "promotion-status.csv",
+                     "verification-summary.md",
+                     "report.md",
+                 )
+@@ -62,6 +73,90 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         (run / "run-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+         return run
+ 
++    def set_promotion_status(self, run, rows):
++        path = run / "promotion-status.csv"
++        header = "candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason\n"
++        path.write_text(header + "".join(f"{row}\n" for row in rows), encoding="utf-8")
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["artifacts"]["promotion-status.csv"] = hashlib.sha256(path.read_bytes()).hexdigest()
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++
++    def add_promoted_copy(self, run, relative="promotions/C0001TaskIdContractTest.java"):
++        path = run / relative
++        path.parent.mkdir(parents=True, exist_ok=True)
++        path.write_text("class C0001TaskIdContractTest {}\n", encoding="utf-8")
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["artifacts"][relative] = hashlib.sha256(path.read_bytes()).hexdigest()
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++
++    def set_candidates(self, run, candidate_ids):
++        path = run / "candidate-status.csv"
++        path.write_text("candidate_id\n" + "".join(f"{candidate}\n" for candidate in candidate_ids), encoding="utf-8")
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["artifacts"]["candidate-status.csv"] = hashlib.sha256(path.read_bytes()).hexdigest()
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++
++    def add_promotion_evidence(self, run):
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        gates = manifest["requiredGates"] + ["regression-tests"]
++        manifest["requiredGates"] = gates
++        manifest["adapter"]["requiredGates"] = gates
++        manifest["checks"]["regression-tests"] = "pass"
++        commands = {
++            "regression-metadata": ["python3", "scripts/check-contract-tests.py"],
++            "regression-tests": [
++                "mvn",
++                "-Pcontract-tests",
++                "-pl",
++                "verification/contract-tests",
++                "-am",
++                "clean",
++                "test",
++            ],
++            "regression-execution": [
++                "python3",
++                "scripts/check-contract-tests.py",
++                "--reports",
++                "verification/contract-tests/target/surefire-reports",
++            ],
++        }
++        manifest["adapter"]["regressionSuite"] = {**commands, "path": "verification/contract-tests"}
++        target = "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java"
++        snapshot = f"promotion-targets/{target}"
++        snapshot_path = run / snapshot
++        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
++        snapshot_path.write_bytes((run / "promotions/C0001TaskIdContractTest.java").read_bytes())
++        manifest["promotionTargets"] = {target: snapshot}
++        manifest["artifacts"][snapshot] = hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
++        for phase, argv in commands.items():
++            stdout = f"logs/{phase}.stdout.log"
++            stderr = f"logs/{phase}.stderr.log"
++            (run / stdout).write_text("pass\n", encoding="utf-8")
++            (run / stderr).write_text("", encoding="utf-8")
++            manifest["commands"].append(
++                {"phase": phase, "argv": argv, "exitCode": 0, "stdout": stdout, "stderr": stderr}
++            )
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++
++    def make_promoted_run(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.add_promoted_copy(run)
++        self.set_candidates(run, ["CONTRACT-TDD-001"])
++        self.set_promotion_status(
++            run,
++            [
++                "CONTRACT-TDD-001,C-0001,C-0001,"
++                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
++                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
++            ],
++        )
++        self.add_promotion_evidence(run)
++        return run
++
+     def set_report(self, run, content):
+         report = run / "report.md"
+         if isinstance(content, bytes):
+@@ -185,6 +280,187 @@ class VerifyRunAcceptedExceptionTest(unittest.TestCase):
+         errors = verify_run.verify(run)
+         self.assertIn("requiredGates does not match adapter.requiredGates", errors)
+ 
++    def test_rejects_promoted_row_without_archived_copy(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_promotion_status(
++            run,
++            [
++                "CONTRACT-TDD-001,C-0001,C-0001,"
++                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
++                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
++            ],
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("promoted archive is missing" in error for error in errors))
++        self.assertTrue(any("promoted archive is not hashed in artifacts" in error for error in errors))
++
++    def test_accepts_promoted_row_with_a_hashed_archive(self):
++        run = self.make_promoted_run()
++        self.assertEqual(verify_run.verify(run), [])
++
++    def test_rejects_promoted_row_without_frozen_target_snapshot(self):
++        run = self.make_promoted_run()
++        self.update_manifest(run, promotionTargets={})
++        errors = verify_run.verify(run)
++        self.assertTrue(any("missing frozen target snapshot" in error for error in errors))
++
++    def test_rejects_promoted_target_snapshot_that_differs_from_archive(self):
++        run = self.make_promoted_run()
++        target = "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java"
++        snapshot = run / "promotion-targets" / target
++        snapshot.write_text("changed\n", encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertTrue(any("target snapshot does not byte-match archive" in error for error in errors))
++
++    def test_rejects_duplicate_sealed_candidate_ids(self):
++        run = self.make_promoted_run()
++        self.set_candidates(run, ["CONTRACT-TDD-001", "CONTRACT-TDD-001"])
++        errors = verify_run.verify(run)
++        self.assertTrue(any("duplicate sealed candidate_id" in error for error in errors))
++
++    def test_rejects_promoted_row_without_regression_command_evidence(self):
++        run = self.make_promoted_run()
++        self.update_manifest(run, commands=[])
++        errors = verify_run.verify(run)
++        for phase in ("regression-metadata", "regression-tests", "regression-execution"):
++            self.assertTrue(any(f"missing successful {phase} command" in error for error in errors))
++
++    def test_rejects_promoted_row_with_failed_regression_command(self):
++        run = self.make_promoted_run()
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["commands"][0]["exitCode"] = 1
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertTrue(any("missing successful regression-metadata command" in error for error in errors))
++
++    def test_rejects_promoted_row_without_regression_gate(self):
++        run = self.make_promoted_run()
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["requiredGates"] = ["pit"]
++        manifest["adapter"]["requiredGates"] = ["pit"]
++        del manifest["checks"]["regression-tests"]
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertIn("promoted run requires a passing regression-tests gate", errors)
++
++    def test_rejects_invalid_promotion_status_and_empty_reason(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_promotion_status(
++            run,
++            [
++                "CONTRACT-TDD-001,C-0001,,,,blocked,",
++                "CONTRACT-TDD-002,C-0002,,,,unknown,no eligible candidate",
++            ],
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("reason must be non-empty" in error for error in errors))
++        self.assertTrue(any("unsupported status: unknown" in error for error in errors))
++
++    def test_rejects_invalid_promoted_identity_and_paths(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_promotion_status(
++            run,
++            [
++                "CONTRACT-TDD-001,C-0001,C-1,/tmp/C0001TaskIdContractTest.java,"
++                "../C0001TaskIdContractTest.java,promoted,passed promotion gates"
++            ],
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("invalid promoted contract_id: C-1" in error for error in errors))
++        self.assertTrue(any("safe path under promotions/" in error for error in errors))
++        self.assertTrue(any("safe repository-relative path: /tmp/" in error for error in errors))
++
++    def test_rejects_duplicate_promoted_identity_and_paths(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.add_promoted_copy(run)
++        row = (
++            "CONTRACT-TDD-001,C-0001,C-0001,"
++            "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
++            "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
++        )
++        self.set_promotion_status(run, [row, row.replace("CONTRACT-TDD-001", "CONTRACT-TDD-002")])
++        errors = verify_run.verify(run)
++        for field in ("contract_id", "archive_path", "target_path"):
++            self.assertTrue(any(f"duplicates promoted {field}" in error for error in errors))
++
++    def test_rejects_noncanonical_promotion_path_aliases(self):
++        run = self.make_promoted_run()
++        self.set_candidates(run, ["CONTRACT-TDD-001", "CONTRACT-TDD-002"])
++        self.set_promotion_status(
++            run,
++            [
++                "CONTRACT-TDD-001,C-0001,C-0001,"
++                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
++                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates",
++                "CONTRACT-TDD-002,C-0002,C-0002,"
++                "verification/contract-tests/src/test/java/./C0002TaskIdContractTest.java,"
++                "promotions/./C0001TaskIdContractTest.java,promoted,passed promotion gates",
++            ],
++        )
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        manifest["artifacts"]["promotions/./C0001TaskIdContractTest.java"] = manifest["artifacts"][
++            "promotions/C0001TaskIdContractTest.java"
++        ]
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertTrue(any("archive_path must be canonical" in error for error in errors))
++        self.assertTrue(any("target_path must be canonical" in error for error in errors))
++
++    def test_rejects_promoted_row_without_candidate_origin(self):
++        run = self.make_promoted_run()
++        self.set_promotion_status(
++            run,
++            [
++                ",,C-0001,verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
++                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
++            ],
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("candidate_id must be non-empty" in error for error in errors))
++        self.assertTrue(any("source_contract_id must be non-empty" in error for error in errors))
++
++    def test_rejects_duplicate_promoted_candidates(self):
++        run = self.make_promoted_run()
++        self.set_promotion_status(
++            run,
++            [
++                "CONTRACT-TDD-001,C-0001,C-0001,"
++                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
++                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates",
++                "CONTRACT-TDD-001,C-0002,C-0002,"
++                "verification/contract-tests/src/test/java/C0002TaskIdContractTest.java,"
++                "promotions/C0002TaskIdContractTest.java,promoted,passed promotion gates",
++            ],
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("duplicates promoted candidate_id" in error for error in errors))
++
++    def test_rejects_unsealed_promoted_candidate(self):
++        run = self.make_promoted_run()
++        self.set_candidates(run, ["CONTRACT-TDD-999"])
++        errors = verify_run.verify(run)
++        self.assertTrue(any("candidate_id is not sealed" in error for error in errors))
++
++    def test_rejects_invalid_promotion_header(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.set_promotion_status(run, [])
++        (run / "promotion-status.csv").write_text("candidate_id,status\n", encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertTrue(any("promotion-status.csv header must be" in error for error in errors))
++
++    def test_accepts_header_only_promotion_status(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.assertEqual(verify_run.verify(run), [])
++
++    def test_requires_hashes_for_promoted_test_copies(self):
++        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        (run / "promotions/C0001ContractTest.java").write_text("class C0001ContractTest {}\n", encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertTrue(any("artifacts does not hash promoted test copy" in error for error in errors))
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/verification/contract-tests/AGENTS.md b/verification/contract-tests/AGENTS.md
+new file mode 100644
+index 00000000..12415f30
+--- /dev/null
++++ b/verification/contract-tests/AGENTS.md
+@@ -0,0 +1,36 @@
++# Hidden Contract Regression Tests
++
++Applies to `verification/contract-tests/`. Follow the root delivery and review routes for changes.
++
++## Visibility
++
++Implementation and production-fixing agents keep this suite unread by default. Assurance promotion,
++independent review, and hidden-suite maintenance may read it. This is a context-isolation boundary,
++not access control: the suite is tracked so CI and independent verifiers can reproduce it.
++
++When this suite fails, a hidden-suite maintainer gives the implementation agent a contract-level
++report containing the `C-<id>`, public preconditions, and observable expected and actual results.
++The implementation agent works from that report and the owning contract rather than the test source.
++
++## Module conventions
++
++The `contract-first-assurance` promotion phase owns eligibility and audit artifacts for additions.
++Assign the next unused four-digit contract ID. Name the class `Cnnnn<Subject>ContractTest`, put
++`@Tag("C-nnnn")` immediately above it, and keep the two IDs equal. Contract IDs are unique across
++classes; one class may contain several tests for its contract. Every class must have at least one
++passing, non-skipped testcase in the canonical `TEST-<FQCN>.xml` Surefire report produced by the
++explicit suite run. The testcase `classname` must equal the source file's fully qualified class name
++and its method name must be non-empty. Tests exercise public behavior only.
++
++Keep this module out of the default reactor and core test sources. Run its checks explicitly:
++
++```bash
++python3 scripts/check-contract-tests.py
++mvn -Pcontract-tests -pl verification/contract-tests spotless:apply
++mvn -Pcontract-tests -pl verification/contract-tests -am clean test
++python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
++```
++
++Promoting every candidate was rejected because duplicate, unstable, and wrong-assumption candidates
++would turn assurance output into noise. Hiding through untracked or encrypted files was rejected
++because independent verification and CI could not reproduce the suite from the development line.
+diff --git a/verification/contract-tests/pom.xml b/verification/contract-tests/pom.xml
+new file mode 100644
+index 00000000..e8063943
+--- /dev/null
++++ b/verification/contract-tests/pom.xml
+@@ -0,0 +1,64 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <modelVersion>4.0.0</modelVersion>
++
++    <parent>
++        <groupId>io.github.monadrome</groupId>
++        <artifactId>parallel-in-scope-parent</artifactId>
++        <version>0.5.0-SNAPSHOT</version>
++        <relativePath>../../pom.xml</relativePath>
++    </parent>
++
++    <artifactId>parallel-in-scope-contract-tests</artifactId>
++    <name>parallel-in-scope hidden contract regression tests</name>
++
++    <properties>
++        <maven.install.skip>true</maven.install.skip>
++        <maven.deploy.skip>true</maven.deploy.skip>
++    </properties>
++
++    <dependencies>
++        <dependency>
++            <groupId>io.github.monadrome</groupId>
++            <artifactId>parallel-in-scope</artifactId>
++            <version>${project.version}</version>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter</artifactId>
++            <version>${junit-jupiter.version}</version>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.assertj</groupId>
++            <artifactId>assertj-core</artifactId>
++            <version>${assertj.version}</version>
++            <scope>test</scope>
++        </dependency>
++    </dependencies>
++
++    <build>
++        <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-compiler-plugin</artifactId>
++                <version>3.16.0</version>
++                <configuration>
++                    <release>${java.release}</release>
++                    <testRelease>${maven.compiler.testRelease}</testRelease>
++                </configuration>
++            </plugin>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-surefire-plugin</artifactId>
++                <version>3.6.1</version>
++                <configuration>
++                    <failIfNoTests>true</failIfNoTests>
++                </configuration>
++            </plugin>
++        </plugins>
++    </build>
++</project>
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java
+new file mode 100644
+index 00000000..8d4ff8a4
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java
+@@ -0,0 +1,19 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/** Contract: design/task-identity.md, "Equality as reconciliation". */
++@Tag("C-0001")
++class C0001TaskIdContractTest {
++
++    @Test
++    void reconciliationUsesTheExactLabelWithoutTrimming() {
++        assertThat(TaskId.unit(" 7 ")).isNotEqualTo(TaskId.unit("7"));
++        assertThat(TaskId.group(" 7 ")).isNotEqualTo(TaskId.group("7"));
++        assertThat(TaskId.unit(" 7 ")).hasToString("unit- 7 ");
++        assertThat(TaskId.group(" 7 ")).hasToString("group- 7 ");
++    }
++}

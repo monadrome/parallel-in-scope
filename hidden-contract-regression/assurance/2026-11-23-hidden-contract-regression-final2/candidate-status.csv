@@ -1,0 +1,10 @@
+candidate_id,contract_id,initial_run,classification,reason
+CONTRACT-TDD-001,C-102,pass,new coverage,The helper-class acceptance combination is absent from existing metadata tests
+CONTRACT-TDD-002,C-102,pass,duplicate coverage,Existing tests cover the empty class-name filename tag and duplicate-ID rejection shapes
+CONTRACT-TDD-003,C-103,pass,duplicate coverage,Existing tests cover exact FQCN evidence in canonical class-specific reports
+CONTRACT-TDD-004,C-103,pass,duplicate coverage,Existing tests reject cross-package same-simple-name evidence
+CONTRACT-TDD-005,C-103,pass,duplicate coverage,Existing tests reject aggregate and differently named report files
+CONTRACT-TDD-006,C-103,pass,duplicate coverage,Existing tests reject empty testcase method names
+CONTRACT-TDD-007,C-103,pass,duplicate coverage,Existing tests reject missing reports independently of lexical @Test text
+CONTRACT-TDD-008,C-103,pass,new coverage,Malformed canonical XML is a distinct input boundary absent from existing tests
+CONTRACT-TDD-009,C-103,pass,new coverage,Existing tests cover each outcome separately but not a passing testcase mixed with skipped failed or errored testcases

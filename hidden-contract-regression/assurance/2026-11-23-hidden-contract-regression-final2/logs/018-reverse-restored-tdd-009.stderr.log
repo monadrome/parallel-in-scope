@@ -1,0 +1,7 @@
+test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes (candidate_tests.ContractTestCheckerCandidates.test_contract_tdd_009_execution_rejects_direct_nonpassing_outcomes)
+CONTRACT-TDD-009 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.223s
+
+OK
