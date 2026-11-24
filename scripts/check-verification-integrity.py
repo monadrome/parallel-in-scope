@@ -487,6 +487,34 @@ TS_EXPECT_CALL = re.compile(r"(?<![\w$])expect\s*\(")
 TS_EXPECT_EQUALITY = re.compile(r"\s*\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(")
 
 
+def typescript_assert_noops(source: Source, path: str) -> Iterator[Violation]:
+    for match in TS_ASSERT_CALL.finditer(source.code):
+        values, comparable, close_index = call_arguments(source, match.end() - 1)
+        if close_index < 0:
+            continue
+        method = match["method"]
+        noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
+            method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
+            and len(comparable) >= 2
+            and comparable[0] == comparable[1]
+        )
+        if noop:
+            yield violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion")
+
+
+def typescript_expect_noops(source: Source, path: str) -> Iterator[Violation]:
+    for match in TS_EXPECT_CALL.finditer(source.code):
+        _, received, close_index = call_arguments(source, match.end() - 1)
+        if close_index < 0 or len(received) != 1:
+            continue
+        chain = TS_EXPECT_EQUALITY.match(source.code, close_index + 1)
+        if chain is None:
+            continue
+        _, expected, expectation_close = call_arguments(source, chain.end() - 1)
+        if expectation_close >= 0 and len(expected) == 1 and received[0] == expected[0]:
+            yield violation(source, path, match.start(), expectation_close + 1, "V5", "new constant or self-comparing expect assertion")
+
+
 def scan_typescript(path: str, text: str, digest: str) -> TestFile:
     source = mask_c_like(text, javascript=True)
     code = source.code
@@ -516,29 +544,8 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         violation(source, path, match.start(), match.end(), "V3", "new runtime test skip, todo, or exclusive selection")
         for match in TS_RUNTIME_SELECTION.finditer(code)
     )
-    for match in TS_ASSERT_CALL.finditer(code):
-        open_index = match.end() - 1
-        values, comparable, close_index = call_arguments(source, open_index)
-        if close_index < 0:
-            continue
-        method = match["method"]
-        noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
-            method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
-            and len(comparable) >= 2
-            and comparable[0] == comparable[1]
-        )
-        if noop:
-            markers.append(violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion"))
-    for match in TS_EXPECT_CALL.finditer(code):
-        _, received, close_index = call_arguments(source, match.end() - 1)
-        if close_index < 0 or len(received) != 1:
-            continue
-        chain = TS_EXPECT_EQUALITY.match(code, close_index + 1)
-        if chain is None:
-            continue
-        _, expected, expectation_close = call_arguments(source, chain.end() - 1)
-        if expectation_close >= 0 and len(expected) == 1 and received[0] == expected[0]:
-            markers.append(violation(source, path, match.start(), expectation_close + 1, "V5", "new constant or self-comparing expect assertion"))
+    markers.extend(typescript_assert_noops(source, path))
+    markers.extend(typescript_expect_noops(source, path))
     return TestFile(digest, tuple(tests), tuple(markers))
 
 
