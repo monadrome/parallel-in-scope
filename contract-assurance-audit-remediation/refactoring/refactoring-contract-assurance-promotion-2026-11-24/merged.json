@@ -1,0 +1,95 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/tests/test_c0001_wrong_policy_field.py",
+      "symbol": "ContractVerifierTest",
+      "refactoring": "Combine Functions into Class: move the four contract scenarios into one ContractVerifierTest module and keep their scenario-specific bodies as separate test methods",
+      "rules": [
+        "M05"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "The four added files duplicate the same module import fallback, fixture construction and cleanup registration, and error assertion. One class would let fixture lifecycle or assertion changes be made once, while the contract ID and candidate ID in each method name would preserve traceability."
+      ],
+      "behaviorRisks": [
+        "Keep all four test methods independently discoverable under python3 -m unittest discover, preserve their existing method names, inputs, assertions, verification calls, and per-test temporary-directory cleanup; do not share mutable runs between tests."
+      ],
+      "guardingTests": [
+        "test_c0001_wrong_policy_field.ContractVerifierTest",
+        "test_c0002_non_object_policy.ContractVerifierTest",
+        "test_c0003_absolute_input_path.ContractVerifierTest",
+        "test_c0004_nested_input_symlink.ContractVerifierTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M05"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/tests/test_c0001_wrong_policy_field.py",
+      "symbol": "ContractVerifierTest.setUp",
+      "refactoring": "Extract Function into a shared test-fixture helper that constructs VerifyRunTest and registers doCleanups with the owning test case; use it from all four added ContractVerifierTest classes.",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "Four identical setUp implementations repeat the fixture lifetime protocol. Centralizing construction and cleanup registration makes future fixture-lifetime changes consistent while leaving each test's arrange, act, and assert steps visible."
+      ],
+      "behaviorRisks": [
+        "Each test must still receive a fresh VerifyRunTest instance, register doCleanups exactly once on the outer test case, and retain identical inputs, assertions, and cleanup timing."
+      ],
+      "guardingTests": [
+        "test_c0001_wrong_policy_field.ContractVerifierTest",
+        "test_c0002_non_object_policy.ContractVerifierTest",
+        "test_c0003_absolute_input_path.ContractVerifierTest",
+        "test_c0004_nested_input_symlink.ContractVerifierTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 2,
+    "byTier": {
+      "T0": 0,
+      "T1": 2,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

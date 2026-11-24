@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "baseRef": "ffc53025",
+  "base": "ffc53025312869e7a8901dd66d1135703c777827",
+  "head": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "ffc53025312869e7a8901dd66d1135703c777827",
+      "head": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 0,
+        "touchedCandidates": 0,
+        "injectedCandidates": 0
+      },
+      "candidates": [],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "4 code file(s), 84 changed code line(s)",
+  "totals": {
+    "codeFiles": 4,
+    "codeLines": 84
+  },
+  "files": [
+    {
+      "path": "scripts/tests/test_c0001_wrong_policy_field.py",
+      "class": "test",
+      "codeLines": 21,
+      "commentLines": 0
+    },
+    {
+      "path": "scripts/tests/test_c0002_non_object_policy.py",
+      "class": "test",
+      "codeLines": 19,
+      "commentLines": 0
+    },
+    {
+      "path": "scripts/tests/test_c0003_absolute_input_path.py",
+      "class": "test",
+      "codeLines": 19,
+      "commentLines": 0
+    },
+    {
+      "path": "scripts/tests/test_c0004_nested_input_symlink.py",
+      "class": "test",
+      "codeLines": 25,
+      "commentLines": 0
+    }
+  ],
+  "skippedFiles": [],
+  "lenses": [
+    "M",
+    "T"
+  ],
+  "mode": "per-lens",
+  "agents": [
+    {
+      "id": "M",
+      "lenses": [
+        "M"
+      ],
+      "shard": null,
+      "wholeDiff": true,
+      "files": [
+        "scripts/tests/test_c0001_wrong_policy_field.py",
+        "scripts/tests/test_c0002_non_object_policy.py",
+        "scripts/tests/test_c0003_absolute_input_path.py",
+        "scripts/tests/test_c0004_nested_input_symlink.py"
+      ],
+      "codeLines": 84,
+      "budget": 6,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": "kimi",
+      "diff": ".agents/reviews/refactoring-contract-assurance-promotion-2026-11-24/agents/M/diff.patch",
+      "brief": ".agents/reviews/refactoring-contract-assurance-promotion-2026-11-24/agents/M/brief.md",
+      "findings": ".agents/reviews/refactoring-contract-assurance-promotion-2026-11-24/agents/M/findings.json"
+    },
+    {
+      "id": "T",
+      "lenses": [
+        "T"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "scripts/tests/test_c0001_wrong_policy_field.py",
+        "scripts/tests/test_c0002_non_object_policy.py",
+        "scripts/tests/test_c0003_absolute_input_path.py",
+        "scripts/tests/test_c0004_nested_input_symlink.py"
+      ],
+      "codeLines": 84,
+      "budget": 6,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": "kimi",
+      "diff": ".agents/reviews/refactoring-contract-assurance-promotion-2026-11-24/agents/T/diff.patch",
+      "brief": ".agents/reviews/refactoring-contract-assurance-promotion-2026-11-24/agents/T/brief.md",
+      "findings": ".agents/reviews/refactoring-contract-assurance-promotion-2026-11-24/agents/T/findings.json"
+    }
+  ],
+  "uncovered": [],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

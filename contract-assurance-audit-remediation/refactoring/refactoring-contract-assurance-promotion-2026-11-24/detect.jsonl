@@ -1,0 +1,2 @@
+{"agent": "M", "reviewer": "kimi", "attempt": 1, "status": "completed", "seconds": 205, "findings": 1, "progress": "agents/M/attempt-1.progress.jsonl"}
+{"agent": "T", "reviewer": "kimi", "attempt": 1, "status": "completed", "seconds": 96, "findings": 1, "progress": "agents/T/attempt-1.progress.jsonl"}
