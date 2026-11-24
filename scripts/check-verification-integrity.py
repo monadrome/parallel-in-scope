@@ -47,7 +47,27 @@ REQUIRED_CODEOWNERS = (
     "/scripts/**/test_*.py",
     "/verification/verification-integrity.md",
 )
-REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset()
+REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+    ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
+    for method in (
+        "test_accepts_status_allowed_by_adapter",
+        "test_rejects_status_not_allowed_by_adapter",
+        "test_rejects_missing_adapter_policy",
+        "test_accepts_pass_without_exceptions",
+        "test_rejects_missing_final_gate",
+        "test_rejects_duplicate_final_gate",
+        "test_rejects_failing_final_gate",
+        "test_rejects_pass_with_accepted_exceptions_without_exceptions",
+        "test_rejects_pass_with_unreported_exceptions",
+        "test_rejects_content_after_final_gate",
+        "test_rejects_non_pass_required_gate",
+        "test_rejects_status_checks_mismatch",
+        "test_rejects_v1_schema",
+        "test_rejects_non_utf8_report",
+        "test_rejects_empty_required_gates_and_checks",
+        "test_rejects_adapter_required_gate_mismatch",
+    )
+)
 NON_EXCEPTIBLE_RULES = frozenset({"V6"})
 
 SKIPPED_DIRECTORIES = {
