@@ -68,6 +68,9 @@ Rules:
 - a dirty workspace must include its binary patch under `inputs/`;
 - every copied contract, API view, adapter, command log, promotion record, promoted test copy,
   and report is hashed;
+- every promoted row also requires a passing `regression-tests` gate and successful exact-argv
+  command records for `regression-metadata`, `regression-tests`, and `regression-execution`, with
+  those argv values frozen in `adapter.regressionSuite`;
 - command records preserve the exact argv, exit code, stdout path, and stderr path;
 - paths in the manifest are relative to `${RUN_DIR}` and must not contain `..`;
 - a timeout, missing log, missing hash, or hash mismatch makes the run

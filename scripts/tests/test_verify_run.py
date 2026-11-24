@@ -38,6 +38,8 @@ class VerifyRunTest(unittest.TestCase):
                 content = (
                     "candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason\n"
                 )
+            elif relative == "candidate-status.csv":
+                content = "candidate_id\n"
             else:
                 content = "evidence\n"
             path.write_text(content, encoding="utf-8")
@@ -88,6 +90,65 @@ class VerifyRunTest(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["artifacts"][relative] = hashlib.sha256(path.read_bytes()).hexdigest()
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def set_candidates(self, run, candidate_ids):
+        path = run / "candidate-status.csv"
+        path.write_text("candidate_id\n" + "".join(f"{candidate}\n" for candidate in candidate_ids), encoding="utf-8")
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["artifacts"]["candidate-status.csv"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def add_promotion_evidence(self, run):
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        gates = manifest["requiredGates"] + ["regression-tests"]
+        manifest["requiredGates"] = gates
+        manifest["adapter"]["requiredGates"] = gates
+        manifest["checks"]["regression-tests"] = "pass"
+        commands = {
+            "regression-metadata": ["python3", "scripts/check-contract-tests.py"],
+            "regression-tests": [
+                "mvn",
+                "-Pcontract-tests",
+                "-pl",
+                "verification/contract-tests",
+                "-am",
+                "clean",
+                "test",
+            ],
+            "regression-execution": [
+                "python3",
+                "scripts/check-contract-tests.py",
+                "--reports",
+                "verification/contract-tests/target/surefire-reports",
+            ],
+        }
+        manifest["adapter"]["regressionSuite"] = commands
+        for phase, argv in commands.items():
+            stdout = f"logs/{phase}.stdout.log"
+            stderr = f"logs/{phase}.stderr.log"
+            (run / stdout).write_text("pass\n", encoding="utf-8")
+            (run / stderr).write_text("", encoding="utf-8")
+            manifest["commands"].append(
+                {"phase": phase, "argv": argv, "exitCode": 0, "stdout": stdout, "stderr": stderr}
+            )
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def make_promoted_run(self):
+        run = self.make_run(None, {}, final_gate="PASS")
+        self.add_promoted_copy(run)
+        self.set_candidates(run, ["CONTRACT-TDD-001"])
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,C-0001,"
+                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
+            ],
+        )
+        self.add_promotion_evidence(run)
+        return run
 
     def set_report(self, run, content):
         report = run / "report.md"
@@ -227,17 +288,35 @@ class VerifyRunTest(unittest.TestCase):
         self.assertTrue(any("promoted archive is not hashed in artifacts" in error for error in errors))
 
     def test_accepts_promoted_row_with_a_hashed_archive(self):
-        run = self.make_run(None, {}, final_gate="PASS")
-        self.add_promoted_copy(run)
-        self.set_promotion_status(
-            run,
-            [
-                "CONTRACT-TDD-001,C-0001,C-0001,"
-                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
-                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
-            ],
-        )
+        run = self.make_promoted_run()
         self.assertEqual(verify_run.verify(run), [])
+
+    def test_rejects_promoted_row_without_regression_command_evidence(self):
+        run = self.make_promoted_run()
+        self.update_manifest(run, commands=[])
+        errors = verify_run.verify(run)
+        for phase in ("regression-metadata", "regression-tests", "regression-execution"):
+            self.assertTrue(any(f"missing successful {phase} command" in error for error in errors))
+
+    def test_rejects_promoted_row_with_failed_regression_command(self):
+        run = self.make_promoted_run()
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["commands"][0]["exitCode"] = 1
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        errors = verify_run.verify(run)
+        self.assertTrue(any("missing successful regression-metadata command" in error for error in errors))
+
+    def test_rejects_promoted_row_without_regression_gate(self):
+        run = self.make_promoted_run()
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["requiredGates"] = ["pit"]
+        manifest["adapter"]["requiredGates"] = ["pit"]
+        del manifest["checks"]["regression-tests"]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        errors = verify_run.verify(run)
+        self.assertIn("promoted run requires a passing regression-tests gate", errors)
 
     def test_rejects_invalid_promotion_status_and_empty_reason(self):
         run = self.make_run(None, {}, final_gate="PASS")
@@ -278,6 +357,65 @@ class VerifyRunTest(unittest.TestCase):
         errors = verify_run.verify(run)
         for field in ("contract_id", "archive_path", "target_path"):
             self.assertTrue(any(f"duplicates promoted {field}" in error for error in errors))
+
+    def test_rejects_noncanonical_promotion_path_aliases(self):
+        run = self.make_promoted_run()
+        self.set_candidates(run, ["CONTRACT-TDD-001", "CONTRACT-TDD-002"])
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,C-0001,"
+                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates",
+                "CONTRACT-TDD-002,C-0002,C-0002,"
+                "verification/contract-tests/src/test/java/./C0002TaskIdContractTest.java,"
+                "promotions/./C0001TaskIdContractTest.java,promoted,passed promotion gates",
+            ],
+        )
+        manifest_path = run / "run-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["artifacts"]["promotions/./C0001TaskIdContractTest.java"] = manifest["artifacts"][
+            "promotions/C0001TaskIdContractTest.java"
+        ]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        errors = verify_run.verify(run)
+        self.assertTrue(any("archive_path must be canonical" in error for error in errors))
+        self.assertTrue(any("target_path must be canonical" in error for error in errors))
+
+    def test_rejects_promoted_row_without_candidate_origin(self):
+        run = self.make_promoted_run()
+        self.set_promotion_status(
+            run,
+            [
+                ",,C-0001,verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates"
+            ],
+        )
+        errors = verify_run.verify(run)
+        self.assertTrue(any("candidate_id must be non-empty" in error for error in errors))
+        self.assertTrue(any("source_contract_id must be non-empty" in error for error in errors))
+
+    def test_rejects_duplicate_promoted_candidates(self):
+        run = self.make_promoted_run()
+        self.set_promotion_status(
+            run,
+            [
+                "CONTRACT-TDD-001,C-0001,C-0001,"
+                "verification/contract-tests/src/test/java/C0001TaskIdContractTest.java,"
+                "promotions/C0001TaskIdContractTest.java,promoted,passed promotion gates",
+                "CONTRACT-TDD-001,C-0002,C-0002,"
+                "verification/contract-tests/src/test/java/C0002TaskIdContractTest.java,"
+                "promotions/C0002TaskIdContractTest.java,promoted,passed promotion gates",
+            ],
+        )
+        errors = verify_run.verify(run)
+        self.assertTrue(any("duplicates promoted candidate_id" in error for error in errors))
+
+    def test_rejects_unsealed_promoted_candidate(self):
+        run = self.make_promoted_run()
+        self.set_candidates(run, ["CONTRACT-TDD-999"])
+        errors = verify_run.verify(run)
+        self.assertTrue(any("candidate_id is not sealed" in error for error in errors))
 
     def test_rejects_invalid_promotion_header(self):
         run = self.make_run(None, {}, final_gate="PASS")

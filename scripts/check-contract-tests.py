@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 CLASS_RE = re.compile(r"^class (C(?P<contract_id>\d{4})[A-Za-z0-9]+ContractTest)\b", re.MULTILINE)
+PACKAGE_RE = re.compile(r"^package\s+([A-Za-z0-9_.]+)\s*;", re.MULTILINE)
 CONTRACT_TAG_RE = re.compile(r'@Tag\("C-(\d{4})"\)')
 
 
@@ -28,7 +29,7 @@ def verify_execution(reports: Path, classes: dict[str, Path]) -> list[str]:
             errors.append(f"cannot parse Surefire report {report_path}: {error}")
             continue
         for testcase in root.iter("testcase"):
-            class_name = testcase.get("classname", "").rsplit(".", 1)[-1]
+            class_name = testcase.get("classname", "")
             if class_name in testcases:
                 testcases[class_name].append(testcase)
 
@@ -37,7 +38,9 @@ def verify_execution(reports: Path, classes: dict[str, Path]) -> list[str]:
         if not matches:
             errors.append(f"{relative}: no executed testcase for {class_name}")
         for testcase in matches:
-            method_name = testcase.get("name", "<unnamed>")
+            method_name = testcase.get("name", "")
+            if not method_name:
+                errors.append(f"{relative}: testcase method name must be non-empty")
             for outcome in ("skipped", "failure", "error"):
                 if testcase.find(outcome) is not None:
                     errors.append(f"{relative}: testcase {method_name} has {outcome}")
@@ -61,7 +64,9 @@ def verify(test_root: Path, reports: Path | None = None) -> list[str]:
             continue
         match = matches[0]
         class_name = match.group(1)
-        classes[class_name] = relative
+        package_match = PACKAGE_RE.search(text)
+        qualified_name = f"{package_match.group(1)}.{class_name}" if package_match else class_name
+        classes[qualified_name] = relative
         if path.name != f"{class_name}.java":
             errors.append(f"{relative}: file name must match {class_name}")
         contract_id = match.group("contract_id")

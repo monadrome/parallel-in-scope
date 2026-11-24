@@ -17,10 +17,11 @@ class CheckContractTestsTest(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
 
-    def write_test(self, name, contract_id, tag=None):
+    def write_test(self, name, contract_id, tag=None, package="example"):
         tag = contract_id if tag is None else tag
+        package_declaration = "" if package is None else f"package {package};\n"
         (self.root / name).write_text(
-            f'import org.junit.jupiter.api.Tag;\n@Tag("C-{tag}")\nclass C{contract_id}SubjectContractTest {{\n@Test\nvoid contract() {{}}\n}}\n',
+            f'{package_declaration}import org.junit.jupiter.api.Tag;\n@Tag("C-{tag}")\nclass C{contract_id}SubjectContractTest {{\n@Test\nvoid contract() {{}}\n}}\n',
             encoding="utf-8",
         )
 
@@ -70,6 +71,18 @@ class CheckContractTestsTest(unittest.TestCase):
         self.write_test("C0001SubjectContractTest.java", "0001")
         reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
         self.assertEqual(check_contract_tests.verify(self.root, reports), [])
+
+    def test_execution_check_rejects_the_same_simple_name_in_another_package(self):
+        self.write_test("C0001SubjectContractTest.java", "0001", package="expected")
+        reports = self.write_reports([("C0001SubjectContractTest", "contract", None)])
+        errors = check_contract_tests.verify(self.root, reports)
+        self.assertTrue(any("no executed testcase for expected.C0001SubjectContractTest" in error for error in errors))
+
+    def test_execution_check_rejects_an_empty_method_name(self):
+        self.write_test("C0001SubjectContractTest.java", "0001")
+        reports = self.write_reports([("C0001SubjectContractTest", "", None)])
+        errors = check_contract_tests.verify(self.root, reports)
+        self.assertTrue(any("testcase method name must be non-empty" in error for error in errors))
 
     def test_execution_check_rejects_a_commented_test_annotation_without_execution(self):
         (self.root / "C0001SubjectContractTest.java").write_text(

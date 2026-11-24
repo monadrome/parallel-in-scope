@@ -43,18 +43,46 @@ PROMOTION_FIELDS = (
 PROMOTION_CONTRACT_RE = re.compile(r"C-[0-9]{4}")
 
 
-def verify_promotions(run_dir: Path, artifacts: dict) -> list[str]:
+def canonical_path(value: str) -> bool:
+    path = Path(value)
+    return (
+        bool(value)
+        and not path.is_absolute()
+        and all(part not in {"", ".", ".."} for part in value.split("/"))
+        and path.as_posix() == value
+    )
+
+
+def sealed_candidates(run_dir: Path) -> tuple[set[str], list[str]]:
+    path = run_dir / "candidate-status.csv"
+    try:
+        with path.open(encoding="utf-8", newline="") as stream:
+            reader = csv.DictReader(stream)
+            if reader.fieldnames is None or "candidate_id" not in reader.fieldnames:
+                return set(), ["candidate-status.csv must contain a candidate_id column for promoted rows"]
+            candidates = {row["candidate_id"] for row in reader if row.get("candidate_id")}
+    except (OSError, UnicodeError, csv.Error) as error:
+        return set(), [f"cannot read candidate-status.csv for promoted rows: {error}"]
+    return candidates, []
+
+
+def verify_promotions(run_dir: Path, artifacts: dict) -> tuple[list[str], list[dict]]:
     errors = []
     path = run_dir / "promotion-status.csv"
     try:
         with path.open(encoding="utf-8", newline="") as stream:
             reader = csv.DictReader(stream)
             if reader.fieldnames != list(PROMOTION_FIELDS):
-                return [f"promotion-status.csv header must be {','.join(PROMOTION_FIELDS)}"]
+                return [f"promotion-status.csv header must be {','.join(PROMOTION_FIELDS)}"], []
             rows = list(reader)
     except (OSError, UnicodeError, csv.Error) as error:
-        return [f"cannot read promotion-status.csv: {error}"]
+        return [f"cannot read promotion-status.csv: {error}"], []
 
+    candidates = set()
+    if any(row.get("status") == "promoted" for row in rows):
+        candidates, candidate_errors = sealed_candidates(run_dir)
+        errors.extend(candidate_errors)
+    candidate_ids = set()
     contract_ids = set()
     archive_paths = set()
     target_paths = set()
@@ -71,13 +99,22 @@ def verify_promotions(run_dir: Path, artifacts: dict) -> list[str]:
         if status != "promoted":
             continue
 
+        candidate_id = row["candidate_id"]
+        if not candidate_id:
+            errors.append(f"{prefix} candidate_id must be non-empty")
+        elif candidate_id not in candidates:
+            errors.append(f"{prefix} candidate_id is not sealed in candidate-status.csv: {candidate_id}")
+        if not row["source_contract_id"]:
+            errors.append(f"{prefix} source_contract_id must be non-empty")
         contract_id = row["contract_id"]
         if PROMOTION_CONTRACT_RE.fullmatch(contract_id) is None:
             errors.append(f"{prefix} has invalid promoted contract_id: {contract_id}")
         archive_path = row["archive_path"]
         archive = Path(archive_path)
-        if archive.is_absolute() or ".." in archive.parts or not archive.parts or archive.parts[0] != "promotions":
-            errors.append(f"{prefix} promoted archive must be a safe path under promotions/: {archive_path}")
+        if not canonical_path(archive_path) or not archive.parts or archive.parts[0] != "promotions":
+            errors.append(
+                f"{prefix} archive_path must be canonical; promoted archive must be a safe path under promotions/: {archive_path}"
+            )
         else:
             archived_copy = run_dir / archive
             if not archived_copy.is_file():
@@ -85,11 +122,11 @@ def verify_promotions(run_dir: Path, artifacts: dict) -> list[str]:
             if archive_path not in artifacts:
                 errors.append(f"{prefix} promoted archive is not hashed in artifacts: {archive_path}")
         target_path = row["target_path"]
-        target = Path(target_path)
-        if not target_path or target.is_absolute() or ".." in target.parts:
-            errors.append(f"{prefix} target_path must be a safe repository-relative path: {target_path}")
+        if not canonical_path(target_path):
+            errors.append(f"{prefix} target_path must be canonical safe repository-relative path: {target_path}")
 
         for kind, value, seen in (
+            ("candidate_id", candidate_id, candidate_ids),
             ("contract_id", contract_id, contract_ids),
             ("archive_path", archive_path, archive_paths),
             ("target_path", target_path, target_paths),
@@ -98,6 +135,40 @@ def verify_promotions(run_dir: Path, artifacts: dict) -> list[str]:
                 errors.append(f"{prefix} duplicates promoted {kind}: {value}")
             else:
                 seen.add(value)
+    return errors, rows
+
+
+def verify_promotion_execution(manifest: dict, rows: list[dict]) -> list[str]:
+    if not any(row.get("status") == "promoted" for row in rows):
+        return []
+    errors = []
+    required_gates = manifest.get("requiredGates", [])
+    checks = manifest.get("checks", {})
+    regression_status = checks.get("regression-tests") if isinstance(checks, dict) else None
+    if (
+        not isinstance(required_gates, list)
+        or "regression-tests" not in required_gates
+        or regression_status != "pass"
+    ):
+        errors.append("promoted run requires a passing regression-tests gate")
+    adapter = manifest.get("adapter", {})
+    suite = adapter.get("regressionSuite", {}) if isinstance(adapter, dict) else {}
+    commands = manifest.get("commands", [])
+    if not isinstance(commands, list):
+        commands = []
+    for phase in ("regression-metadata", "regression-tests", "regression-execution"):
+        expected = suite.get(phase) if isinstance(suite, dict) else None
+        if not isinstance(expected, list) or not expected or any(not isinstance(value, str) for value in expected):
+            errors.append(f"adapter.regressionSuite is missing a valid {phase} argv")
+            continue
+        if not any(
+            isinstance(command, dict)
+            and command.get("phase") == phase
+            and command.get("argv") == expected
+            and command.get("exitCode") == 0
+            for command in commands
+        ):
+            errors.append(f"promoted run is missing successful {phase} command")
     return errors
 
 
@@ -305,7 +376,9 @@ def verify(run_dir: Path) -> list[str]:
     verify_hashes("inputs")
     verify_hashes("artifacts")
     artifacts = manifest.get("artifacts", {})
-    errors.extend(verify_promotions(run_dir, artifacts if isinstance(artifacts, dict) else {}))
+    promotion_errors, promotion_rows = verify_promotions(run_dir, artifacts if isinstance(artifacts, dict) else {})
+    errors.extend(promotion_errors)
+    errors.extend(verify_promotion_execution(manifest, promotion_rows))
     if isinstance(artifacts, dict):
         for required in REQUIRED_FILES:
             if required not in artifacts:

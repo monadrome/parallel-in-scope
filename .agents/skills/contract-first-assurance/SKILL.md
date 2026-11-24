@@ -347,10 +347,12 @@ candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reas
 ```
 
 Every row has a non-empty reason and status `promoted` or `blocked`. For a promoted row, the
-allocated ID is `C-nnnn`, the target is a safe repository-relative path, and the archive is a
-run-relative path under `promotions/` whose file exists and is SHA-256 hashed in the run manifest.
-Promoted contract IDs, target paths, and archive paths are unique. A header-only CSV is valid when
-no candidate is eligible.
+candidate ID is non-empty, unique, and sealed in `candidate-status.csv`; the source contract ID is
+non-empty; and the allocated ID is `C-nnnn`. Target and archive paths use one canonical
+repository-relative spelling with no empty, `.` or `..` components. The archive is under
+`promotions/`, exists, and is SHA-256 hashed in the run manifest. Promoted candidate IDs, contract
+IDs, target paths, and archive paths are unique. A header-only CSV is valid when no candidate is
+eligible.
 
 For each eligible candidate:
 
@@ -361,9 +363,12 @@ For each eligible candidate:
    copy it to the suite, applying the suite's scoped contract-ID metadata convention. Contract IDs
    are unique within the persistent suite.
 3. Run the suite's configured metadata check, clean test command, and execution-evidence check
-   after all additions. A candidate is `promoted` only when all three pass and its archived copy is
-   hashed in the manifest. Otherwise retain its adapted copy and failure evidence under `RUN_DIR`,
-   and remove the unconfirmed new target file so the checkout contains no partial promotion.
+   after all additions. Freeze their exact argv values in `adapter.regressionSuite`, record them as
+   successful `regression-metadata`, `regression-tests`, and `regression-execution` commands, and
+   add a passing `regression-tests` gate. A candidate is `promoted` only when all three pass and its
+   archived copy is hashed in the manifest. Otherwise retain its adapted copy and failure evidence
+   under `RUN_DIR`, and remove the unconfirmed new target file so the checkout contains no partial
+   promotion.
 
 Keep the sealed candidates unchanged and retain the adaptation diff for audit. When no candidate is eligible,
 write the header-only promotion CSV, create an empty `promotions/` directory, and report the phase
