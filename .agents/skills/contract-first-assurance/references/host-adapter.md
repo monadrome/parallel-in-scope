@@ -72,11 +72,15 @@ rather than a passing assurance gate.
 
 For mutation-enabled repositories, `mutation_policy` may define
 `accepted_dispositions`. Each disposition names the evidence required before a
-raw mutation status may be accepted as an exception. The orchestrator must
-retain the raw status and record the disposition, evidence references, and
-approver in the run manifest. An accepted exception affects the gate result;
-it never changes the mutation XML or raw status. An unresolved timeout,
-memory error, worker failure, missing XML, or incomplete log remains
+raw mutation status may be accepted as an exception. When translating this YAML
+configuration into `adapter.acceptedDispositions` in the JSON run manifest, the
+orchestrator MUST map `allowed_raw_statuses` to `allowedRawStatuses` and
+`required_evidence` to `requiredEvidence`. It MUST NOT copy the snake_case keys
+into the manifest or add aliases to the strict manifest validator. The
+orchestrator must retain the raw status and record the disposition, evidence
+references, and approver in the run manifest. An accepted exception affects the
+gate result; it never changes the mutation XML or raw status. An unresolved
+timeout, memory error, worker failure, missing XML, or incomplete log remains
 `INCONCLUSIVE`.
 
 The current gate names are `narrow-checks`, `docs`, `regression-tests`,
