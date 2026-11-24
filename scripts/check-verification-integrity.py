@@ -274,11 +274,11 @@ def comparison_form(source: Source, start: int, end: int, javascript: bool = Fal
 
 
 C_LIKE_SIDE_EFFECT = re.compile(r"\b(?:new|delete|yield|await|function|class)\b|=>|->|\+\+|--|::")
-C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?(?:\s*<[^<>()]*>)?\s*\(|\)\s*\(")
+C_LIKE_CALL = re.compile(r"[A-Za-z_$][\w$]*(?:\s*\?\.)?(?:\s*<[^<>()]*>)?\s*\(|[)\]]\s*\(")
 C_LIKE_ASSIGNMENT = re.compile(r"(?<![=!<>])(?:\+|-|\*|/|%|&|\||\^|>>>|>>|<<)?=(?!=|>)")
 TAGGED_TEMPLATE = re.compile(r"[\w$)\]]\s*`")
-TEMPLATE_SUBSTITUTION = re.compile(r"\$\{(.*?)\}", re.DOTALL)
-TS_IDENTITY_SUFFIX = re.compile(r"!+|(?:as|satisfies)\s+[\w$.,<>\[\]\s|&-]+")
+TEMPLATE_SUBSTITUTION = re.compile(r"\$\{")
+TS_IDENTITY_SUFFIX = re.compile(r"(?!.*(?:\|\||&&))(?:!+|(?:as|satisfies)\s+[\w$.,<>\[\]\s|&-]+)")
 
 
 def c_like_side_effect(code: str) -> bool:
@@ -296,7 +296,13 @@ def template_side_effect(source: Source, start: int, end: int) -> bool:
             continue
         template = source.comparison_view[literal_start:literal_end]
         for match in TEMPLATE_SUBSTITUTION.finditer(template):
-            if c_like_side_effect(mask_c_like(match[1], javascript=True).code):
+            expression_start = match.end()
+            masked = mask_c_like(template[expression_start:-1], javascript=True).code
+            close = matching_delimiter("{" + masked, 0, "{", "}")
+            if close < 0:
+                continue
+            expression = template[expression_start:expression_start + close - 1]
+            if c_like_side_effect(mask_c_like(expression, javascript=True).code):
                 return True
     return False
 
@@ -325,8 +331,10 @@ def self_comparing(
             suffix = normalize(source.comparison_view[close + 1:end]) if close >= 0 else ""
             if close >= 0 and (not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix)):
                 return False
-        if source.comparison_view[start] == "/" and source.literal_spans.get(start) == end:
-            return False
+        if source.comparison_view[start] == "/" and start in source.literal_spans:
+            suffix = normalize(source.comparison_view[source.literal_spans[start]:end])
+            if not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix):
+                return False
     return True
 
 
@@ -505,13 +513,29 @@ def python_function_bindings(function: ast.FunctionDef | ast.AsyncFunctionDef) -
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 names.add(child.name)
                 continue
+            if isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                for generator in child.generators:
+                    collect(generator.iter)
+                    for condition in generator.ifs:
+                        collect(condition)
+                if isinstance(child, ast.DictComp):
+                    collect(child.key)
+                    collect(child.value)
+                else:
+                    collect(child.elt)
+                continue
             if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
                 names.add(child.id)
             elif isinstance(child, (ast.Import, ast.ImportFrom)):
                 for alias in child.names:
+                    if alias.name == "*":
+                        continue
                     module = child.module if isinstance(child, ast.ImportFrom) else alias.name
-                    if alias.name != "*" and (module is None or (module != "pytest" and not module.startswith("pytest."))):
-                        names.add(alias.asname or alias.name.split(".")[0])
+                    binding = alias.asname or alias.name.split(".")[0]
+                    if module is not None and (module == "pytest" or module.startswith("pytest.")):
+                        names.discard(binding)
+                    else:
+                        names.add(binding)
             elif isinstance(child, ast.ExceptHandler) and child.name:
                 names.add(child.name)
             collect(child)
@@ -526,8 +550,8 @@ def python_shadowed_calls(tree: ast.AST, aliases: dict[str, str]) -> set[int]:
     def visit(node: ast.AST, scopes: list[set[str]]) -> None:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             scopes = [*scopes, python_function_bindings(node)]
-        if isinstance(node, ast.Call):
-            head = dotted_name(node.func).partition(".")[0]
+        if isinstance(node, (ast.Call, ast.Name, ast.Attribute)):
+            head = dotted_name(node.func if isinstance(node, ast.Call) else node).partition(".")[0]
             if head in aliases or head in PYTEST_WILDCARD_NAMES or head == "pytest":
                 if any(head in scope for scope in scopes):
                     shadowed.add(id(node))
@@ -612,6 +636,8 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
             if isinstance(decorator, ast.Call):
                 decorator_calls.add(id(decorator))
             target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            if id(decorator) in shadowed_calls or id(target) in shadowed_calls:
+                continue
             name = python_resolved_name(target, aliases, wildcard_imports)
             if name.rsplit(".", 1)[-1].lower() in PYTHON_DISABLED:
                 segment = ast.get_source_segment(text, decorator) or name

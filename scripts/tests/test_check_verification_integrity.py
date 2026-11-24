@@ -342,6 +342,28 @@ class PythonIntegrityTest(TreeTest):
         self.assertEqual(code, 1)
         self.assertIn(": V3: new runtime test skip or xfail", out)
 
+    def test_function_local_pytest_import_overrides_earlier_binding(self):
+        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+        changed = PYTHON_TEST.replace(
+            "self.assertTrue(value)",
+            "from helpers import suppress\n        from pytest import skip as suppress\n        suppress('reason')\n        self.assertTrue(value)",
+        )
+        head = self.tree("head", {PYTHON_PATH: changed})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new runtime test skip or xfail", out)
+
+    def test_comprehension_variable_does_not_shadow_pytest_alias(self):
+        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+        changed = "from pytest import skip\n" + PYTHON_TEST.replace(
+            "self.assertTrue(value)",
+            "names = [skip for skip in ['a', 'b']]\n        skip('reason')\n        self.assertTrue(value)",
+        )
+        head = self.tree("head", {PYTHON_PATH: changed})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new runtime test skip or xfail", out)
+
     def test_local_pytest_alias_shadowing_passes(self):
         for binding in ("suppress = str", "def suppress(value):\n            return value"):
             with self.subTest(binding=binding):
@@ -349,6 +371,17 @@ class PythonIntegrityTest(TreeTest):
                 changed = "from pytest import skip as suppress\n" + PYTHON_TEST.replace(
                     "self.assertTrue(value)",
                     f"{binding}\n        suppress('ordinary')\n        self.assertTrue(value)",
+                )
+                head = self.tree("head", {PYTHON_PATH: changed})
+                self.assertEqual(self.run_check(base, head)[0], 0)
+
+    def test_local_pytest_decorator_alias_shadowing_passes(self):
+        for decorator in ("@suppress", "@suppress()"):
+            with self.subTest(decorator=decorator):
+                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+                changed = "from pytest import skip as suppress\n" + PYTHON_TEST.replace(
+                    "self.assertTrue(value)",
+                    f"suppress = lambda fn: fn\n        {decorator}\n        def helper():\n            pass\n        self.assertTrue(value)",
                 )
                 head = self.tree("head", {PYTHON_PATH: changed})
                 self.assertEqual(self.run_check(base, head)[0], 0)
@@ -494,6 +527,10 @@ class TypeScriptIntegrityTest(TreeTest):
             "expect(value = 1).toBe(value = 1)",
             "expect(`${Math.random()}`).toBe(`${Math.random()}`)",
             "expect(factory.create<string>()).toBe(factory.create<string>())",
+            "expect(`${({}).toString()}`).toBe(`${({}).toString()}`)",
+            "expect(registry[name]()).toBe(registry[name]())",
+            "expect(registry?.[name]()).toBe(registry?.[name]())",
+            "expect(`${\"}\" + foo()}`).toBe(`${\"}\" + foo()}`)",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})
@@ -511,6 +548,8 @@ class TypeScriptIntegrityTest(TreeTest):
             "assert.strictEqual([1] as const, [1] as const)",
             "expect({a: 1} satisfies Foo).toBe({a: 1} satisfies Foo)",
             "expect([1]!).toBe([1]!)",
+            "expect(/a/!).toBe(/a/!)",
+            "expect(/a/ as RegExp).toBe(/a/ as RegExp)",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})
@@ -528,6 +567,8 @@ class TypeScriptIntegrityTest(TreeTest):
             "assert.strictEqual(\"value\", 'value')",
             "expect(\"value\").toEqual('value')",
             "expect(`${value}`).toBe(`${value}`)",
+            "assert.strictEqual({a: 1} as Foo || x, {a: 1} as Foo || x)",
+            "assert.strictEqual([1] satisfies Foo && x, [1] satisfies Foo && x)",
         ):
             with self.subTest(assertion=assertion):
                 base = self.tree("base", {TS_PATH: TS_TEST})
