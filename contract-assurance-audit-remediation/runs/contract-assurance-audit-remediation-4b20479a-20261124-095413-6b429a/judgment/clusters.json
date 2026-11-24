@@ -1,0 +1,5 @@
+{
+  "clusters": [
+    {"clusterId": "C01", "findingIds": ["codex:0"], "note": "Whether the intentionally tightened run schema requires a v3 identifier or legacy migration path."}
+  ]
+}

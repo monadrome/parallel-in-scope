@@ -1,0 +1,46 @@
+{
+  "runId": "contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
+  "runDir": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "status": "completed",
+  "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+  "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+  "fixCommit": null,
+  "systems": {
+    "kiro": {
+      "status": "completed",
+      "findings": 2
+    }
+  },
+  "dedupVersion": 1,
+  "adjudicationVersion": null,
+  "gold": {
+    "version": 1,
+    "status": "open-world",
+    "labels": 0,
+    "eligibleLabels": 0
+  },
+  "evaluationVersion": 1,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "systemsWithUsage": 0,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "reports": {
+    "html": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42/reports/report-v1.html",
+    "csv": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42/reports/metrics-v1.csv",
+    "json": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42/reports/metrics-v1.json"
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values",
+    "dedup uses identity clusters; semantic deduplication requires explicit clusters input",
+    "2 clusters are pending adjudication and excluded from rate denominators",
+    "no adjudication version exists; all clusters are pending"
+  ]
+}

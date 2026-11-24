@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032036-fdbe91",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T03:20:38.825Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation"
+  },
+  "commits": {
+    "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+    "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "openai",
+        "model": "gpt-6.1-terra",
+        "revision": null,
+        "effort": "medium",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "e4343b80a3f6e18afe29f7380029336ca482b1c6a1710cb57e5ac878d0858110",
+    "contextJsonSha256": "45a79712bf62fde9ad7db1eb8206b9289472d2faec8419d7b2e14883a94cd05d",
+    "diffSha256": "8e2c75c7c45b7ab92c6d3833131a17c6af6e49321687770947cce27cffd3d2c4",
+    "caseManifestSha256": "c4e22c302bbec797cdc02594d9f1a1d120fa55f726ef76d1c05e4b29327f8e1f",
+    "promptSha256": "198682d1dec53c74e09c9d262b69f45f0c9a06455ffc184927523967cfd324d0"
+  },
+  "promptPath": "inputs/prompt.md"
+}

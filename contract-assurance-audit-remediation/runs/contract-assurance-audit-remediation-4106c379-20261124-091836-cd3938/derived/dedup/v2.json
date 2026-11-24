@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "contract-assurance-audit-remediation-4106c379-20261124-091836-cd3938",
+  "version": 2,
+  "createdAt": "2026-11-24T09:30:02.079Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "An empty requiredEvidence policy accepts an unevidenced timeout."
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "An input symlink can alias a root output artifact."
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "kiro:2"
+      ],
+      "note": "Full SHA-256 Git object IDs are rejected."
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "kiro:3"
+      ],
+      "note": "The completed-manifest example omits the pit-audit input hash."
+    }
+  ]
+}

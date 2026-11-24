@@ -1,0 +1,17 @@
+{
+  "summary": "Reviewed the assurance-policy and input-root hardening in verify_run.py plus its docs, tests, and version bumps. The new gate/disposition validators, the category-keyed evidence checks with hashing enforcement, and the symbolic-link inputs-root rejection all behave correctly for the covered cases, and the added regression tests exercise the fix properly. The one concrete concern is that the run-manifest schema was made stricter (mandatory finalHead, object-form acceptedDispositions and evidence) while schemaVersion remains contract-assurance-run/v2, so previously valid v2 manifests from the 1.4.0 tooling now fail field-level checks rather than a schema-version error.",
+  "findings": [
+    {
+      "file": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "lineStart": 280,
+      "lineEnd": 314,
+      "title": "v2 manifest schema hardened without bumping schemaVersion",
+      "trigger": "Run verify_run.py against a run-manifest.json produced by the previous 1.4.0 tooling, which omits finalHead and uses the old list-form acceptedDispositions and evidence arrays.",
+      "consequence": "Previously reproducible, passing contract-assurance-run/v2 manifests are now rejected as malformed via field-level errors, with no schema-version distinction to identify legacy v2 documents.",
+      "evidence": "verify_run.py:280 still accepts only contract-assurance-run/v2; verify_run.py:311-314 now require finalHead; verify_run.py:321-330 require acceptedDispositions to be an object; verify_run.py:373-401 require evidence to be a category-keyed object and reject the old list shape.",
+      "severity": "P3",
+      "confidence": 0.35,
+      "suggestedFix": "Bump schemaVersion to a new value (e.g. contract-assurance-run/v3) and either accept v2 with a dedicated migration/legacy path or emit an explicit unsupported-schema-version error so old manifests are not misclassified as field-level malformations."
+    }
+  ]
+}

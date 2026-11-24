@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "runId": "2026-11-24-assurance-verifier-remediation",
+  "createdAt": "2026-11-24T09:19:42Z",
+  "package": {
+    "name": "contract-first-assurance",
+    "version": "1.5.0"
+  },
+  "adapter": {
+    "name": "vformation",
+    "version": "1.5.0",
+    "requiredGates": [
+      "candidate-tests",
+      "reverse-verification",
+      "existing-tests",
+      "docs",
+      "independent-review"
+    ],
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": {
+        "allowedRawStatuses": [
+          "TIMED_OUT"
+        ],
+        "requiredEvidence": [
+          "repeatable-focused-rerun",
+          "unmutated-tests-pass",
+          "complete-xml-and-logs",
+          "source-level-liveness-invariant",
+          "maintainer-or-independent-review"
+        ]
+      }
+    }
+  },
+  "workspace": {
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "4106c3798400f879eb06dab6f9846ba901ef384d",
+    "dirty": false
+  },
+  "finalHead": "4106c3798400f879eb06dab6f9846ba901ef384d",
+  "inputs": {
+    "inputs/AGENTS.md": "a3039eaa2d0d9f38d375db31f8bc16dbbeae6d27e876f0686bc72eb7c7898c5a",
+    "inputs/adapter.yaml": "5cf7056711c7c7a0cbc14f5eb86f1ca07091b47783a977674efcf7bdafbbe1e5",
+    "inputs/assurance-routing.md": "a253c5166cb1255384342e62456828eacc779ab4e84e6541d6cb2f696704c5fb",
+    "inputs/change.patch": "39deb9cbb61983ac4e9bb345f4c3bce23e9e477d68b9bb8fa0a7ada400848dd9",
+    "inputs/pit.md": "241a6126103d2c22979051da4c8cd085b5a2819dfcd0844deddafd941a41e028",
+    "inputs/reproducible-runs.md": "439a9a334247a33be9bbf8a3abee5f239fcf91536e7638fff24dc6ce27f02634",
+    "inputs/sanitized_verify_run_api.py": "6ab16a4201210634e3252e8735838e999d9e3a13d930a5f5f0d83bd492e3b9ab"
+  },
+  "status": "fail",
+  "requiredGates": [
+    "candidate-tests",
+    "reverse-verification",
+    "existing-tests",
+    "docs",
+    "independent-review"
+  ],
+  "checks": {
+    "candidate-tests": "fail",
+    "reverse-verification": "skipped",
+    "existing-tests": "pass",
+    "docs": "pass",
+    "independent-review": "fail"
+  },
+  "acceptedExceptions": [],
+  "commands": [
+    {
+      "phase": "isolated-generation",
+      "argv": [
+        "kiro-cli",
+        "chat",
+        "--no-interactive",
+        "--trust-workspace",
+        "--trust-tools=fs_read,fs_write",
+        "--model",
+        "gpt-5.6-terra",
+        "--effort",
+        "max",
+        "Read README.md and perform exactly the isolated candidate-generation task it describes. Use only the three allowed local inputs. Write the sealed unittest candidate file and candidate-plan.csv under candidates/. Do not inspect anything outside this generation directory."
+      ],
+      "exitCode": 0,
+      "stdout": "logs/isolated-generation.stdout.log",
+      "stderr": "logs/isolated-generation.stderr.log"
+    },
+    {
+      "phase": "candidate-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates",
+        "-p",
+        "test_*.py"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/candidate-initial.stdout.log",
+      "stderr": "logs/candidate-initial.stderr.log"
+    },
+    {
+      "phase": "existing-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/existing-tests.stdout.log",
+      "stderr": "logs/existing-tests.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "python3",
+        "scripts/check-doc-refs.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/doc-refs.stdout.log",
+      "stderr": "logs/doc-refs.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "python3",
+        "scripts/check-local-links.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/local-links.stdout.log",
+      "stderr": "logs/local-links.stderr.log"
+    },
+    {
+      "phase": "worktree-skills",
+      "argv": [
+        "python3",
+        "scripts/check-worktree-skills.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/worktree-skills.stdout.log",
+      "stderr": "logs/worktree-skills.stderr.log"
+    },
+    {
+      "phase": "verification-integrity",
+      "argv": [
+        "python3",
+        "scripts/check-verification-integrity.py",
+        "--base",
+        "origin/dev/v0.5.0"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/verification-integrity.stdout.log",
+      "stderr": "logs/verification-integrity.stderr.log"
+    },
+    {
+      "phase": "independent-review",
+      "argv": [
+        "node",
+        "tools/llm-review-bench/dist/cli.js",
+        "review",
+        "--base",
+        "6981df77",
+        "--commit",
+        "4106c3798400f879eb06dab6f9846ba901ef384d",
+        "--systems",
+        ".review-benchmark/contract-assurance-remediation-systems.json",
+        "--review-timeout",
+        "900",
+        "--timeout",
+        "1200",
+        "--kill-grace",
+        "10",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/independent-review.stdout.log",
+      "stderr": "logs/independent-review.stderr.log"
+    }
+  ],
+  "artifacts": {
+    "candidate-status.csv": "7e8c2cc8ae03e0c122e8b824d950ec4b915e6ed81c2c51a926a5e154585467b4",
+    "candidates/candidate-plan.csv": "2b8758e3330a24dd02ae2718a77ffa17e4f76f3491ec03ea5564f91f11580281",
+    "candidates/test_contract_verifier.py": "47f038a968b2f69930552f2fcba6e74e523976585d4efb2e02e561c0652a7eee",
+    "contract-gaps.md": "53d8047a83c896059b3a4d51a76c02c87319dab3a9253e2825f89868e3b740c8",
+    "contract.md": "f01ea8db80e54bb39f1690a948c0513d5d89fb7e8f20ca7850e43fcc7cf97150",
+    "logs/candidate-initial.exit-code": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "logs/candidate-initial.stderr.log": "044a9b4afc9e516359f12dd05261271d40bf78219d29e6cc5f61b8e101710c9f",
+    "logs/candidate-initial.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/doc-refs.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/doc-refs.stdout.log": "972f50c61c2d961fc3f493f09960d7babd78287559b21a4b9cd8936e1e0b1b7a",
+    "logs/existing-tests.stderr.log": "a0cb9f0bfc59e63791ef4b28d6c39ea02ed62af9055f4ed62b69732fa3aa1408",
+    "logs/existing-tests.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/independent-review.stdout.log": "75c7f25a5ef87a769012389de36ca0e4bce8d74211a854597270d7054e3eb311",
+    "logs/isolated-generation.stderr.log": "0f5af56d196777dd5c72390edb972b785518719d5ce97c5e7a1f51e8be696954",
+    "logs/isolated-generation.stdout.log": "d102b8cdcbe88cfadd2c2e91a845973dce865207418c2f1b731d3c5593db3403",
+    "logs/local-links.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/local-links.stdout.log": "ffdccee4676a13921a45635d0c19268779b3ab8fed21fc90e7387306ad6ed775",
+    "logs/verification-integrity.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/verification-integrity.stdout.log": "744589f300572cf7f7951a6c43ce818ac462c8fb95672dc520f788883463aac6",
+    "logs/worktree-skills.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/worktree-skills.stdout.log": "ef8a98d31c6e3d629a0e6f1c829b6caee2134688d4001a177d5ea3aff3211dce",
+    "promotion-status.csv": "0244dec09ba03a744f1a8260d051a2a62c854c876b5fb084b8facae3b33fc3bd",
+    "report.md": "35173f2c1d7cca6a74d993bdf282293c46be6d7f23f3bbc8e2cebd5e8cc6bb00",
+    "verification-summary.md": "4d4dee509ae6a3a0ff460e583d3df6f0de4420a1ee3784cb35cd05ded992c42c",
+    "logs/independent-review.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

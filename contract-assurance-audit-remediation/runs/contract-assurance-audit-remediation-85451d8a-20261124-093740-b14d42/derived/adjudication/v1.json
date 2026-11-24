@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T09:48:30.526Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": null,
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "With inputs symlinked to the run root, inputs_root and the resolved output parent are identical, so containment and required-directory checks both pass.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "requiredEvidence validation exists only inside the accepted-exception loop, so malformed unused policies are never examined.",
+      "confidence": 1
+    }
+  ]
+}

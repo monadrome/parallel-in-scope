@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a",
+  "status": "completed",
+  "createdAt": "2026-11-24T09:54:14.144Z",
+  "updatedAt": "2026-11-24T10:08:37.889Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T09:54:14.186Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-24T09:54:14.203Z",
+            "endedAt": "2026-11-24T10:06:24.303Z",
+            "durationMs": 729683,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-24T10:06:24.331Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T10:06:24.458Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T10:06:24.529Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T10:06:24.625Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T09:54:14.144Z",
+      "error": null
+    }
+  },
+  "eventSeq": 67
+}

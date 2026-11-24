@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032315-a22c4e",
+  "version": 1,
+  "createdAt": "2026-11-24T03:34:54.914Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "kiro:2"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "kiro:3"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C05",
+      "findingIds": [
+        "kiro:4"
+      ],
+      "note": null
+    }
+  ]
+}

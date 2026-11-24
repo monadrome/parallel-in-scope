@@ -1,0 +1,7 @@
+candidate_id,contract_id,initial_status,final_status,reason
+CONTRACT-TDD-001,C-1,run failure,wrong assumption,"Fixture wrote the manifest to inputs/reproducible-runs.md and used rawStatuses instead of allowedRawStatuses."
+CONTRACT-TDD-002,C-2,run failure,wrong assumption,"Baseline fixture did not create run-manifest.json; the assertion was not reached."
+CONTRACT-TDD-003,C-3,run failure,wrong assumption,"Baseline fixture did not create run-manifest.json; the assertion was not reached."
+CONTRACT-TDD-004,C-4,run failure,wrong assumption,"Baseline fixture did not create run-manifest.json; the assertion was not reached."
+CONTRACT-TDD-005,C-5,run failure,wrong assumption,"Baseline fixture did not create run-manifest.json; the assertion was not reached."
+CONTRACT-TDD-006,C-6,run failure,wrong assumption,"Baseline fixture did not create run-manifest.json and used the wrong adapter policy field."

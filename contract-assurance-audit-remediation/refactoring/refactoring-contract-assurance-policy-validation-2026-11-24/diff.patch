@@ -1,0 +1,45 @@
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 82cea19e..8ac19854 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -587,6 +587,40 @@ class VerifyRunTest(unittest.TestCase):
+         }
+         self.assertTrue(evidence <= hashed, f"unhashed example evidence: {sorted(evidence - hashed)}")
+ 
++    def test_rejects_unused_policy_with_invalid_allowed_raw_statuses(self):
++        for allowed_statuses in ([], [" "], ["TIMED_OUT", "TIMED_OUT"]):
++            with self.subTest(allowed_statuses=allowed_statuses):
++                policy = self.mutation_policy()
++                policy["EXPECTED_MUTATION_LIVENESS"]["allowedRawStatuses"] = allowed_statuses
++                run = self.make_run(None, policy, final_gate="PASS")
++                errors = verify_run.verify(run)
++                self.assertIn(
++                    "adapter accepted disposition EXPECTED_MUTATION_LIVENESS has invalid allowedRawStatuses",
++                    errors,
++                )
++
++    def test_rejects_symlinked_inputs_root(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        (run / "inputs/pit-audit.md").unlink()
++        (run / "inputs").rmdir()
++        (run / "inputs").symlink_to(run, target_is_directory=True)
++        digest = hashlib.sha256((run / "contract.md").read_bytes()).hexdigest()
++        self.update_manifest(run, inputs={"inputs/contract.md": digest})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs directory must not be a symbolic link", errors)
++
++    def test_rejects_malformed_unused_accepted_disposition_policy(self):
++        for required_evidence in ([], [" "], ["complete-xml-and-logs", "complete-xml-and-logs"]):
++            with self.subTest(required_evidence=required_evidence):
++                policy = self.mutation_policy()
++                policy["EXPECTED_MUTATION_LIVENESS"]["requiredEvidence"] = required_evidence
++                run = self.make_run(None, policy, final_gate="PASS")
++                errors = verify_run.verify(run)
++                self.assertIn(
++                    "adapter accepted disposition EXPECTED_MUTATION_LIVENESS has invalid requiredEvidence",
++                    errors,
++                )
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

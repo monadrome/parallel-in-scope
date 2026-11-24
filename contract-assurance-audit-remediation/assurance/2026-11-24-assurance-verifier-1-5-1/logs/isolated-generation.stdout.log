@@ -1,0 +1,8 @@
+Created the sealed artifacts under `candidates/`:
+
+- `candidates/test_contract_verifier.py`
+- `candidates/candidate-plan.csv`
+
+The unittest candidate contains `CONTRACT_TDD_001` through `CONTRACT_TDD_007`, with self-contained C-1 fixtures and coverage for C-2 through C-5, including malformed evidence-policy cardinality, output-backed input symlinks, and valid 64-character SHA-256 IDs.
+
+Validated the Python file through AST parsing and confirmed the CSV has the required header and one matching stable-ID row per test. The real verifier was not loaded during generation, and nothing outside the generation directory was inspected.

@@ -1,0 +1,1 @@
+ff941071 fix: bind assurance evidence and frozen inputs

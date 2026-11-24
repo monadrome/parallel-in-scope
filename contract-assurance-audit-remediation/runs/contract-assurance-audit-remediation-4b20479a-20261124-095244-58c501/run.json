@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095244-58c501",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:52:45.313Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation"
+  },
+  "commits": {
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "4b20479a9dd5180b305a57cac8bea89d53cf5338",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "f858c80786dc345ed55e89555762c20aa2cdacd9c932b99f26f911cce72ccb84",
+    "contextJsonSha256": "0d52f72ffa77fc0a663cfb3c011e2a62a461e4ab4f43dc7f10e01aeafa2d755e",
+    "diffSha256": "bcb227c0791e1a920f86f4a1510c5f156397bd3fe50b23e202f956bb3cd139d9",
+    "caseManifestSha256": "2eb85ad29ee6c2990091d246e9e9f1bb24b033b7449593be0250fe01e582efbb",
+    "promptSha256": "99cbb03c82229b059debd390bbca786ff5a826c6cf6108ec812c98712f3affa3"
+  },
+  "promptPath": "inputs/prompt.md"
+}

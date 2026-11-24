@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:37:41.336Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "to": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+    "label": "6981df77..85451d8a"
+  },
+  "objective": {
+    "subject": "fix: close assurance policy and input aliases",
+    "body": "MUST: Require non-empty, non-blank, unique evidence categories, keep resolved inputs beneath inputs/, accept full SHA-1 and SHA-256 commit IDs, and hash every documented evidence path.\n\nMUST NOT: Accept unevidenced timeout policies, output-backed input symlinks, symbolic revisions, or incomplete evidence examples as passing runs.\n\nPIT: SKIPPED — Python assurance tooling and workflow documents only; no core Java production classes or mutation sites are affected.\n\nReview: confirmed Kiro findings C01 through C04; four regression tests reproduced six failures before the fix. Package 1.5.1; 357 script tests and documentation checks pass."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "be39322f63d12e6c83277e195a97b2df40f83663deb508093b81ca2c9c21bd19",
+    "bytes": 36855,
+    "files": [
+      {
+        "path": ".agents/skills/assurance-report/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-diff/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-extract/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/package.yaml",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/mutation-dispositions.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+        "status": "M",
+        "additions": 46,
+        "deletions": 13
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+        "status": "M",
+        "additions": 89,
+        "deletions": 23
+      },
+      {
+        "path": ".agents/skills/isolated-test-generation/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "ledger/2026-11-23-contract-assurance-gate.json",
+        "status": "M",
+        "additions": 143,
+        "deletions": 2
+      },
+      {
+        "path": "scripts/tests/test_verify_run.py",
+        "status": "M",
+        "additions": 132,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "93552974eb03fb73de56623abf335b54b4ff67cf2bcfb4ef0cd817784c80125f",
+    "bytes": 3622,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

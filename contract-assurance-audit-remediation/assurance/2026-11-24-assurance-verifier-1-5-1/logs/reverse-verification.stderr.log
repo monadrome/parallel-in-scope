@@ -1,0 +1,246 @@
+FFFFFFFFFFFF.FFFF
+======================================================================
+FAIL: test_CONTRACT_TDD_001_accepts_bound_timeout_exception (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_001_accepts_bound_timeout_exception)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 171, in test_CONTRACT_TDD_001_accepts_bound_timeout_exception
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding) (case='missing_required_category')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 189, in test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding) (case='missing_evidence_file')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 189, in test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding) (case='unhashed_evidence_path')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 189, in test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding) (case='disallowed_raw_status')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 189, in test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding) (case='disallowed_disposition')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 189, in test_CONTRACT_TDD_002_rejects_invalid_accepted_exception_binding
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy) (case='empty')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 228, in test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy) (case='blank')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 228, in test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy) (case='duplicate')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 228, in test_CONTRACT_TDD_003_rejects_malformed_required_evidence_policy
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 59, in _assert_valid
+    self.assertEqual([], self._errors(run_dir))
+AssertionError: Lists differ: [] != ['accepted exception 0 disposition is not [104 chars]ths']
+
+Second list contains 2 additional elements.
+First extra element 0:
+'accepted exception 0 disposition is not allowed by adapter: EXPECTED_MUTATION_LIVENESS'
+
+- []
++ ['accepted exception 0 disposition is not allowed by adapter: '
++  'EXPECTED_MUTATION_LIVENESS',
++  'accepted exception 0 evidence must contain relative paths']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_004_rejects_invalid_input_declarations (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_004_rejects_invalid_input_declarations) (case='empty_inputs')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 274, in test_CONTRACT_TDD_004_rejects_invalid_input_declarations
+    self._assert_rejected(run_dir, f"{case} input declaration was accepted")
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : empty_inputs input declaration was accepted
+
+======================================================================
+FAIL: test_CONTRACT_TDD_004_rejects_invalid_input_declarations (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_004_rejects_invalid_input_declarations) (case='root_output_alias')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 274, in test_CONTRACT_TDD_004_rejects_invalid_input_declarations
+    self._assert_rejected(run_dir, f"{case} input declaration was accepted")
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : root_output_alias input declaration was accepted
+
+======================================================================
+FAIL: test_CONTRACT_TDD_005_rejects_output_backed_input_symlink (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_005_rejects_output_backed_input_symlink)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 289, in test_CONTRACT_TDD_005_rejects_output_backed_input_symlink
+    self._assert_rejected(
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : an input symlink resolving to a root output was accepted
+
+======================================================================
+FAIL: test_CONTRACT_TDD_007_rejects_invalid_workspace_identity (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_007_rejects_invalid_workspace_identity) (case='symbolic_ref')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 336, in test_CONTRACT_TDD_007_rejects_invalid_workspace_identity
+    self._assert_rejected(run_dir, f"{case} workspace identity was accepted")
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : symbolic_ref workspace identity was accepted
+
+======================================================================
+FAIL: test_CONTRACT_TDD_007_rejects_invalid_workspace_identity (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_007_rejects_invalid_workspace_identity) (case='short_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 336, in test_CONTRACT_TDD_007_rejects_invalid_workspace_identity
+    self._assert_rejected(run_dir, f"{case} workspace identity was accepted")
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : short_id workspace identity was accepted
+
+======================================================================
+FAIL: test_CONTRACT_TDD_007_rejects_invalid_workspace_identity (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_007_rejects_invalid_workspace_identity) (case='uppercase_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 336, in test_CONTRACT_TDD_007_rejects_invalid_workspace_identity
+    self._assert_rejected(run_dir, f"{case} workspace identity was accepted")
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : uppercase_id workspace identity was accepted
+
+======================================================================
+FAIL: test_CONTRACT_TDD_007_rejects_invalid_workspace_identity (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_007_rejects_invalid_workspace_identity) (case='other_length')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 336, in test_CONTRACT_TDD_007_rejects_invalid_workspace_identity
+    self._assert_rejected(run_dir, f"{case} workspace identity was accepted")
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates/test_contract_verifier.py", line 62, in _assert_rejected
+    self.assertNotEqual([], self._errors(run_dir), message)
+AssertionError: [] == [] : other_length workspace identity was accepted
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.276s
+
+FAILED (failures=16)

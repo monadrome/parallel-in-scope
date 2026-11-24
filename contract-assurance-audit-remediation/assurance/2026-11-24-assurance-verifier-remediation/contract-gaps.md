@@ -1,0 +1,3 @@
+# Contract gaps
+
+The frozen input package omitted the exact manifest location, required top-level metadata fields, and the exact `allowedRawStatuses` policy field needed to construct a valid baseline. This is a contract-input gap, not a production defect. Candidate final classifications remain `wrong assumption` because their fixtures do not match the explicit reproducible-run schema, but the generation package was also insufficient. Error-list ordering, exact wording beyond the identified boundary, and unrelated malformed fields are not asserted. No concurrency, cancellation, deadline, executor, queue, or lifecycle behavior is present in this scope.

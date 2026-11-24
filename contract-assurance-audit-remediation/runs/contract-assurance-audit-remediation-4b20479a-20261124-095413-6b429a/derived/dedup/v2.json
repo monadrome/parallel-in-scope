@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a",
+  "version": 2,
+  "createdAt": "2026-11-24T10:08:37.805Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Whether the intentionally tightened run schema requires a v3 identifier or legacy migration path."
+    }
+  ]
+}

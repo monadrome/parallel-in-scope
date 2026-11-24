@@ -1,0 +1,8 @@
+candidate_id,contract_id,initial_status,final_status,reason
+CONTRACT-TDD-001,C-2,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing accepted-exception success coverage observes the same contract."
+CONTRACT-TDD-002,C-2,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing tests cover the same five evidence-binding boundaries."
+CONTRACT-TDD-003,C-3,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing malformed-policy regression covers empty blank and duplicate categories."
+CONTRACT-TDD-004,C-4,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing input validation tests cover the same declarations."
+CONTRACT-TDD-005,C-4,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing output-symlink regression covers the same resolution boundary."
+CONTRACT-TDD-006,C-5,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing SHA-256 regression covers the same acceptance behavior."
+CONTRACT-TDD-007,C-5,new coverage,duplicate coverage,"Passed on 1.5.1 and failed on the base verifier; existing workspace validation tests cover the same malformed identities."

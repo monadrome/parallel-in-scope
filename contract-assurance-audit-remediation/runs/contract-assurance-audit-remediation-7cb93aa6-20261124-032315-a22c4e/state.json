@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032315-a22c4e",
+  "status": "completed",
+  "createdAt": "2026-11-24T03:23:16.433Z",
+  "updatedAt": "2026-11-24T03:37:20.824Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T03:23:16.464Z",
+      "error": null
+    },
+    "reviews": {
+      "kiro": {
+        "agent": "kiro",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-24T03:23:16.472Z",
+            "endedAt": "2026-11-24T03:34:54.866Z",
+            "durationMs": 698186,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-24T03:34:54.878Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T03:34:54.946Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T03:34:54.992Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T03:34:55.052Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T03:23:16.433Z",
+      "error": null
+    }
+  },
+  "eventSeq": 65
+}

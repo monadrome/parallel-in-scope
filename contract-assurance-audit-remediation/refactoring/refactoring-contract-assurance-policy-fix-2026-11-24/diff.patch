@@ -1,0 +1,59 @@
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 7eecee0e..82cea19e 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -539,6 +539,54 @@ class VerifyRunTest(unittest.TestCase):
+         self.assertTrue(any("gate names must be non-blank" in error for error in errors))
+         self.assertTrue(any("gate names must be unique" in error for error in errors))
+ 
++    def test_rejects_empty_blank_and_duplicate_required_evidence_policies(self):
++        for required_evidence in ([], [" "], ["complete-xml-and-logs", "complete-xml-and-logs"]):
++            with self.subTest(required_evidence=required_evidence):
++                policy = self.mutation_policy()
++                policy["EXPECTED_MUTATION_LIVENESS"]["requiredEvidence"] = required_evidence
++                exception = self.exception()
++                exception["evidence"] = {category: ["logs/pit.log"] for category in required_evidence}
++                run = self.make_run(exception, policy)
++                errors = verify_run.verify(run)
++                self.assertIn(
++                    "accepted exception 0 has invalid requiredEvidence: EXPECTED_MUTATION_LIVENESS",
++                    errors,
++                )
++
++    def test_rejects_frozen_input_symlink_to_output_artifact(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        alias = run / "inputs/output-alias.md"
++        alias.symlink_to(run / "contract.md")
++        digest = hashlib.sha256(alias.read_bytes()).hexdigest()
++        self.update_manifest(run, inputs={"inputs/output-alias.md": digest})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs entries must resolve beneath inputs/: inputs/output-alias.md", errors)
++
++    def test_accepts_full_sha256_workspace_revisions(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(
++            run,
++            workspace={"base": "a" * 64, "head": "b" * 64, "dirty": False},
++            finalHead="b" * 64,
++        )
++        self.assertEqual(verify_run.verify(run), [])
++
++    def test_completed_manifest_example_hashes_all_evidence_paths(self):
++        reference = (
++            Path(__file__).resolve().parents[2]
++            / ".agents/skills/contract-first-assurance/references/reproducible-runs.md"
++        )
++        example = reference.read_text(encoding="utf-8").split("```json", 1)[1].split("```", 1)[0]
++        manifest = json.loads(example)
++        hashed = set(manifest["inputs"]) | set(manifest["artifacts"])
++        evidence = {
++            path
++            for exception in manifest["acceptedExceptions"]
++            for paths in exception["evidence"].values()
++            for path in paths
++        }
++        self.assertTrue(evidence <= hashed, f"unhashed example evidence: {sorted(evidence - hashed)}")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

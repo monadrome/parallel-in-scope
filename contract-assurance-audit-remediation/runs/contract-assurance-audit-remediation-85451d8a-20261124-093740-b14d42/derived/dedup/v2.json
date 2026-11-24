@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
+  "version": 2,
+  "createdAt": "2026-11-24T09:48:30.505Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kiro:0"
+      ],
+      "note": "A symlinked inputs root can resolve to the run root and alias output artifacts."
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kiro:1"
+      ],
+      "note": "Malformed accepted-disposition policies are unchecked when no exception uses them."
+    }
+  ]
+}

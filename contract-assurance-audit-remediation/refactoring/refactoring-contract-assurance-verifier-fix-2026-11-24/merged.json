@@ -1,0 +1,109 @@
+{
+  "agents": [
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunTest#test_rejects_unhashed_accepted_exception_evidence",
+      "refactoring": "Extract Function\uff08\u62bd\u51fa read_manifest/save_manifest \u539f\u8bed\uff0c\u5e76\u8ba9 update_manifest\u3001set_report\u3001set_candidates\u3001add_promoted_copy\u3001set_promotion_status \u4e0e\u672c\u7528\u4f8b\u590d\u7528\uff09",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "\u672c\u7528\u4f8b\u518d\u6b21\u624b\u5199 `json.loads(read_text())` \u2192 \u4fee\u6539 \u2192 `write_text(json.dumps(...))`\uff0c\u8fd9\u5df2\u662f\u540c\u7c7b\u4e2d\u7684\u7b2c\u4e03\u4efd\uff08\u524d\u516d\u4efd\u5728 set_promotion_status\u3001add_promoted_copy\u3001set_candidates\u3001add_promotion_evidence\u3001set_report\u3001update_manifest\uff09\u3002\u62bd\u51fa\u8bfb\u5199\u539f\u8bed\u540e\uff0cmanifest \u683c\u5f0f/\u7f16\u7801/\u5199\u5165\u65b9\u5f0f\u53ea\u6709\u4e00\u5904\u5b9a\u4e49\uff0c\u65b0\u589e\u65ad\u8a00\u53ea\u9700\u63cf\u8ff0\u6570\u636e\u7ed3\u6784\u53d8\u66f4\uff1b\u907f\u514d\u4e0b\u6b21 schema \u8c03\u6574\u65f6\u9057\u6f0f\u67d0\u4e00\u4efd\u624b\u5199\u5199\u5165\u3002"
+      ],
+      "behaviorRisks": [
+        "\u5199\u56de\u540e\u7684 run-manifest.json \u5185\u5bb9\u5fc5\u987b\u4e0e\u73b0\u72b6\u9010\u5b57\u8282\u7b49\u4ef7\uff08\u540c\u4e00 json.dumps \u9ed8\u8ba4\u5206\u9694\u7b26\u3001\u65e0\u6392\u5e8f\u3001\u65e0\u591a\u4f59\u952e\uff09\uff0c\u4e14 artifacts \u4e2d\u53ea\u79fb\u9664 logs/pit.log\uff1b\u65ad\u8a00 \u201caccepted exception 0 evidence is not hashed: logs/pit.log\u201d \u4fdd\u6301\u4e0d\u53d8\u3002"
+      ],
+      "guardingTests": [
+        "VerifyRunTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunTest#mutation_policy",
+      "refactoring": "Extract Constant\uff08\u628a\u4e94\u7c7b required-evidence \u540d\u79f0\u63d0\u4e3a\u7c7b\u7ea7\u5143\u7ec4\uff0c\u4f9b mutation_policy() \u7684 requiredEvidence \u4e0e exception() \u7684 evidence \u952e\u5171\u7528\uff09",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "\u540c\u4e00\u4efd `repeatable-focused-rerun / unmutated-tests-pass / complete-xml-and-logs / source-level-liveness-invariant / maintainer-or-independent-review` \u540d\u5355\u5728 mutation_policy() \u548c exception() \u4e2d\u5404\u51fa\u73b0\u4e00\u6b21\uff1b\u65b0\u589e\u4e00\u7c7b\u5fc5\u9700\u8bc1\u636e\u65f6\u4e24\u5904\u5fc5\u987b\u540c\u6b65\u4fee\u6539\uff0c\u5426\u5219\u4f1a\u51fa\u73b0\u201c\u7b56\u7565\u5df2\u52a0\u3001\u5939\u5177\u672a\u52a0\u201d\u7684\u9690\u853d\u4e0d\u4e00\u81f4\u3002\u63d0\u53d6\u5e38\u91cf\u540e\u5951\u7ea6\u53d8\u66f4\u6709\u5355\u4e00\u843d\u70b9\uff0c\u800c\u6bcf\u6761\u76ee\u5bf9\u5e94\u7684\u5177\u4f53\u6587\u4ef6\u5217\u8868\u4ecd\u7559\u5728 exception() \u4e2d\u4fdd\u6301\u53ef\u8bfb\u3002"
+      ],
+      "behaviorRisks": [
+        "policy \u7684 requiredEvidence \u987a\u5e8f\u4e0e\u5185\u5bb9\u3001\u4ee5\u53ca exception().evidence \u7684\u952e\u96c6\u5408\u5fc5\u987b\u5b8c\u5168\u4e0d\u53d8\uff1b\u4e0d\u5f97\u6539\u53d8\u4efb\u4f55\u544a\u8b66/\u901a\u8fc7\u7ed3\u679c\uff0c\u4e5f\u4e0d\u5f97\u6539\u53d8 evidence \u5404\u5206\u7c7b\u5f15\u7528\u7684\u6587\u4ef6\u3002"
+      ],
+      "guardingTests": [
+        "VerifyRunTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunTest#test_rejects_placeholder_accepted_exception_evidence",
+      "refactoring": "Rename\uff08\u6539\u4e3a test_rejects_missing_required_accepted_exception_evidence\uff09",
+      "rules": [
+        "T05"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "\u8be5\u7528\u4f8b\u5b9e\u9645\u5220\u9664\u7684\u662f source-level-liveness-invariant \u8fd9\u4e00\u5fc5\u9700\u8bc1\u636e\u5206\u7c7b\uff0c\u65ad\u8a00\u7684\u662f \u201caccepted exception 0 is missing required evidence\u201d\uff1b\u201cplaceholder\u201d \u63cf\u8ff0\u7684\u662f\u6539\u9020\u524d\u7684\u8bc1\u636e\u5b57\u7b26\u4e32\u5f62\u6001\uff0c\u8bfb\u8005\u4ece\u540d\u5b57\u4f1a\u4ee5\u4e3a\u5728\u9a8c\u8bc1\u5360\u4f4d\u5185\u5bb9\uff0c\u800c\u4e0d\u662f\u9a8c\u8bc1\u7f3a\u5931\u7684\u5fc5\u9700\u8bc1\u636e\u5206\u7c7b\u3002\u6539\u540d\u540e\u5931\u8d25\u4fe1\u606f\u5373\u53ef\u81ea\u89e3\u91ca\u3002"
+      ],
+      "behaviorRisks": [
+        "\u4ec5\u6539\u6d4b\u8bd5\u65b9\u6cd5\u540d\uff1b\u7528\u4f8b\u7684\u8f93\u5165\u3001\u65ad\u8a00\u548c\u671f\u671b\u9519\u8bef\u6587\u672c\u4fdd\u6301\u4e0d\u53d8\uff08\u82e5\u6709\u6309\u540d\u79f0\u9009\u62e9\u6d4b\u8bd5\u7684 CI/\u811a\u672c\u9700\u540c\u6b65\u5f15\u7528\uff09\u3002"
+      ],
+      "guardingTests": [
+        "VerifyRunTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T05"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 3,
+    "byTier": {
+      "T0": 3,
+      "T1": 0,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

@@ -1,0 +1,4 @@
+7cb93aa6 fix: version assurance run finalization
+0b390361 fix: align assurance invocation and decoding
+061156e1 fix: enforce assurance report gates
+983005a1 docs: require threshold-based contract assurance

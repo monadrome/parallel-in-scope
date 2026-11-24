@@ -1,0 +1,5 @@
+{
+  "verdicts": [
+    {"clusterId": "C01", "verdict": "rejected", "goldLabelIds": [], "rationale": "The remediation intentionally rejects legacy manifests that omitted frozen final-head identity or used unbound list-form evidence; those were the false-success paths being removed. No repository contract requires legacy v2 acceptance or migration, and the field errors accurately identify the violated current requirements. A v3 rename without a compatibility requirement adds no behavioral assurance.", "confidence": 0.85}
+  ]
+}

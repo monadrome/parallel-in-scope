@@ -1,0 +1,9 @@
+{
+  "verdicts": [
+    {"clusterId": "C01", "verdict": "confirmed", "goldLabelIds": [], "rationale": "The placeholder-evidence regression test fails because verification returns no required-evidence error.", "confidence": 1},
+    {"clusterId": "C02", "verdict": "confirmed", "goldLabelIds": [], "rationale": "Empty inputs and a root artifact as input both pass before the fix; new regression tests reproduce both paths.", "confidence": 1},
+    {"clusterId": "C03", "verdict": "confirmed", "goldLabelIds": [], "rationale": "Symbolic base/head and missing finalHead pass before the fix; the regression test reproduces the mutable identity.", "confidence": 1},
+    {"clusterId": "C04", "verdict": "confirmed", "goldLabelIds": [], "rationale": "Blank and duplicate gate names pass before the fix; the regression test reproduces the bypass.", "confidence": 1},
+    {"clusterId": "C05", "verdict": "confirmed", "goldLabelIds": [], "rationale": "The example hashes only report.md while the verifier requires every REQUIRED_FILES entry in artifacts.", "confidence": 1}
+  ]
+}

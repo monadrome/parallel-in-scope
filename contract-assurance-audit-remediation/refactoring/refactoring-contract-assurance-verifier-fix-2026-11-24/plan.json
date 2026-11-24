@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "baseRef": "6981df77",
+  "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+  "head": "ff9410715e0a2788aaa43484ef91f4944a7969ba",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+      "head": "ff9410715e0a2788aaa43484ef91f4944a7969ba",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 0,
+        "touchedCandidates": 0,
+        "injectedCandidates": 0
+      },
+      "candidates": [],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "1 code file(s), 83 changed code line(s)",
+  "totals": {
+    "codeFiles": 1,
+    "codeLines": 83
+  },
+  "files": [
+    {
+      "path": "scripts/tests/test_verify_run.py",
+      "class": "test",
+      "codeLines": 83,
+      "commentLines": 0
+    }
+  ],
+  "skippedFiles": [
+    {
+      "path": ".agents/skills/assurance-report/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-diff/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-extract/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/package.yaml",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/mutation-dispositions.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/isolated-test-generation/SKILL.md",
+      "reason": "not a code path"
+    }
+  ],
+  "lenses": [
+    "T"
+  ],
+  "mode": "per-lens",
+  "agents": [
+    {
+      "id": "T",
+      "lenses": [
+        "T"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "scripts/tests/test_verify_run.py"
+      ],
+      "codeLines": 83,
+      "budget": 8,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": "codex",
+      "diff": ".agents/reviews/refactoring-contract-assurance-verifier-fix-2026-11-24/agents/T/diff.patch",
+      "brief": ".agents/reviews/refactoring-contract-assurance-verifier-fix-2026-11-24/agents/T/brief.md",
+      "findings": ".agents/reviews/refactoring-contract-assurance-verifier-fix-2026-11-24/agents/T/findings.json"
+    }
+  ],
+  "uncovered": [],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

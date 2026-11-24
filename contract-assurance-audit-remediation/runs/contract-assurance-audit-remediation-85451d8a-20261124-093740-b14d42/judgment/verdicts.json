@@ -1,0 +1,6 @@
+{
+  "verdicts": [
+    {"clusterId": "C01", "verdict": "confirmed", "goldLabelIds": [], "rationale": "With inputs symlinked to the run root, inputs_root and the resolved output parent are identical, so containment and required-directory checks both pass.", "confidence": 1},
+    {"clusterId": "C02", "verdict": "confirmed", "goldLabelIds": [], "rationale": "requiredEvidence validation exists only inside the accepted-exception loop, so malformed unused policies are never examined.", "confidence": 1}
+  ]
+}

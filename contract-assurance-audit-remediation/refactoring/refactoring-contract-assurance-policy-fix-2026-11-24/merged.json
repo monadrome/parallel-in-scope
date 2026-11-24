@@ -1,0 +1,24 @@
+{
+  "agents": [
+    {
+      "id": "all",
+      "status": "missing",
+      "error": "findings.json not found",
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 0,
+    "byTier": {
+      "T0": 0,
+      "T1": 0,
+      "T2": 0
+    },
+    "incompleteAgents": 1
+  }
+}

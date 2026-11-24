@@ -1,0 +1,124 @@
+{
+  "agents": [
+    {
+      "id": "T",
+      "status": "completed",
+      "error": null,
+      "findings": 4,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunAcceptedExceptionTest#set_report",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "make_run\u3001set_report \u548c update_manifest \u5404\u81ea\u5b9e\u73b0\u4e86\u4e00\u904d run-manifest.json \u7684\u8bfb\u53d6\u3001json.dumps \u5199\u56de\uff08set_report \u8fd8\u989d\u5916\u91cd\u7b97 digest\uff09\uff0c\u800c\u8fd9\u4e09\u8005\u672c\u5e94\u5171\u7528\u540c\u4e00\u5957\u5939\u5177\u8bfb\u5199\u3002\u62bd\u51fa read_manifest(run)/write_manifest(run, manifest)\uff08\u6216 rewrite_manifest(run, mutate)\uff09\u540e\uff0c\u65b0\u589e\u6216\u8c03\u6574 manifest \u5b57\u6bb5\u53ea\u9700\u6539\u4e00\u5904\uff0c\u4e5f\u907f\u514d\u540e\u7eed\u4fee\u6539\u67d0\u4e00\u5904\u800c\u6f0f\u6539\u5176\u4ed6\u4e24\u5904\u5bfc\u81f4\u5939\u5177\u4e0d\u4e00\u81f4\u3002"
+      ],
+      "behaviorRisks": [
+        "\u5fc5\u987b\u4fdd\u6301 manifest \u5185\u5bb9\u4e0e artifacts \u6458\u8981\u9010\u5b57\u8282\u4e00\u81f4\uff1b\u6d4b\u8bd5\u7684\u8f93\u5165\u3001\u65ad\u8a00\u4e0e\u6267\u884c\u987a\u5e8f\u4e0d\u53d8\u3002"
+      ],
+      "guardingTests": [
+        "VerifyRunAcceptedExceptionTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunAcceptedExceptionTest",
+      "refactoring": "Rename Class",
+      "rules": [
+        "T05"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "\u8be5\u7c7b\u73b0\u5728\u8986\u76d6 accepted exception \u4e4b\u5916\u7684 final gate\u3001schemaVersion\u3001requiredGates/checks\u3001\u975e UTF-8 report \u7b49\u884c\u4e3a\uff0c\u7c7b\u540d\u4ecd\u53ea\u63cf\u8ff0\u6700\u521d\u7684\u4e00\u7c7b\u573a\u666f\u3002\u91cd\u547d\u540d\u4e3a\u80fd\u6982\u62ec\u88ab\u9a8c\u8bc1\u5951\u7ea6\u7684\u540d\u79f0\uff08\u4f8b\u5982 VerifyRunTest \u6216 VerifyRunManifestContractTest\uff09\u540e\uff0cunittest \u9009\u62e9\u5668\u3001CI \u65e5\u5fd7\u548c\u5931\u8d25\u62a5\u544a\u80fd\u76f4\u63a5\u8bf4\u660e\u88ab\u9489\u4f4f\u7684\u662f\u54ea\u4e9b\u884c\u4e3a\u3002"
+      ],
+      "behaviorRisks": [
+        "\u4ec5\u91cd\u547d\u540d\u7c7b\u578b\uff1b\u6d4b\u8bd5\u7684\u8f93\u5165\u3001\u65ad\u8a00\u3001\u65f6\u5e8f\u4fdd\u6301\u5b8c\u5168\u4e00\u81f4\u3002"
+      ],
+      "guardingTests": [
+        "VerifyRunAcceptedExceptionTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T05"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunAcceptedExceptionTest",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "\u65b0\u589e\u7684 10 \u4e2a\u53cd\u4f8b\u6d4b\u8bd5\u90fd\u4ee5\u5b8c\u5168\u76f8\u540c\u7684 self.make_run(None, {}, final_gate=\"PASS\") \u5f00\u5934\uff0c\u8bfb\u8005\u5fc5\u987b\u9010\u4e2a\u89e3\u6790\u4e24\u4e2a\u5b57\u9762\u91cf\u624d\u80fd\u7406\u89e3\u8fd9\u662f\u201c\u65e0 accepted exception \u7684\u901a\u8fc7 run\u201d\u3002\u62bd\u51fa\u547d\u540d\u5939\u5177\uff08\u4f8b\u5982 make_passing_run()\uff09\u540e\uff0c\u6d4b\u8bd5\u6b63\u6587\u53ea\u9700\u8868\u8fbe\u5404\u81ea\u88ab\u7834\u574f\u7684\u90a3\u4e00\u4e2a\u5951\u7ea6\u70b9\uff0c\u5939\u5177\u542b\u4e49\u4e5f\u5728\u540d\u79f0\u4e2d\u56fa\u5b9a\u4e0b\u6765\u3002",
+        "\u65b0\u589e\u53cd\u4f8b\u6d4b\u8bd5\u53cd\u590d\u51fa\u73b0\u201cerrors = verify_run.verify(run) \u7136\u540e assertIn(\u6d88\u606f, errors)\u201d\u7684\u4e24\u884c\u7ec4\u5408\uff08\u542b\u4e00\u4e2a\u6d4b\u8bd5\u5185\u4e24\u6b21\u65ad\u8a00\u7684\u60c5\u51b5\uff09\u3002\u62bd\u51fa\u4e00\u4e2a\u63a5\u6536\u671f\u671b\u6d88\u606f\u5217\u8868\u7684\u65ad\u8a00\u8f85\u52a9\u51fd\u6570\u540e\uff0c\u6bcf\u4e2a\u6d4b\u8bd5\u53ea\u4fdd\u7559\u88ab\u8fdd\u53cd\u7684\u89c4\u5219\u8fd9\u4e00\u4fe1\u606f\uff0c\u9519\u8bef\u671f\u671b\u7684\u5199\u6cd5\u4e5f\u53ef\u5728\u4e00\u5904\u7edf\u4e00\uff0c\u907f\u514d\u4e2a\u522b\u6d4b\u8bd5\u6084\u6084\u9000\u5316\u6210 any(... in error) \u8fd9\u7c7b\u8f83\u5f31\u7684\u65ad\u8a00\u5f62\u5f0f\u3002"
+      ],
+      "behaviorRisks": [
+        "\u5939\u5177\u5fc5\u987b\u751f\u6210\u4e0e\u5f53\u524d\u5b8c\u5168\u76f8\u540c\u7684 report/manifest \u5185\u5bb9\uff1b\u5404\u6d4b\u8bd5\u7684\u989d\u5916\u7834\u574f\u6b65\u9aa4\u4e0e\u65ad\u8a00\u4fdd\u6301\u4e0d\u53d8\u3002",
+        "\u8f85\u52a9\u51fd\u6570\u5fc5\u987b\u4ecd\u5bf9 verify \u8fd4\u56de\u7684\u9519\u8bef\u5217\u8868\u505a\u6210\u5458\u65ad\u8a00\uff08\u6216\u5728\u540c\u4e00\u6d4b\u8bd5\u5185\u590d\u7528\u4e00\u6b21 verify \u7ed3\u679c\uff09\uff0c\u4e0d\u6539\u53d8\u65ad\u8a00\u5f3a\u5ea6\u4e0e\u8c03\u7528\u6b21\u6570\u8bed\u4e49\u3002"
+      ],
+      "guardingTests": [
+        "VerifyRunAcceptedExceptionTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T",
+          "rule": "T04"
+        },
+        {
+          "agent": "T",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    }
+  ],
+  "conflicts": [
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunAcceptedExceptionTest",
+      "ids": [
+        "R2",
+        "R3"
+      ]
+    }
+  ],
+  "uncovered": [],
+  "totals": {
+    "findings": 3,
+    "byTier": {
+      "T0": 3,
+      "T1": 0,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

@@ -1,0 +1,5 @@
+candidate_id,source_contract_id,contract_id,target_path,archive_path,status,reason
+CONTRACT-TDD-008,C-2,,, ,blocked,"No resolved Python regression suite or exact promotion commands exist in the frozen adapter; base-verifier execution also did not fail."
+CONTRACT-TDD-013,C-3,,, ,blocked,"The candidate has reverse-verification evidence but the frozen adapter has no resolved Python regression suite or exact promotion commands."
+CONTRACT-TDD-015,C-4,,, ,blocked,"No resolved Python regression suite or exact promotion commands exist in the frozen adapter; base-verifier execution also did not fail."
+CONTRACT-TDD-021,C-4,,, ,blocked,"The candidate has reverse-verification evidence but the frozen adapter has no resolved Python regression suite or exact promotion commands."

@@ -1,0 +1,16 @@
+已完成隔离的候选生成任务。`candidates/` 目录现仅包含两个密封文件。
+
+**产出**
+- `candidates/test_contract_verifier.py` — 29 个 `unittest` 用例，方法名含稳定 ID `CONTRACT-TDD-001`..`CONTRACT-TDD-029`。
+- `candidates/candidate-plan.csv` — 表头 `candidate_id,contract_id,preconditions,operations,observations,assertions,uncertainties`，共 29 行，ID 与方法一一对应。
+
+**实现要点**
+- 按 C-1 构造自包含的合法临时基线：`run-manifest.json`（schema v2 + 六必需文件 + 五目录 + `inputs/sample.txt` 哈希 + `candidate-tests` 全通过 + `report.md` 以 `Final gate: PASS` 结尾）。
+- 在运行时通过环境变量 `VERIFY_RUN_PATH` 加载真实模块，生成阶段不读取该路径；仅调用 `verify(Path)` 并检查返回的错误列表。
+- 覆盖 C-2..C-5 边界，并按要求包含：未使用且畸形的两类策略列表（C-3）、符号链接的 `inputs/` 根、先前界定的证据绑定、嵌套符号链接、SHA-256 行为。
+- 未导入仓库测试助手，未修改生产代码，未读取生成目录之外的任何内容。
+
+**校验**
+- `py_compile` 通过；CSV 29 行、每行 7 列、无空单元格；29 个方法 ID 与 CSV 行 ID 精确对齐；基线清单结构、证据哈希、报告结尾均与契约一致。
+
+候选文件已一次性写入并保持原样。

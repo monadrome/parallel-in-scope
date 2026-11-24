@@ -1,0 +1,4 @@
+ERROR: required gate is not pass: candidate-tests (fail)
+ERROR: required gate is not pass: reverse-verification (skipped)
+ERROR: required gate is not pass: independent-review (fail)
+ERROR: report final gate is not delivery-passing: FAIL

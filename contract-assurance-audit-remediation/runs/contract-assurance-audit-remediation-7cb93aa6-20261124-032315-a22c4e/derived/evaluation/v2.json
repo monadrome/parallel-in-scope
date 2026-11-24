@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032315-a22c4e",
+  "version": 2,
+  "createdAt": "2026-11-24T03:37:20.781Z",
+  "inputs": {
+    "dedupVersion": 2,
+    "adjudicationVersion": 1,
+    "goldVersion": 1,
+    "reviews": [
+      {
+        "agent": "kiro",
+        "attempt": 1,
+        "sha256": "499c54364b8c662a82367b5c1d99cb33737fee34023294b1186ae99ee9bb8326"
+      }
+    ]
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+    "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "systemsWithUsage": 0,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "kiro": {
+      "identity": {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max"
+      },
+      "status": "completed",
+      "durationMs": 698186,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 5,
+        "adjudicated": 5,
+        "confirmed": 5,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": 1,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": null,
+      "error": null
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 5,
+      "adjudicated": 5,
+      "confirmed": 5,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "findings": {
+      "total": 5,
+      "adjudicated": 5,
+      "confirmed": 5,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "rates": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "findingRates": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "macro": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "systemsAdjudicated": 1
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values"
+  ]
+}

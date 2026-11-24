@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "contract-assurance-audit-remediation-4106c379-20261124-091836-cd3938",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:18:36.756Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "4106c3798400f879eb06dab6f9846ba901ef384d",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "to": "4106c3798400f879eb06dab6f9846ba901ef384d",
+    "label": "6981df77..4106c379"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "39deb9cbb61983ac4e9bb345f4c3bce23e9e477d68b9bb8fa0a7ada400848dd9",
+    "bytes": 33313,
+    "files": [
+      {
+        "path": ".agents/skills/assurance-report/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-diff/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-extract/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/package.yaml",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/mutation-dispositions.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+        "status": "M",
+        "additions": 40,
+        "deletions": 12
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+        "status": "M",
+        "additions": 77,
+        "deletions": 23
+      },
+      {
+        "path": ".agents/skills/isolated-test-generation/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "ledger/2026-11-23-contract-assurance-gate.json",
+        "status": "M",
+        "additions": 143,
+        "deletions": 2
+      },
+      {
+        "path": "scripts/tests/test_verify_run.py",
+        "status": "M",
+        "additions": 84,
+        "deletions": 6
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "91d73d3fcf8406a673ee9b07c7ae219c50f58ede0ab851a47a9b5b5605b59e4e",
+    "bytes": 3131,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "255af111aef8a9f0362291c729c26576b82e94c4667be9473204e831540b46e8",
+    "bytes": 3715
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "4106c3798400f879eb06dab6f9846ba901ef384d",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

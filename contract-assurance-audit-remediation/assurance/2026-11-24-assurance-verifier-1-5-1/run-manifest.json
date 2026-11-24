@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "runId": "2026-11-24-assurance-verifier-1-5-1",
+  "createdAt": "2026-11-24T09:38:09Z",
+  "package": {
+    "name": "contract-first-assurance",
+    "version": "1.5.1"
+  },
+  "adapter": {
+    "name": "vformation",
+    "version": "1.5.1",
+    "requiredGates": [
+      "candidate-tests",
+      "reverse-verification",
+      "existing-tests",
+      "docs",
+      "independent-review"
+    ],
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": {
+        "allowedRawStatuses": [
+          "TIMED_OUT"
+        ],
+        "requiredEvidence": [
+          "repeatable-focused-rerun",
+          "unmutated-tests-pass",
+          "complete-xml-and-logs",
+          "source-level-liveness-invariant",
+          "maintainer-or-independent-review"
+        ]
+      }
+    }
+  },
+  "workspace": {
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+    "dirty": false
+  },
+  "finalHead": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+  "inputs": {
+    "inputs/AGENTS.md": "a3039eaa2d0d9f38d375db31f8bc16dbbeae6d27e876f0686bc72eb7c7898c5a",
+    "inputs/adapter.yaml": "874a05e3d80ff609bdfdb76ccf0bb443359efb556666ce917f6b0790f2bf6e30",
+    "inputs/assurance-routing.md": "a253c5166cb1255384342e62456828eacc779ab4e84e6541d6cb2f696704c5fb",
+    "inputs/change.patch": "be39322f63d12e6c83277e195a97b2df40f83663deb508093b81ca2c9c21bd19",
+    "inputs/pit.md": "241a6126103d2c22979051da4c8cd085b5a2819dfcd0844deddafd941a41e028",
+    "inputs/reproducible-runs.md": "d50fccb80fc4bd3fe3c71765ac43886d0274cc9d412a3509f0d053f0feaefd59",
+    "inputs/sanitized_verify_run_api.py": "a70c22d9ba4e041d1cb55e369821e8b6b076b2baf15bb2f05fd3a812d0f8321f"
+  },
+  "status": "fail",
+  "requiredGates": [
+    "candidate-tests",
+    "reverse-verification",
+    "existing-tests",
+    "docs",
+    "independent-review"
+  ],
+  "checks": {
+    "candidate-tests": "pass",
+    "reverse-verification": "pass",
+    "existing-tests": "pass",
+    "docs": "pass",
+    "independent-review": "fail"
+  },
+  "acceptedExceptions": [],
+  "commands": [
+    {
+      "phase": "isolated-generation",
+      "argv": [
+        "kiro-cli",
+        "chat",
+        "--no-interactive",
+        "--trust-workspace",
+        "--trust-tools=fs_read,fs_write",
+        "--model",
+        "gpt-5.6-terra",
+        "--effort",
+        "max",
+        "Read README.md and perform exactly the isolated candidate-generation task it describes. Use only the three allowed local inputs. Write the sealed unittest candidate file and candidate-plan.csv under candidates/. Do not inspect anything outside this generation directory."
+      ],
+      "exitCode": 0,
+      "stdout": "logs/isolated-generation.stdout.log",
+      "stderr": "logs/isolated-generation.stderr.log"
+    },
+    {
+      "phase": "candidate-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates",
+        "-p",
+        "test_*.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/candidate-tests.stdout.log",
+      "stderr": "logs/candidate-tests.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".contract-first-assurance/2026-11-24-assurance-verifier-1-5-1/candidates",
+        "-p",
+        "test_*.py"
+      ],
+      "exitCode": 1,
+      "stdout": "logs/reverse-verification.stdout.log",
+      "stderr": "logs/reverse-verification.stderr.log"
+    },
+    {
+      "phase": "existing-tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/tests"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/existing-tests.stdout.log",
+      "stderr": "logs/existing-tests.stderr.log"
+    },
+    {
+      "phase": "existing-tests",
+      "argv": [
+        "mvn",
+        "test"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/maven-full.stdout.log",
+      "stderr": "logs/maven-full.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "python3",
+        "scripts/check-doc-refs.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/doc-refs.stdout.log",
+      "stderr": "logs/doc-refs.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "python3",
+        "scripts/check-local-links.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/local-links.stdout.log",
+      "stderr": "logs/local-links.stderr.log"
+    },
+    {
+      "phase": "worktree-skills",
+      "argv": [
+        "python3",
+        "scripts/check-worktree-skills.py"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/worktree-skills.stdout.log",
+      "stderr": "logs/worktree-skills.stderr.log"
+    },
+    {
+      "phase": "verification-integrity",
+      "argv": [
+        "python3",
+        "scripts/check-verification-integrity.py",
+        "--base",
+        "origin/dev/v0.5.0"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/verification-integrity.stdout.log",
+      "stderr": "logs/verification-integrity.stderr.log"
+    },
+    {
+      "phase": "independent-review",
+      "argv": [
+        "node",
+        "tools/llm-review-bench/dist/cli.js",
+        "review",
+        "--base",
+        "6981df77",
+        "--commit",
+        "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+        "--systems",
+        ".review-benchmark/contract-assurance-remediation-systems.json",
+        "--review-timeout",
+        "900",
+        "--timeout",
+        "1200",
+        "--kill-grace",
+        "10",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "logs/independent-review.stdout.log",
+      "stderr": "logs/independent-review.stderr.log"
+    }
+  ],
+  "artifacts": {
+    "candidate-status.csv": "baaa63cfdbbcf04a504a553363901377db8964fbb0a06889c6ace0d2c408f38f",
+    "candidates/candidate-plan.csv": "d9f292c18bc65479412055a32d5514b496b46b5d90c54ee29bb5e7c3c5d98f26",
+    "candidates/test_contract_verifier.py": "386b627507af5bb1c2897b58510f1ab7c78da9c6a089d5487536efeb230e09f9",
+    "contract-gaps.md": "852cdf43dfc255b27eff09158d0c6ef9b57200958d04b79b990e66fab50ee8e1",
+    "contract.md": "a83cb0af0c3097c40a781767c86cfeffa589b732ea118205b4317fae2ac38081",
+    "logs/candidate-tests.stderr.log": "ee49f6a69128feca8738c8088322d5e81a81b57ab8467b6b31adb4cbb93cf8c8",
+    "logs/candidate-tests.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/doc-refs.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/doc-refs.stdout.log": "972f50c61c2d961fc3f493f09960d7babd78287559b21a4b9cd8936e1e0b1b7a",
+    "logs/existing-tests.stderr.log": "592c60553cdd2d440067372b70727552884b5ea6e3fc3b29119e27c7c119c645",
+    "logs/existing-tests.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/independent-review.stdout.log": "a12fc61b752619f23c123e0dbb13e5736a805283e5906be6b06b1fac10bbb98a",
+    "logs/isolated-generation.stderr.log": "656a54ce786148740b06484a3fd856c3debf0b6de94cb5ea3fc5d4eebf107860",
+    "logs/isolated-generation.stdout.log": "7bbb3a17b5806851298c3262bf0eeaa9844cd0f36fcdc831c1bd62c95f4adf2d",
+    "logs/local-links.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/local-links.stdout.log": "ffdccee4676a13921a45635d0c19268779b3ab8fed21fc90e7387306ad6ed775",
+    "logs/maven-full.stderr.log": "e46e4b6d783bc342139d6574c95a55d8f64777cc9afebc222a96008776f19d91",
+    "logs/maven-full.stdout.log": "39edcf0012b65ba181b347e2baa6b04b1b51c55006bef071fa1a675befad8c6c",
+    "logs/reverse-verification.stderr.log": "4cd1c3a3648db409d070d7737c4101b431f3f7861a5cea8804939ad6b80c018c",
+    "logs/reverse-verification.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/verification-integrity.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/verification-integrity.stdout.log": "744589f300572cf7f7951a6c43ce818ac462c8fb95672dc520f788883463aac6",
+    "logs/worktree-skills.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/worktree-skills.stdout.log": "ef8a98d31c6e3d629a0e6f1c829b6caee2134688d4001a177d5ea3aff3211dce",
+    "promotion-status.csv": "0244dec09ba03a744f1a8260d051a2a62c854c876b5fb084b8facae3b33fc3bd",
+    "report.md": "f483f60a0daee76d6a05eea508f84f47070bd5bc654c14ebb083f1135eb4e8cf",
+    "reverse-verification/verify_run_base.py": "d6e9649ffbc9e192fe15ecf9f1311a3f3df15263c7857aba17947254560d150f",
+    "verification-summary.md": "1d76f6c00c2cebfb8c1c508f8e3f2b9524faf6f89bdf9d3f3db390f5a5a1fa60",
+    "logs/independent-review.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

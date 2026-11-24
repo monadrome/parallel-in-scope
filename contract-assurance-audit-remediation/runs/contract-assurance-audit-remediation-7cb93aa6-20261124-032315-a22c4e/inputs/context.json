@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "contract-assurance-audit-remediation-7cb93aa6-20261124-032315-a22c4e",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T03:23:16.405Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+    "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+    "to": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+    "label": "8e6d3f3e..7cb93aa6"
+  },
+  "objective": {
+    "subject": "fix: version assurance run finalization",
+    "body": "MUST: Initialize manifests with frozen inputs, append final results at finalization, require resolved non-empty route gates for a passing run, and use contract-assurance-run/v2.\n\nMUST: Cover non-pass required gates, status/checks aggregation, and v1 schema rejection with regression tests.\n\nMUST NOT: Require run-result fields before phase one or silently reinterpret v1 manifests under the v2 rules.\n\nReview: confirmed all three ZCode findings. Sixteen verifier tests pass; schema, required-gate, and status-aggregation tests each fail under their respective reverse mutation."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "8e2c75c7c45b7ab92c6d3833131a17c6af6e49321687770947cce27cffd3d2c4",
+    "bytes": 38888,
+    "files": [
+      {
+        "path": ".agents/skills/assurance-report/SKILL.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-diff/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-extract/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/SKILL.md",
+        "status": "M",
+        "additions": 14,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/package.yaml",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/host-adapter.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/invocation-modes.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+        "status": "M",
+        "additions": 24,
+        "deletions": 7
+      },
+      {
+        "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+        "status": "M",
+        "additions": 70,
+        "deletions": 5
+      },
+      {
+        "path": ".agents/skills/isolated-test-generation/SKILL.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".agents/skills/project-delivery/SKILL.md",
+        "status": "M",
+        "additions": 21,
+        "deletions": 9
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/assurance.md",
+        "status": "A",
+        "additions": 74,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "scripts/tests/test_verify_run.py",
+        "status": "M",
+        "additions": 105,
+        "deletions": 5
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "7bdeb00e40d8f79d39d46ce468c9735ce420894f079450e1962899c718da4c82",
+    "bytes": 3717,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

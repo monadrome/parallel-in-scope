@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a",
+  "version": 1,
+  "createdAt": "2026-11-24T10:06:24.429Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "6981df77ec413177b9c5d076cf82eb1388036a2a",
+    "head": "4b20479a9dd5180b305a57cac8bea89d53cf5338"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

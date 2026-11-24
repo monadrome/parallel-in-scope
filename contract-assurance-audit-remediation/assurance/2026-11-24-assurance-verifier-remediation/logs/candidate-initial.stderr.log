@@ -1,0 +1,149 @@
+FFFFFFFF
+======================================================================
+FAIL: test_CONTRACT_TDD_001_rejects_unhashed_accepted_exception_evidence (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_001_rejects_unhashed_accepted_exception_evidence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 190, in test_CONTRACT_TDD_001_rejects_unhashed_accepted_exception_evidence
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpcu8gsge2/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpcu8gsge2/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpcu8gsge2/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_002_rejects_root_artifact_as_manifest_input (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_002_rejects_root_artifact_as_manifest_input)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 202, in test_CONTRACT_TDD_002_rejects_root_artifact_as_manifest_input
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpcoodz4r0/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpcoodz4r0/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpcoodz4r0/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_003_rejects_uppercase_or_mismatched_final_head (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_003_rejects_uppercase_or_mismatched_final_head)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 211, in test_CONTRACT_TDD_003_rejects_uppercase_or_mismatched_final_head
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp389r28rj/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp389r28rj/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp389r28rj/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_004_rejects_invalid_required_gate_completion (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_004_rejects_invalid_required_gate_completion) (case='mismatched required gate lists')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 221, in test_CONTRACT_TDD_004_rejects_invalid_required_gate_completion
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp7xxw9xkd/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp7xxw9xkd/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp7xxw9xkd/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_004_rejects_invalid_required_gate_completion (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_004_rejects_invalid_required_gate_completion) (case='non-passing required gate')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 230, in test_CONTRACT_TDD_004_rejects_invalid_required_gate_completion
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpgh21krv7/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpgh21krv7/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmpgh21krv7/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_005_rejects_incomplete_or_ambiguous_passing_report (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_005_rejects_incomplete_or_ambiguous_passing_report) (case='missing required artifact hash')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 240, in test_CONTRACT_TDD_005_rejects_incomplete_or_ambiguous_passing_report
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp241f3ve5/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp241f3ve5/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmp241f3ve5/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_005_rejects_incomplete_or_ambiguous_passing_report (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_005_rejects_incomplete_or_ambiguous_passing_report) (case='duplicate final gate')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 249, in test_CONTRACT_TDD_005_rejects_incomplete_or_ambiguous_passing_report
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmppjghxnk4/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmppjghxnk4/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmppjghxnk4/run-manifest.json']
+
+======================================================================
+FAIL: test_CONTRACT_TDD_006_rejects_rewritten_accepted_exception_raw_status (test_contract_verifier.ContractVerifierCandidates.test_CONTRACT_TDD_006_rejects_rewritten_accepted_exception_raw_status)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 260, in test_CONTRACT_TDD_006_rejects_rewritten_accepted_exception_raw_status
+    self._assert_valid(run_dir)
+  File "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.contract-first-assurance/2026-11-24-assurance-verifier-remediation/candidates/test_contract_verifier.py", line 181, in _assert_valid
+    self.assertEqual([], errors, f"baseline fixture must be valid: {errors}")
+AssertionError: Lists differ: [] != ['missing /var/folders/r6/nrx4y4ns4vx5d_5b[43 chars]son']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmph15uc4ac/run-manifest.json'
+
+- []
++ ['missing '
++  '/var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmph15uc4ac/run-manifest.json'] : baseline fixture must be valid: ['missing /var/folders/r6/nrx4y4ns4vx5d_5bgcpnf9jh0000gr/T/tmph15uc4ac/run-manifest.json']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.089s
+
+FAILED (failures=8)

@@ -1,0 +1,9 @@
+{
+  "clusters": [
+    {"clusterId": "C01", "findingIds": ["kiro:0"], "note": "Accepted-exception evidence categories are not bound to hashed evidence."},
+    {"clusterId": "C02", "findingIds": ["kiro:1"], "note": "Frozen inputs can be empty or outside the inputs directory."},
+    {"clusterId": "C03", "findingIds": ["kiro:2"], "note": "Workspace revisions accept symbolic refs and omit finalHead."},
+    {"clusterId": "C04", "findingIds": ["kiro:3"], "note": "Gate identifiers accept blank and duplicate names."},
+    {"clusterId": "C05", "findingIds": ["kiro:4"], "note": "The documented completed-manifest example omits required artifact hashes."}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "verdicts": [
+    {"clusterId": "C01", "verdict": "confirmed", "goldLabelIds": [], "rationale": "An empty requiredEvidence list performs no category checks and accepts evidence {}, allowing a passing unevidenced timeout.", "confidence": 1},
+    {"clusterId": "C02", "verdict": "confirmed", "goldLabelIds": [], "rationale": "safe_path permits any resolved target under the run directory, so an inputs symlink to contract.md satisfies both path and hash checks.", "confidence": 1},
+    {"clusterId": "C03", "verdict": "confirmed", "goldLabelIds": [], "rationale": "The portable package does not restrict hosts to SHA-1 repositories, while the 40-character-only expression rejects full 64-character Git SHA-256 object IDs.", "confidence": 1},
+    {"clusterId": "C04", "verdict": "confirmed", "goldLabelIds": [], "rationale": "Three evidence categories reference inputs/pit-audit.md but the example inputs map contains only inputs/contract-source.md, so the shown manifest fails evidence hashing.", "confidence": 1}
+  ]
+}

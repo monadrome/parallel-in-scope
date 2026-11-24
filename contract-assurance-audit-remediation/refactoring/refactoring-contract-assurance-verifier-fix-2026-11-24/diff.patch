@@ -1,0 +1,146 @@
+diff --git a/scripts/tests/test_verify_run.py b/scripts/tests/test_verify_run.py
+index 0ea97af8..7eecee0e 100644
+--- a/scripts/tests/test_verify_run.py
++++ b/scripts/tests/test_verify_run.py
+@@ -51,7 +51,8 @@ class VerifyRunTest(unittest.TestCase):
+             "createdAt": "2026-01-01T00:00:00Z",
+             "package": {},
+             "adapter": {"acceptedDispositions": policy, "requiredGates": ["pit"]},
+-            "workspace": {"base": "a", "head": "a", "dirty": False},
++            "workspace": {"base": "a" * 40, "head": "a" * 40, "dirty": False},
++            "finalHead": "a" * 40,
+             "inputs": {"inputs/pit-audit.md": digest(run / "inputs/pit-audit.md")},
+             "commands": [],
+             "artifacts": {
+@@ -63,6 +64,7 @@ class VerifyRunTest(unittest.TestCase):
+                     "promotion-status.csv",
+                     "verification-summary.md",
+                     "report.md",
++                    "logs/pit.log",
+                 )
+             },
+             "status": "pass",
+@@ -174,22 +176,42 @@ class VerifyRunTest(unittest.TestCase):
+         manifest.update(updates)
+         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+ 
++    def mutation_policy(self):
++        return {
++            "EXPECTED_MUTATION_LIVENESS": {
++                "allowedRawStatuses": ["TIMED_OUT"],
++                "requiredEvidence": [
++                    "repeatable-focused-rerun",
++                    "unmutated-tests-pass",
++                    "complete-xml-and-logs",
++                    "source-level-liveness-invariant",
++                    "maintainer-or-independent-review",
++                ],
++            }
++        }
++
+     def exception(self, raw_status="TIMED_OUT", disposition="EXPECTED_MUTATION_LIVENESS"):
+         return {
+             "phase": "pit",
+             "rawStatus": raw_status,
+             "disposition": disposition,
+             "accepted": True,
+-            "evidence": ["logs/pit.log", "inputs/pit-audit.md"],
++            "evidence": {
++                "repeatable-focused-rerun": ["logs/pit.log"],
++                "unmutated-tests-pass": ["logs/pit.log"],
++                "complete-xml-and-logs": ["logs/pit.log", "inputs/pit-audit.md"],
++                "source-level-liveness-invariant": ["inputs/pit-audit.md"],
++                "maintainer-or-independent-review": ["inputs/pit-audit.md"],
++            },
+             "approvedBy": "maintainer",
+         }
+ 
+     def test_accepts_status_allowed_by_adapter(self):
+-        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        run = self.make_run(self.exception(), self.mutation_policy())
+         self.assertEqual(verify_run.verify(run), [])
+ 
+     def test_rejects_status_not_allowed_by_adapter(self):
+-        run = self.make_run(self.exception("MEMORY_ERROR"), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        run = self.make_run(self.exception("MEMORY_ERROR"), self.mutation_policy())
+         errors = verify_run.verify(run)
+         self.assertTrue(any("rawStatus MEMORY_ERROR is not allowed" in error for error in errors))
+ 
+@@ -231,7 +253,7 @@ class VerifyRunTest(unittest.TestCase):
+     def test_rejects_pass_with_unreported_exceptions(self):
+         run = self.make_run(
+             self.exception(),
+-            {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]},
++            self.mutation_policy(),
+             final_gate="PASS",
+         )
+         errors = verify_run.verify(run)
+@@ -456,11 +478,67 @@ class VerifyRunTest(unittest.TestCase):
+         self.assertEqual(verify_run.verify(run), [])
+ 
+     def test_requires_hashes_for_promoted_test_copies(self):
+-        run = self.make_run(self.exception(), {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]})
++        run = self.make_run(self.exception(), self.mutation_policy())
+         (run / "promotions/C0001ContractTest.java").write_text("class C0001ContractTest {}\n", encoding="utf-8")
+         errors = verify_run.verify(run)
+         self.assertTrue(any("artifacts does not hash promoted test copy" in error for error in errors))
+ 
++    def test_rejects_placeholder_accepted_exception_evidence(self):
++        exception = self.exception()
++        del exception["evidence"]["source-level-liveness-invariant"]
++        run = self.make_run(exception, self.mutation_policy())
++        errors = verify_run.verify(run)
++        self.assertIn(
++            "accepted exception 0 is missing required evidence: source-level-liveness-invariant",
++            errors,
++        )
++
++    def test_rejects_unhashed_accepted_exception_evidence(self):
++        run = self.make_run(self.exception(), self.mutation_policy())
++        manifest_path = run / "run-manifest.json"
++        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++        del manifest["artifacts"]["logs/pit.log"]
++        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
++        errors = verify_run.verify(run)
++        self.assertIn("accepted exception 0 evidence is not hashed: logs/pit.log", errors)
++
++    def test_rejects_empty_frozen_inputs(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(run, inputs={})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs must contain frozen files under inputs/", errors)
++
++    def test_rejects_frozen_input_outside_inputs_directory(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        digest = hashlib.sha256((run / "contract.md").read_bytes()).hexdigest()
++        self.update_manifest(run, inputs={"contract.md": digest})
++        errors = verify_run.verify(run)
++        self.assertIn("inputs must contain only files under inputs/: contract.md", errors)
++
++    def test_rejects_symbolic_workspace_revisions(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(
++            run,
++            workspace={"base": "origin/dev/v0.5.0", "head": "HEAD", "dirty": False},
++            finalHead=None,
++        )
++        errors = verify_run.verify(run)
++        self.assertTrue(any("workspace.base must be a full commit ID" in error for error in errors))
++        self.assertTrue(any("workspace.head must be a full commit ID" in error for error in errors))
++        self.assertIn("finalHead must be the full final commit ID", errors)
++
++    def test_rejects_blank_and_duplicate_required_gates(self):
++        run = self.make_run(None, {}, final_gate="PASS")
++        self.update_manifest(
++            run,
++            requiredGates=[" ", "pit", "pit"],
++            checks={" ": "pass", "pit": "pass"},
++        )
++        self.update_manifest(run, adapter={"acceptedDispositions": {}, "requiredGates": [" ", "pit", "pit"]})
++        errors = verify_run.verify(run)
++        self.assertTrue(any("gate names must be non-blank" in error for error in errors))
++        self.assertTrue(any("gate names must be unique" in error for error in errors))
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

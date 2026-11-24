@@ -1,0 +1,6 @@
+{
+  "clusters": [
+    {"clusterId": "C01", "findingIds": ["kiro:0"], "note": "A symlinked inputs root can resolve to the run root and alias output artifacts."},
+    {"clusterId": "C02", "findingIds": ["kiro:1"], "note": "Malformed accepted-disposition policies are unchecked when no exception uses them."}
+  ]
+}

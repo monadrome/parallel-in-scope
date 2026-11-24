@@ -1,0 +1,53 @@
+{
+  "agents": [
+    {
+      "id": "all",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/tests/test_verify_run.py",
+      "symbol": "VerifyRunTest",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Possible repeated setup: the two new unused-policy tests duplicate the mutate-policy, make-run, verify, and assert-error scaffold, while the new required-evidence test adds another copy of the shape already present in test_rejects_empty_blank_and_duplicate_required_evidence_policies. A helper parameterized by policy field, invalid values, run setup, and expected error would leave each test expressing only its contract-specific case."
+      ],
+      "behaviorRisks": [
+        "Preserve every subTest input, the accepted-exception evidence setup in the existing test, final-gate selection, and each exact expected error string."
+      ],
+      "guardingTests": [
+        "VerifyRunTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "all",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 1,
+    "byTier": {
+      "T0": 1,
+      "T1": 0,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

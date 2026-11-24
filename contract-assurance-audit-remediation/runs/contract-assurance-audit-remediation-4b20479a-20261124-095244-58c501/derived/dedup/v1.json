@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095244-58c501",
+  "version": 1,
+  "createdAt": "2026-11-24T09:52:53.051Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

@@ -1,0 +1,24 @@
+{
+  "version": "complexity-metrics/v1",
+  "stage": "gray-evaluation",
+  "purpose": "attention-routing evidence; not a quality score or CI gate",
+  "base": "4106c3798400f879eb06dab6f9846ba901ef384d",
+  "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+  "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+  "thresholds": {
+    "cyclomatic": 10,
+    "codeLines": 80,
+    "maxNesting": 4,
+    "deltaCyclomatic": 2,
+    "deltaCodeLines": 10,
+    "deltaMaxNesting": 1
+  },
+  "summary": {
+    "methods": 0,
+    "touchedCandidates": 0,
+    "injectedCandidates": 0
+  },
+  "candidates": [],
+  "omittedCandidates": 0,
+  "status": "completed"
+}

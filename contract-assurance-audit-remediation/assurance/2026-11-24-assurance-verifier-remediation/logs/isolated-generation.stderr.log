@@ -1,0 +1,32 @@
+[tool] Creating task list: Generate the sealed contract-verifier unittest candidates...
+[tool] status: Completed
+[tool] Reading README.md:1
+[tool] status: Completed
+[tool] Reading contract.md:1
+[tool] Reading sanitized_verify_run_api.py:1
+[tool] status: Completed
+[tool] status: Completed
+[tool] Completing #1
+[tool] status: Completed
+[tool] Creating test_contract_verifier.py
+[tool] Creating candidate-plan.csv
+[tool] status: Completed
+[tool] status: Completed
+[tool] Completing #2
+[tool] status: Completed
+[tool] Getting symbols in test_contract_verifier.py
+[tool] Reading test_contract_verifier.py:1, candidate-plan.csv:1
+[tool] status: Completed
+[tool] status: Completed
+[tool] Searching for '^ def test_CONTRACT_TDD_[0-9]{3}_' in candidates
+[tool] Searching for '^CONTRACT-TDD-[0-9]{3},C-[1-6],' in candidates
+[tool] Searching for 'VERIFY_RUN_PATH' in candidates
+[tool] Searching for '(pytest|repository|test_helper|conftest)' in candidates
+[tool] status: Completed
+[tool] status: Completed
+[tool] status: Completed
+[tool] status: Completed
+[tool] Completing #3
+[tool] status: Completed
+[tool] Goal complete
+[tool] status: Completed

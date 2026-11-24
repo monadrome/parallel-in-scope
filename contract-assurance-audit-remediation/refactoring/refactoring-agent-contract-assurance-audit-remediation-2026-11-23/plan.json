@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "baseRef": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+  "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+  "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "8e6d3f3e7b374fd1cbb1840026377c45d2b012c3",
+      "head": "7cb93aa6e22e7611ca3344d407cf8278069f40f2",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 0,
+        "touchedCandidates": 0,
+        "injectedCandidates": 0
+      },
+      "candidates": [],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "1 code file(s), 95 changed code line(s)",
+  "totals": {
+    "codeFiles": 1,
+    "codeLines": 95
+  },
+  "files": [
+    {
+      "path": "scripts/tests/test_verify_run.py",
+      "class": "test",
+      "codeLines": 95,
+      "commentLines": 0
+    }
+  ],
+  "skippedFiles": [
+    {
+      "path": ".agents/skills/assurance-report/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-diff/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-extract/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/adapters/vformation.yaml",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/evals/evals.json",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/package.yaml",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/host-adapter.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/invocation-modes.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/references/reproducible-runs.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/contract-first-assurance/scripts/verify_run.py",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/isolated-test-generation/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/project-delivery/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/project-delivery/references/assurance.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "AGENTS.md",
+      "reason": "not a code path"
+    }
+  ],
+  "lenses": [
+    "T"
+  ],
+  "mode": "per-lens",
+  "agents": [
+    {
+      "id": "T",
+      "lenses": [
+        "T"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "scripts/tests/test_verify_run.py"
+      ],
+      "codeLines": 95,
+      "budget": 8,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": "codex",
+      "diff": ".agents/reviews/refactoring-agent-contract-assurance-audit-remediation-2026-11-23/agents/T/diff.patch",
+      "brief": ".agents/reviews/refactoring-agent-contract-assurance-audit-remediation-2026-11-23/agents/T/brief.md",
+      "findings": ".agents/reviews/refactoring-agent-contract-assurance-audit-remediation-2026-11-23/agents/T/findings.json"
+    }
+  ],
+  "uncovered": [],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}
