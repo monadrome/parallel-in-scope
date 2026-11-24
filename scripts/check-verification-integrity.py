@@ -459,7 +459,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
             if isinstance(decorator, ast.Call):
                 decorator_calls.add(id(decorator))
             target = decorator.func if isinstance(decorator, ast.Call) else decorator
-            name = dotted_name(target)
+            name = python_resolved_name(target, aliases)
             if name.rsplit(".", 1)[-1].lower() in PYTHON_DISABLED:
                 segment = ast.get_source_segment(text, decorator) or name
                 markers.append(Violation(path, decorator.lineno, "V3", "new skip, expected-failure, or xfail decorator", normalize(segment)))

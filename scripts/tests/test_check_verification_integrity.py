@@ -246,6 +246,19 @@ class PythonIntegrityTest(TreeTest):
                 self.assertEqual(code, 1)
                 self.assertIn(": V3:", out)
 
+    def test_imported_pytest_skip_decorator_aliases_fail(self):
+        for imports, decorator in (
+            ("from pytest import skip as suppress\n", "@suppress"),
+            ("from pytest import xfail as expected\n", "@expected('reason')"),
+        ):
+            with self.subTest(imports=imports, decorator=decorator):
+                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+                weakened = imports + PYTHON_TEST.replace("    def test_works", f"    {decorator}\n    def test_works")
+                head = self.tree("head", {PYTHON_PATH: weakened})
+                code, out, _ = self.run_check(base, head)
+                self.assertEqual(code, 1)
+                self.assertIn(": V3: new skip, expected-failure, or xfail decorator", out)
+
     def test_runtime_python_skips_fail(self):
         for call in ("self.skipTest('reason')", "pytest.skip('reason')", "pytest.importorskip('missing')"):
             with self.subTest(call=call):
