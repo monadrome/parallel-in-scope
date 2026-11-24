@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-094422-e7a994",
+  "version": 2,
+  "createdAt": "2026-11-24T10:02:33.918Z",
+  "status": "candidate",
+  "case": {
+    "fixCommit": "5aef14d5da6344ae67461132a587fb14c5237cfe",
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "7b288f070823df2b955200db7b9eb3f41f67f24f"
+  },
+  "provenance": {
+    "source": "fix-diff-candidate",
+    "confirmedBy": null,
+    "note": "candidate labels extracted from 5aef14d5da6344ae67461132a587fb14c5237cfe; no semantic confirmation was performed"
+  },
+  "labels": [
+    {
+      "goldId": "G1",
+      "kind": "known-fix",
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 243,
+      "lineEnd": 251,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "while start < end:\n        while start < end and source.comparable[start].isspace():\n            start += 1\n        while end > start and source.comparable[end - 1].isspace():\n            end -= 1\n        if start >= end or source.comparable[start] != \"(\" or matching_delimiter(source.code, start) != end - 1:\n            break\n        start += 1\n        end -= 1",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G2",
+      "kind": "known-fix",
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 266,
+      "lineEnd": 288,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "C_LIKE_SIDE_EFFECT = re.compile(r\"\\b(?:new|delete|yield|await|function|class)\\b|=>|->|\\+\\+|--|::\")\nC_LIKE_CALL = re.compile(r\"[A-Za-z_$][\\w$]*(?:\\s*\\?\\.)?\\s*\\(|\\)\\s*\\(\")\nC_LIKE_ASSIGNMENT = re.compile(r\"(?<![=!<>])(?:\\+|-|\\*|/|%|&|\\||\\^|>>>|>>|<<)?=(?!=|>)\")\nTAGGED_TEMPLATE = re.compile(r\"[\\w$)\\]]\\s*`\")\n\n\ndef self_comparing(left: str, right: str, javascript: bool, identity: bool) -> bool:\n    if not left or left != right:\n        return False\n    for operand in (left, right):\n        code = mask_c_like(operand, javascript).code\n        if C_LIKE_SIDE_EFFECT.search(code) or C_LIKE_CALL.search(c",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G3",
+      "kind": "known-fix",
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 381,
+      "lineEnd": 381,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "elif name in {\"assertEquals\", \"assertSame\"} and len(comparable) >= 2 and self_comparing(comparable[0], comparable[1], False, False):",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G4",
+      "kind": "known-fix",
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 544,
+      "lineEnd": 544,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "TS_EXPECT_EQUALITY = re.compile(r\"\\s*\\.\\s*(?P<method>toBe|toEqual|toStrictEqual)\\s*\\(\")",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G5",
+      "kind": "known-fix",
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 585,
+      "lineEnd": 585,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "and self_comparing(comparable[0], comparable[1], True, method in {\"equal\", \"strictEqual\"})",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G6",
+      "kind": "known-fix",
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 597,
+      "lineEnd": 597,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "if expectation_close >= 0 and len(expected) == 1 and self_comparing(received[0], expected[0], True, chain[\"method\"] == \"toBe\"):",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G7",
+      "kind": "known-fix",
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "lineStart": 212,
+      "lineEnd": 224,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "def test_non_pure_equality_calls_are_not_self_comparisons(self):\n        for assertion in (\n            \"assertEquals(compute(), compute())\",\n            \"assertSame(compute(), compute())\",\n            \"assertEquals(obj.getValue(), obj.getValue())\",\n            \"assertEquals(value++, value++)\",\n        ):\n            with self.subTest(assertion=assertion):\n                base = self.tree(\"base\", {JAVA_PATH: JAVA_TEST})\n                changed = JAVA_TEST.replace(\"assertEquals(2, value)\", assertion)\n                head = self.tree(\"head\", {JAVA_PATH: changed})\n                self.assertEqual",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    },
+    {
+      "goldId": "G8",
+      "kind": "known-fix",
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "lineStart": 460,
+      "lineEnd": 506,
+      "rootCause": "fix: respect equality semantics in noop scans",
+      "fixMechanism": "def test_typescript_non_pure_equality_calls_pass(self):\n        for assertion in (\n            \"expect(compute()).toBe(compute())\",\n            \"expect(list.pop()).toEqual(list.pop())\",\n            \"expect(obj.getValue()).toStrictEqual(obj.getValue())\",\n            \"assert.strictEqual(compute(), compute())\",\n            \"assert.deepEqual(obj.getValue(), obj.getValue())\",\n            \"expect(value++).toBe(value++)\",\n            \"expect(value = 1).toBe(value = 1)\",\n        ):\n            with self.subTest(assertion=assertion):\n                base = self.tree(\"base\", {TS_PATH: TS_TEST})\n        ",
+      "regressionTest": null,
+      "introducedByBuggyCommit": null,
+      "evidence": "candidate extracted from fix commit 5aef14d5da6344ae67461132a587fb14c5237cfe"
+    }
+  ],
+  "excludedFixScope": []
+}

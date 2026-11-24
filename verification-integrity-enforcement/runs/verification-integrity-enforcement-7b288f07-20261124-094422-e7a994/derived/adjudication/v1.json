@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-094422-e7a994",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-24T10:02:33.133Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kimi",
+    "model": "kimi-code/k3.1-pro",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Repeated compute/get/pop calls reproduced false V5 positives; 5aef14d5 restricts checks to side-effect-free operands with before-failing regressions.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Object, array, and regex literals are distinct identities under toBe/strictEqual; 5aef14d5 separates identity from deep equality with negative and positive regressions.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Six Java/TypeScript whitespace-literal cases failed before 87be1a7c and pass after it; exact literal spans are preserved.",
+      "confidence": 1
+    }
+  ]
+}

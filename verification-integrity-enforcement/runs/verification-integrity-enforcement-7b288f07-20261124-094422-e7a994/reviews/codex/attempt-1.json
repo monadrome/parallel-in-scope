@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-094422-e7a994",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-24T09:44:23.303Z",
+  "endedAt": "2026-11-24T09:56:48.782Z",
+  "durationMs": 745338,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-7b288f07-20261124-094422-e7a994/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-7b288f07-20261124-094422-e7a994/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-7b288f07-20261124-094422-e7a994/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek-v4-pro",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 06efaae43c0f343efc6e2bb6c289b907b218b9be to 7b288f070823df2b955200db7b9eb3f41f67f24f. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-7b288f07-20261124-094422-e7a994/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-7b288f07-20261124-094422-e7a994/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 5 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Verification-integrity final enforcement review\n\nRead the complete `06efaae43c0f343efc6e2bb6c289b907b218b9be..7b288f070823df2b955200db7b9eb3f41f67f24f` diff and every changed file read-only. This follow-up remediates the original assurance skip rejection and adds the maintainer-directed three-model review rule.\n\nSettled findings from previous review and isolated assurance:\n1. GitHub required-check and code-owner enforcement is tracked separately; do not re-report the repository diff for lacking server settings.\n2. Imported pytest skip/xfail runtime aliases bypassed V3. Import resolution and regression subcases were added.\n3. Inline comments bypassed Java and TypeScript self-comparison detection. A comment-free comparison view now preserves literal contents; attack subcases failed before the fixes and passed after them.\n4. TypeScript nonliteral expect self-comparisons bypassed V5. `toBe`, `toEqual`, and `toStrictEqual` are now covered, with negative cases for distinct values.\n5. An isolated candidate found that renamed direct-import skip/xfail decorators bypassed V3. Commit `7b288f07` resolves decorator targets through the same alias map; two new regression subcases failed before that fix and all 463 repository script tests pass after it.\n\nRefactoring R3 and R6 were withdrawn and the net refactor diff is zero. Do not re-raise optional extractions. The stale ledger assurance note is scheduled for correction after the required final assurance run; do not treat that known metadata correction as a new code defect.\n\nAttack surfaces: correctness and scope of decorator/runtime alias resolution; literal/comment/regex handling and offset alignment; expect-chain parsing and false positives; V3/V4/V5 baseline subtraction; contract-versus-implementation consistency for the three-model review requirement; test quality and behavior preservation. Verify the settled fixes and look beyond them for concrete new defects. Return at most five findings with triggers and observable consequences, or an empty findings list promptly.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-7b288f07-20261124-094422-e7a994/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "deepseek",
+    "model": "deepseek-v4-pro",
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 94797,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the verification-integrity enforcement diff (pytest skip/xfail alias resolution, comment-free comparable view, expanded TypeScript expect self-comparison coverage, and the three-model review documentation). The settled fixes behave as intended: renamed pytest decorator/runtime aliases now resolve, comment-embedded self-comparisons are caught, and the new expect matchers cover toBe/toEqual/toStrictEqual with negative cases. The new expect self-comparison detector, however, equates syntactic identity with semantic tautology, producing false V5 positives for non-pure expressions and for toBe's reference-equality semantics, and it still collapses whitespace inside string literals, misclassifying distinct strings.",
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 532,
+      "lineEnd": 541,
+      "title": "Expect self-comparison flags non-pure expressions as noop assertions",
+      "trigger": "A test change adds an assertion such as `expect(compute()).toBe(compute())`, `expect(list.pop()).toEqual(list.pop())`, or `expect(obj.getValue()).toEqual(obj.getValue())`, where the two textually identical calls can return different values.",
+      "consequence": "The check compares only normalized text (`received[0] == expected[0]`) and reports a V5 'new constant or self-comparing expect assertion', exiting with status 1 and blocking a meaningful, non-tautological test change.",
+      "evidence": "scripts/check-verification-integrity.py:540 compares `received[0] == expected[0]` on normalized text; the previous `TS_EXPECT_NOOP` (removed in this diff) only matched the `true`/`false` constants. Direct execution confirms `expect(random()).toBe(random())` yields a V5 marker.",
+      "severity": "P2",
+      "confidence": 0.7,
+      "suggestedFix": "Only flag `expect(x).toBe/toEqual/toStrictEqual(y)` as self-comparing when both operands are pure and atomic (identifiers, primitive literals, or property reads without calls, indexing, or increment/decrement); skip when either operand is an `ast`-style call expression or contains side-effecting sub-expressions.",
+      "id": "codex:0",
+      "reviewer": "codex",
+      "attempt": 1
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 486,
+      "lineEnd": 541,
+      "title": "toBe reference-equality semantics conflated with toEqual/toStrictEqual",
+      "trigger": "A test containing `expect({}).toBe({})`, `expect([1]).toBe([1])`, or `expect(/a/).toBe(/a/)`, where the two operands are distinct object/array/regex literals.",
+      "consequence": "These assertions are not tautologies: Jest's `toBe` uses `Object.is`, so distinct non-primitive literals are not equal and the test fails. The check nonetheless emits a V5 'self-comparing expect assertion' and exits 1, misclassifying the test and producing a misleading gate failure.",
+      "evidence": "scripts/check-verification-integrity.py:487 groups `toBe`, `toEqual`, and `toStrictEqual` into one equality regex, and the comparison at scripts/check-verification-integrity.py:540 treats them identically. Direct execution confirms `expect({}).toBe({})`, `expect([1]).toBe([1])`, and `expect(/a/).toBe(/a/)` all yield V5 markers.",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Distinguish `toBe` from `toEqual`/`toStrictEqual`: for `toBe`, only flag when operands are primitive literals or a single identifier (same reference), and exclude object/array/regex literals, which are never reference-equal.",
+      "id": "codex:1",
+      "reviewer": "codex",
+      "attempt": 1
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 244,
+      "lineEnd": 245,
+      "title": "Normalize collapses whitespace inside string literals, flagging distinct strings",
+      "trigger": "A test containing `expect(\"a b\").toEqual(\"a  b\")` (or `toBe`/`toStrictEqual`), where two string literals differ only in internal whitespace.",
+      "consequence": "`normalize` replaces all whitespace runs with a single space inside the quoted literal, so the two distinct strings compare equal and the check emits a false V5 'self-comparing expect assertion', blocking a valid test.",
+      "evidence": "scripts/check-verification-integrity.py:244 applies `normalize` to `source.comparable`, which preserves raw string-literal contents; `normalize` (scripts/check-verification-integrity.py:123) collapses internal whitespace. The comparison at scripts/check-verification-integrity.py:540 then reports `expect(\"a b\").toEqual(\"a b\")` as a violation for the input `expect(\"a b\").toEqual(\"a  b\")`.",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Compare string-literal operands using their exact literal contents instead of the whitespace-collapsed `normalize` form, or normalize only code outside string literals when computing the comparable values.",
+      "id": "codex:2",
+      "reviewer": "codex",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 532,
+      "lineEnd": 541,
+      "title": "Expect self-comparison flags non-pure expressions as noop assertions",
+      "trigger": "A test change adds an assertion such as `expect(compute()).toBe(compute())`, `expect(list.pop()).toEqual(list.pop())`, or `expect(obj.getValue()).toEqual(obj.getValue())`, where the two textually identical calls can return different values.",
+      "consequence": "The check compares only normalized text (`received[0] == expected[0]`) and reports a V5 'new constant or self-comparing expect assertion', exiting with status 1 and blocking a meaningful, non-tautological test change.",
+      "evidence": "scripts/check-verification-integrity.py:540 compares `received[0] == expected[0]` on normalized text; the previous `TS_EXPECT_NOOP` (removed in this diff) only matched the `true`/`false` constants. Direct execution confirms `expect(random()).toBe(random())` yields a V5 marker.",
+      "severity": "P2",
+      "confidence": 0.7,
+      "suggestedFix": "Only flag `expect(x).toBe/toEqual/toStrictEqual(y)` as self-comparing when both operands are pure and atomic (identifiers, primitive literals, or property reads without calls, indexing, or increment/decrement); skip when either operand is an `ast`-style call expression or contains side-effecting sub-expressions."
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 486,
+      "lineEnd": 541,
+      "title": "toBe reference-equality semantics conflated with toEqual/toStrictEqual",
+      "trigger": "A test containing `expect({}).toBe({})`, `expect([1]).toBe([1])`, or `expect(/a/).toBe(/a/)`, where the two operands are distinct object/array/regex literals.",
+      "consequence": "These assertions are not tautologies: Jest's `toBe` uses `Object.is`, so distinct non-primitive literals are not equal and the test fails. The check nonetheless emits a V5 'self-comparing expect assertion' and exits 1, misclassifying the test and producing a misleading gate failure.",
+      "evidence": "scripts/check-verification-integrity.py:487 groups `toBe`, `toEqual`, and `toStrictEqual` into one equality regex, and the comparison at scripts/check-verification-integrity.py:540 treats them identically. Direct execution confirms `expect({}).toBe({})`, `expect([1]).toBe([1])`, and `expect(/a/).toBe(/a/)` all yield V5 markers.",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Distinguish `toBe` from `toEqual`/`toStrictEqual`: for `toBe`, only flag when operands are primitive literals or a single identifier (same reference), and exclude object/array/regex literals, which are never reference-equal."
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "lineStart": 244,
+      "lineEnd": 245,
+      "title": "Normalize collapses whitespace inside string literals, flagging distinct strings",
+      "trigger": "A test containing `expect(\"a b\").toEqual(\"a  b\")` (or `toBe`/`toStrictEqual`), where two string literals differ only in internal whitespace.",
+      "consequence": "`normalize` replaces all whitespace runs with a single space inside the quoted literal, so the two distinct strings compare equal and the check emits a false V5 'self-comparing expect assertion', blocking a valid test.",
+      "evidence": "scripts/check-verification-integrity.py:244 applies `normalize` to `source.comparable`, which preserves raw string-literal contents; `normalize` (scripts/check-verification-integrity.py:123) collapses internal whitespace. The comparison at scripts/check-verification-integrity.py:540 then reports `expect(\"a b\").toEqual(\"a b\")` as a violation for the input `expect(\"a b\").toEqual(\"a  b\")`.",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Compare string-literal operands using their exact literal contents instead of the whitespace-collapsed `normalize` form, or normalize only code outside string literals when computing the comparable values."
+    }
+  ],
+  "error": null
+}

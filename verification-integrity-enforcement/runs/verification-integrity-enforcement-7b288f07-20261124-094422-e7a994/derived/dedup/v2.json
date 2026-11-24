@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-094422-e7a994",
+  "version": 2,
+  "createdAt": "2026-11-24T10:02:33.063Z",
+  "method": "imported",
+  "note": "imported",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Textually identical non-pure calls are not necessarily self-comparisons."
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": "Identity equality and deep equality differ for allocated JavaScript literals."
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": "Whitespace inside literals must not be normalized when comparing distinct contents."
+    }
+  ]
+}
