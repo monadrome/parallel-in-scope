@@ -1,7 +1,7 @@
 ---
 name: contract-extract
 description: Contract extraction: organizes frozen, executable behavioral contracts from a PR or worktree changes. Invoked only by the contract-first-assurance main entry or explicitly by the user.
-version: "1.4.0"
+version: "1.5.0"
 disable-model-invocation: true
 ---
 # Contract Extract

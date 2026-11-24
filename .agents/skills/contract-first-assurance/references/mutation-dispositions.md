@@ -23,7 +23,13 @@ Use this representation in `run-manifest.json` and `report.md`:
   "rawStatus": "TIMED_OUT",
   "disposition": "EXPECTED_MUTATION_LIVENESS",
   "accepted": true,
-  "evidence": ["logs/pit.log", "inputs/pit-audit.md"],
+  "evidence": {
+    "repeatable-focused-rerun": ["logs/pit.log"],
+    "unmutated-tests-pass": ["logs/pit.log"],
+    "complete-xml-and-logs": ["logs/pit.log", "inputs/pit-audit.md"],
+    "source-level-liveness-invariant": ["inputs/pit-audit.md"],
+    "maintainer-or-independent-review": ["inputs/pit-audit.md"]
+  },
   "approvedBy": "maintainer"
 }
 ```

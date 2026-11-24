@@ -41,6 +41,18 @@ PROMOTION_FIELDS = (
     "reason",
 )
 PROMOTION_CONTRACT_RE = re.compile(r"C-[0-9]{4}")
+COMMIT_ID_RE = re.compile(r"[0-9a-f]{40}")
+
+
+def gate_name_errors(value, field: str) -> list[str]:
+    if not isinstance(value, list) or not value or any(not isinstance(gate, str) for gate in value):
+        return [f"{field} must be a non-empty list of strings"]
+    errors = []
+    if any(not gate.strip() for gate in value):
+        errors.append(f"{field} gate names must be non-blank")
+    if len(set(value)) != len(value):
+        errors.append(f"{field} gate names must be unique")
+    return errors
 
 
 def canonical_path(value: str) -> bool:
@@ -260,12 +272,22 @@ def verify(run_dir: Path) -> list[str]:
         if key not in manifest:
             errors.append(f"run manifest is missing {key}")
     workspace = manifest.get("workspace", {})
+    if not isinstance(workspace, dict):
+        errors.append("workspace must be an object")
+        workspace = {}
     for key in ("base", "head", "dirty"):
         if key not in workspace:
             errors.append(f"workspace metadata is missing {key}")
+    if isinstance(workspace, dict):
+        for key in ("base", "head"):
+            value = workspace.get(key)
+            if not isinstance(value, str) or COMMIT_ID_RE.fullmatch(value) is None:
+                errors.append(f"workspace.{key} must be a full commit ID")
 
     final_head = manifest.get("finalHead")
-    if final_head is not None and final_head != workspace.get("head"):
+    if not isinstance(final_head, str) or COMMIT_ID_RE.fullmatch(final_head) is None:
+        errors.append("finalHead must be the full final commit ID")
+    elif final_head != workspace.get("head"):
         errors.append("finalHead does not match workspace.head")
 
     status = manifest.get("status")
@@ -275,12 +297,7 @@ def verify(run_dir: Path) -> list[str]:
     adapter = manifest.get("adapter", {})
     accepted_policy = adapter.get("acceptedDispositions") if isinstance(adapter, dict) else None
     adapter_required_gates = adapter.get("requiredGates") if isinstance(adapter, dict) else None
-    if (
-        not isinstance(adapter_required_gates, list)
-        or not adapter_required_gates
-        or any(not isinstance(gate, str) for gate in adapter_required_gates)
-    ):
-        errors.append("adapter.requiredGates must be a non-empty list of strings")
+    errors.extend(gate_name_errors(adapter_required_gates, "adapter.requiredGates"))
     accepted_exceptions = manifest.get("acceptedExceptions", [])
     if not isinstance(accepted_exceptions, list):
         errors.append("acceptedExceptions must be a list")
@@ -303,36 +320,65 @@ def verify(run_dir: Path) -> list[str]:
             errors.append(f"accepted exception {index} disposition must be a non-empty string")
         if exception.get("accepted") is not True:
             errors.append(f"accepted exception {index} accepted must be true")
+        required_evidence = []
         if not isinstance(accepted_policy, dict):
             errors.append("adapter.acceptedDispositions is required when acceptedExceptions are present")
         elif isinstance(disposition, str):
-            allowed_statuses = accepted_policy.get(disposition)
-            if not isinstance(allowed_statuses, list) or any(not isinstance(value, str) for value in allowed_statuses):
+            policy = accepted_policy.get(disposition)
+            if not isinstance(policy, dict):
                 errors.append(f"accepted exception {index} disposition is not allowed by adapter: {disposition}")
-            elif raw_status not in allowed_statuses:
-                errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
+            else:
+                allowed_statuses = policy.get("allowedRawStatuses")
+                if not isinstance(allowed_statuses, list) or any(
+                    not isinstance(value, str) for value in allowed_statuses
+                ):
+                    errors.append(f"accepted exception {index} has invalid allowedRawStatuses: {disposition}")
+                elif raw_status not in allowed_statuses:
+                    errors.append(f"accepted exception {index} rawStatus {raw_status} is not allowed for {disposition}")
+                required_evidence = policy.get("requiredEvidence")
+                if not isinstance(required_evidence, list) or any(
+                    not isinstance(category, str) or not category for category in required_evidence
+                ):
+                    errors.append(f"accepted exception {index} has invalid requiredEvidence: {disposition}")
+                    required_evidence = []
         evidence = exception.get("evidence")
-        if not isinstance(evidence, list) or not evidence or any(not isinstance(path, str) for path in evidence):
-            errors.append(f"accepted exception {index} evidence must contain relative paths")
+        if not isinstance(evidence, dict):
+            errors.append(f"accepted exception {index} evidence must map required evidence categories to paths")
         else:
-            for path in evidence:
-                try:
-                    exists = safe_path(run_dir, path).is_file()
-                except (TypeError, ValueError) as error:
-                    errors.append(f"accepted exception {index} evidence path is invalid: {error}")
+            for category in required_evidence:
+                paths = evidence.get(category)
+                if not isinstance(paths, list) or not paths or any(not isinstance(path, str) for path in paths):
+                    errors.append(f"accepted exception {index} is missing required evidence: {category}")
+            hashed = {
+                path
+                for field in ("inputs", "artifacts")
+                for path in (manifest.get(field, {}) if isinstance(manifest.get(field, {}), dict) else {})
+            }
+            for category, paths in evidence.items():
+                if not isinstance(paths, list):
                     continue
-                if not exists:
-                    errors.append(f"accepted exception {index} references missing evidence: {path}")
+                for path in paths:
+                    if not isinstance(path, str):
+                        errors.append(f"accepted exception {index} evidence path for {category} must be a string")
+                        continue
+                    try:
+                        exists = safe_path(run_dir, path).is_file()
+                    except (TypeError, ValueError) as error:
+                        errors.append(f"accepted exception {index} evidence path is invalid: {error}")
+                        continue
+                    if not exists:
+                        errors.append(f"accepted exception {index} references missing evidence: {path}")
+                    if path not in hashed:
+                        errors.append(f"accepted exception {index} evidence is not hashed: {path}")
         approved_by = exception.get("approvedBy")
-        if not isinstance(approved_by, str) or not approved_by:
+        if not isinstance(approved_by, str) or not approved_by.strip():
             errors.append(f"accepted exception {index} approvedBy must be non-empty")
     required_gates = manifest.get("requiredGates", [])
     checks = manifest.get("checks", {})
     if not isinstance(required_gates, list) or not isinstance(checks, dict):
         errors.append("requiredGates must be a list and checks must be an object")
     else:
-        if not required_gates or any(not isinstance(gate, str) for gate in required_gates):
-            errors.append("requiredGates must be a non-empty list of strings")
+        errors.extend(gate_name_errors(required_gates, "requiredGates"))
         if not checks:
             errors.append("checks must contain the resolved gate results")
         if isinstance(adapter_required_gates, list) and required_gates != adapter_required_gates:
@@ -414,6 +460,14 @@ def verify(run_dir: Path) -> list[str]:
                 errors.append(f"{field} references missing file: {relative}")
             elif not isinstance(expected, str) or len(expected) != 64 or sha256(path) != expected:
                 errors.append(f"{field} hash mismatch: {relative}")
+
+    inputs = manifest.get("inputs")
+    if not isinstance(inputs, dict) or not inputs:
+        errors.append("inputs must contain frozen files under inputs/")
+    else:
+        for relative in inputs:
+            if not isinstance(relative, str) or not canonical_path(relative) or not relative.startswith("inputs/"):
+                errors.append(f"inputs must contain only files under inputs/: {relative}")
 
     verify_hashes("inputs")
     verify_hashes("artifacts")

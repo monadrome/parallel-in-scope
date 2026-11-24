@@ -15,18 +15,30 @@ manifest has this shape:
   "schemaVersion": "contract-assurance-run/v2",
   "runId": "2026-11-12-example",
   "createdAt": "2026-11-12T12:00:00Z",
-  "package": {"name": "contract-first-assurance", "version": "1.4.0"},
+  "package": {"name": "contract-first-assurance", "version": "1.5.0"},
   "adapter": {
     "name": "vformation",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
-    "acceptedDispositions": {"EXPECTED_MUTATION_LIVENESS": ["TIMED_OUT"]}
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": {
+        "allowedRawStatuses": ["TIMED_OUT"],
+        "requiredEvidence": [
+          "repeatable-focused-rerun",
+          "unmutated-tests-pass",
+          "complete-xml-and-logs",
+          "source-level-liveness-invariant",
+          "maintainer-or-independent-review"
+        ]
+      }
+    }
   },
   "workspace": {
     "base": "<resolved commit>",
     "head": "<resolved commit>",
     "dirty": false
   },
+  "finalHead": "<resolved commit>",
   "status": "pass",
   "requiredGates": ["full-suite", "consumer", "pit", "independent-review", "docs"],
   "checks": {
@@ -46,14 +58,28 @@ manifest has this shape:
       "stderr": "logs/full-suite.stderr.log"
     }
   ],
-  "artifacts": {"report.md": "<sha256>"},
+  "artifacts": {
+    "contract.md": "<sha256>",
+    "contract-gaps.md": "<sha256>",
+    "candidate-status.csv": "<sha256>",
+    "promotion-status.csv": "<sha256>",
+    "verification-summary.md": "<sha256>",
+    "report.md": "<sha256>",
+    "logs/pit.stdout.log": "<sha256>"
+  },
   "acceptedExceptions": [
     {
       "phase": "pit",
       "rawStatus": "TIMED_OUT",
       "disposition": "EXPECTED_MUTATION_LIVENESS",
       "accepted": true,
-      "evidence": ["logs/pit.stdout.log", "inputs/pit-audit.md"],
+      "evidence": {
+        "repeatable-focused-rerun": ["logs/pit.stdout.log"],
+        "unmutated-tests-pass": ["logs/pit.stdout.log"],
+        "complete-xml-and-logs": ["logs/pit.stdout.log", "inputs/pit-audit.md"],
+        "source-level-liveness-invariant": ["inputs/pit-audit.md"],
+        "maintainer-or-independent-review": ["inputs/pit-audit.md"]
+      },
       "approvedBy": "maintainer"
     }
   ]
@@ -62,9 +88,10 @@ manifest has this shape:
 
 Rules:
 
-- `base` and `head` are resolved commit IDs, never symbolic refs alone;
-- `adapter.requiredGates` is the resolved route's required-gate list; the top-level
-  `requiredGates` must match it, and `checks` must contain a result for every gate;
+- `base`, `head`, and `finalHead` are full resolved commit IDs, never symbolic refs alone;
+- `adapter.requiredGates` is the resolved route's required-gate list; gate names are non-blank
+  and unique, the top-level `requiredGates` matches it, and `checks` contains a result for every gate;
+- `inputs` is non-empty and contains only frozen files beneath `inputs/`;
 - a dirty workspace must include its binary patch under `inputs/`;
 - every copied contract, API view, adapter, command log, promotion record, promoted test copy,
   and report is hashed;
@@ -78,10 +105,11 @@ Rules:
 - a timeout, missing log, missing hash, or hash mismatch makes the run
   `INCONCLUSIVE`, never successful;
 - an accepted exception may make the final gate `pass`, but only when its raw
-  status, disposition, evidence paths, and approver are recorded and the
-  disposition is allowed by the resolved host adapter; copy the adapter's
-  `acceptedDispositions` policy into the manifest so `verify_run.py` can enforce
-  the same allowlist without reading a mutable parent checkout;
+  status, disposition, evidence, and approver are recorded and the disposition is
+  allowed by the resolved host adapter; copy each disposition's `allowedRawStatuses`
+  and `requiredEvidence` policy into the manifest, map every required evidence category
+  to existing paths, and hash those paths under `inputs` or `artifacts` so
+  `verify_run.py` can enforce the policy without reading a mutable parent checkout;
 - frozen metadata, input snapshots, and their hashes are written before tests run and are never
   rewritten; `status`, `requiredGates`, `checks`, `acceptedExceptions`, command results, and
   final-artifact hashes are appended at finalization, including for failed or inconclusive runs.

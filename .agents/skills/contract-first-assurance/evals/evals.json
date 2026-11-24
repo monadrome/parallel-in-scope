@@ -1,6 +1,6 @@
 {
   "skill_name": "contract-first-assurance",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "evals": [
     {
       "id": 1,
@@ -41,7 +41,7 @@
       "expected_output": "A report that keeps TIMED_OUT as the raw status, records EXPECTED_MUTATION_LIVENESS as an accepted exception, and reports the normalized PIT gate as pass with accepted exceptions.",
       "assertions": [
         "Preserves TIMED_OUT in raw mutation evidence",
-        "Requires evidence paths and approver for the accepted exception",
+        "Requires category-mapped, hashed evidence and an approver for the accepted exception",
         "Reports unresolved or weakly evidenced timeouts as inconclusive"
       ]
     }

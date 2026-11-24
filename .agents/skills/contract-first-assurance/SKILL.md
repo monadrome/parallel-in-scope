@@ -2,7 +2,7 @@
 name: contract-first-assurance
 description: Contract-first independent verification workflow. Use when the user asks to independently verify a PR, generate tests from contracts, check behavioral gaps between implementation and requirements, re-check cancellation/concurrency/lifecycle semantics, or produce an auditable verification report; can also be invoked manually via /contract-first-assurance. Freezes the contract first, then generates candidate tests in an isolated context, and classifies verification results on the real implementation.
 compatibility: Requires git, an isolated worktree, and a fresh agent context; repository build and mutation commands come from the host adapter.
-version: "1.4.0"
+version: "1.5.0"
 ---
 
 # Contract-First Independent Assurance
