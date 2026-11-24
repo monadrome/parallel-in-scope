@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-093704-505852",
+  "status": "running",
+  "createdAt": "2026-11-24T09:37:05.005Z",
+  "updatedAt": "2026-11-24T09:52:02.050Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T09:37:05.032Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "running",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "running",
+            "startedAt": "2026-11-24T09:37:05.037Z",
+            "endedAt": null,
+            "durationMs": null,
+            "exitCode": null,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-24T09:37:05.038Z"
+      }
+    },
+    "derivation": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T09:37:05.005Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T09:37:05.005Z",
+      "error": null
+    },
+    "report": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T09:37:05.005Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T09:52:02.022Z",
+      "error": null
+    }
+  },
+  "eventSeq": 13
+}

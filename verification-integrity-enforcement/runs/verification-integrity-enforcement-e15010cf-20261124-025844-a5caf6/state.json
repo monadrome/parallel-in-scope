@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "verification-integrity-enforcement-e15010cf-20261124-025844-a5caf6",
+  "status": "running",
+  "createdAt": "2026-11-24T02:58:45.281Z",
+  "updatedAt": "2026-11-24T03:21:33.065Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T02:58:45.313Z",
+      "error": null
+    },
+    "reviews": {
+      "kiro": {
+        "agent": "kiro",
+        "status": "running",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "running",
+            "startedAt": "2026-11-24T02:58:45.320Z",
+            "endedAt": null,
+            "durationMs": null,
+            "exitCode": null,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kiro/attempt-1.json",
+            "logBase": "logs/kiro-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-24T02:58:45.321Z"
+      }
+    },
+    "derivation": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T02:58:45.281Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T02:58:45.281Z",
+      "error": null
+    },
+    "report": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T02:58:45.281Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T03:21:33.034Z",
+      "error": null
+    }
+  },
+  "eventSeq": 24
+}

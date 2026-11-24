@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<title>llm-review-bench verification-integrity-enforcement-e0bd5bb8-20261124-034712-d1c8d4 v1</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:2rem auto;max-width:1400px;padding:0 1rem;color:#1f2328;background:#fff}
+h1,h2{font-weight:600} h1{font-size:1.5rem} h2{font-size:1.15rem;margin-top:2rem}
+table{border-collapse:collapse;width:100%;margin:.75rem 0 1.5rem;font-size:.82rem}
+th,td{border:1px solid #d0d7de;padding:.35rem .45rem;text-align:left;vertical-align:top}
+th{background:#f6f8fa} tr:nth-child(even) td{background:#fbfcfd}
+code{background:#f6f8fa;padding:.1rem .25rem;border-radius:3px;font-size:.85em}
+.note{color:#57606a;font-size:.9rem}.warn{color:#9a6700}.bad{color:#cf222e}
+.limits{background:#fff8c5;border:1px solid #d4a72c;padding:.75rem;border-radius:6px}
+</style>
+</head>
+<body>
+<h1>llm-review-bench report</h1>
+<p class="note">Run <code>verification-integrity-enforcement-e0bd5bb8-20261124-034712-d1c8d4</code>, evaluation v1, generated 2026-11-24T04:01:28.726Z. This page is static and contains no executable content.</p>
+
+<h2>Case layer</h2>
+<table>
+<tr><th>Repository</th><td>/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement</td></tr>
+<tr><th>Mode</th><td>live</td></tr>
+<tr><th>Review range</th><td>06efaae43c0f343efc6e2bb6c289b907b218b9be..e0bd5bb8dbef6abcf17c2de4194f640d79ac506c</td></tr>
+<tr><th>Base commit</th><td>06efaae43c0f343efc6e2bb6c289b907b218b9be</td></tr>
+<tr><th>Head commit</th><td>e0bd5bb8dbef6abcf17c2de4194f640d79ac506c</td></tr>
+<tr><th>Fix commit</th><td>none (live case)</td></tr>
+<tr><th>Gold</th><td>open-world (0 eligible introduced-by labels)</td></tr>
+<tr><th>Gold version</th><td>v1</td></tr>
+<tr><th>Dedup / adjudication</th><td>dedup v1; adjudication none</td></tr>
+<tr><th>Context sha256</th><td>4e02493af87189d9c2abc8405a425f82bee16a9fea3523a9a057b4d197d091e5</td></tr>
+<tr><th>Diff sha256</th><td>d1db50f5d4afd5e77291804400f47990acb387deb472d87a77dab225ccb57329</td></tr>
+<tr><th>Timeout budget</th><td>1200s total / 900s review / 300s adjudication / 60s cleanup</td></tr>
+<tr><th>Source / rerun</th><td>commit</td></tr>
+<tr><th>Usage</th><td>tokens n/a; cost n/a (0/1 systems reported usage)</td></tr>
+</table>
+
+<h2>System layer</h2>
+<table>
+<thead><tr>
+<th>System</th><th>Version</th><th>Provider / model / effort</th><th>Status</th><th>Duration</th><th>Attempts</th><th>Tokens in / out / total</th><th>Cost</th><th>Findings</th><th>Adjudicated</th>
+<th>Confirmed</th><th>Rejected</th><th>Neutral</th><th>Uncertain</th><th>Pending</th>
+<th>Confirmed rate</th><th>Rejected rate</th><th>Neutral rate</th><th>Uncertain rate</th>
+<th>Known-fix recall</th><th>Regression recall</th><th>Gold hits</th><th>Error</th>
+</tr></thead>
+<tbody>
+<tr>
+    <td><strong>codex</strong></td>
+    <td>codex-cli 0.169.0</td>
+    <td>ctrip-ada / ctrip-ada/claude-auto[1M]</td>
+    <td>timed_out (timeout)</td>
+    <td>854.8s</td>
+    <td>1</td>
+    <td>n/a</td><td>n/a</td>
+    <td>0</td>
+    <td>0</td>
+    <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+    <td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td>
+    <td>n/a (open-world case: no gold labels)</td>
+    <td>n/a (open-world case: no gold labels)</td>
+    <td>none</td>
+    <td>review exceeded the hard timeout of 840s; process group was terminated</td>
+  </tr>
+</tbody>
+</table>
+<p class="note">Rates use each reviewer's adjudicated findings as the denominator. A zero denominator yields n/a. Timeout and failed runs are not counted as empty reviews.</p>
+
+<h2>Union and aggregate</h2>
+<table>
+<thead><tr><th>Layer</th><th>Total</th><th>Adjudicated</th><th>Confirmed</th><th>Rejected</th><th>Neutral</th><th>Uncertain</th><th>Pending</th><th>Confirmed rate</th><th>Rejected rate</th><th>Neutral rate</th><th>Uncertain rate</th><th>Known-fix recall</th><th>Regression recall</th></tr></thead>
+<tbody>
+<tr><td>Union (clusters)</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a (open-world case: no gold labels)</td><td>n/a (open-world case: no gold labels)</td></tr>
+<tr><td>Union (findings)</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>Micro (pooled findings)</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>Macro (mean of reviewer rates)</td><td>n/a</td><td>0 systems</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+</tbody>
+</table>
+
+<h2>Clusters</h2>
+<table>
+<thead><tr><th>Cluster</th><th>Verdict</th><th>Findings</th><th>Gold labels</th><th>Titles</th></tr></thead>
+<tbody>
+
+</tbody>
+</table>
+
+<h2>Notes and limits</h2>
+<ul><li>open-world case: no gold labels and no recall values</li><li>dedup uses identity clusters; semantic deduplication requires explicit clusters input</li><li>no adjudication version exists; all clusters are pending</li><li>reviewers without a completed review: codex; failures and timeouts are not treated as empty results</li></ul>
+<div class="limits">
+<strong>Interpretation limits.</strong> A single case does not rank models. Agent, CLI version, model, and effort form one measured system. Identity clustering is not semantic deduplication; verdicts and gold labels are explicit human or agent inputs. Recall is withheld for open-world and candidate gold. No subjective quality score is computed.
+</div>
+</body>
+</html>

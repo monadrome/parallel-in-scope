@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-093704-505852",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:37:04.999Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "zhipu-glm",
+        "model": "zhipu-glm/glm-5.3",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 5,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "e6260bf0e7dbeab35daf0c2d6850520e6cb6841f6cc78e4825dade458539e53e",
+    "contextJsonSha256": "3b7dc5e3bf9236ba24f141a20bd11064869073567dbf3652019b3f37d4acb4cc",
+    "diffSha256": "6b1db5c6d34259e454be3fed8f37b2acd16d1440b614e749fb2d013b1372ee7c",
+    "caseManifestSha256": "28871ef5b05bd7fc3527255160725662162e592f4ffa29280281dc742e6bcee7",
+    "promptSha256": "294385e480e76ecec2296dd506da9477e23a50e611b9c3e597832f534214ddc0"
+  },
+  "promptPath": "inputs/prompt.md"
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-094209-aca501",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:42:10.041Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "openai",
+        "model": "gpt-6.1-terra",
+        "revision": null,
+        "effort": "medium",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 5,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "e6260bf0e7dbeab35daf0c2d6850520e6cb6841f6cc78e4825dade458539e53e",
+    "contextJsonSha256": "ebd855a2dcd1abc25bf338545b25c9f1cb5d9b3f501a857376ab874cce0eb202",
+    "diffSha256": "6b1db5c6d34259e454be3fed8f37b2acd16d1440b614e749fb2d013b1372ee7c",
+    "caseManifestSha256": "5ceda37b5670fa38a53c25d3135a20279ade5943abd1cda995d47590bcd21022",
+    "promptSha256": "e105e6b0960d97ad2b8070a06da351dd80f69a6fc8f3d85cc3dad59d5de04d3e"
+  },
+  "promptPath": "inputs/prompt.md"
+}

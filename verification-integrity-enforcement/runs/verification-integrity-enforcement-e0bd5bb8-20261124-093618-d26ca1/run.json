@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "verification-integrity-enforcement-e0bd5bb8-20261124-093618-d26ca1",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:36:19.066Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "e0bd5bb8dbef6abcf17c2de4194f640d79ac506c",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 5,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "4e02493af87189d9c2abc8405a425f82bee16a9fea3523a9a057b4d197d091e5",
+    "contextJsonSha256": "64983bf8f9bcda6795e1c8eb397d3191f616998126a35aa0fbed0facb7cec248",
+    "diffSha256": "d1db50f5d4afd5e77291804400f47990acb387deb472d87a77dab225ccb57329",
+    "caseManifestSha256": "7db4d84ee623c01544afea5873b8cccfc78b0fd779dcc3f758a0e927502b2b8c",
+    "promptSha256": "373dfe34651abfbe03acc8df2db9a292a3232263d8a8d0be7e8ad06fe1419844"
+  },
+  "promptPath": "inputs/prompt.md"
+}

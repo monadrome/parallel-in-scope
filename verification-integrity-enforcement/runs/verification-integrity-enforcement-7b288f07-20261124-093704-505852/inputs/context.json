@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-enforcement-7b288f07-20261124-093704-505852",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:37:04.976Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "to": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "label": "06efaae4..7b288f07"
+  },
+  "objective": {
+    "subject": "fix: resolve pytest suppression decorator aliases",
+    "body": "MUST: Resolve imported pytest skip and xfail aliases in decorators as well as runtime calls.\n\nMUST NOT: Change other suppression, assertion, or library runtime behavior.\n\nassurance: RUN REQUIRED; the isolated candidate found the renamed decorator bypass, so a later fix starts a new final assurance run.\n\nRegression: both new alias subcases failed before this fix and pass after it; all integrity and project-baseline tests pass."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "6b1db5c6d34259e454be3fed8f37b2acd16d1440b614e749fb2d013b1372ee7c",
+    "bytes": 19383,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 6
+      },
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 52,
+        "deletions": 19
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 44,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "e6260bf0e7dbeab35daf0c2d6850520e6cb6841f6cc78e4825dade458539e53e",
+    "bytes": 2045,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "7b288f070823df2b955200db7b9eb3f41f67f24f",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

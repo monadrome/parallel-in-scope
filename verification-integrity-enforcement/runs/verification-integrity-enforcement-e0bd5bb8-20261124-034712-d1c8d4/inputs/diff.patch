@@ -1,0 +1,307 @@
+diff --git a/.agents/skills/multi-review/SKILL.md b/.agents/skills/multi-review/SKILL.md
+index f5fbd98a..9d37b5fd 100644
+--- a/.agents/skills/multi-review/SKILL.md
++++ b/.agents/skills/multi-review/SKILL.md
+@@ -49,6 +49,12 @@ By default, available real CLIs on `PATH` are auto-selected; fixtures are never
+ 
+ ### Reviewer selection
+ 
++Full reviews require three distinct model types across the implementer and two reviewers, as
++owned by [review procedure](../project-delivery/references/review.md). Codex plus a second
++Magpie-routed model is one valid combination. When both seats use the `codex` adapter, run them
++as separate cases with explicit models; restore the previous Magpie selection after any
++temporary override, and record the actual routed model in each run.
++
+ When `magpie` is on `PATH`, start with `magpie ls`: it is the default source of truth for the
+ agents and models it manages. For each selected managed agent, query `magpie <agent> model` and
+ `magpie <agent> effort`. These commands print labelled lines, not bare values:
+diff --git a/.agents/skills/project-delivery/references/review.md b/.agents/skills/project-delivery/references/review.md
+index 501ef9df..141f8d54 100644
+--- a/.agents/skills/project-delivery/references/review.md
++++ b/.agents/skills/project-delivery/references/review.md
+@@ -33,13 +33,16 @@ otherwise high-risk changes, run the full independent review with its own budget
+ after the initial commit. Use the commit diff as the review baseline so review and
+ fixes can continue in later sessions:
+ 
+-- Use a different model than the implementer; a different harness alone does not
+-  satisfy this. Run it through
++- Use two reviewers so the implementer and reviewers cover three distinct model
++  types; different harnesses alone do not satisfy this. Run them through
+   `/multi-review` (`.agents/skills/multi-review/SKILL.md`) on the commit range,
+-  which keeps reviewers read-only on a snapshot; when no reviewer CLI can run,
+-  use a fresh-context agent on another model in a clone without a remote. The
+-  reviewer must not edit files. Name attack surfaces: interleavings, contract
+-  versus implementation, test quality, Java 8, and generics.
++  which keeps reviewers read-only on snapshots. Codex and a Magpie-routed reviewer
++  are permitted when each run pins its concrete model. When no reviewer CLI can
++  run, use fresh-context agents on the required models in a clone without a
++  remote. If two distinct reviewer models are unavailable, record the review as
++  blocked rather than reducing coverage. Reviewers must not edit files. Name
++  attack surfaces: interleavings, contract versus implementation, test quality,
++  Java 8, and generics.
+ - When refactoring-review ran, review the range from its base, including its
+   `refactor:` commits. Read its report as settled findings, and add behavior
+   preservation of each refactor commit and each applied `T1` item as attack
+diff --git a/ledger/2026-11-23-verification-integrity-gate.json b/ledger/2026-11-23-verification-integrity-gate.json
+index 98b0950d..1e87e1ff 100644
+--- a/ledger/2026-11-23-verification-integrity-gate.json
++++ b/ledger/2026-11-23-verification-integrity-gate.json
+@@ -338,5 +338,5 @@
+     "cost": null,
+     "currency": null
+   },
+-  "notes": "Added Java/Python/TypeScript verification-integrity gate with effective CODEOWNERS enforcement. PIT skipped: no Java production or mutation evidence changed. Local JDK 11 unavailable; remote CI required. Two Codex runs blocked by max_output_tokens; Kiro confirmed and then verified the fixes. GitHub classic branch protection is absent and both rulesets are disabled, so required-check/code-owner enforcement remains a maintainer action."
++  "notes": "Added Java/Python/TypeScript verification-integrity gate with effective CODEOWNERS enforcement. assurance: SKIPPED; scope: verification checker and tests, CI/CODEOWNERS, project routing, gate contract, and delivery metadata; reason: agent/repository verification workflow only, with no library runtime contract, observable behavior, or behavioral evidence change. PIT skipped: no Java production or mutation evidence changed. Local JDK 11 unavailable; remote CI required. Two Codex runs blocked by max_output_tokens; Kiro confirmed and then verified the fixes. GitHub classic branch protection is absent and both rulesets are disabled, so required-check/code-owner enforcement remains a maintainer action."
+ }
+diff --git a/scripts/check-verification-integrity.py b/scripts/check-verification-integrity.py
+index d1946dbc..2d200c51 100644
+--- a/scripts/check-verification-integrity.py
++++ b/scripts/check-verification-integrity.py
+@@ -114,6 +114,7 @@ class TestFile:
+ class Source:
+     text: str
+     code: str
++    comparable: str
+ 
+     def line_of(self, offset: int) -> int:
+         return self.text.count("\n", 0, offset) + 1
+@@ -157,23 +158,27 @@ def javascript_regex_span(text: str, start: int) -> tuple[int, int] | None:
+ 
+ 
+ def mask_c_like(text: str, javascript: bool = False) -> Source:
+-    """Blank comments and literal contents while preserving offsets and quote delimiters."""
++    """Return masked code and a comment-free comparison view, preserving offsets."""
+     out: list[str] = []
++    comparable_out: list[str] = []
+     i, n = 0, len(text)
+     while i < n:
+         if text.startswith("//", i):
+             end = text.find("\n", i)
+             end = n if end < 0 else end
+             out.append(blank(text[i:end]))
++            comparable_out.append(blank(text[i:end]))
+             i = end
+         elif text.startswith("/*", i):
+             end = text.find("*/", i + 2)
+             end = n if end < 0 else end + 2
+             out.append(blank(text[i:end]))
++            comparable_out.append(blank(text[i:end]))
+             i = end
+         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
+             close, end = span
+             out.append("/" + blank(text[i + 1:close]) + text[close:end])
++            comparable_out.append(text[i:end])
+             i = end
+         elif text[i] in "\"'`":
+             quote = '"""' if text.startswith('"""', i) else text[i]
+@@ -188,14 +193,17 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
+             closed = text.startswith(quote, j)
+             end = j + len(quote) if closed else j
+             out.append(quote + blank(text[i + len(quote):j]) + (quote if closed else ""))
++            comparable_out.append(text[i:end])
+             i = end
+         else:
+             out.append(text[i])
++            comparable_out.append(text[i])
+             i += 1
+     code = "".join(out)
+-    if len(code) != len(text):
++    comparable = "".join(comparable_out)
++    if len(code) != len(text) or len(comparable) != len(text):
+         raise CheckError("internal error: masking changed the text length")
+-    return Source(text, code)
++    return Source(text, code, comparable)
+ 
+ 
+ def matching_delimiter(code: str, open_index: int, opening: str = "(", closing: str = ")") -> int:
+@@ -233,8 +241,8 @@ def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[str
+         return [], [], -1
+     arguments = split_arguments(source.code, open_index, close_index)
+     values = [normalize(source.code[start:end]) for start, end in arguments]
+-    original = [normalize(source.text[start:end]) for start, end in arguments]
+-    return values, original, close_index
++    comparable = [normalize(source.comparable[start:end]) for start, end in arguments]
++    return values, comparable, close_index
+ 
+ 
+ def skip_space(code: str, index: int) -> int:
+@@ -310,7 +318,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
+         if name not in {"assertTrue", "assertFalse", "assertEquals", "assertSame", "assertThat"}:
+             continue
+         open_index = match.end() - 1
+-        values, original, close_index = call_arguments(source, open_index)
++        values, comparable, close_index = call_arguments(source, open_index)
+         if close_index < 0:
+             continue
+         noop = False
+@@ -319,7 +327,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
+             noop = True
+         elif name == "assertFalse" and values and (values[0] == "false" or values[-1] == "false"):
+             noop = True
+-        elif name in {"assertEquals", "assertSame"} and len(original) >= 2 and original[0] == original[1]:
++        elif name in {"assertEquals", "assertSame"} and len(comparable) >= 2 and comparable[0] == comparable[1]:
+             noop = True
+         elif name == "assertThat" and values in (["true"], ["false"]):
+             chain = re.match(r"\s*\.\s*(?P<method>isTrue|isFalse)\s*\(\s*\)", code[end:])
+@@ -360,6 +368,25 @@ def dotted_name(node: ast.AST) -> str:
+     return ""
+ 
+ 
++def python_import_aliases(tree: ast.AST) -> dict[str, str]:
++    aliases: dict[str, str] = {}
++    for node in ast.walk(tree):
++        if isinstance(node, ast.Import):
++            for alias in node.names:
++                if alias.asname and (alias.name == "pytest" or alias.name.startswith("pytest.")):
++                    aliases[alias.asname] = alias.name
++        elif isinstance(node, ast.ImportFrom) and node.module and (node.module == "pytest" or node.module.startswith("pytest.")):
++            for alias in node.names:
++                aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
++    return aliases
++
++
++def python_resolved_name(node: ast.AST, aliases: dict[str, str]) -> str:
++    name = dotted_name(node)
++    head, separator, tail = name.partition(".")
++    return aliases.get(head, head) + separator + tail
++
++
+ PYTHON_DISABLED = {"skip", "skipif", "skipunless", "expectedfailure", "xfail"}
+ PYTHON_RUNTIME_DISABLED = {
+     "pytest.skip",
+@@ -422,6 +449,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
+                 visit(child, prefix)
+ 
+     visit(tree)
++    aliases = python_import_aliases(tree)
+     markers = list(python_noops(tree, path, text))
+     decorator_calls: set[int] = set()
+     for node in ast.walk(tree):
+@@ -438,7 +466,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
+     for node in ast.walk(tree):
+         if not isinstance(node, ast.Call) or id(node) in decorator_calls:
+             continue
+-        name = dotted_name(node.func)
++        name = python_resolved_name(node.func, aliases)
+         if name.rsplit(".", 1)[-1].lower() == "skiptest" or name in PYTHON_RUNTIME_DISABLED:
+             segment = ast.get_source_segment(text, node) or name
+             markers.append(Violation(path, node.lineno, "V3", "new runtime test skip or xfail", normalize(segment)))
+@@ -455,9 +483,8 @@ TS_ASSERTION = re.compile(r"(?<![\w$])(?:assert(?:\s*\.\s*[A-Za-z_$][\w$]*)?|exp
+ TS_ASSERT_CALL = re.compile(
+     r"(?<![\w$])assert(?:\s*\.\s*(?P<method>ok|equal|strictEqual|deepEqual|deepStrictEqual))?\s*\("
+ )
+-TS_EXPECT_NOOP = re.compile(
+-    r"(?<![\w$])expect\s*\(\s*(?P<value>true|false)\s*\)\s*\.\s*toBe\s*\(\s*(?P=value)\s*\)"
+-)
++TS_EXPECT_CALL = re.compile(r"(?<![\w$])expect\s*\(")
++TS_EXPECT_EQUALITY = re.compile(r"\s*\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(")
+ 
+ 
+ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
+@@ -491,21 +518,27 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
+     )
+     for match in TS_ASSERT_CALL.finditer(code):
+         open_index = match.end() - 1
+-        values, original, close_index = call_arguments(source, open_index)
++        values, comparable, close_index = call_arguments(source, open_index)
+         if close_index < 0:
+             continue
+         method = match["method"]
+         noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
+             method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
+-            and len(original) >= 2
+-            and original[0] == original[1]
++            and len(comparable) >= 2
++            and comparable[0] == comparable[1]
+         )
+         if noop:
+             markers.append(violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion"))
+-    markers.extend(
+-        violation(source, path, match.start(), match.end(), "V5", "new constant expect assertion")
+-        for match in TS_EXPECT_NOOP.finditer(code)
+-    )
++    for match in TS_EXPECT_CALL.finditer(code):
++        _, received, close_index = call_arguments(source, match.end() - 1)
++        if close_index < 0 or len(received) != 1:
++            continue
++        chain = TS_EXPECT_EQUALITY.match(code, close_index + 1)
++        if chain is None:
++            continue
++        _, expected, expectation_close = call_arguments(source, chain.end() - 1)
++        if expectation_close >= 0 and len(expected) == 1 and received[0] == expected[0]:
++            markers.append(violation(source, path, match.start(), expectation_close + 1, "V5", "new constant or self-comparing expect assertion"))
+     return TestFile(digest, tuple(tests), tuple(markers))
+ 
+ 
+diff --git a/scripts/tests/test_check_verification_integrity.py b/scripts/tests/test_check_verification_integrity.py
+index 37a0ffb0..1cd968c4 100644
+--- a/scripts/tests/test_check_verification_integrity.py
++++ b/scripts/tests/test_check_verification_integrity.py
+@@ -179,6 +179,7 @@ class JavaIntegrityTest(TreeTest):
+             "assertEquals(value, value)",
+             "assertEquals(value, value, \"message\")",
+             "assertSame(value, value, \"message\")",
++            "assertEquals(value, /* copied value */ value)",
+             "assertThat(true).isTrue()",
+         ):
+             with self.subTest(replacement=replacement):
+@@ -193,7 +194,7 @@ class JavaIntegrityTest(TreeTest):
+         base = self.tree("base", {JAVA_PATH: constant})
+         same = self.tree("same", {JAVA_PATH: constant})
+         self.assertEqual(self.run_check(base, same)[0], 0)
+-        different = JAVA_TEST.replace("assertEquals(2, value)", 'assertEquals("expected", "actual")')
++        different = JAVA_TEST.replace("assertEquals(2, value)", 'assertEquals("expected", /* distinct */ "actual")')
+         head = self.tree("head", {JAVA_PATH: different})
+         self.assertEqual(self.run_check(self.tree("different-base", {JAVA_PATH: JAVA_TEST}), head)[0], 0)
+ 
+@@ -256,6 +257,23 @@ class PythonIntegrityTest(TreeTest):
+                 self.assertIn(": V3: new runtime test skip or xfail", out)
+                 self.assertNotIn(": V4:", out)
+ 
++    def test_imported_pytest_skip_aliases_fail(self):
++        for imports, call in (
++            ("from pytest import skip\n", "skip('reason')"),
++            ("from pytest import xfail as suppress\n", "suppress('reason')"),
++            ("import pytest as p\n", "p.skip('reason')"),
++            ("import pytest as p\n", "p.importorskip('missing')"),
++            ("from pytest import mark as m\n", "m.skip('reason')"),
++        ):
++            with self.subTest(imports=imports, call=call):
++                base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
++                weakened = imports + PYTHON_TEST.replace("self.assertTrue(value)", f"self.assertNotNull(value)\n        {call}")
++                head = self.tree("head", {PYTHON_PATH: weakened})
++                code, out, _ = self.run_check(base, head)
++                self.assertEqual(code, 1)
++                self.assertIn(": V3: new runtime test skip or xfail", out)
++                self.assertNotIn(": V4:", out)
++
+     def test_parametrized_pytest_skip_mark_fails(self):
+         base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+         decorated = PYTHON_TEST.replace(
+@@ -355,7 +373,11 @@ class TypeScriptIntegrityTest(TreeTest):
+         equal_message = TS_TEST.replace("assert.ok(value)", "assert.strictEqual(value, value, 'message')")
+         deep_message = TS_TEST.replace("assert.ok(value)", "assert.deepEqual(value, value, 'message')")
+         expect = TS_TEST.replace("assert.ok(value)", "expect(true).toBe(true)")
+-        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (equal_message, "V5"), (deep_message, "V5"), (expect, "V5")):
++        expect_self = TS_TEST.replace("assert.ok(value)", "expect(value).toBe(value)")
++        expect_equal = TS_TEST.replace("assert.ok(value)", "expect(value).toEqual(value)")
++        expect_strict = TS_TEST.replace("assert.ok(value)", "expect(value).toStrictEqual(value)")
++        commented = TS_TEST.replace("assert.ok(value)", "assert.strictEqual(value, /* copied value */ value)")
++        for head_text, rule in ((weakened, "V4"), (noop, "V5"), (equal, "V5"), (equal_message, "V5"), (deep_message, "V5"), (expect, "V5"), (expect_self, "V5"), (expect_equal, "V5"), (expect_strict, "V5"), (commented, "V5")):
+             with self.subTest(rule=rule, head_text=head_text):
+                 base = self.tree("base", {TS_PATH: TS_TEST})
+                 head = self.tree("head", {TS_PATH: head_text})
+@@ -363,6 +385,13 @@ class TypeScriptIntegrityTest(TreeTest):
+                 self.assertEqual(code, 1)
+                 self.assertIn(f": {rule}:", out)
+ 
++    def test_typescript_different_expect_values_pass(self):
++        for assertion in ("expect(value).toBe(other)", 'expect("expected").toBe("actual")'):
++            with self.subTest(assertion=assertion):
++                base = self.tree("base", {TS_PATH: TS_TEST})
++                head = self.tree("head", {TS_PATH: TS_TEST.replace("assert.ok(value)", assertion)})
++                self.assertEqual(self.run_check(base, head)[0], 0)
++
+ 
+ class InfrastructureTest(TreeTest):
+     def test_protected_add_modify_delete_are_reported_without_failing(self):

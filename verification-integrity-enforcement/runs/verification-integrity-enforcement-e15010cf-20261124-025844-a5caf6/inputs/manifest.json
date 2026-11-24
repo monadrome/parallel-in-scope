@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "verification-integrity-enforcement-e15010cf-20261124-025844-a5caf6",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T02:58:45.258Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "head": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "0e804a8b08a8c5bfcce12e9d831dc44b197b557e",
+    "to": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "label": "0e804a8b..e15010cf"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "2fa14844505b7d9565404c4b178f30eebf5da70535bbbb5ee7718050f15eae35",
+    "bytes": 85838,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/commands.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": ".github/CODEOWNERS",
+        "status": "A",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "status": "M",
+        "additions": 22,
+        "deletions": 0
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "A",
+        "additions": 342,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/check-project-baseline.py",
+        "status": "M",
+        "additions": 24,
+        "deletions": 9
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "A",
+        "additions": 812,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_check_project_baseline.py",
+        "status": "M",
+        "additions": 11,
+        "deletions": 5
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "A",
+        "additions": 476,
+        "deletions": 0
+      },
+      {
+        "path": "verification/verification-integrity.md",
+        "status": "A",
+        "additions": 118,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "20aeda188dcd22006106cdf772d462adcad3a96ebd6595b741744909f79808d3",
+    "bytes": 1490,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "ebdd6498ce97fb66c97c2e0f2ee2e7f88802b4c3fc31a8695b1cbaf530c10b49",
+    "bytes": 2933
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "e15010cf224e9ddbd2dfeca8262f6c1961eddee2",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

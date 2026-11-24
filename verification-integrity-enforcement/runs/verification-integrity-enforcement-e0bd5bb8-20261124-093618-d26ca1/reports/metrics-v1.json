@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "verification-integrity-enforcement-e0bd5bb8-20261124-093618-d26ca1",
+  "version": 1,
+  "createdAt": "2026-11-24T09:46:04.919Z",
+  "inputs": {
+    "dedupVersion": 1,
+    "adjudicationVersion": null,
+    "goldVersion": 1,
+    "reviews": []
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "e0bd5bb8dbef6abcf17c2de4194f640d79ac506c",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "systemsWithUsage": 0,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "kiro": {
+      "identity": {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max"
+      },
+      "status": "failed",
+      "durationMs": 585185,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 0,
+        "adjudicated": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": null,
+        "rejected": null,
+        "neutral": null,
+        "uncertain": null
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": null,
+      "error": "reviewer exited with code 1"
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 0,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "findings": {
+      "total": 0,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "rates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "findingRates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "macro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "systemsAdjudicated": 0
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values",
+    "dedup uses identity clusters; semantic deduplication requires explicit clusters input",
+    "no adjudication version exists; all clusters are pending",
+    "reviewers without a completed review: kiro; failures and timeouts are not treated as empty results"
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-enforcement-e0bd5bb8-20261124-092437-e490c4",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T09:24:37.646Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "e0bd5bb8dbef6abcf17c2de4194f640d79ac506c",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "to": "e0bd5bb8dbef6abcf17c2de4194f640d79ac506c",
+    "label": "06efaae4..e0bd5bb8"
+  },
+  "objective": {
+    "subject": "refactor: restore inline typescript noop scanners",
+    "body": "Withdraws R3 after refactoring-review verify measured growth ratio 0.5104 above the 0.3 stop rule. Restores the behavior-head implementation without test changes; R2 remains a duplicate deferred extraction and R6 remains reverted for the V4 oracle violation."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "d1db50f5d4afd5e77291804400f47990acb387deb472d87a77dab225ccb57329",
+    "bytes": 17676,
+    "files": [
+      {
+        "path": ".agents/skills/multi-review/SKILL.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": ".agents/skills/project-delivery/references/review.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 6
+      },
+      {
+        "path": "ledger/2026-11-23-verification-integrity-gate.json",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 51,
+        "deletions": 18
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 31,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "4e02493af87189d9c2abc8405a425f82bee16a9fea3523a9a057b4d197d091e5",
+    "bytes": 1700,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "e0bd5bb8dbef6abcf17c2de4194f640d79ac506c",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
