@@ -307,6 +307,18 @@ def template_side_effect(source: Source, start: int, end: int) -> bool:
     return False
 
 
+def typescript_fresh_identity_literal(source: Source, start: int, end: int) -> bool:
+    opening = source.comparison_view[start]
+    if opening in "{[":
+        close = matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]")
+        suffix = normalize(source.comparison_view[close + 1:end]) if close >= 0 else ""
+        return close >= 0 and (not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix) is not None)
+    if opening == "/" and start in source.literal_spans:
+        suffix = normalize(source.comparison_view[source.literal_spans[start]:end])
+        return not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix) is not None
+    return False
+
+
 def self_comparing(
     source: Source,
     left_span: tuple[int, int],
@@ -324,17 +336,8 @@ def self_comparing(
         return False
     if javascript and (TAGGED_TEMPLATE.search(operand) or template_side_effect(source, start, end)):
         return False
-    if by_identity and javascript:
-        opening = source.comparison_view[start]
-        if opening in "{[":
-            close = matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]")
-            suffix = normalize(source.comparison_view[close + 1:end]) if close >= 0 else ""
-            if close >= 0 and (not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix)):
-                return False
-        if source.comparison_view[start] == "/" and start in source.literal_spans:
-            suffix = normalize(source.comparison_view[source.literal_spans[start]:end])
-            if not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix):
-                return False
+    if by_identity and javascript and typescript_fresh_identity_literal(source, start, end):
+        return False
     return True
 
 
@@ -474,15 +477,19 @@ def dotted_name(node: ast.AST) -> str:
     return ""
 
 
+def is_pytest_module(module: str | None) -> bool:
+    return module is not None and (module == "pytest" or module.startswith("pytest."))
+
+
 def python_pytest_imports(tree: ast.AST) -> tuple[dict[str, str], list[str]]:
     aliases: dict[str, str] = {}
     wildcard_imports: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.asname and (alias.name == "pytest" or alias.name.startswith("pytest.")):
+                if alias.asname and is_pytest_module(alias.name):
                     aliases[alias.asname] = alias.name
-        elif isinstance(node, ast.ImportFrom) and node.module and (node.module == "pytest" or node.module.startswith("pytest.")):
+        elif isinstance(node, ast.ImportFrom) and is_pytest_module(node.module):
             for alias in node.names:
                 if alias.name == "*":
                     wildcard_imports.append(node.module)
@@ -532,7 +539,7 @@ def python_function_bindings(function: ast.FunctionDef | ast.AsyncFunctionDef) -
                         continue
                     module = child.module if isinstance(child, ast.ImportFrom) else alias.name
                     binding = alias.asname or alias.name.split(".")[0]
-                    if module is not None and (module == "pytest" or module.startswith("pytest.")):
+                    if is_pytest_module(module):
                         names.discard(binding)
                     else:
                         names.add(binding)
