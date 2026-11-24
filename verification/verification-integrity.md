@@ -20,6 +20,13 @@ The gate scans Java tests under every `src/test` directory, Python
 | V5 constant assertion | The head adds a constant-true/false or self-comparing assertion, including self-comparisons with trailing message or delta arguments. Existing occurrences are grandfathered by baseline subtraction. |
 | V6 owner-protection loss | A required `.github/CODEOWNERS` entry is absent or no longer contains `@monadrome`, a later matching rule removes that owner's effective coverage of a protected file (including an ownerless rule), or the file reaches GitHub's 3 MB loading limit. This rule has no exception mechanism. |
 
+V5 ignores self-comparison text containing calls, assignments, construction,
+updates, or other potentially side-effecting expressions. JavaScript identity
+matchers do not treat newly allocated objects, arrays, or regular expressions
+as the same reference; deep-equality matchers still reject structural
+self-comparisons. Literal contents, including internal whitespace, remain
+significant when comparing operands.
+
 Java assertions are `assertXxx`, `fail`, and Mockito `verify` calls. Python uses
 the AST to count `assert` statements, `assertXxx` calls, and `pytest.raises` or
 `pytest.warns`. TypeScript counts `assert` and `expect` calls. Counts are

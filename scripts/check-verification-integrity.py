@@ -159,7 +159,7 @@ def javascript_regex_span(text: str, start: int) -> tuple[int, int] | None:
 
 
 def mask_c_like(text: str, javascript: bool = False) -> Source:
-    """Return masked code and a comment-free comparison view, preserving offsets."""
+    """Return masked code, a comment-free comparison view, and literal spans."""
     out: list[str] = []
     comparable_out: list[str] = []
     literals: dict[int, int] = {}
@@ -239,7 +239,7 @@ def split_arguments(code: str, open_index: int, close_index: int) -> list[tuple[
     return spans
 
 
-def normalize_comparison(source: Source, start: int, end: int) -> str:
+def comparison_span(source: Source, start: int, end: int) -> tuple[int, int]:
     while start < end:
         while start < end and source.comparable[start].isspace():
             start += 1
@@ -249,9 +249,14 @@ def normalize_comparison(source: Source, start: int, end: int) -> str:
             break
         start += 1
         end -= 1
+    return start, end
+
+
+def comparison_form(source: Source, start: int, end: int) -> str:
+    start, end = comparison_span(source, start, end)
     parts = []
     cursor = start
-    for literal_start, literal_end in source.literals.items():
+    for literal_start, literal_end in sorted(source.literals.items()):
         if literal_end <= start:
             continue
         if literal_start >= end:
@@ -269,31 +274,38 @@ C_LIKE_ASSIGNMENT = re.compile(r"(?<![=!<>])(?:\+|-|\*|/|%|&|\||\^|>>>|>>|<<)?=(
 TAGGED_TEMPLATE = re.compile(r"[\w$)\]]\s*`")
 
 
-def self_comparing(left: str, right: str, javascript: bool, identity: bool) -> bool:
-    if not left or left != right:
+def self_comparing(
+    source: Source,
+    left_span: tuple[int, int],
+    right_span: tuple[int, int],
+    javascript: bool,
+    by_identity: bool,
+) -> bool:
+    if comparison_form(source, *left_span) != comparison_form(source, *right_span):
         return False
-    for operand in (left, right):
-        code = mask_c_like(operand, javascript).code
-        if C_LIKE_SIDE_EFFECT.search(code) or C_LIKE_CALL.search(code) or C_LIKE_ASSIGNMENT.search(code):
+    start, end = comparison_span(source, *left_span)
+    if start == end:
+        return False
+    operand = source.code[start:end]
+    if C_LIKE_SIDE_EFFECT.search(operand) or C_LIKE_CALL.search(operand) or C_LIKE_ASSIGNMENT.search(operand):
+        return False
+    if javascript and TAGGED_TEMPLATE.search(source.comparable[start:end]):
+        return False
+    if by_identity and javascript:
+        if source.comparable[start] in "{[":
             return False
-        if javascript and TAGGED_TEMPLATE.search(operand):
+        if source.comparable[start] == "/" and source.literals.get(start) == end:
             return False
-        if identity and javascript:
-            if operand.startswith(("{", "[")):
-                return False
-            if operand.startswith("/") and (span := javascript_regex_span(operand, 0)) is not None and span[1] == len(operand):
-                return False
     return True
 
 
-def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[str], int]:
+def call_arguments(source: Source, open_index: int) -> tuple[list[str], list[tuple[int, int]], int]:
     close_index = matching_delimiter(source.code, open_index)
     if close_index < 0:
         return [], [], -1
     arguments = split_arguments(source.code, open_index, close_index)
     values = [normalize(source.code[start:end]) for start, end in arguments]
-    comparable = [normalize_comparison(source, start, end) for start, end in arguments]
-    return values, comparable, close_index
+    return values, arguments, close_index
 
 
 def skip_space(code: str, index: int) -> int:
@@ -369,7 +381,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
         if name not in {"assertTrue", "assertFalse", "assertEquals", "assertSame", "assertThat"}:
             continue
         open_index = match.end() - 1
-        values, comparable, close_index = call_arguments(source, open_index)
+        values, arguments, close_index = call_arguments(source, open_index)
         if close_index < 0:
             continue
         noop = False
@@ -378,7 +390,7 @@ def java_noops(source: Source, path: str) -> Iterator[Violation]:
             noop = True
         elif name == "assertFalse" and values and (values[0] == "false" or values[-1] == "false"):
             noop = True
-        elif name in {"assertEquals", "assertSame"} and len(comparable) >= 2 and self_comparing(comparable[0], comparable[1], False, False):
+        elif name in {"assertEquals", "assertSame"} and len(arguments) >= 2 and self_comparing(source, arguments[0], arguments[1], False, False):
             noop = True
         elif name == "assertThat" and values in (["true"], ["false"]):
             chain = re.match(r"\s*\.\s*(?P<method>isTrue|isFalse)\s*\(\s*\)", code[end:])
@@ -575,14 +587,14 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
     )
     for match in TS_ASSERT_CALL.finditer(code):
         open_index = match.end() - 1
-        values, comparable, close_index = call_arguments(source, open_index)
+        values, arguments, close_index = call_arguments(source, open_index)
         if close_index < 0:
             continue
         method = match["method"]
         noop = (method in {None, "ok"} and values[:1] == ["true"]) or (
             method in {"equal", "strictEqual", "deepEqual", "deepStrictEqual"}
-            and len(comparable) >= 2
-            and self_comparing(comparable[0], comparable[1], True, method in {"equal", "strictEqual"})
+            and len(arguments) >= 2
+            and self_comparing(source, arguments[0], arguments[1], True, method in {"equal", "strictEqual"})
         )
         if noop:
             markers.append(violation(source, path, match.start(), close_index + 1, "V5", "new constant or self-comparing assertion"))
@@ -594,7 +606,7 @@ def scan_typescript(path: str, text: str, digest: str) -> TestFile:
         if chain is None:
             continue
         _, expected, expectation_close = call_arguments(source, chain.end() - 1)
-        if expectation_close >= 0 and len(expected) == 1 and self_comparing(received[0], expected[0], True, chain["method"] == "toBe"):
+        if expectation_close >= 0 and len(expected) == 1 and self_comparing(source, received[0], expected[0], True, chain["method"] == "toBe"):
             markers.append(violation(source, path, match.start(), expectation_close + 1, "V5", "new constant or self-comparing expect assertion"))
     return TestFile(digest, tuple(tests), tuple(markers))
 
