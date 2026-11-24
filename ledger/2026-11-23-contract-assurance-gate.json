@@ -273,6 +273,168 @@
           "systemsTotal": 1,
           "costsByCurrency": []
         }
+      },
+      {
+        "runId": "contract-assurance-audit-remediation-4106c379-20261124-091836-cd3938",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 556501,
+            "findings": {
+              "total": 4,
+              "adjudicated": 4,
+              "confirmed": 4,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 4,
+          "adjudicated": 4,
+          "confirmed": 4,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "contract-assurance-audit-remediation-85451d8a-20261124-093740-b14d42",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 494140,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095244-58c501",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 7092,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "contract-assurance-audit-remediation-4b20479a-20261124-095413-6b429a",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 729683,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 0,
+              "rejected": 1,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 113544,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 0,
+          "rejected": 1,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 113544,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
       }
     ],
     "refactoring": [
@@ -283,7 +445,9 @@
         "findings": [
           {
             "id": "R1",
-            "rules": ["T04"],
+            "rules": [
+              "T04"
+            ],
             "tier": "T0",
             "scope": "in-diff",
             "mechanizable": false,
@@ -291,7 +455,9 @@
           },
           {
             "id": "R2",
-            "rules": ["T05"],
+            "rules": [
+              "T05"
+            ],
             "tier": "T0",
             "scope": "in-diff",
             "mechanizable": false,
@@ -299,7 +465,9 @@
           },
           {
             "id": "R3",
-            "rules": ["T04"],
+            "rules": [
+              "T04"
+            ],
             "tier": "T0",
             "scope": "in-diff",
             "mechanizable": false,
@@ -314,7 +482,9 @@
         "findings": [
           {
             "id": "R1",
-            "rules": ["T04"],
+            "rules": [
+              "T04"
+            ],
             "tier": "T0",
             "scope": "in-diff",
             "mechanizable": false,
@@ -322,7 +492,9 @@
           },
           {
             "id": "R2",
-            "rules": ["T04"],
+            "rules": [
+              "T04"
+            ],
             "tier": "T0",
             "scope": "in-diff",
             "mechanizable": false,
@@ -330,7 +502,32 @@
           },
           {
             "id": "R3",
-            "rules": ["T05"],
+            "rules": [
+              "T05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          }
+        ]
+      },
+      {
+        "run": "refactoring-contract-assurance-policy-fix-2026-11-24",
+        "head": "85451d8a2dc6efd9f60008ba8a2b1bcb8edbe235",
+        "incompleteAgents": 1,
+        "findings": []
+      },
+      {
+        "run": "refactoring-contract-assurance-policy-validation-2026-11-24",
+        "head": "4b20479a9dd5180b305a57cac8bea89d53cf5338",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "T04"
+            ],
             "tier": "T0",
             "scope": "in-diff",
             "mechanizable": false,
@@ -342,7 +539,13 @@
   },
   "gates": {
     "failures": {
-      "review tool build": 1
+      "review tool build": 1,
+      "mvn test (default JDK enforcer)": 1,
+      "Codex refactoring detector": 1,
+      "Kiro refactoring runner": 1,
+      "Kiro monthly-quota review": 1,
+      "assurance candidate fixture contract": 1,
+      "assurance promotion adapter": 1
     }
   },
   "pit": [],
@@ -355,5 +558,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "assurance: originally SKIPPED for an agent-workflow-only change; the independent review then identified silent-false-success risk, so the current remediation requires the assurance gate. PIT: SKIPPED — Python assurance tooling and workflow documents only; no affected core Java production classes or mutation sites. Retrospective refactoring-review completed with R1/R3 reverted by the growth stop rule and R2 rejected because the rename had already landed. Fixed-model review used kiro-cli 3.5.0 with provider kiro, model gpt-5.6-terra, effort max; the Codex gpt-6.1-terra attempt failed because the provider did not support that model and is retained as failed evidence. Kiro confirmed five verifier defects, all fixed in ff9410715e0a2788aaa43484ef91f4944a7969ba; its follow-up refactoring run deferred three test-only suggestions with reasons in the run report."
+  "notes": "assurance: originally SKIPPED for an agent-workflow-only change; the independent review then identified silent-false-success risk, so the current remediation requires the assurance gate. PIT: SKIPPED — Python assurance tooling and workflow documents only; no affected core Java production classes or mutation sites. Retrospective refactoring-review completed with R1/R3 reverted by the growth stop rule and R2 rejected because the rename had already landed. Fixed-model review used kiro-cli 3.5.0 with provider kiro, model gpt-5.6-terra, effort max; the Codex gpt-6.1-terra attempt failed because the provider did not support that model and is retained as failed evidence. Kiro confirmed five verifier defects, all fixed in ff9410715e0a2788aaa43484ef91f4944a7969ba; its follow-up refactoring run deferred three test-only suggestions with reasons in the run report. Follow-up Kiro review at the first remediation head confirmed four defects; the next Kiro review confirmed two more, for eleven confirmed defects fixed across the remediation. Final Codex review used codex-cli 0.169.0, provider magpie, model deepseek-v4-pro; its schema-v3 P3 was rejected with confidence 0.85 because rejecting legacy false-success manifests is intentional and no compatibility contract requires v3. The final Kiro attempt failed on MONTHLY_REQUEST_COUNT and is retained as failed evidence. Final Kimi refactoring review deferred one repeated helper-growth suggestion; the earlier Codex detector timed out with a modified snapshot and Kiro is unsupported by that runner. Assurance rounds retain their FAIL/BLOCKED history; the same-head promotion continuation is recorded separately."
 }
