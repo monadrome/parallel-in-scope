@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "contract-assurance-audit-remediation-3434e3fd-20261124-151740-2bff31",
+  "status": "failed",
+  "createdAt": "2026-11-24T15:17:40.866Z",
+  "updatedAt": "2026-11-24T15:26:59.371Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:17:40.888Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "timed_out",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "timed_out",
+            "startedAt": "2026-11-24T15:17:40.895Z",
+            "endedAt": "2026-11-24T15:26:56.367Z",
+            "durationMs": 554888,
+            "exitCode": null,
+            "timedOut": true,
+            "error": "review exceeded the hard timeout of 540s; process group was terminated",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-24T15:26:56.591Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:26:57.692Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:26:58.326Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:26:59.178Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-24T15:17:40.866Z",
+      "error": null
+    }
+  },
+  "eventSeq": 51
+}

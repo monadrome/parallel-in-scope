@@ -1,0 +1,161 @@
+diff --git a/.agents/skills/contract-first-assurance/references/host-adapter.md b/.agents/skills/contract-first-assurance/references/host-adapter.md
+index eebf0e4b..8f400c63 100644
+--- a/.agents/skills/contract-first-assurance/references/host-adapter.md
++++ b/.agents/skills/contract-first-assurance/references/host-adapter.md
+@@ -72,11 +72,15 @@ rather than a passing assurance gate.
+ 
+ For mutation-enabled repositories, `mutation_policy` may define
+ `accepted_dispositions`. Each disposition names the evidence required before a
+-raw mutation status may be accepted as an exception. The orchestrator must
+-retain the raw status and record the disposition, evidence references, and
+-approver in the run manifest. An accepted exception affects the gate result;
+-it never changes the mutation XML or raw status. An unresolved timeout,
+-memory error, worker failure, missing XML, or incomplete log remains
++raw mutation status may be accepted as an exception. When translating this YAML
++configuration into `adapter.acceptedDispositions` in the JSON run manifest, the
++orchestrator MUST map `allowed_raw_statuses` to `allowedRawStatuses` and
++`required_evidence` to `requiredEvidence`. It MUST NOT copy the snake_case keys
++into the manifest or add aliases to the strict manifest validator. The
++orchestrator must retain the raw status and record the disposition, evidence
++references, and approver in the run manifest. An accepted exception affects the
++gate result; it never changes the mutation XML or raw status. An unresolved
++timeout, memory error, worker failure, missing XML, or incomplete log remains
+ `INCONCLUSIVE`.
+ 
+ The current gate names are `narrow-checks`, `docs`, `regression-tests`,
+diff --git a/scripts/tests/test_c0001_wrong_policy_field.py b/scripts/tests/test_c0001_wrong_policy_field.py
+new file mode 100644
+index 00000000..3250080b
+--- /dev/null
++++ b/scripts/tests/test_c0001_wrong_policy_field.py
+@@ -0,0 +1,28 @@
++"""Promoted regression test for contract C-0001 (candidate CONTRACT-TDD-008).
++
++Rejects a policy using ``rawStatuses`` instead of ``allowedRawStatuses``.
++"""
++import unittest
++
++try:
++    from tests import test_verify_run as _fixture
++except ImportError:
++    import test_verify_run as _fixture
++
++
++class ContractVerifierTest(unittest.TestCase):
++    def setUp(self):
++        self._verify = _fixture.VerifyRunTest()
++        self.addCleanup(self._verify.doCleanups)
++
++    def test_CONTRACT_TDD_008_C0001_wrong_policy_field(self):
++        policy = self._verify.mutation_policy()
++        policy["EXPECTED_MUTATION_LIVENESS"].pop("allowedRawStatuses")
++        policy["EXPECTED_MUTATION_LIVENESS"]["rawStatuses"] = ["TIMED_OUT"]
++        run = self._verify.make_run(self._verify.exception(), policy)
++        errors = _fixture.verify_run.verify(run)
++        self.assertTrue(errors, "expected one or more errors, got []")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/scripts/tests/test_c0002_non_object_policy.py b/scripts/tests/test_c0002_non_object_policy.py
+new file mode 100644
+index 00000000..95da748e
+--- /dev/null
++++ b/scripts/tests/test_c0002_non_object_policy.py
+@@ -0,0 +1,26 @@
++"""Promoted regression test for contract C-0002 (candidate CONTRACT-TDD-013).
++
++Rejects an unused non-object accepted-disposition policy.
++"""
++import unittest
++
++try:
++    from tests import test_verify_run as _fixture
++except ImportError:
++    import test_verify_run as _fixture
++
++
++class ContractVerifierTest(unittest.TestCase):
++    def setUp(self):
++        self._verify = _fixture.VerifyRunTest()
++        self.addCleanup(self._verify.doCleanups)
++
++    def test_CONTRACT_TDD_013_C0002_unused_policy_non_object(self):
++        policy = {"EXPECTED_MUTATION_LIVENESS": "not-an-object"}
++        run = self._verify.make_run(None, policy, final_gate="PASS")
++        errors = _fixture.verify_run.verify(run)
++        self.assertTrue(errors, "expected one or more errors, got []")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/scripts/tests/test_c0003_absolute_input_path.py b/scripts/tests/test_c0003_absolute_input_path.py
+new file mode 100644
+index 00000000..13c26092
+--- /dev/null
++++ b/scripts/tests/test_c0003_absolute_input_path.py
+@@ -0,0 +1,26 @@
++"""Promoted regression test for contract C-0003 (candidate CONTRACT-TDD-015).
++
++Rejects an absolute frozen-input path.
++"""
++import unittest
++
++try:
++    from tests import test_verify_run as _fixture
++except ImportError:
++    import test_verify_run as _fixture
++
++
++class ContractVerifierTest(unittest.TestCase):
++    def setUp(self):
++        self._verify = _fixture.VerifyRunTest()
++        self.addCleanup(self._verify.doCleanups)
++
++    def test_CONTRACT_TDD_015_C0003_absolute_input_path(self):
++        run = self._verify.make_run(None, {}, final_gate="PASS")
++        self._verify.update_manifest(run, inputs={"/inputs/abs.md": "0" * 64})
++        errors = _fixture.verify_run.verify(run)
++        self.assertTrue(errors, "expected one or more errors, got []")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/scripts/tests/test_c0004_nested_input_symlink.py b/scripts/tests/test_c0004_nested_input_symlink.py
+new file mode 100644
+index 00000000..a2242321
+--- /dev/null
++++ b/scripts/tests/test_c0004_nested_input_symlink.py
+@@ -0,0 +1,32 @@
++"""Promoted regression test for contract C-0004 (candidate CONTRACT-TDD-021).
++
++Rejects a nested input symlink chain resolving to a root output.
++"""
++import hashlib
++import unittest
++from pathlib import Path
++
++try:
++    from tests import test_verify_run as _fixture
++except ImportError:
++    import test_verify_run as _fixture
++
++
++class ContractVerifierTest(unittest.TestCase):
++    def setUp(self):
++        self._verify = _fixture.VerifyRunTest()
++        self.addCleanup(self._verify.doCleanups)
++
++    def test_CONTRACT_TDD_021_C0004_nested_input_symlink(self):
++        run = self._verify.make_run(None, {}, final_gate="PASS")
++        alias = run / "inputs" / "nested.md"
++        alias.symlink_to(Path("mid.md"))
++        (run / "inputs" / "mid.md").symlink_to(Path("..") / "contract.md")
++        digest = hashlib.sha256(alias.read_bytes()).hexdigest()
++        self._verify.update_manifest(run, inputs={"inputs/nested.md": digest})
++        errors = _fixture.verify_run.verify(run)
++        self.assertTrue(errors, "expected one or more errors, got []")
++
++
++if __name__ == "__main__":
++    unittest.main()
