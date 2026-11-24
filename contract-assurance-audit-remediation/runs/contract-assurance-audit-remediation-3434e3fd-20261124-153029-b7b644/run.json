@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T15:30:30.560Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation"
+  },
+  "commits": {
+    "base": "c3400a6b18ca09fe6ce7fed16787e28136f7946c",
+    "head": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "magpie",
+        "model": "deepseek-v4-pro",
+        "revision": null,
+        "effort": null,
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 900,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "9946ab0f889200291bed6705338110cf6f932cb6932dd50d9f1a4a145f420e85",
+    "contextJsonSha256": "0eaa7f05fc2f41c3cf03831de5b57aae44b150a3e6239dfb4341f414ca483fd8",
+    "diffSha256": "463ba6f67a029650c0954655e2711ce43a169db02e5162631d7b106d3f1803da",
+    "caseManifestSha256": "75785cbfc90452482077748e316bded54d3799769ad7d4b0f1c26dfeb6403e2f",
+    "promptSha256": "d27ba215e8cfd7b6b95ee06db0a3a236c076358c8966cd3dc1c80052ff6a73f5"
+  },
+  "promptPath": "inputs/prompt.md"
+}

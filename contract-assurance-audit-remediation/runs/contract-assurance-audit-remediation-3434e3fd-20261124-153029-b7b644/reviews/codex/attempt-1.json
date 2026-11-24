@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-24T15:30:30.603Z",
+  "endedAt": "2026-11-24T15:34:32.828Z",
+  "durationMs": 242007,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek-v4-pro",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from c3400a6b18ca09fe6ce7fed16787e28136f7946c to 3434e3fd7a798a48db8efa3e2f51ea4fce151bd9. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review Context\n\n## Objective\n\nReview the follow-up documentation clarification and four promoted Python regression tests as one incremental change. The full implementation and earlier ledger were reviewed separately; this scope contains only the host-adapter key-mapping clarification and the four new test files.\n\n## Review Focus\n\n- The YAML-to-JSON mapping must name `accepted_dispositions` -> `adapter.acceptedDispositions`, `allowed_raw_statuses` -> `allowedRawStatuses`, and `required_evidence` -> `requiredEvidence`. It must preserve strict rejection of aliases rather than instructing verifier changes.\n- Each promoted test must preserve its sealed candidate ID and contract ID, exercise the public `verify()` behavior, and retain the intended precondition mutation and assertion.\n- There must be exactly one new test per contract, no inherited fixture-test repetition, no skip, no production modification, and no duplicate candidate promotion.\n- Both direct `scripts/tests` discovery and canonical `scripts` discovery must remain importable. The observed counts increased by exactly four: 360 -> 364 and 473 -> 477.\n\n## Routing Confirmation\n\nApply `.agents/skills/project-delivery/references/assurance.md` to these later commits. The required implementation assurance run already passed at the frozen semantic head. This increment clarifies existing documentation and adds the run's promoted tests without changing production semantics or weakening oracles. In the review summary, explicitly state whether the later `assurance: SKIPPED` disposition is confirmed; if it is not, report a concrete finding. Do not demand a second run merely because tests or documentation changed when the threshold conditions are not met.\n\nJava consumer checks are not applicable and Java PIT remains skipped because no Java production class or mutation site changed. Do not report style-only preferences or speculative concerns without a concrete trigger and consequence.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation/.review-benchmark/runs/contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "magpie",
+    "model": "deepseek-v4-pro",
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 66499,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The change adds a host-adapter key-mapping clarification and four promoted regression tests (C-0001 through C-0004) that each exercise the public verify_run.verify() behavior through the shared VerifyRunTest fixture. I confirmed the doc names accepted_dispositions -> adapter.acceptedDispositions and maps allowed_raw_statuses -> allowedRawStatuses and required_evidence -> requiredEvidence while instructing the orchestrator (not the verifier) to reject snake_case aliases. Each test preserves its sealed candidate ID and contract ID, performs one distinct precondition mutation with a non-empty-error assertion that discriminates the intended rejection boundary, has no skip, does not inherit fixture test methods, and changes no production code; both the direct scripts/tests and canonical scripts import paths resolve. The later `assurance: SKIPPED` disposition is confirmed: the documentation edit leaves library requirements unchanged and the added tests only strengthen behavioral evidence, so no run-required threshold condition holds.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

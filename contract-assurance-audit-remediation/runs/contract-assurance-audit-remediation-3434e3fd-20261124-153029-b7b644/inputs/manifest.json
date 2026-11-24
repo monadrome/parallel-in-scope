@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T15:30:30.545Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/contract-assurance-audit-remediation",
+    "name": "contract-assurance-audit-remediation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "c3400a6b18ca09fe6ce7fed16787e28136f7946c",
+    "head": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "c3400a6b18ca09fe6ce7fed16787e28136f7946c",
+    "to": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
+    "label": "c3400a6b..3434e3fd"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "463ba6f67a029650c0954655e2711ce43a169db02e5162631d7b106d3f1803da",
+    "bytes": 6424,
+    "files": [
+      {
+        "path": ".agents/skills/contract-first-assurance/references/host-adapter.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 5
+      },
+      {
+        "path": "scripts/tests/test_c0001_wrong_policy_field.py",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_c0002_non_object_policy.py",
+        "status": "A",
+        "additions": 26,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_c0003_absolute_input_path.py",
+        "status": "A",
+        "additions": 26,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/tests/test_c0004_nested_input_symlink.py",
+        "status": "A",
+        "additions": 32,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "9946ab0f889200291bed6705338110cf6f932cb6932dd50d9f1a4a145f420e85",
+    "bytes": 1964,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "0eaa7f05fc2f41c3cf03831de5b57aae44b150a3e6239dfb4341f414ca483fd8",
+    "bytes": 2930
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "3434e3fd7a798a48db8efa3e2f51ea4fce151bd9",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
