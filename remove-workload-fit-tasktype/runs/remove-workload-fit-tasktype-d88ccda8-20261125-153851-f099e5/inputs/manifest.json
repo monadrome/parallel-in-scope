@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-workload-fit-tasktype-d88ccda8-20261125-153851-f099e5",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T15:38:52.467Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "6fb1ad345fb161bf3921aab71430b57575e7baa9",
+    "head": "d88ccda8c64d56519101dda826a78c277bfd043f",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "6fb1ad345fb161bf3921aab71430b57575e7baa9",
+    "to": "d88ccda8c64d56519101dda826a78c277bfd043f",
+    "label": "6fb1ad34..d88ccda8"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "7f0ce405c5a39c0aac2912024d9ecc3f0c7a11ab3eeda7545c4f2db362598a7b",
+    "bytes": 14325,
+    "files": [
+      {
+        "path": "ledger/2026-11-25-remove-workload-fit-tasktype.json",
+        "status": "A",
+        "additions": 504,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "4b29fc7a3bff634317a242af7765d6a32ed3af11ad10e3acc6bcda8f9a773500",
+    "bytes": 2208,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "1380ce3f8373daf951afcf510c7e076887eb44f7377cc37c982822f173824591",
+    "bytes": 1636
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "d88ccda8c64d56519101dda826a78c277bfd043f",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

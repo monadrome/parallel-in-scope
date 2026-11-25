@@ -1,0 +1,61 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+Nov 25, 2026 5:53:54 AM io.github.monadrome.parallelinscope.ParRuntime lambda$runtimeFor$0
+WARNING: Par 'ct015-fjp' is registered with java.util.concurrent.ForkJoinPool, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 25, 2026 5:53:54 AM io.github.monadrome.parallelinscope.ExecutorWaitGraph lambda$announceNewComponents$0
+WARNING: Potential executor deadlock: Component[members=1, cycle=1, witnesses=1]. A task execution on each of these starvation-prone pools synchronously waits for work queued on the next, so under load every worker of the cycle can wait for work queued behind itself. This is a wait structure the ParRuntime has observed at some point, not proof that the waits overlap or that threads are deadlocked now; see ParRuntime.executorWaitReport().
+Nov 25, 2026 5:53:57 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct007-member' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:53:58 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct007-combine' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:53:58 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct013-entry' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:53:58 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct010-plainBatch' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:53:59 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct008-a' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:53:59 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct008-b' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:53:59 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct006-entry' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:01 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct012-entry' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:06 AM io.github.monadrome.parallelinscope.ParRuntime lambda$runtimeFor$0
+WARNING: Par 'ct015-fjp' is registered with java.util.concurrent.ForkJoinPool, which this library cannot see through: blocking-risk detection is disabled for it. If this executor only decorates a physical ThreadPoolExecutor, register that pool itself instead of the wrapper to keep it. An executor that starts a fresh thread per task, such as Executors.newVirtualThreadPerTaskExecutor(), cannot be starved by a child queued on the same pool, so this feature does not apply to it.
+Nov 25, 2026 5:54:06 AM io.github.monadrome.parallelinscope.ExecutorWaitGraph lambda$announceNewComponents$0
+WARNING: Potential executor deadlock: Component[members=1, cycle=1, witnesses=1]. A task execution on each of these starvation-prone pools synchronously waits for work queued on the next, so under load every worker of the cycle can wait for work queued behind itself. This is a wait structure the ParRuntime has observed at some point, not proof that the waits overlap or that threads are deadlocked now; see ParRuntime.executorWaitReport().
+Nov 25, 2026 5:54:10 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct007-member' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:11 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct007-combine' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:11 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct013-entry' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:12 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct010-plainBatch' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:15 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct008-a' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:15 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct008-b' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:15 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct006-entry' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:17 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+WARNING: Par 'ct012-entry' requested rejectEnqueue, but its executor java.util.concurrent.ThreadPoolExecutor does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there: what happens to an element that cannot start at once is left to the executor's own queue and rejection policy. Register a ThreadPoolExecutor whose work queue is a SubmissionAwareBlockingQueue to make the option effective.
+Nov 25, 2026 5:54:19 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'ct003-batch' failed after cancellation
+java.lang.IllegalStateException: java.lang.InterruptedException
+	at io.github.monadrome.parallelinscope.assurance.ContractTdd003RefusingElementRejectedAtMaxTest.lambda$refusingElementIsRejectedAtMaximumPoolSize$1(ContractTdd003RefusingElementRejectedAtMaxTest.java:75)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at io.github.monadrome.parallelinscope.assurance.ContractTdd003RefusingElementRejectedAtMaxTest.lambda$refusingElementIsRejectedAtMaximumPoolSize$1(ContractTdd003RefusingElementRejectedAtMaxTest.java:72)
+	... 7 more
+

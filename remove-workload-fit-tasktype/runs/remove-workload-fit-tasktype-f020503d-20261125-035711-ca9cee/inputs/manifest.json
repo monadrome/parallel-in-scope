@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T03:57:13.445Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "e57602a8288542b2d9090a37bf95188445da6df7",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "e57602a8288542b2d9090a37bf95188445da6df7",
+    "to": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "label": "e57602a8..f020503d"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "0baefc9633069644dce6477dcdaad6f28c8f153d9eab48351a96473bbc51f53f",
+    "bytes": 2808,
+    "files": [
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java",
+        "status": "M",
+        "additions": 36,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "4a11ba91ddf3eae3b1659b4ef744be35433321930222ba5f0eb755fd85690671",
+    "bytes": 3179,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "fb04ea0ad9293fcb11241a114cc2b2c9fd04808b473305e745cc0d6b2341a870",
+    "bytes": 2825
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

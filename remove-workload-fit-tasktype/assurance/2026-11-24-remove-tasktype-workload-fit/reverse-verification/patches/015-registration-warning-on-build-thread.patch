@@ -1,0 +1,11 @@
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+@@ -147,7 +147,7 @@
+         ExecutorService introspectable = TtlUnwrap.unwrap(executor);
+         if (!(introspectable instanceof ThreadPoolExecutor)) {
+             Announcements.deliver(
+-                    announcements,
++                    Runnable::run,
+                     () -> LOGGER.warning(
+                             "Par '" + id + "' is registered with "
+                                     + executor.getClass().getName()

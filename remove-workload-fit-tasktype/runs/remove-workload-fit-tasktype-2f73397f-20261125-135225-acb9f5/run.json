@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T13:52:26.126Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype"
+  },
+  "commits": {
+    "base": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "head": "2f73397fc9c506f645718f65790d9a15cfe9e37a",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kimi",
+        "version": "2.7.3",
+        "provider": "kimi-code",
+        "model": "kimi-code/k3.1-pro",
+        "revision": null,
+        "effort": "high",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1500,
+      "reviewSeconds": 1200,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "eb46052df55e99054477427678d663fbbc9a2eb49377117f5ac8d602b9006110",
+    "contextJsonSha256": "2f07f1fa064ceb0159ffceef55db17a6d0d4354aa15fc7b6bfa24ff99b80905a",
+    "diffSha256": "5c9417af7cfe881000aabac2d8204b010dfc7895f7ba68d0a5b24c20cfedbcf3",
+    "caseManifestSha256": "2c060b2a1c3c1b9e7faa5dad3d75d1dc04b7ba5d4f3fe8eff9a4bf5e19b594e5",
+    "promptSha256": "18d5ae19312b569a28244c32ed4231f5108dc40e525d2473082f3bb6a122468e"
+  },
+  "promptPath": "inputs/prompt.md"
+}

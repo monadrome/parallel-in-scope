@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-e822d3f5-20261125-154419-56bbd6",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T15:44:20.728Z",
+  "endedAt": "2026-11-25T15:44:51.533Z",
+  "durationMs": 30421,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 6fb1ad345fb161bf3921aab71430b57575e7baa9 to e822d3f57649b9fdeabe5cc9d99663d7840e547d. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-e822d3f5-20261125-154419-56bbd6/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-e822d3f5-20261125-154419-56bbd6/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: delivery ledger re-review\n\nReview `6fb1ad34..e822d3f5` read-only. The implementer is Claude (Opus). Do not edit files, run\nMaven, or commit. You may run read-only commands such as `git`, `grep`, `sed -n`, `ls`, and\n`python3 -c` for JSON reading.\n\n`e822d3f5 chore: record delivery remove-workload-fit-tasktype` replaces the unpushed `d88ccda8`.\nThe previous ledger review (llm-review-bench run\n`remove-workload-fit-tasktype-d88ccda8-20261125-153851-f099e5`) passed items 1 to 4 and reported\n`kimi:0` (P2): `gates.failures` omitted the failed assurance candidate run, step\n`013-candidate-initial-run` (phase `candidate-verification`, exit 1) in\n`.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/logs/commands.jsonl`. The\nrecord was regenerated with `python3 scripts/process-metrics.py record --force` and adds\n`\"assurance candidate run\": 1`. `git diff d88ccda8 e822d3f5` shows the whole change.\n\n## What to check\n\n1. Does `e822d3f5` resolve `kimi:0`?\n2. Does the record differ from `d88ccda8` only in that gate entry? Is it still the only file in\n   the commit, with the subject `chore: record delivery <topic>`, and the last commit of\n   `origin/dev/v0.5.0..e822d3f5`?\n3. Compare `gates.failures` again with every non-zero `exitCode` in the run's\n   `logs/commands.jsonl`. The four `reverse-verification` failures (logs 015, 019, 023, 027)\n   are the intended failures of candidates under contrary patches. They are not failed runs of\n   a required check, so they are not gate failures. Report any other omission.\n   Do not read `verification/contract-tests/` or the run's `candidates/`, `promotions/`,\n   `promotion-targets/`, or `adaptation/`.\n\n## Output\n\nIn `summary`, give one line per item: `PASS` or `FAIL`, with `RESOLVED` or `UNRESOLVED` for\nitem 1. Report every defect as a finding tied to a file and a line.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-e822d3f5-20261125-154419-56bbd6/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "1. PASS — RESOLVED: `gates.failures` now records `assurance candidate run: 1`, resolving `kimi:0`.\n2. PASS — `e822d3f5` changes only `ledger/2026-11-25-remove-workload-fit-tasktype.json`, differs from `d88ccda8` solely by that gate entry, has the required subject, and is the last commit in `origin/dev/v0.5.0..e822d3f5`.\n3. PASS — All non-zero exits in `logs/commands.jsonl` are represented: candidate compile, candidate run, and the initial JDK 11 consumer failure; the four `reverse-verification` failures are correctly excluded. No other omission found.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

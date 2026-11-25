@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176",
+  "version": 1,
+  "createdAt": "2026-11-25T15:17:30.889Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kimi:0"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kimi:1"
+      ],
+      "note": null
+    }
+  ]
+}

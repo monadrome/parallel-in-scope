@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T13:52:26.101Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "head": "2f73397fc9c506f645718f65790d9a15cfe9e37a",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "to": "2f73397fc9c506f645718f65790d9a15cfe9e37a",
+    "label": "758b7df6..2f73397f"
+  },
+  "objective": {
+    "subject": "docs: withdraw installGlobal PIT equivalence claim",
+    "body": "The record called the survivor in ParRuntime.installGlobal (removed\nclosed-runtime checkState) equivalent, following entry E15 of the\n2026-10-31 dispositions. Independent review refuted that with two\ninstallers: under the mutant, installing an already-closed runtime\nclaims the empty slot before its re-check clears it, so a live runtime\ninstalled in that window fails with \"already installed\" and no runtime\nremains installed. The unmutated code rejects the closed runtime before\nthe claim, as the Javadoc promises.\n\nRecord the survivor as a fourth pre-existing ParRuntime gap with its\ncontract, evidence, impact and next action. It needs the same\nmaintainer disposition as the other three. Counts and other\ndispositions are unchanged."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "5c9417af7cfe881000aabac2d8204b010dfc7895f7ba68d0a5b24c20cfedbcf3",
+    "bytes": 5437,
+    "files": [
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype.md",
+        "status": "M",
+        "additions": 22,
+        "deletions": 13
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "eb46052df55e99054477427678d663fbbc9a2eb49377117f5ac8d602b9006110",
+    "bytes": 1999,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "2f73397fc9c506f645718f65790d9a15cfe9e37a",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

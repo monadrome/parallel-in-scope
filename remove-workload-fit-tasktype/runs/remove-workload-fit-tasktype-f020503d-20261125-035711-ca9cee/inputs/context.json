@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T03:57:13.421Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "e57602a8288542b2d9090a37bf95188445da6df7",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "e57602a8288542b2d9090a37bf95188445da6df7",
+    "to": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "label": "e57602a8..f020503d"
+  },
+  "objective": {
+    "subject": "test: check group members, combines and single tasks at admission",
+    "body": "PIT discovery on 8b883a1a (batch C, all root-package tests) left two\nmutants SURVIVED in unchanged TaskGroup code:\nTaskGroup$PreparationContext.prepareMember and prepareTerminalCombine,\n\"removed call to Par::diagnoseAdmission\". Their only killing test was\nthe deleted TaskTypeMismatchWarningTest. API and options section 3.2.1\n(Admission diagnostics) still requires every unit, including a group\nmember and a group combine, to be checked at admission, so the deleted\ntest had been the only evidence for a live rule.\n\nInertEnqueueRefusalWarningTest now runs a refusing member, a refusing\ncombine and a refusing single task on three plain-queue Pars and\nexpects one inert-refusal warning for each Par.\n\nReverse verification: deleting either diagnoseAdmission call in\nTaskGroup fails the new test with \"Expected size: 3 but was: 2\";\nrestoring the call makes it pass. The single-task path shares\nPar.admitUnit with batches, whose call is already killed.\n\nInertEnqueueRefusalWarningTest and TaskGroupTest (47 tests) pass, and\nspotless, check-verification-integrity.py --base f093bb12 and\ncheck-java-conventions.py pass."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "0baefc9633069644dce6477dcdaad6f28c8f153d9eab48351a96473bbc51f53f",
+    "bytes": 2808,
+    "files": [
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java",
+        "status": "M",
+        "additions": 36,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "4a11ba91ddf3eae3b1659b4ef744be35433321930222ba5f0eb755fd85690671",
+    "bytes": 3179,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

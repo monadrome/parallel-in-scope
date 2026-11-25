@@ -1,0 +1,598 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T13:43:27.936Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "head": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "to": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "label": "f020503d..758b7df6"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "7bcbfa956e58314bb018a84fde8cf6045c97aad18efb8a184ce200d9008c4fa8",
+    "bytes": 1586923,
+    "files": [
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 2
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype.md",
+        "status": "A",
+        "additions": 280,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/README.md",
+        "status": "A",
+        "additions": 99,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS",
+        "status": "A",
+        "additions": 88,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-A.txt",
+        "status": "A",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-B.txt",
+        "status": "A",
+        "additions": 8,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-C.txt",
+        "status": "A",
+        "additions": 9,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-D.txt",
+        "status": "A",
+        "additions": 8,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-E.txt",
+        "status": "A",
+        "additions": 7,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-A.txt",
+        "status": "A",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-C.txt",
+        "status": "A",
+        "additions": 11,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-D.txt",
+        "status": "A",
+        "additions": 12,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-E.txt",
+        "status": "A",
+        "additions": 7,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/execution-phase-hint-future-run.txt",
+        "status": "A",
+        "additions": 76,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/host-sleep.txt",
+        "status": "A",
+        "additions": 18,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt",
+        "status": "A",
+        "additions": 48,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-A.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-A.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-B.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-B.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-C.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-C.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-D-attempt1-precheck-flake.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-D-attempt1-precheck-flake.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-D.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-D.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-E.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/base-E.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-A.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-A.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-C.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-C.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-D.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-D.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-E.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/early-E.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/focused-ephf-killer-tests.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/focused-ephf-killer-tests.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/focused-par-runtime.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-A.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-A.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-B.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-B.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-C.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-C.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-D.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-E.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/head-E.process-monitor.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/logs/host-sleep-wake.txt",
+        "status": "A",
+        "additions": 62,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/base-A.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/base-B.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/base-C.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/base-D.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/base-E.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/early-A.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/early-C.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/early-D.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/early-E.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/focused-ephf-killer-tests.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/focused-par-runtime-killer-tests.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/focused-par-runtime.xml.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-A.xml",
+        "status": "A",
+        "additions": 181,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-B.xml",
+        "status": "A",
+        "additions": 278,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-C.xml",
+        "status": "A",
+        "additions": 684,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-D.xml",
+        "status": "A",
+        "additions": 280,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-E.xml",
+        "status": "A",
+        "additions": 291,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/base-A.txt",
+        "status": "A",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/base-B.txt",
+        "status": "A",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/base-C.txt",
+        "status": "A",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/base-D-attempt1-precheck-flake.txt",
+        "status": "A",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/base-D.txt",
+        "status": "A",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/base-E.txt",
+        "status": "A",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/early-A.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/early-C.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/early-D.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/early-E.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/focused-ephf-killer-tests.txt",
+        "status": "A",
+        "additions": 16,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt",
+        "status": "A",
+        "additions": 16,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime.txt",
+        "status": "A",
+        "additions": 16,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/head-A.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/head-B.txt",
+        "status": "A",
+        "additions": 29,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/head-C.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/head-D.txt",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/run-meta/head-E.txt",
+        "status": "A",
+        "additions": 29,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/scripts/pit_compare.py",
+        "status": "A",
+        "additions": 48,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/scripts/pit_sleep.py",
+        "status": "A",
+        "additions": 43,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/scripts/pit_status_table.py",
+        "status": "A",
+        "additions": 41,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "1722905e7c8ecba4ec8ef3d1c1d89d7b44a46ab623eb010251fbd22a65e026e2",
+    "bytes": 4559,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "859a8f726c35e86e47ddaff407ee1f655034e13d9bdde349c748b9167e17e883",
+    "bytes": 18387
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

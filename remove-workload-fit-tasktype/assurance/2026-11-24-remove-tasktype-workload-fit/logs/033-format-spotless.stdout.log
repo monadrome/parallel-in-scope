@@ -1,0 +1,36 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 2 modules
+[INFO] Installing Central Publishing features
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] parallel-in-scope parent                                           [pom]
+[INFO] parallel-in-scope                                                  [jar]
+[INFO] 
+[INFO] ------------< io.github.monadrome:parallel-in-scope-parent >------------
+[INFO] Building parallel-in-scope parent 0.5.0-SNAPSHOT                   [1/2]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.4:check (default-cli) @ parallel-in-scope-parent ---
+[INFO] Index file does not exist. Fallback to an empty index
+[INFO] 
+[INFO] ---------------< io.github.monadrome:parallel-in-scope >----------------
+[INFO] Building parallel-in-scope 0.5.0-SNAPSHOT                          [2/2]
+[INFO]   from core/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.4:check (default-cli) @ parallel-in-scope ---
+[INFO] Index file does not exist. Fallback to an empty index
+[INFO] Spotless.Java is keeping 171 files clean - 0 needs changes to be clean, 171 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for parallel-in-scope parent 0.5.0-SNAPSHOT:
+[INFO] 
+[INFO] parallel-in-scope parent ........................... SUCCESS [  0.233 s]
+[INFO] parallel-in-scope .................................. SUCCESS [  3.006 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.439 s
+[INFO] Finished at: 2026-11-25T06:10:55-08:00
+[INFO] ------------------------------------------------------------------------

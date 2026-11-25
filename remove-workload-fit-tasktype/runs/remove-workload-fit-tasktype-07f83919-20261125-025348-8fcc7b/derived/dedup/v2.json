@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b",
+  "version": 2,
+  "createdAt": "2026-11-25T03:15:32.896Z",
+  "method": "imported",
+  "note": "imported: agent adjudication of round 1",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "Unreleased Changed entry on diagnostic strings still described WorkloadFitReport rendering although the same release removes the type"
+    }
+  ]
+}

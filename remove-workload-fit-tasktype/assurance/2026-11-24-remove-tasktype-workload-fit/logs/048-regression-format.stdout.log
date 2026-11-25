@@ -1,0 +1,18 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] --------< io.github.monadrome:parallel-in-scope-contract-tests >--------
+[INFO] Building parallel-in-scope hidden contract regression tests 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.4:check (default-cli) @ parallel-in-scope-contract-tests ---
+[INFO] Index file does not exist. Fallback to an empty index
+[INFO] Spotless.Java is keeping 5 files clean - 0 needs changes to be clean, 5 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.854 s
+[INFO] Finished at: 2026-11-25T06:54:02-08:00
+[INFO] ------------------------------------------------------------------------

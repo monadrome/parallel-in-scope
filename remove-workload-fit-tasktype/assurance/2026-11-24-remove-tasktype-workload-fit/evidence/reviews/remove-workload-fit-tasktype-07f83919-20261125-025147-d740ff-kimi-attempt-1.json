@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T02:51:48.631Z",
+  "endedAt": "2026-11-25T02:58:39.306Z",
+  "durationMs": 410308,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 06efaae43c0f343efc6e2bb6c289b907b218b9be to 07f83919e72414a6987648c3288788a5db7abc6b. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: full adversarial review\n\nReview the complete `06efaae43c0f343efc6e2bb6c289b907b218b9be..07f83919e72414a6987648c3288788a5db7abc6b`\ndiff and read every changed file read-only. The implementer is Claude (Opus). Do not edit files, run\nbuilds, or commit. Report only defects you can tie to a file and symbol with a concrete failure\nscenario.\n\n## What the change does\n\nADR 0016 (`adr/0016-remove-tasktype-and-workload-fit-screening.md`) removes the workload declaration\nand both of its consumers, with no deprecation step:\n\n- Public API removed: `TaskType`; `BatchOptions.taskType`/`TaskOptions.taskType` withers and accessors;\n  `ParRuntime.Builder.register(ParId, ExecutorService, TaskType)`; `Par.taskType()`;\n  `ParRuntime.workloadFitReport()`; `WorkloadFitReport` with its nested `ParMeasurement` and\n  `UnitMeasurement`.\n- Internals removed: the submission-time mismatch comparison (`TaskTypeMismatches`), the low-CPU\n  screen (`WorkloadFit`, `WorkloadClock`, `SystemWorkloadClock`, the `ThreadMXBean` reads), the\n  timing hook in `ScopedCallable`, the `Par` held by `MultiTaskContext`, and the type carried by\n  `UnitSpec` and `TaskNode`.\n- Kept unchanged: `rejectEnqueue` and `SubmissionAwareBlockingQueue` refusal, the once-per-`Par`\n  inert-refusal warning in `Par.diagnoseAdmission`, announcement delivery on a runtime-owned thread,\n  the executor wait graph and its cycle warning, starvation observation, and `ParRuntimeSnapshot`.\n- Docs: ADR 0016 supersedes ADR 0008 and ADR 0010 and partially supersedes ADR 0001 and ADR 0005;\n  `design/workload-fit-screening.md` is retired; `design/task-group-api-and-options.md` section 3.2.1\n  is rewritten as \"Admission diagnostics\"; user guides, diagnostics reference, READMEs, graveyards,\n  decision log, demo articles, and the CHANGELOG migration entry are updated.\n\n## Contracts to diff line by line against the implementation\n\n- `design/task-group-api-and-options.md` section 3.2.1 Admission diagnostics: refusal is expressed\n  only by `rejectEnqueue`; every unit (batch, single task, group member, group combine) is checked at\n  admission; the first refusing unit through a `Par` whose executor lacks a\n  `SubmissionAwareBlockingQueue` logs one warning; a `Par.mapAndCombine` terminal combine does not\n  request refusal; diagnostics only log or enter reports and never fail a task, batch, or group or\n  replace its result; logs are delivered on a runtime-owned thread and the admission thread never\n  invokes log handlers; records are independent and may be out of order.\n- The queue-type paragraph of the same document: both queue types keep their enqueue,\n  dynamic-capacity, and concurrency semantics.\n- `design/task-group-adopted-futures.md` A7: adopted members undergo no admission diagnostics.\n- ADR 0016 decisions 1-4, ADR 0005 rule 10, ADR 0001's L1 row.\n\n## Attack surfaces\n\n1. Interleavings: the warning's compare-and-set and announcement path after the screen's removal;\n   `ScopedCallable.call` now returns the delegate's result directly, so check exception, interrupt,\n   and cleanup paths around the delegate and any execution-exit or release ordering that used to\n   sit next to the removed timing.\n2. Contract versus implementation: every kept MUST/MUST NOT in section 3.2.1 against\n   `Par.diagnoseAdmission`, its callers in `Par` and `TaskGroup`, and\n   `SubmissionAwareBlockingQueue.offer`; no removed MUST survives in a live document.\n3. Test quality: `scripts/check-verification-integrity.py` now lists every deleted test file,\n   deleted or renamed case, and reduced assertion count in `REVIEWED_EXCEPTIONS`. Report an entry\n   only if the removed test or assertion still guarded behavior that exists after this change (for\n   example default enqueue, `rejectEnqueue` refusal, the inert-warning combine path, or the task\n   boundary), and say which live behavior lost its evidence. Check that renamed tests still test what\n   their names claim.\n4. Java 8 and generics: the public surface, `verification/maven-central-consumer`, and the demo still\n   compile for `--release 8`; no overload resolution changed for remaining `register` and option\n   calls.\n5. Documentation: CHANGELOG migration accuracy, ADR supersession links in both directions, the\n   decision-log entry, and stale references to removed API in live documents. Frozen migration\n   guides (`docs/*/migration-v0.*.md`), dated `verification/` records, and released CHANGELOG\n   sections are intentionally unchanged.\n\n## Settled; do not re-report\n\n- Refactoring-review (6 kimi detectors) produced no findings and no refactor commits.\n- `integrations/src/main/java/integrations/app/QuoteApplication.java` already failed to compile\n  against the current snapshot before this change (`outcomeCounts()` and `fold` from an earlier\n  change); this diff does not touch it. Report it only if this diff makes it worse.\n- Deleting obsolete verification for removed API is intentional; the maintainer decided the removal.\n\n## Verification already run on the committed tree (JDK 25)\n\n`mvn -Pcontract-tests clean install` (3395 core tests, 2 Lincheck, hidden contract suite) passed;\ndemo `spotless:check package` (54 tests) and its Java 8 bytecode check passed; the Maven Central\nconsumer (11 tests) passed; integrations sources other than `QuoteApplication` compile; the\ndocumentation, ADR, proposal, design-route, English-docs, Java-conventions, adopt-compile,\nworktree-skill, baseline, and verification-integrity checks passed; the script test suite (460\ntests) passed.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The API and timing removal is consistently propagated through the implementation, demos, and consumer sources, and the retained admission and queue behavior remains intact. Two low-severity ADR traceability defects remain: incomplete supersession metadata and an incorrect claim that the live admission-diagnostics contract was retired.",
+  "findings": [
+    {
+      "file": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+      "lineStart": 10,
+      "lineEnd": 11,
+      "title": "Partial supersessions lack reverse links",
+      "trigger": "A maintainer starts from ADR 0016 and uses its Supersedes metadata to trace every older decision replaced by this change.",
+      "consequence": "The supersession graph omits ADR 0001's L1 workload-declaration rule and ADR 0005's rule 10, even though both older records identify ADR 0016 as their partial successor. Forward and reverse navigation therefore disagree, and consumers of the metadata cannot discover those affected rules from the new decision.",
+      "evidence": "adr/0016-remove-tasktype-and-workload-fit-screening.md:10-11 lists only ADR 0008 and ADR 0010, while adr/0001-layered-cartesian-concurrency-testing.md:9-11 and adr/0005-globalpar-executor-binding.md:9-13 declare partial supersession by ADR 0016. The ADR format requires successor links in both directions.",
+      "severity": "P3",
+      "confidence": 0.97,
+      "suggestedFix": "Extend ADR 0016's Supersedes metadata with links to the replaced L1 declaration axis in ADR 0001 and rule 10 in ADR 0005, identifying the specific clauses as is done for other partial supersessions.",
+      "id": "kimi:0",
+      "reviewer": "kimi",
+      "attempt": 1
+    },
+    {
+      "file": "adr/0008-tasktype-as-workload-fit-diagnostic.md",
+      "lineStart": 72,
+      "lineEnd": 74,
+      "title": "Live admission-diagnostics section is described as retired",
+      "trigger": "A reader follows ADR 0008's historical references to locate the current contract for the inert-refusal warning and off-thread diagnostic delivery that ADR 0016 explicitly retains.",
+      "consequence": "The reader is told that API and options section 3.2.1 was retired, although it remains live as Admission diagnostics. This misstates where the kept warning and log-delivery requirements are governed and can lead maintainers to treat those requirements as removed.",
+      "evidence": "adr/0008-tasktype-as-workload-fit-diagnostic.md:72-74 says both API and options section 3.2.1 and the workload-fit screening contract were retired; the note at lines 19-22 repeats this. In fact, design/task-group-api-and-options.md:188-201 still defines section 3.2.1 with the retained inert-refusal and runtime-owned delivery rules, and adr/0016-remove-tasktype-and-workload-fit-screening.md:48-52 keeps those behaviors.",
+      "severity": "P3",
+      "confidence": 0.94,
+      "suggestedFix": "State that only the former TaskType clauses and workload-fit screening contract were retired, and link section 3.2.1 as the current Admission diagnostics contract in both passages.",
+      "id": "kimi:1",
+      "reviewer": "kimi",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+      "lineStart": 10,
+      "lineEnd": 11,
+      "title": "Partial supersessions lack reverse links",
+      "trigger": "A maintainer starts from ADR 0016 and uses its Supersedes metadata to trace every older decision replaced by this change.",
+      "consequence": "The supersession graph omits ADR 0001's L1 workload-declaration rule and ADR 0005's rule 10, even though both older records identify ADR 0016 as their partial successor. Forward and reverse navigation therefore disagree, and consumers of the metadata cannot discover those affected rules from the new decision.",
+      "evidence": "adr/0016-remove-tasktype-and-workload-fit-screening.md:10-11 lists only ADR 0008 and ADR 0010, while adr/0001-layered-cartesian-concurrency-testing.md:9-11 and adr/0005-globalpar-executor-binding.md:9-13 declare partial supersession by ADR 0016. The ADR format requires successor links in both directions.",
+      "severity": "P3",
+      "confidence": 0.97,
+      "suggestedFix": "Extend ADR 0016's Supersedes metadata with links to the replaced L1 declaration axis in ADR 0001 and rule 10 in ADR 0005, identifying the specific clauses as is done for other partial supersessions."
+    },
+    {
+      "file": "adr/0008-tasktype-as-workload-fit-diagnostic.md",
+      "lineStart": 72,
+      "lineEnd": 74,
+      "title": "Live admission-diagnostics section is described as retired",
+      "trigger": "A reader follows ADR 0008's historical references to locate the current contract for the inert-refusal warning and off-thread diagnostic delivery that ADR 0016 explicitly retains.",
+      "consequence": "The reader is told that API and options section 3.2.1 was retired, although it remains live as Admission diagnostics. This misstates where the kept warning and log-delivery requirements are governed and can lead maintainers to treat those requirements as removed.",
+      "evidence": "adr/0008-tasktype-as-workload-fit-diagnostic.md:72-74 says both API and options section 3.2.1 and the workload-fit screening contract were retired; the note at lines 19-22 repeats this. In fact, design/task-group-api-and-options.md:188-201 still defines section 3.2.1 with the retained inert-refusal and runtime-owned delivery rules, and adr/0016-remove-tasktype-and-workload-fit-screening.md:48-52 keeps those behaviors.",
+      "severity": "P3",
+      "confidence": 0.94,
+      "suggestedFix": "State that only the former TaskType clauses and workload-fit screening contract were retired, and link section 3.2.1 as the current Admission diagnostics contract in both passages."
+    }
+  ],
+  "error": null
+}

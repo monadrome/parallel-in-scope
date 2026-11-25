@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T15:08:51.560Z",
+  "endedAt": "2026-11-25T15:17:30.816Z",
+  "durationMs": 519067,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 758b7df6429cfd3be554bb716eb9d9537727addf to 3ce96f08284e3e718311c58669b52c0cf96655e5. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: review round 6 (promotion, PIT disposition, skip eligibility)\n\nReview `758b7df6..3ce96f08` read-only. The implementer is Claude (Opus). Do not edit files, run\nMaven, or commit. You may run read-only commands such as `git`, `grep`, `sed -n`, `diff`, and\n`shasum -a 256`.\n\n## The commits\n\n1. `2f73397f docs: withdraw installGlobal PIT equivalence claim` changes one file,\n   `verification/pit-audit/2026-11-24-remove-tasktype.md`. Round 5 reviewed its content and found\n   it RESOLVED. Do not re-review that text; answer only item 3 for this commit.\n2. `ac95c948 test: promote TaskType removal regressions` adds four test files under\n   `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/`:\n   `C0002MapAndCombineCombineNoRefusalQueuedContractTest`,\n   `C0003ConcurrentFirstAdmissionsOnceContractTest`, `C0004OffThreadBlockingHandlerContractTest`,\n   and `C0005RegistrationAndCycleWarningsContractTest`. You are the independent reviewer of this\n   promotion. Follow the independent-review route in `verification/contract-tests/AGENTS.md`.\n3. `3ce96f08 docs: record maintainer disposition of ParRuntime PIT gaps` changes the PIT record\n   `verification/pit-audit/2026-11-24-remove-tasktype.md`, its archive README, and the README's\n   line in `SHA256SUMS`. On 2026-11-25 the maintainer, in this session, accepted the four\n   pre-existing `ParRuntime` gap entries as residual nonblocking limitations. The commit records\n   that disposition and changes the overall status from Inconclusive to Pass.\n\nThe assurance run lives in an untracked directory, called RUN below:\n`/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/`.\nIts relevant files are:\n\n- `contract.md`: the frozen contracts C-1 to C-5.\n- `candidate-status.csv` and `promotion-status.csv`: classifications and promotion rows.\n- `candidates/`: the sealed candidates, never edited after generation.\n- `adaptation/promotion-adaptation.diff`: the only permitted differences between a sealed\n  candidate and its promoted target.\n- `promotions/` and `promotion-targets/`: the archive copies and the frozen snapshots.\n- `reverse-verification/README.md` and `reverse-verification/patches/`: the contrary patches and\n  the failing runs.\n- `logs/commands.jsonl`: every recorded command with its argv and exit status; per-step logs sit\n  beside it.\n\nPolicy: `.agents/skills/contract-first-assurance/SKILL.md` (phase seven, promotion),\n`.agents/skills/project-delivery/references/assurance.md` (\"Skip eligible\"), and\n`verification/pit.md`.\n\n## What to check\n\n1. Promotion integrity, for each of CONTRACT-TDD-005, -012, -013 and -015:\n   - the promoted target equals its sealed candidate plus exactly its hunks in\n     `adaptation/promotion-adaptation.diff`;\n   - those hunks change only the package, class name, contract metadata, provenance, and\n     formatting, never inputs, actions, or assertions;\n   - the archive and the snapshot are byte-identical to the committed file;\n   - the contract ID is unique in the suite and matches `promotion-status.csv`;\n   - the provenance names the run and the source contract;\n   - the target does not duplicate an existing suite test.\n2. Stability. Name every assertion that depends on timing, scheduling, or machine speed in a way\n   that could fail on a slow or loaded CI runner. For each, say whether its bound is generous\n   relative to the operation it waits for. CI runs the suite in the `hidden-contract-regression`\n   job.\n3. Skip eligibility. The assurance run is frozen at `f020503d`. Under \"Skip eligible\", does each\n   of the three commits leave that run valid? `2f73397f` must be documentation-only with respect to library\n   requirements, and so must `3ce96f08`. The promotion must be test-only: it adds the run's reverse-verified regressions\n   without changing library behavior or weakening evidence.\n4. The promotion's commit message. Are its `MUST:`, `MUST NOT:`, `Assurance:`, `assurance:\n   SKIPPED`, and `PIT: SKIPPED` lines accurate? Check the PIT claim against `verification/pit.md`\n   and the PIT test set: does PIT's scope include `verification/contract-tests`?\n5. The disposition commit. Does the record now satisfy \"Dispositions and completion\" in\n   `verification/pit.md`: every `SURVIVED`, `NO_COVERAGE`, and `TIMED_OUT` entry in the change\n   scope disposed, each accepted gap keeping its contract, evidence, impact, and next action, and\n   `Pass` justified? Do the changed-classes table, the gap section, and \"Overall status\" agree?\n   Is the citation of round 4's approval of the four `ParRuntime` timeouts accurate? Does\n   `shasum -a 256 -c SHA256SUMS` still pass in the archive directory?\n\n## Output\n\nDo not quote source text from `verification/contract-tests/` or from RUN's `candidates/`,\n`promotions/`, `promotion-targets/`, or `adaptation/` anywhere in your output. The implementer\nmust not see that text. Refer to files, classes, and methods by name, and describe defects in\nprose.\n\nIn `summary`, give one line per candidate for item 1 (`PASS` or `FAIL`), one line for item 2\n(`STABLE`, or the risks), one line per commit for item 3 (`CONFIRM` or `REJECT`), and one line for\nitem 4 (`ACCEPT` or `REJECT`), and one line for item 5 (`ACCEPT` or `REJECT`). Report every defect as a finding tied to a file and a line, with a\nconcrete failure scenario.\n\n## Verification already run\n\n- Promotion, in RUN's `logs/commands.jsonl`: `048-regression-format` (contract-tests\n  `spotless:check`), then `051-regression-metadata-final`, `052-regression-tests-final`, and\n  `053-regression-execution-final`, all exit 0. Step 052 ran 3396 + 2 core tests and 5\n  contract-suite tests. The committed files, the archives, and the snapshots have equal SHA-256.\n- Disposition: `check-doc-refs.py`, `check-local-links.py`, and `check-english-docs.py` pass;\n  `shasum -a 256 -c SHA256SUMS` reports 88 OK.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Item 1 CONTRACT-TDD-005: PASS — exact permitted adaptation, unique C-0002 metadata, correct provenance, and identical archive, snapshot, and committed bytes.\nItem 1 CONTRACT-TDD-012: PASS — exact permitted adaptation, unique C-0003 metadata, correct provenance, and identical archive, snapshot, and committed bytes.\nItem 1 CONTRACT-TDD-013: PASS — exact permitted adaptation, unique C-0004 metadata, correct provenance, and identical archive, snapshot, and committed bytes.\nItem 1 CONTRACT-TDD-015: PASS for promotion integrity — exact permitted adaptation, unique C-0005 metadata, correct provenance, and identical bytes; its timing-sensitive oracle defects are reported below.\nItem 2: RISKS — C-0005 can consume asynchronous records from the wrong phase, causing false passes or failures. Otherwise, C-0002's latch, queue, and join waits; C-0003's readiness, admission, warning, and one-second quiet-window observations; C-0004's handler, admission, and delivery waits; and C-0005's registration and cycle waits have generous bounds for the operations involved.\nItem 3 2f73397f: CONFIRM — documentation-only with respect to library requirements.\nItem 3 ac95c948: CONFIRM — test-only promotion adds reverse-verified evidence without changing production or weakening existing evidence.\nItem 3 3ce96f08: CONFIRM — documentation-only disposition changes leave the frozen run valid.\nItem 4: ACCEPT — the MUST, MUST NOT, Assurance, assurance skip, and PIT skip claims are accurate; the separate contract-tests module is outside the core PIT test set.\nItem 5: ACCEPT — all in-scope raw statuses are disposed, each accepted gap retains contract, evidence, impact, and next action; the table, gap section, Pass status, and round-4 citation agree; and all 88 archive checksums pass.",
+  "findings": [
+    {
+      "file": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java",
+      "lineStart": 57,
+      "lineEnd": 85,
+      "title": "Registration oracle accepts the previous phase's warning",
+      "trigger": "Delay the first runtime's registration announcement until after its throwing handler is removed and the second capture handler is installed. The first entry ID, ct015-fjpthrow, contains the second phase's filter, ct015-fjp.",
+      "consequence": "The stale record can satisfy the second phase before its own registration warning is delivered, allowing a missing or incorrectly delivered second warning to pass. If both records arrive before the exact-count assertion, the test instead fails with two records despite correct behavior. The first phase can also remove its throwing handler without ever exercising the throwing publication it claims to test.",
+      "evidence": "C0005RegistrationAndCycleWarningsContractTest.java:57-67 closes the first runtime and removes its handler without awaiting publication; lines 69-85 install another handler and use a substring filter shared by both entry IDs. Registration delivery is asynchronous at core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java:146-155 and core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java:18-28, while close initiates shutdown without waiting for announcements at core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java:549-559.",
+      "severity": "P2",
+      "confidence": 0.97,
+      "suggestedFix": "Make the first handler record invocation before throwing and await that invocation before removing it. Use distinct, non-overlapping entry IDs or match the complete quoted entry ID, and wait for the intended second-phase record rather than accepting a substring match from any phase.",
+      "id": "kimi:0",
+      "reviewer": "kimi",
+      "attempt": 1
+    },
+    {
+      "file": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java",
+      "lineStart": 92,
+      "lineEnd": 120,
+      "title": "Cycle warning oracle accepts unrelated log records",
+      "trigger": "A registration warning from the preceding runtime remains pending until after cycleCapture is installed, or any other record reaches the shared package logger during the cycle phase.",
+      "consequence": "The pending registration warning satisfies the generic warning wait and supplies the record whose level and publishing thread are asserted, so the test can pass without any self-cycle warning. An unrelated earlier non-warning record can conversely make the level assertion fail even when the cycle warning is correct.",
+      "evidence": "C0005RegistrationAndCycleWarningsContractTest.java:92-120 captures every record, waits for any warning, and then examines the first captured record without filtering for the self-cycle entry. The helper's unrestricted publication and generic wait are at lines 155-161 and 199-213. The preceding runtime does not drain pending announcements before its capture handler is removed at lines 75-90; asynchronous delivery is defined at core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java:18-28.",
+      "severity": "P2",
+      "confidence": 0.95,
+      "suggestedFix": "Filter both waiting and record selection to a warning containing the complete self-cycle entry ID, and drain or otherwise isolate prior runtimes' pending announcements before installing the cycle capture handler.",
+      "id": "kimi:1",
+      "reviewer": "kimi",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java",
+      "lineStart": 57,
+      "lineEnd": 85,
+      "title": "Registration oracle accepts the previous phase's warning",
+      "trigger": "Delay the first runtime's registration announcement until after its throwing handler is removed and the second capture handler is installed. The first entry ID, ct015-fjpthrow, contains the second phase's filter, ct015-fjp.",
+      "consequence": "The stale record can satisfy the second phase before its own registration warning is delivered, allowing a missing or incorrectly delivered second warning to pass. If both records arrive before the exact-count assertion, the test instead fails with two records despite correct behavior. The first phase can also remove its throwing handler without ever exercising the throwing publication it claims to test.",
+      "evidence": "C0005RegistrationAndCycleWarningsContractTest.java:57-67 closes the first runtime and removes its handler without awaiting publication; lines 69-85 install another handler and use a substring filter shared by both entry IDs. Registration delivery is asynchronous at core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java:146-155 and core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java:18-28, while close initiates shutdown without waiting for announcements at core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java:549-559.",
+      "severity": "P2",
+      "confidence": 0.97,
+      "suggestedFix": "Make the first handler record invocation before throwing and await that invocation before removing it. Use distinct, non-overlapping entry IDs or match the complete quoted entry ID, and wait for the intended second-phase record rather than accepting a substring match from any phase."
+    },
+    {
+      "file": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java",
+      "lineStart": 92,
+      "lineEnd": 120,
+      "title": "Cycle warning oracle accepts unrelated log records",
+      "trigger": "A registration warning from the preceding runtime remains pending until after cycleCapture is installed, or any other record reaches the shared package logger during the cycle phase.",
+      "consequence": "The pending registration warning satisfies the generic warning wait and supplies the record whose level and publishing thread are asserted, so the test can pass without any self-cycle warning. An unrelated earlier non-warning record can conversely make the level assertion fail even when the cycle warning is correct.",
+      "evidence": "C0005RegistrationAndCycleWarningsContractTest.java:92-120 captures every record, waits for any warning, and then examines the first captured record without filtering for the self-cycle entry. The helper's unrestricted publication and generic wait are at lines 155-161 and 199-213. The preceding runtime does not drain pending announcements before its capture handler is removed at lines 75-90; asynchronous delivery is defined at core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java:18-28.",
+      "severity": "P2",
+      "confidence": 0.95,
+      "suggestedFix": "Filter both waiting and record selection to a warning containing the complete self-cycle entry ID, and drain or otherwise isolate prior runtimes' pending announcements before installing the cycle capture handler."
+    }
+  ],
+  "error": null
+}

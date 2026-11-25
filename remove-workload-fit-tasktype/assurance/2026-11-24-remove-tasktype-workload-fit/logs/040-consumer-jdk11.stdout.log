@@ -1,0 +1,186 @@
+508b5a871b52a1312b51fa2e35cc0fc379ce0370af9e473966b07080dbea2323  /root/.m2/repository/io/github/monadrome/parallel-in-scope/0.5.0-SNAPSHOT/parallel-in-scope-0.5.0-SNAPSHOT.jar
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --< io.github.monadrome.verification:parallel-in-scope-maven-central-consumer >--
+[INFO] Building parallel-in-scope-maven-central-consumer 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Deleting /workspace/verification/maven-central-consumer/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /workspace/verification/maven-central-consumer/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-maven-central-consumer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /workspace/verification/maven-central-consumer/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-maven-central-consumer ---
+[WARNING] I/O error reading dependency state: /workspace/verification/maven-central-consumer/target/classes: /workspace/verification/maven-central-consumer/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug target 8] to target/test-classes
+[WARNING] bootstrap class path not set in conjunction with -source 8
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running verification.MavenCentralConsumerTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.690 s -- in verification.MavenCentralConsumerTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.676 s
+[INFO] Finished at: 2026-11-25T14:20:29Z
+[INFO] ------------------------------------------------------------------------
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< io.github.monadrome:parallel-in-scope-demo >-------------
+[INFO] Building parallel-in-scope-demo 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /workspace/demo/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-demo ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 4 source files with javac [debug release 8] to target/classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-demo ---
+[INFO] skip non existing resourceDirectory /workspace/demo/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-demo ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 23 source files with javac [debug release 8] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-demo ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running demo.ArchitectureConstraintsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.156 s -- in demo.ArchitectureConstraintsTest
+[INFO] Running demo.basic.BasicParDemoTest
+=== BasicParDemo ===
+演示 Par.map() 基本用法
+
+输入数据: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+并行度: 3
+
+开始并行处理...
+  [pool-2-thread-1] 处理: 1
+  [pool-2-thread-3] 处理: 3
+  [pool-2-thread-2] 处理: 2
+  [pool-2-thread-2] 处理: 5
+  [pool-2-thread-2] 处理: 7
+  [pool-2-thread-2] 处理: 8
+  [pool-2-thread-1] 处理: 6
+  [pool-2-thread-4] 处理: 4
+  [pool-2-thread-2] 处理: 10
+  [pool-2-thread-3] 处理: 9
+
+处理完成!
+结果: SUCCESS:10
+值: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+任务体已退出: true
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.210 s -- in demo.basic.BasicParDemoTest
+[INFO] Running demo.article.QuickStartTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in demo.article.QuickStartTest
+[INFO] Running demo.article.BatchBestPracticesTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.765 s -- in demo.article.BatchBestPracticesTest
+[INFO] Running demo.article.E1_QueueFloodingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.119 s -- in demo.article.E1_QueueFloodingTest
+[INFO] Running demo.article.D2_LateBindRaceConditionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.626 s -- in demo.article.D2_LateBindRaceConditionTest
+[INFO] Running demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.563 s -- in demo.article.G3_CheckpointsCooperativeCancelTest
+[INFO] Running demo.article.G2_BatchResultReportTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in demo.article.G2_BatchResultReportTest
+[INFO] Running demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.013 s -- in demo.article.C1_ThreadPoolDeadlockTest
+[INFO] Running demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.532 s -- in demo.article.D1_GetTimeoutStillRunningTest
+[INFO] Running demo.article.C2_CachedVsFixedPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.009 s -- in demo.article.C2_CachedVsFixedPoolTest
+[INFO] Running demo.article.H1_NullEmptyInputTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in demo.article.H1_NullEmptyInputTest
+[INFO] Running demo.article.A3_LeanVsFatExceptionTest
+Lean exceptions (10000): 6 ms
+Standard exceptions (10000): 36 ms
+Par.map 100 tasks with 200ms timeout: 3208 ms
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.259 s -- in demo.article.A3_LeanVsFatExceptionTest
+[INFO] Running demo.article.B1_MdcContextLostTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in demo.article.B1_MdcContextLostTest
+[INFO] Running demo.article.A1_CancelTrueInvalidTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.524 s -- in demo.article.A1_CancelTrueInvalidTest
+[INFO] Running demo.article.G4_NamedExecutorPoolTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in demo.article.G4_NamedExecutorPoolTest
+[INFO] Running demo.article.G6_BatchDbQueryTest
+[ERROR] Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.113 s <<< FAILURE! -- in demo.article.G6_BatchDbQueryTest
+[ERROR] demo.article.G6_BatchDbQueryTest.problem_sequentialShardQuery -- Time elapsed: 0 s <<< FAILURE!
+java.lang.AssertionError: 
+[串行分片查询耗时应 >= 500ms（10 片 * 50ms/片）] 
+Expecting actual:
+  -262L
+to be greater than or equal to:
+  500L
+
+	at demo.article.G6_BatchDbQueryTest.problem_sequentialShardQuery(G6_BatchDbQueryTest.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1541)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1541)
+
+[INFO] Running demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.161 s -- in demo.article.G1_CompletionFutureMonitoringTest
+[INFO] Running demo.article.B2_FunctionSignatureBloatTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.039 s -- in demo.article.B2_FunctionSignatureBloatTest
+[INFO] Running demo.article.F1_CpuTaskQueuingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.22 s -- in demo.article.F1_CpuTaskQueuingTest
+[INFO] Running demo.article.G5_BatchHttpCallsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.934 s -- in demo.article.G5_BatchHttpCallsTest
+[INFO] Running demo.article.A2_NestedCancelPropagationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.579 s -- in demo.article.A2_NestedCancelPropagationTest
+[INFO] Running demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.349 s -- in demo.article.E2_SubmitterPoolOffloadingTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   G6_BatchDbQueryTest.problem_sequentialShardQuery:104 [串行分片查询耗时应 >= 500ms（10 片 * 50ms/片）] 
+Expecting actual:
+  -262L
+to be greater than or equal to:
+  500L
+
+[INFO] 
+[ERROR] Tests run: 54, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:09 min
+[INFO] Finished at: 2026-11-25T14:21:39Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.6.1:test (default-test) on project parallel-in-scope-demo: There are test failures.
+[ERROR] 
+[ERROR] See /workspace/demo/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-25T03:57:13.595Z",
+  "endedAt": "2026-11-25T04:20:05.181Z",
+  "durationMs": 1371286,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek/deepseek-v4-pro",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from e57602a8288542b2d9090a37bf95188445da6df7 to f020503de120d5bcb525d568f90c02f6f8bcbe2c. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: adversarial review round 3\n\nReview the test commit `e57602a8288542b2d9090a37bf95188445da6df7..f020503de120d5bcb525d568f90c02f6f8bcbe2c`\nread-only. The implementer is Claude (Opus). Do not edit files, run builds, or commit. Report only\ndefects you can tie to a file and symbol with a concrete failure scenario.\n\n## Background\n\nThe delivery removes `TaskType`, the submission-time mismatch comparison, and the workload-fit\nscreen (ADR 0016). Rounds 1 and 2 reviewed the removal and its documentation fixes; their findings\nare settled and must not be re-reported.\n\nA PIT discovery run on the removal (all root-package tests, `VOID_METHOD_CALLS` included) left two\nmutants `SURVIVED` in unchanged `TaskGroup` code: `TaskGroup$PreparationContext.prepareMember` and\n`prepareTerminalCombine`, \"removed call to `Par::diagnoseAdmission`\". Their only killing test was the\ndeleted `TaskTypeMismatchWarningTest`. This commit adds\n`InertEnqueueRefusalWarningTest.groupMembersCombinesAndSingleTasksAreCheckedAtAdmission` so that the\nadmission check of group members and group combines has evidence again. The implementer reports that\ndeleting either call fails the new test with \"Expected size: 3 but was: 2\".\n\n## Contract to check the test against\n\n`design/task-group-api-and-options.md` section 3.2.1 Admission diagnostics: refusal is expressed only\nby `rejectEnqueue`; every unit (batch, single task, group member, group combine) is checked at\nadmission; the first refusing unit through a `Par` whose executor lacks a\n`SubmissionAwareBlockingQueue` logs one warning per `Par`; a `Par.mapAndCombine` terminal combine does\nnot request refusal; diagnostics never fail a task or change its result; logs are delivered on a\nruntime-owned thread. Tests replace that thread with `announcements(MoreExecutors.directExecutor())`.\n`design/task-group-adopted-futures.md` A7: adopted members undergo no admission diagnostics.\n\nImplementation: `Par.diagnoseAdmission`, `Par.admitUnit`, and the two `TaskGroup` call sites.\n\n## What to check\n\n1. Does the test kill exactly what it claims? Would it still pass if a member or combine were checked\n   against the wrong `Par`, if the warning were issued for the group instead of the unit, or if the\n   once-per-`Par` deduplication were shared across `Par` instances?\n2. Determinism and isolation: warning delivery timing with the direct announcement executor, the\n   shared `records` capture and the class-level `runtime`, registering one executor under three ids,\n   closing the extra runtime, and the bounded `TaskFuture.get`.\n3. Test conventions in `.agents/skills/project-delivery/references/conventions.md` and the\n   verification-integrity rules in `verification/verification-integrity.md`.\n4. Whether another live admission path (for example a nested batch inside a task, or a\n   `mapAndCombine` combine with explicit options) still lacks evidence after this commit.\n\n## Verification already run\n\n`InertEnqueueRefusalWarningTest` and `TaskGroupTest` (47 tests) pass; spotless,\n`check-verification-integrity.py --base f093bb12`, and `check-java-conventions.py` pass; reverse\nverification as described above.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "magpie",
+    "model": "deepseek/deepseek-v4-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 107496,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the added admission-diagnostics test against the contract in design/task-group-api-and-options.md §3.2.1, the Par/TaskGroup implementation, and the project's verification-integrity and conventions rules. The test deterministically exercises the group-member (prepareMember), group-combine (prepareTerminalCombine), and single-task (Par.submit -> admitUnit) diagnosis paths on three distinct Par instances sharing one inert executor; because warning delivery uses a direct announcement executor and runAll()/submit are synchronous on the admitting thread, the three records are present before the assertion. The combination of hasSize(3) with three distinct per-Par prefix matchers forces exactly one warning per Par id, so it kills the two reported remove-call mutants and would also fail on wrong-Par attribution, group-level warnings, or deduplication shared across Par instances. No test-suppression, assertion-reduction, or convention violations were introduced, and no live admission path (map, mapAndCombine batch, submit, group member, group combine) is left without evidence; adopted members are correctly outside the rule (A7). No reportable defect was found.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

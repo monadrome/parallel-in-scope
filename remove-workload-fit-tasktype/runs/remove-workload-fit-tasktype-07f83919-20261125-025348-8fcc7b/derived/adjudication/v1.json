@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-25T03:15:32.934Z",
+  "judge": {
+    "kind": "agent",
+    "name": "claude",
+    "model": "ctrip-ada/claude-kr-claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "CHANGELOG.md line 95 sits in the Unreleased Changed section and named WorkloadFitReport's entry-count rendering, while the Unreleased Breaking changes entry removes WorkloadFitReport. Fixed in 66d22906 by deleting the clause.",
+      "confidence": 1
+    }
+  ]
+}

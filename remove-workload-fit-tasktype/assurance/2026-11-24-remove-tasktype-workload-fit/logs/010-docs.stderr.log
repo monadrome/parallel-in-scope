@@ -1,0 +1,26 @@
+
+[31m │  ⚠  Warning from the Material for MkDocs team[0m
+[31m │[0m
+[31m │[0m  MkDocs 2.0, the underlying framework of Material for MkDocs,
+[31m │[0m  will introduce backward-incompatible changes, including:
+[31m │[0m
+[31m │  × [0mAll plugins will stop working – the plugin system has been removed
+[31m │  × [0mAll theme overrides will break – the theming system has been rewritten
+[31m │  × [0mNo migration path exists – existing projects cannot be upgraded
+[31m │  × [0mClosed contribution model – community members can't report bugs
+[31m │  × [0mCurrently unlicensed – unsuitable for production use
+[31m │[0m
+[31m │[0m  Our full analysis:
+[31m │[0m
+[31m │[0m  [4mhttps://squidfunk.github.io/mkdocs-material/blog/2026/02/18/mkdocs-2.0/[0m
+[0m
+INFO    -  mkdocs_static_i18n: Building 'en' documentation to directory: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/mkdocs/site
+INFO    -  mkdocs_static_i18n: Adding 'zh' to the 'material/search' plugin 'lang' option
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/mkdocs/site
+INFO    -  mkdocs_static_i18n: Building 'zh' documentation to directory: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/mkdocs/site/zh
+INFO    -  mkdocs_static_i18n: Overriding 'zh' config 'nav' with '[{'文档首页': 'index.md'}, {'5 分钟快速上手': 'quickstart.md'}, {'完整使用指南': 'user-guide.md'}, {'交互式演示': 'https://monadrome.github.io/parallel-in-scope/interactive-demo.html'}, {'迁移指南': [{'从 0.3.x 升级到 0.4': 'migration-v0.4.md'}, {'从 0.2.x 升级到 0.3': 'migration-v0.3.md'}, {'从 0.1.x 升级到 0.2': 'migration-v0.2.md'}]}, {'API 与契约': [{'协作式取消': 'reference/cooperative-cancellation.md'}, {'空值注解': 'reference/nullability-annotations.md'}, {'有界准入调度': 'reference/bounded-admission-scheduling.md'}, {'执行器注册': 'reference/executor-registration.md'}, {'诊断与观测': 'reference/diagnostics.md'}]}, {'实现与设计': [{'设计哲学': 'design/philosophy.md'}, {'Idea Graveyard': 'design/idea-graveyard.md'}]}, {'测试与案例': [{'测试使用本库的代码': 'testing/testing-your-code.md'}, {'TaskBatchResult 测试设计': 'testing/task-batch-result-report-test-design.md'}, {'AI 并发审查误报复盘': 'case-studies/ai-concurrency-review-false-positive.md'}]}, {'Issues': 'https://github.com/monadrome/parallel-in-scope/issues'}]'
+INFO    -  mkdocs_static_i18n: Overriding 'zh' config 'site_description' with '面向 Java 8+ 的结构化并发工具包——协作式取消、快速失败、上下文传播、死锁检测、滑动窗口调度'
+INFO    -  mkdocs_static_i18n: Overriding 'zh' config 'theme.language' with 'zh'
+INFO    -  mkdocs_static_i18n: Overriding 'zh' config 'theme.palette' with '[{'media': '(prefers-color-scheme: light)', 'scheme': 'default', 'primary': 'indigo', 'accent': 'indigo', 'toggle': {'icon': 'material/brightness-7', 'name': '切换到暗色模式'}}, {'media': '(prefers-color-scheme: dark)', 'scheme': 'slate', 'primary': 'indigo', 'accent': 'indigo', 'toggle': {'icon': 'material/brightness-4', 'name': '切换到亮色模式'}}]'
+INFO    -  Documentation built in 18.33 seconds

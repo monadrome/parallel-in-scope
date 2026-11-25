@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-workload-fit-tasktype-6fb1ad34-20261125-153340-1922af",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T15:33:41.466Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "3ce96f08284e3e718311c58669b52c0cf96655e5",
+    "head": "6fb1ad345fb161bf3921aab71430b57575e7baa9",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "3ce96f08284e3e718311c58669b52c0cf96655e5",
+    "to": "6fb1ad345fb161bf3921aab71430b57575e7baa9",
+    "label": "3ce96f08..6fb1ad34"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "1a09a22240d9a15142350369c61d2baf27f9ef6e891bd7c30b15cafb8420b06b",
+    "bytes": 9599,
+    "files": [
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 216
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "4809699dd47781fa7520292a511d34ffa8e63e18b5399a630cf08bf77474522e",
+    "bytes": 5068,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "5d4b034eabd8a87de8e6aa747d1ab8f42b2f8eb735bf7c1b70d96417fb70043c",
+    "bytes": 2554
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "6fb1ad345fb161bf3921aab71430b57575e7baa9",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

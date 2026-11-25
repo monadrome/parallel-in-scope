@@ -1,0 +1,7 @@
+base=348 head=288 matched=288 removed=60 added=0
+KILLED at base, not KILLED at head: 0
+other status changes: 1
+  CHANGE Task.of VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/Task::pinTerminati' base:87:SURVIVED head:87:KILLED
+removed-at-head by class: {'WorkloadFit': 51, 'ScopedCallable': 3, 'TaskNode': 1, 'SystemWorkloadClock': 5}
+removed non-KILLED at base: ["WorkloadFit.lowCpu ConditionalsBoundaryMutator #1 'changed conditional boundary':SURVIVED", "SystemWorkloadClock.currentThreadCpuNanos PrimitiveReturnsMutator #0 'replaced long return with 0 for io/github/monadrome/parallelinscope/Sy':NO_COVERAGE", "SystemWorkloadClock.currentThreadCpuNanos PrimitiveReturnsMutator #2 'replaced long return with 0 for io/github/monadrome/parallelinscope/Sy':NO_COVERAGE"]
+added-at-head by class: {}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T13:52:26.174Z",
+  "endedAt": "2026-11-25T13:53:36.963Z",
+  "durationMs": 70282,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 758b7df6429cfd3be554bb716eb9d9537727addf to 2f73397fc9c506f645718f65790d9a15cfe9e37a. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: review round 5 (installGlobal disposition fix)\n\nReview `758b7df6..2f73397f` read-only. The implementer is Claude (Opus). Do not edit files, run\nMaven, or commit. You may run read-only commands such as `git`, `grep`, and `sed -n`.\n`verification/contract-tests/` is out of scope.\n\n## The commit\n\n`2f73397f docs: withdraw installGlobal PIT equivalence claim` changes one file,\n`verification/pit-audit/2026-11-24-remove-tasktype.md`. Round 4 reported that the record's\nequivalence claim for the `ParRuntime.installGlobal` survivor (removed closed-runtime\n`Preconditions::checkState`) fails when a closed runtime's installation races a live runtime's.\nThe commit removes that claim and records the survivor as a fourth unresolved pre-existing\n`ParRuntime` gap.\n\nRounds 1 to 4 are settled. Do not re-report their findings or re-review unchanged text, except\nwhere the new text contradicts it.\n\n## What to check\n\n1. Does the commit resolve the round-4 finding? Check the new gap entry against\n   `ParRuntime.installGlobal` and its Javadoc in\n   `core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java`: the contract it\n   quotes, the interleaving, the claim about the unmutated code (including the same-instance\n   close race the Javadoc permits), the impact, and the next actions.\n2. `verification/pit.md`, \"Dispositions and completion\": does the entry carry the contract,\n   evidence, impact, and next action that an unresolved gap requires?\n3. Consistency: the changed-classes table, the gap section's introduction, and \"Overall status\"\n   must agree (four gaps, three remaining equivalents, unchanged counts).\n4. Prose: symbols instead of source line numbers, English, working links.\n\n## Output\n\nIn `summary`, give one line for item 1 (`RESOLVED` or `NOT RESOLVED`, with the reason) and one\nline for items 2 to 4 together (`ACCEPT` or `REJECT`). Report every defect as a finding tied to a\nfile and a line, with a concrete failure scenario.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Item 1: RESOLVED — the new entry accurately describes the competing-installer interleaving, distinguishes it from the Javadoc-permitted same-instance close race, and withdraws the equivalence claim.\nItems 2–4: ACCEPT — the entry includes the required contract, evidence, impact, and next actions; the four-gap and three-equivalent counts are consistent; and the prose uses symbols, English, and a working link.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

@@ -1,0 +1,52 @@
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java
+index d6de0f94..9a981b49 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java
+@@ -9,6 +9,7 @@ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ExecutorService;
+@@ -186,4 +187,39 @@ class InertEnqueueRefusalWarningTest {
+ 
+         assertThat(records).isEmpty();
+     }
++
++    /**
++     * Group members, a group's combine, and single tasks are checked at admission like a batch: each
++     * unit that requests an inert refusal is reported for the Par it runs on.
++     */
++    @Test
++    void groupMembersCombinesAndSingleTasksAreCheckedAtAdmission() throws Exception {
++        try (ParRuntime units = ParRuntime.builder()
++                .register(ParId.of("member"), plain)
++                .register(ParId.of("combine"), plain)
++                .register(ParId.of("single"), plain)
++                .announcements(MoreExecutors.directExecutor())
++                .build()) {
++            TaskOptions refusing = TaskOptions.timeout(TIMEOUT).rejectEnqueue(true);
++            TaskKey<Integer> member = TaskKey.named("member");
++            TaskGroupResult<Integer> group = units.group("group", TIMEOUT)
++                    .par(member, units.par(ParId.of("member")), refusing, () -> 1)
++                    .combineValues(
++                            TaskKey.<Integer>named("combine"),
++                            units.par(ParId.of("combine")),
++                            refusing,
++                            values -> Objects.requireNonNull(values.valueOf(member)) + 1)
++                    .runAll();
++            TaskFuture<Integer> single = units.par(ParId.of("single")).submit("single", () -> 3, refusing);
++
++            assertThat(group.terminalValueOrThrow()).isEqualTo(2);
++            assertThat(single.get(TIMEOUT.getSeconds(), TimeUnit.SECONDS)).isEqualTo(3);
++            assertThat(records)
++                    .extracting(LogRecord::getMessage)
++                    .hasSize(3)
++                    .anySatisfy(message -> assertThat(message).startsWith("Par 'member' requested rejectEnqueue"))
++                    .anySatisfy(message -> assertThat(message).startsWith("Par 'combine' requested rejectEnqueue"))
++                    .anySatisfy(message -> assertThat(message).startsWith("Par 'single' requested rejectEnqueue"));
++        }
++    }
+ }

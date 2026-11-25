@@ -1,0 +1,56 @@
+package:
+  name: contract-first-assurance
+  version: 1.5.2
+  schema: 1
+  entrypoint: SKILL.md
+  layout: sibling-skills
+  description: Independent contract-based assurance for repository changes.
+
+components:
+  - path: ../contract-extract
+    kind: phase
+    version: 1.5.2
+  - path: ../isolated-test-generation
+    kind: phase
+    version: 1.5.2
+  - path: ../contract-diff
+    kind: phase
+    version: 1.5.2
+  - path: ../assurance-report
+    kind: phase
+    version: 1.5.2
+
+references:
+  invocation: references/invocation-modes.md
+  host_adapter: references/host-adapter.md
+  reproducible_runs: references/reproducible-runs.md
+  mutation_dispositions: references/mutation-dispositions.md
+
+host_adapters:
+  - path: adapters/vformation.yaml
+    applies_to: parallel-in-scope
+    version: 1.5.2
+
+runtime:
+  required:
+    - git
+    - isolated-worktree
+    - fresh-agent-context
+  optional:
+    - mutation-runner
+
+outputs:
+  default_root: .contract-first-assurance
+  required_files:
+    - run-manifest.json
+    - inputs/
+    - logs/
+    - contract.md
+    - contract-gaps.md
+    - candidates/
+    - candidate-status.csv
+    - promotions/
+    - promotion-status.csv
+    - reverse-verification/
+    - verification-summary.md
+    - report.md

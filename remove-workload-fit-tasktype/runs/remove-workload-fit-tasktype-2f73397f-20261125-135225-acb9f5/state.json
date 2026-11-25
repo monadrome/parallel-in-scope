@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5",
+  "status": "completed",
+  "createdAt": "2026-11-25T13:52:26.137Z",
+  "updatedAt": "2026-11-25T13:53:37.244Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T13:52:26.166Z",
+      "error": null
+    },
+    "reviews": {
+      "kimi": {
+        "agent": "kimi",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-25T13:52:26.174Z",
+            "endedAt": "2026-11-25T13:53:36.963Z",
+            "durationMs": 70282,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kimi/attempt-1.json",
+            "logBase": "logs/kimi-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-25T13:53:36.981Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T13:53:37.072Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T13:53:37.138Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T13:53:37.219Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-25T13:52:26.137Z",
+      "error": null
+    }
+  },
+  "eventSeq": 19
+}

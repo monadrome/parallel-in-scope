@@ -1,0 +1,24 @@
+Documentation references: OK
+Local documentation links: OK
+ADR conformance: OK
+Design route table: OK
+Proposal conformance: OK
+Line counts (review signal, not a gate):
+- design/proposal/P0002-api-surface-reduction.md: 137
+- design/proposal/P0020-deadline-attribution-policy.md: 41
+- design/proposal/P0036-complexity-review-signals.md: 57
+- design/proposal/P0037-future-path-staged-outcome-api.md: 232
+- design/proposal/P0040-batch-race-k.md: 123
+- design/archive/proposal/P0003-errorprone-cleanup.md: 183
+- design/archive/proposal/P0004-shared-root-budget.md: 68
+- design/archive/proposal/P0005-subtree-completion.md: 64
+- design/archive/proposal/P0006-execution-protocol-consolidation.md: 65
+- design/archive/proposal/P0008-runtime-drain-diagnostics.md: 40
+- design/archive/proposal/P0009-named-terminal-input.md: 49
+- design/archive/proposal/P0013-opentelemetry-verification.md: 109
+- design/archive/proposal/P0017-oss-adoption-path.md: 83
+OK: origin/dev/v0.5.0
+OK: 12 tracked project skill directories
+PROTECTED scripts/check-verification-integrity.py: modified; CODEOWNERS review required
+Verification integrity: no new violations; 1 protected change(s) reported
+OK: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.agents/skills/contract-first-assurance

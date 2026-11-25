@@ -1,0 +1,14 @@
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+@@ -407,7 +407,10 @@
+         if (!unit.rejectEnqueue() || executorRuntime.enqueueRefusalEffective()) {
+             return;
+         }
+-        if (enqueueRefusalWarningIssued.compareAndSet(false, true)) {
++        if (!enqueueRefusalWarningIssued.get()) {
++            com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly(
++                    500, java.util.concurrent.TimeUnit.MILLISECONDS);
++            enqueueRefusalWarningIssued.set(true);
+             String message = "Par '" + id + "' requested rejectEnqueue, but its executor "
+                     + executorRuntime.introspectableExecutor().getClass().getName()
+                     + " does not use a SubmissionAwareBlockingQueue, so enqueue refusal is inert there:"

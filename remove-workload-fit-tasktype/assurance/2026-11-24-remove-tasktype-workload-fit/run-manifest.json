@@ -1,0 +1,1421 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "runId": "2026-11-24-remove-tasktype-workload-fit",
+  "createdAt": "2026-11-25T11:48:53Z",
+  "package": {
+    "name": "contract-first-assurance",
+    "version": "1.5.2"
+  },
+  "adapter": {
+    "name": "vformation",
+    "version": "1.5.2",
+    "requiredGates": [
+      "full-suite",
+      "consumer",
+      "pit",
+      "independent-review",
+      "docs",
+      "race-claims",
+      "refactoring-review",
+      "regression-tests"
+    ],
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": {
+        "allowedRawStatuses": [
+          "TIMED_OUT"
+        ],
+        "requiredEvidence": [
+          "repeatable-focused-rerun",
+          "unmutated-tests-pass",
+          "complete-xml-and-logs",
+          "source-level-liveness-invariant",
+          "maintainer-or-independent-review"
+        ]
+      }
+    },
+    "regressionSuite": {
+      "path": "verification/contract-tests",
+      "regression-metadata": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "regression-tests": [
+        "mvn",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "regression-execution": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ]
+    }
+  },
+  "workspace": {
+    "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "dirty": false
+  },
+  "finalHead": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+  "status": "pass",
+  "requiredGates": [
+    "full-suite",
+    "consumer",
+    "pit",
+    "independent-review",
+    "docs",
+    "race-claims",
+    "refactoring-review",
+    "regression-tests"
+  ],
+  "checks": {
+    "full-suite": "pass",
+    "consumer": "pass",
+    "pit": "pass",
+    "independent-review": "pass",
+    "docs": "pass",
+    "race-claims": "pass",
+    "refactoring-review": "pass",
+    "regression-tests": "pass"
+  },
+  "inputs": {
+    "inputs/adapter.yaml": "bc2ae2b867fbd48eadd493d9bba88e8860a0eb7dca29c4c2545ddc99465c842e",
+    "inputs/change.diff": "525be2a42b1f6a300a11390efdb226435e01b1975ffa2e8101a6b28db7a042fa",
+    "inputs/contract-gaps-initial.md": "6aa6f88eb500bca13d2fbd8b388d3a6a54894313a428b159afc8017f6467d3d4",
+    "inputs/contract.md": "6fdd163d10cfb7fa3329b41975da4c21e14b8e60d0350baa82ccdd326d296920",
+    "inputs/generator/README.md": "4811bb53f25976953fcbbb8a745d43cd6887ab7596acb98bc68bad5f952fc003",
+    "inputs/generator/commands.md": "6b634bd35195e41f5fe7a60dae7ef75e06c1a19e8dafba734c29c6853e686b99",
+    "inputs/generator-prompt.md": "2148a04edd9a6cc4e44ec444e0b697a215388e27e1fd25538255573509b837f9",
+    "inputs/mvn-offline-wrapper.sh": "8aa9ef496213236b5fbdafded5e2213e84f923a212502b66bad6557ff8508df5",
+    "inputs/package.yaml": "74b87ee6532098d0bcc132eb84542501e676e4cab09ccc3437eec4b724baa921",
+    "inputs/sanitized-api.md": "900026e5f7a53075705c552f017f037e14be5275e9d8181d674b34624810ff9c",
+    "inputs/sanitizer/SanitizeApi.java": "58e56761c78bf10babe56a4af3d6536c271b5b647c6dff53593a2d30c69ad615",
+    "inputs/sources/0016-remove-tasktype-and-workload-fit-screening.md": "aab5d2a5f21b92299c48cfe983d3ccd59642439f7328e95987f2753a6eef10a8",
+    "inputs/sources/CHANGELOG.md": "9366526aee8fe4705668fb65dbdb493286bb08d35c751c660be383db29091a1d",
+    "inputs/sources/assurance-routing.md": "a253c5166cb1255384342e62456828eacc779ab4e84e6541d6cb2f696704c5fb",
+    "inputs/sources/pit.md": "241a6126103d2c22979051da4c8cd085b5a2819dfcd0844deddafd941a41e028",
+    "inputs/sources/reference-diagnostics.md": "f86d3e6aff4ab5372d2c84b62543089ad7a34dbb330559b106e6085d12143026",
+    "inputs/sources/reference-executor-registration.md": "57ed0e701b70c23b3d8fe3c07acc9173700ff03317f59d287e0071e5c22d4bf3",
+    "inputs/sources/review-procedure.md": "f13a489dac11280332b1c263aea75f1883360f639e3cdf4642dc124f4cadf119",
+    "inputs/sources/root-AGENTS.md": "a3039eaa2d0d9f38d375db31f8bc16dbbeae6d27e876f0686bc72eb7c7898c5a",
+    "inputs/sources/task-group-adopted-futures.md": "c25f7427523c5eb16a59737dbb11693753651f592365449e44d87b54ad5b45d4",
+    "inputs/sources/task-group-api-and-options.md": "28e5e03c030668274e9c31d777754b155334225316569547fd8c923fde5f257e",
+    "inputs/sources/user-guide.md": "8ec559d40e8075f753081ca92d70eef05372bc3cc1ad09f9dfff9a64cf0f39d5",
+    "inputs/sources/verification-integrity.md": "0971208eed584b18a7e43eebaf2f68b9f923f6e0fa8fa807a6055fdd6b0636e6",
+    "inputs/generator-prompt-attempt2.md": "b07216ac5c48a87844cea4398f652d20eff6c904d5eaf7c1d379f1c61268589b"
+  },
+  "commands": [
+    {
+      "phase": "isolated-generation",
+      "argv": [
+        "perl",
+        "-e",
+        "alarm 1800; exec @ARGV",
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-C",
+        "/tmp/rwf-assurance-gen-f020503d",
+        "--sandbox",
+        "workspace-write",
+        "--model",
+        "deepseek/deepseek-v4-pro",
+        "-c",
+        "model_reasoning_effort=high",
+        "--output-last-message",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/logs/001-isolated-generation.last-message.md",
+        "You are a fresh, isolated contract-test generator. Read README.md in the current directory and perform exactly the task it describes. Read only README.md, contract.md, sanitized-api.md, and commands.md in the current directory; do not inspect, list, or search anything outside it. Write the candidate files under candidates/ and stop.\n"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "exitCode": null,
+      "stdout": "logs/001-isolated-generation.stdout.log",
+      "stderr": "logs/001-isolated-generation.stderr.log",
+      "startedAt": "2026-11-25T11:49:18Z",
+      "note": "The Magpie gateway lost the DeepSeek connection mid-reply three times (logs/001-isolated-generation.gateway.log); the session stopped the attempt, so no exit status was captured. No candidate from this attempt was used.",
+      "endedAt": "2026-11-25T12:07:02Z"
+    },
+    {
+      "phase": "isolated-generation",
+      "argv": [
+        "perl",
+        "-e",
+        "alarm 2400; exec @ARGV",
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-C",
+        "/tmp/rwf-assurance-gen-f020503d",
+        "--sandbox",
+        "workspace-write",
+        "--model",
+        "deepseek/deepseek-v4-pro",
+        "-c",
+        "model_reasoning_effort=medium",
+        "--output-last-message",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/logs/002-isolated-generation-attempt2.last-message.md",
+        "You are a fresh, isolated contract-test generator. Read README.md in the current directory and perform exactly the task it describes. Read only README.md, contract.md, sanitized-api.md, and commands.md in the current directory; do not inspect, list, or search anything outside it. The model connection drops any single reply that runs longer than about five minutes, so keep every reply short: write exactly one file per tool call, and begin writing the first candidate soon after reading the inputs. Write the candidate files under candidates/ and stop.\n"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "exitCode": 0,
+      "stdout": "logs/002-isolated-generation-attempt2.stdout.log",
+      "stderr": "logs/002-isolated-generation-attempt2.stderr.log",
+      "startedAt": "2026-11-25T12:07:29Z",
+      "note": "Sealed candidates: logs/002-sealed-candidates.sha256.",
+      "endedAt": "0]"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "bash",
+        "-lc",
+        "python3 scripts/check-doc-refs.py && python3 scripts/check-local-links.py && python3 scripts/check-english-docs.py && python3 scripts/check-adr.py && python3 scripts/check-design-routes.py && python3 scripts/check-proposal.py && python3 scripts/check-project-baseline.py && python3 scripts/check-worktree-skills.py && python3 scripts/check-verification-integrity.py && python3 .agents/skills/contract-first-assurance/scripts/verify_package.py && mkdocs build --strict --config-file mkdocs/mkdocs.yml"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {},
+      "exitCode": 0,
+      "stdout": "logs/010-docs.stdout.log",
+      "stderr": "logs/010-docs.stderr.log",
+      "startedAt": "2026-11-25T12:23:39Z",
+      "endedAt": "2026-11-25T12:24:09Z"
+    },
+    {
+      "phase": "candidate-compile",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test-compile"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 1,
+      "stdout": "logs/011-candidate-compile.stdout.log",
+      "stderr": "logs/011-candidate-compile.stderr.log",
+      "startedAt": "2026-11-25T13:47:52Z",
+      "endedAt": "2026-11-25T13:48:01Z"
+    },
+    {
+      "phase": "candidate-compile",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test-compile"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/012-candidate-compile-adapted.stdout.log",
+      "stderr": "logs/012-candidate-compile-adapted.stderr.log",
+      "startedAt": "2026-11-25T13:53:28Z",
+      "endedAt": "2026-11-25T13:53:41Z"
+    },
+    {
+      "phase": "candidate-verification",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.*Test",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 1,
+      "stdout": "logs/013-candidate-initial-run.stdout.log",
+      "stderr": "logs/013-candidate-initial-run.stderr.log",
+      "startedAt": "2026-11-25T13:53:49Z",
+      "endedAt": "2026-11-25T13:54:20Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/005-combine-inherits-batch-refusal.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/014-reverse-apply-tdd-005.stdout.log",
+      "stderr": "logs/014-reverse-apply-tdd-005.stderr.log",
+      "startedAt": "2026-11-25T14:00:50Z",
+      "endedAt": "2026-11-25T14:00:50Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd005MapAndCombineCombineNoRefusalQueuedTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 1,
+      "stdout": "logs/015-reverse-candidate-tdd-005.stdout.log",
+      "stderr": "logs/015-reverse-candidate-tdd-005.stderr.log",
+      "startedAt": "2026-11-25T14:00:50Z",
+      "endedAt": "2026-11-25T14:01:17Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "-R",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/005-combine-inherits-batch-refusal.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/016-reverse-restore-tdd-005.stdout.log",
+      "stderr": "logs/016-reverse-restore-tdd-005.stderr.log",
+      "startedAt": "2026-11-25T14:01:18Z",
+      "endedAt": "2026-11-25T14:01:18Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/017-reverse-clean-tdd-005.stdout.log",
+      "stderr": "logs/017-reverse-clean-tdd-005.stderr.log",
+      "startedAt": "2026-11-25T14:01:18Z",
+      "endedAt": "2026-11-25T14:01:18Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/012-racy-once-only-guard.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/018-reverse-apply-tdd-012.stdout.log",
+      "stderr": "logs/018-reverse-apply-tdd-012.stderr.log",
+      "startedAt": "2026-11-25T14:01:18Z",
+      "endedAt": "2026-11-25T14:01:18Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd012ConcurrentFirstAdmissionsOnceTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 1,
+      "stdout": "logs/019-reverse-candidate-tdd-012.stdout.log",
+      "stderr": "logs/019-reverse-candidate-tdd-012.stderr.log",
+      "startedAt": "2026-11-25T14:01:18Z",
+      "endedAt": "2026-11-25T14:01:36Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "-R",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/012-racy-once-only-guard.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/020-reverse-restore-tdd-012.stdout.log",
+      "stderr": "logs/020-reverse-restore-tdd-012.stderr.log",
+      "startedAt": "2026-11-25T14:01:36Z",
+      "endedAt": "2026-11-25T14:01:36Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/021-reverse-clean-tdd-012.stdout.log",
+      "stderr": "logs/021-reverse-clean-tdd-012.stderr.log",
+      "startedAt": "2026-11-25T14:01:36Z",
+      "endedAt": "2026-11-25T14:01:36Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/013-caller-waits-for-delivery.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/022-reverse-apply-tdd-013.stdout.log",
+      "stderr": "logs/022-reverse-apply-tdd-013.stderr.log",
+      "startedAt": "2026-11-25T14:01:36Z",
+      "endedAt": "2026-11-25T14:01:36Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd013OffThreadBlockingHandlerTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 1,
+      "stdout": "logs/023-reverse-candidate-tdd-013.stdout.log",
+      "stderr": "logs/023-reverse-candidate-tdd-013.stderr.log",
+      "startedAt": "2026-11-25T14:01:36Z",
+      "endedAt": "2026-11-25T14:02:01Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "-R",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/013-caller-waits-for-delivery.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/024-reverse-restore-tdd-013.stdout.log",
+      "stderr": "logs/024-reverse-restore-tdd-013.stderr.log",
+      "startedAt": "2026-11-25T14:02:01Z",
+      "endedAt": "2026-11-25T14:02:01Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/025-reverse-clean-tdd-013.stdout.log",
+      "stderr": "logs/025-reverse-clean-tdd-013.stderr.log",
+      "startedAt": "2026-11-25T14:02:01Z",
+      "endedAt": "2026-11-25T14:02:01Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/015-registration-warning-on-build-thread.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/026-reverse-apply-tdd-015.stdout.log",
+      "stderr": "logs/026-reverse-apply-tdd-015.stderr.log",
+      "startedAt": "2026-11-25T14:02:01Z",
+      "endedAt": "2026-11-25T14:02:01Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd015RegistrationAndCycleWarningsTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 1,
+      "stdout": "logs/027-reverse-candidate-tdd-015.stdout.log",
+      "stderr": "logs/027-reverse-candidate-tdd-015.stderr.log",
+      "startedAt": "2026-11-25T14:02:01Z",
+      "endedAt": "2026-11-25T14:02:19Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "apply",
+        "-R",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/reverse-verification/patches/015-registration-warning-on-build-thread.patch"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/028-reverse-restore-tdd-015.stdout.log",
+      "stderr": "logs/028-reverse-restore-tdd-015.stderr.log",
+      "startedAt": "2026-11-25T14:02:20Z",
+      "endedAt": "2026-11-25T14:02:20Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/029-reverse-clean-tdd-015.stdout.log",
+      "stderr": "logs/029-reverse-clean-tdd-015.stderr.log",
+      "startedAt": "2026-11-25T14:02:20Z",
+      "endedAt": "2026-11-25T14:02:20Z"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd005MapAndCombineCombineNoRefusalQueuedTest,io.github.monadrome.parallelinscope.assurance.ContractTdd012ConcurrentFirstAdmissionsOnceTest,io.github.monadrome.parallelinscope.assurance.ContractTdd013OffThreadBlockingHandlerTest,io.github.monadrome.parallelinscope.assurance.ContractTdd015RegistrationAndCycleWarningsTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/030-reverse-restored-run.stdout.log",
+      "stderr": "logs/030-reverse-restored-run.stderr.log",
+      "startedAt": "2026-11-25T14:02:20Z",
+      "endedAt": "2026-11-25T14:02:46Z"
+    },
+    {
+      "phase": "full-suite-prepare",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "clean"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/031-full-suite-clean.stdout.log",
+      "stderr": "logs/031-full-suite-clean.stderr.log",
+      "startedAt": "2026-11-25T14:08:46Z",
+      "endedAt": "2026-11-25T14:08:48Z"
+    },
+    {
+      "phase": "full-suite",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/032-full-suite.stdout.log",
+      "stderr": "logs/032-full-suite.stderr.log",
+      "startedAt": "2026-11-25T14:08:48Z",
+      "endedAt": "2026-11-25T14:10:51Z"
+    },
+    {
+      "phase": "format",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "spotless:check"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/033-format-spotless.stdout.log",
+      "stderr": "logs/033-format-spotless.stderr.log",
+      "startedAt": "2026-11-25T14:10:51Z",
+      "endedAt": "2026-11-25T14:10:55Z"
+    },
+    {
+      "phase": "format",
+      "argv": [
+        "python3",
+        "scripts/check-doc-refs.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/034-format-doc-refs.stdout.log",
+      "stderr": "logs/034-format-doc-refs.stderr.log",
+      "startedAt": "2026-11-25T14:10:55Z",
+      "endedAt": "2026-11-25T14:10:55Z"
+    },
+    {
+      "phase": "race-claims",
+      "argv": [
+        "python3",
+        "scripts/check-race-claims.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/035-race-claims.stdout.log",
+      "stderr": "logs/035-race-claims.stderr.log",
+      "startedAt": "2026-11-25T14:10:55Z",
+      "endedAt": "2026-11-25T14:13:52Z"
+    },
+    {
+      "phase": "consumer",
+      "argv": [
+        "mvn",
+        "help:evaluate",
+        "-Dexpression=project.version",
+        "-q",
+        "-DforceStdout"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/036-library-version.stdout.log",
+      "stderr": "logs/036-library-version.stderr.log",
+      "startedAt": "2026-11-25T14:13:52Z",
+      "endedAt": "2026-11-25T14:13:54Z"
+    },
+    {
+      "phase": "consumer-build",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.test.skip=true",
+        "-Dmaven.javadoc.skip=true",
+        "clean",
+        "install"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/037-consumer-build.stdout.log",
+      "stderr": "logs/037-consumer-build.stderr.log",
+      "startedAt": "2026-11-25T14:13:54Z",
+      "endedAt": "2026-11-25T14:14:01Z"
+    },
+    {
+      "phase": "consumer-local-matrix",
+      "argv": [
+        "bash",
+        "-c",
+        "set -e\nfor HOME_DIR in /Users/linqh/Library/Java/JavaVirtualMachines/azul-1.8.0_432/Contents/Home /Users/linqh/Library/Java/JavaVirtualMachines/corretto-17.0.14/Contents/Home /Users/linqh/Library/Java/JavaVirtualMachines/temurin-21.0.5/Contents/Home /opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home; do\n  export JAVA_HOME=\"$HOME_DIR\"\n  export PATH=\"$JAVA_HOME/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin\"\n  java -version\n  export MAVEN_BASEDIR=\"$PWD/verification/maven-central-consumer\"\n  mvn -B -ntp -f verification/maven-central-consumer/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test\n  export MAVEN_BASEDIR=\"$PWD/demo\"\n  mvn -B -ntp -f demo/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT test\ndone"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/038-consumer-local-matrix.stdout.log",
+      "stderr": "logs/038-consumer-local-matrix.stderr.log",
+      "startedAt": "2026-11-25T14:14:01Z",
+      "endedAt": "2026-11-25T14:19:05Z"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "bash",
+        "-c",
+        "python3 scripts/check-doc-refs.py && python3 scripts/check-local-links.py && python3 scripts/check-english-docs.py && python3 scripts/check-adr.py && python3 scripts/check-design-routes.py && python3 scripts/check-proposal.py && python3 scripts/check-project-baseline.py && python3 scripts/check-worktree-skills.py && python3 scripts/check-verification-integrity.py && python3 .agents/skills/contract-first-assurance/scripts/verify_package.py && mkdocs build --strict --config-file mkdocs/mkdocs.yml --site-dir /tmp/rwf-logs/mkdocs-site"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/anaconda3/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/039-docs.stdout.log",
+      "stderr": "logs/039-docs.stderr.log",
+      "startedAt": "2026-11-25T14:19:14Z",
+      "endedAt": "2026-11-25T14:19:31Z"
+    },
+    {
+      "phase": "consumer-jdk11",
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify:/workspace",
+        "-v",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/target/rwf-m2-jdk11:/root/.m2/repository",
+        "-w",
+        "/workspace",
+        "maven:3.9.11-eclipse-temurin-11",
+        "bash",
+        "-c",
+        "set -e; java -version; sha256sum /root/.m2/repository/io/github/monadrome/parallel-in-scope/0.5.0-SNAPSHOT/parallel-in-scope-0.5.0-SNAPSHOT.jar; export MAVEN_BASEDIR=/workspace/verification/maven-central-consumer; mvn -B -ntp -o -f verification/maven-central-consumer/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test; export MAVEN_BASEDIR=/workspace/demo; mvn -B -ntp -o -f demo/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {},
+      "exitCode": 1,
+      "stdout": "logs/040-consumer-jdk11.stdout.log",
+      "stderr": "logs/040-consumer-jdk11.stderr.log",
+      "startedAt": "2026-11-25T14:20:23Z",
+      "endedAt": "2026-11-25T14:21:39Z"
+    },
+    {
+      "phase": "consumer-jdk11",
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify:/workspace",
+        "-v",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/target/rwf-m2-jdk11:/root/.m2/repository",
+        "-w",
+        "/workspace",
+        "maven:3.9.11-eclipse-temurin-11",
+        "bash",
+        "-c",
+        "set -e; java -version; sha256sum /root/.m2/repository/io/github/monadrome/parallel-in-scope/0.5.0-SNAPSHOT/parallel-in-scope-0.5.0-SNAPSHOT.jar; export MAVEN_BASEDIR=/workspace/verification/maven-central-consumer; mvn -B -ntp -o -f verification/maven-central-consumer/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test; export MAVEN_BASEDIR=/workspace/demo; mvn -B -ntp -o -f demo/pom.xml -Dparallel-in-scope.version=0.5.0-SNAPSHOT test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify",
+      "env": {},
+      "exitCode": 0,
+      "stdout": "logs/041-consumer-jdk11-rerun.stdout.log",
+      "stderr": "logs/041-consumer-jdk11-rerun.stderr.log",
+      "startedAt": "2026-11-25T14:22:21Z",
+      "endedAt": "2026-11-25T14:23:35Z"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/045-regression-metadata.stdout.log",
+      "stderr": "logs/045-regression-metadata.stderr.log",
+      "startedAt": "2026-11-25T14:32:55Z",
+      "endedAt": "2026-11-25T14:32:55Z"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "mvn",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/046-regression-tests.stdout.log",
+      "stderr": "logs/046-regression-tests.stderr.log",
+      "startedAt": "2026-11-25T14:33:06Z",
+      "endedAt": "2026-11-25T14:35:37Z"
+    },
+    {
+      "phase": "regression-execution",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/047-regression-execution.stdout.log",
+      "stderr": "logs/047-regression-execution.stderr.log",
+      "startedAt": "2026-11-25T14:36:37Z",
+      "endedAt": "2026-11-25T14:36:37Z"
+    },
+    {
+      "phase": "format",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "spotless:check"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/048-regression-format.stdout.log",
+      "stderr": "logs/048-regression-format.stderr.log",
+      "startedAt": "2026-11-25T14:54:00Z",
+      "endedAt": "2026-11-25T14:54:02Z"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/049-regression-metadata.stdout.log",
+      "stderr": "logs/049-regression-metadata.stderr.log",
+      "startedAt": "2026-11-25T14:54:02Z",
+      "endedAt": "2026-11-25T14:54:02Z"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "mvn",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/050-regression-tests.stdout.log",
+      "stderr": "logs/050-regression-tests.stderr.log",
+      "startedAt": "2026-11-25T14:54:10Z",
+      "endedAt": "2026-11-25T14:56:15Z"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/051-regression-metadata-final.stdout.log",
+      "stderr": "logs/051-regression-metadata-final.stderr.log",
+      "startedAt": "2026-11-25T14:57:04Z",
+      "endedAt": "2026-11-25T14:57:04Z"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "mvn",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/052-regression-tests-final.stdout.log",
+      "stderr": "logs/052-regression-tests-final.stderr.log",
+      "startedAt": "2026-11-25T14:57:04Z",
+      "endedAt": "2026-11-25T14:59:07Z"
+    },
+    {
+      "phase": "regression-execution",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/053-regression-execution-final.stdout.log",
+      "stderr": "logs/053-regression-execution-final.stderr.log",
+      "startedAt": "2026-11-25T14:59:07Z",
+      "endedAt": "2026-11-25T14:59:07Z"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/054-regression-metadata-post-withdrawal.stdout.log",
+      "stderr": "logs/054-regression-metadata-post-withdrawal.stderr.log",
+      "startedAt": "2026-11-25T15:24:12Z",
+      "endedAt": "2026-11-25T15:24:12Z"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "mvn",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/055-regression-tests-post-withdrawal.stdout.log",
+      "stderr": "logs/055-regression-tests-post-withdrawal.stderr.log",
+      "startedAt": "2026-11-25T15:24:12Z",
+      "endedAt": "2026-11-25T15:26:39Z"
+    },
+    {
+      "phase": "regression-execution",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "PATH": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin:/tmp/rwf-logs/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      },
+      "exitCode": 0,
+      "stdout": "logs/056-regression-execution-post-withdrawal.stdout.log",
+      "stderr": "logs/056-regression-execution-post-withdrawal.stderr.log",
+      "startedAt": "2026-11-25T15:26:39Z",
+      "endedAt": "2026-11-25T15:26:39Z"
+    }
+  ],
+  "artifacts": {
+    "adaptation/compile-adaptation.diff": "8e0c81807eb27fd85903b88b236a5003e6c68a6cc977e71fc4588f444bdb83cd",
+    "adaptation/promotion-adaptation.diff": "4d2b110ffef2ff5ffb4c5e9bd051775bbf14b7616841e1e665068faf6cd70440",
+    "candidate-status.csv": "c74d5bbb47ff3acfdfe5230681bca8eae8738d8716eb8596681c5c65e11dd57b",
+    "candidates/ContractTdd001RemovedSurfaceTest.java": "0cd36f572341c484c2f80932d652fd0839047a3f22354fbe41138bd8481892a1",
+    "candidates/ContractTdd002RejectEnqueueDefaultsFalseTest.java": "eb10dac2f5d6806de74f35d2a91c6ce0c2728057d309e05e32135cb2e89e5b90",
+    "candidates/ContractTdd003RefusingElementRejectedAtMaxTest.java": "37abaea222d5d79f567ce48a4a5174b4843de72c10fc04d52c0b97920862c886",
+    "candidates/ContractTdd004NonRefusingQueuedAndExternalExecuteTest.java": "9153c4ca8cfa02376f7fdb79b7d5d8df69912202a49d54f246ede4b3beb7e83b",
+    "candidates/ContractTdd005MapAndCombineCombineNoRefusalQueuedTest.java": "888bbf0b9fa33c86f342ef2142ba60b8b6bf92e986fc2c58dffa16e1c49df80d",
+    "candidates/ContractTdd006BatchInertRefusalWarnOnceTest.java": "6b5d6e4ca4b648eb8b02d1365d41b90f230ddd803367c5aa9b83647278de00c3",
+    "candidates/ContractTdd007GroupMemberAndCombineWarnTest.java": "5e7944717e9773b9ace1e829f49f7803650b2db933ece4f4a4e2fbc3a4f0e352",
+    "candidates/ContractTdd008PerEntryIndependenceTest.java": "46cb05984e1230ee825cd5c296707d5efb294757d66f07197040a78baf46e8b2",
+    "candidates/ContractTdd009RefusingOnRefusalCapableNoWarnTest.java": "3a11182793305b864b7db65b1addf5aeae51751691c84f1e83e9b1a66da9c411",
+    "candidates/ContractTdd010MapAndCombineCombineNoRefusalWarnTest.java": "b6c76d1072caddf0d404c1b6696f38bf7b2769aef46d24385e66e76182c033b1",
+    "candidates/ContractTdd011AdoptedMemberNoDiagnosticTest.java": "b555c733c8d85facf2cb0c9d55cbcf453083ccdb9ef151db12552a45a03dfb7d",
+    "candidates/ContractTdd012ConcurrentFirstAdmissionsOnceTest.java": "6399450534ef61579bdb4567db38b0cda9b68b12bef304c8c18493af2e9c0243",
+    "candidates/ContractTdd013OffThreadBlockingHandlerTest.java": "a34d3d8c162bf0501648f88eb94bf10c23d1c1762ca09f86fa305e89aca9d2f9",
+    "candidates/ContractTdd014ThrowingHandlerNoOutcomeChangeTest.java": "135224af336ca1a75e29456d30e9e746767aac346931261a41a4bf3f38273ac7",
+    "candidates/ContractTdd015RegistrationAndCycleWarningsTest.java": "bad3816754b80241de8c57c78dbd2eb6a59d54f7017cece3a3a089951bb62322",
+    "candidates/ContractTdd016NoRetainedDiagnosticsTest.java": "435c0ece04f62f5aa65e5f325003bd3ff4cdf166f59cd8fa6639704a3a119aa7",
+    "candidates/candidate-plan.csv": "9a8749b349cb804123eb59debee314b082982a8efbe5e5bba9f8382f117477a9",
+    "candidates/generation-notes.md": "30bbf59bb249f84b5c7027b62e3be3f3f232718198031082de44eab872c24a14",
+    "contract-gaps.md": "8c6149984433ade4174211ba61b5022453759fbeeaca0d4112ac04236e54e0d0",
+    "contract.md": "6fdd163d10cfb7fa3329b41975da4c21e14b8e60d0350baa82ccdd326d296920",
+    "evidence/pit/2026-11-24-remove-tasktype/README.md": "d07298c16ab50699d21c6c603cb18517cdd5869eb7cf1494030553a196257abd",
+    "evidence/pit/2026-11-24-remove-tasktype/SHA256SUMS": "6ffb6f8101f883defcebcf627c72aaa28613e850a5651335e0a93ba4916a9a90",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/base-vs-head-A.txt": "7bf0185c3f878a1d9b626978567aa98055b0ea04e1ef3d175ab674eb24296f81",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/base-vs-head-B.txt": "28a570cf84d75be11305bc7ac014a82d63fdbf1de52baee93512ef0e0a3a5fb6",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/base-vs-head-C.txt": "c4518654c09a1849c07192f160891179c4deddb38e1613f449bfc6bd515d92d5",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/base-vs-head-D.txt": "63e3c29141cb07e7204fd596f5c475355db60edf34ef5c916298492bf9a4c1ec",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/base-vs-head-E.txt": "47c891dfed91e929836a48f2960a179976f053325649fb3f589db18bca51aa9c",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/early-vs-head-A.txt": "2bc8f750d10a771f86b517639d949ff6d8ff8ad873e7bf816e9d3bcb1040013e",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/early-vs-head-C.txt": "2589a22b9c5527e534f16c864968a3e9d274ed5ca58eb21a67f4257a7581ee1c",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/early-vs-head-D.txt": "c4dc50bf1fe8cc186cfce11e0ac949acb8ec44085db80fec189dbc1b5fbedb08",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/early-vs-head-E.txt": "82b9cef391c15a20e107bd41bdde9b57143e8277cd296152045f29e4d721abbf",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/execution-phase-hint-future-run.txt": "eea1e12566f58c3bd219ceede8df11d1e64190af20ea7367b060a68244431978",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/host-sleep.txt": "8231b6fb80899e9d49f95d088987910726d5dd93fe8d6f20569d51f5aa875b21",
+    "evidence/pit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt": "55a53f53aa9c976a2bcd3ccdb6b2465b141d49d32bd2d39ea5a8192c04d36de6",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-A.log.gz": "8c95757e4f1bbafdd7539924073188354c6acdd7ad2cc2444eccaee1d1e026b3",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-A.process-monitor.log.gz": "6c1aafc2dda6f63f41a06289248b521da629f374a74d65443c9ece56bbbc3b04",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-B.log.gz": "a4fb75b8d5ad710ec85d4d4ace136f3acb4f5d94069e13d626d27e59a2adf8f2",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-B.process-monitor.log.gz": "c1e3405ecc51bab0ad537a0445486e6b4f89aee7e7f4d7e463f806de258d335f",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-C.log.gz": "88e0dcc6d18491a6f1463f495edf2537ab00ecff1414aeeac031feb277f8b821",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-C.process-monitor.log.gz": "3755d8712ff637aebc1e82fcd1f3717bfb899b31d100099726de479c40313e78",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-D-attempt1-precheck-flake.log.gz": "bb71e512ab35421b3caeb5a2bcf05f49330b02b781ea59f7a88730661223897f",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-D-attempt1-precheck-flake.process-monitor.log.gz": "9d6e7ec17076125c901f85249d5f44639696688989985a39a5a52f2880831600",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-D.log.gz": "44586807fef810b7715767192c6248adc262f6b5bab0067d239ceb71d3fd16f3",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-D.process-monitor.log.gz": "1ac2de4bf40db32d7534bed086528571d3f49109e62cb02dad3ac7e79c542e20",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-E.log.gz": "17f14a8ade27035756165a71a65bc27778eea2e6ebe69316b0d2629525f0b696",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/base-E.process-monitor.log.gz": "ff43de02c292e18b1fbbfcbc1c336bd3927732e9dc0e7f06b122c7f42d7f3a7c",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-A.log.gz": "e38e7499713f4d279ac24570073dda5cc8c5550b15ef576e27a9b9dd04616892",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-A.process-monitor.log.gz": "5df84b21d7fb6e8348b6290711d0a4c002b95d3938efbb8841117d07c738d208",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-C.log.gz": "1bae30321d07d19d3079c364088567e0c7316c0b02858e81d2aa085f8e86b7e0",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-C.process-monitor.log.gz": "c62ce2e72381736769fd5d10d881fad52dc8d7e329d9f91175644280040d6501",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-D.log.gz": "56f28e4ce442aec12debb84a63e50644a3e02dc78911f90514719bdef81ea129",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-D.process-monitor.log.gz": "34342d638ff6a53f3525c758077510d4c23e4debdfc305737d05eb58b941ec0e",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-E.log.gz": "7ac10374599da3598994085d9e06ef1c7c54d65309eb10f2aa85a51c985f8281",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/early-E.process-monitor.log.gz": "5bd1a97dde29db643ecd87526795b92ed03f1ba01aab092f6588136793bd3142",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/focused-ephf-killer-tests.log.gz": "4b54a4b6397da5d277b64aab8f727054510154009aecabc0470956a25aa11f60",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/focused-ephf-killer-tests.process-monitor.log.gz": "063560b12e18b72743df4fabb656745f9fc3ed479fe394785d933f4c942d084b",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz": "fb6f154c2c41d85eb8f5dbec205c6efc89f7deae28aa078c1b8c5eba639162d0",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.process-monitor.log.gz": "8a45c3d904041bfc46afbb9c48bb09cbdf31187e1b2c94a1104eee6366a3e80d",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz": "ad848fab780454b976830799793f328c739936948c2ed707bbc27232f6cbf75b",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.process-monitor.log.gz": "d9ca2d945fcd4c02140fdda7e4e027988f51e6fda4f1df99d3d8eef6c33ef292",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-A.log.gz": "b55848cae374a323fc76dd066cb8bcbb696eb8c73620456dda23e452d7c47bdc",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-A.process-monitor.log.gz": "d9e51912063eeefb4574fcd680153386a3e4846f98c5928fa5382eff623e19cd",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-B.log.gz": "8779c65bd410e8637769ac9aa35b64b653c1dc0bc383091c8a6e0b3d0ab3b283",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-B.process-monitor.log.gz": "f912fafad8c16277132423e8bcd901683c74a4e9bb90d48980ea0ba6964fe02f",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-C.log.gz": "7399436c280eaf019e65d9e3e76972fb223b167a4f63691f611c816dd2d8a90d",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-C.process-monitor.log.gz": "34fceb97a3408d3323095c55e9101152ebde8fc9b7690c553ba30db871501540",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz": "a8e4b4b6b2793457920e5ef16df973ce3a76ed77f47170c1de1cef8038f0f1dd",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.process-monitor.log.gz": "ebae308dd87f35dbd14e00cf37ef54abb638849ead012f2edaa1c565a5e9ad97",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-E.log.gz": "9f47d4f34d9ab945864c2cb8ddbc8355236214db027450302e3070d33d87f70f",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/head-E.process-monitor.log.gz": "84046a25121c9865e364966ee69c24167e7d043dea71d2495b959659d56310db",
+    "evidence/pit/2026-11-24-remove-tasktype/logs/host-sleep-wake.txt": "c6ab58e3a36168b0c08ca3b56816fbcd18d7a58911276e450f73e2bdc0d76359",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/base-A.xml.gz": "dd388eef41b5caadc3e9b07e39426ee08c1fc98b58f6c22c9f5d354bc49a11f2",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/base-B.xml.gz": "f4a76b9a3e38164cc5ab1b55e5f2b950442c8fb6ad95c08d4ef7e6869318b1a6",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/base-C.xml.gz": "1eb0966da59daf8ca6b03c756fb2a6ceaa3e0ce27ac73cbceec101c8a6ec8dd6",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/base-D.xml.gz": "6fd266f4269c890a25f1d027adfd0d8c5033ef4f9143962dfaa87bc910f3a888",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/base-E.xml.gz": "c6b06c870712b0c1098ea546d158c58aa200a517b3b90ce49b216a97c77f88f7",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/early-A.xml.gz": "f6e418499b32c86913c8984f103f1f3efdb5b92966b394db8a88728656dd28a6",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/early-C.xml.gz": "0826a9a2d690ff75bd0fbd994927d27bbf8df6006b16415a9aeec158d622d30f",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/early-D.xml.gz": "7335f27bd6d92e8f94c80c16b282e68b27fa5de10819003fbe26e399b31ddc0c",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/early-E.xml.gz": "a21fcd620f4a57c36b1275db20ade119b806615aa56009d29a6f662ec2aa6177",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/focused-ephf-killer-tests.xml.gz": "c66cf971c59c681dfe822f713df1d108c99632758f980c57ca38fd14e0584995",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime-killer-tests.xml.gz": "24b48d20bd8a26377243fdd4bacc4c21bd3fc1b2b532351e4cfc23562d511fde",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime.xml.gz": "cca87861664976909c4c316a3ecb3b862850ee6d4c2f89071a9e33558a6dd7aa",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/head-A.xml": "30746ccac5d81b8a781760a88adcc12a0285e4049c7e1fe57b792988db7eeb19",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/head-B.xml": "375510683db639f2cdde17eebe0934497bea3433ce6c0f23873deab649d0c1d5",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/head-C.xml": "ceb796bbf05dccf1693e6812fe6a9d56bdbbb562d6a0a48cbc51352e9c216c16",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/head-D.xml": "a0770286f236fe1075e63c8d772e5b37182dbcfbba67d5373d209a047d71ec72",
+    "evidence/pit/2026-11-24-remove-tasktype/reports/head-E.xml": "061acd4ccd16bebebed2cbfe9104ba38ea810f153c7316d522c17843d03c86fc",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/base-A.txt": "c58e4ddf551b6d118a35d7b3beba48decab11d5d26d160f5bb2a67f46f5905bb",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/base-B.txt": "180ba397106beb15f9762acb0b9579983f98bdf4f0e6cb670f0c35682725f27d",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/base-C.txt": "69adf2b4dd3b2a47d6a98df2bd7701bff81f037efcc6ab9488366884a2fa7e21",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/base-D-attempt1-precheck-flake.txt": "a042e54e5922fe947fbc5c15d902c2660c7aa8ef074235e4a702a629a494a9b7",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/base-D.txt": "c9e56ffef48babad5f4d903282e8381afb3fa8d026dd129b3e105a8cb89487b6",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/base-E.txt": "06e53c2dd68d08b0352e0172a00c2a2c7f9533dbfb79bd85d6bc4041fbce6834",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/early-A.txt": "a3ebf4cf3660417d3b616c233f93b527250d56fd719112a6b73fb78cb9dfc660",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/early-C.txt": "864dc0818b1e78910b16cc86ab2233d5b4ea15cf80b72f1495b350418c21324c",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/early-D.txt": "00227073483182926b08a632b6c870bc86a83e9da573502adbd79df0e63f8809",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/early-E.txt": "bf803f7a786687a8e3238362db312c7b1114e701686b7420dfae3219b5c5a9e6",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-ephf-killer-tests.txt": "652d1d4f25954d502c09826995b281d7b1778c218da888f23ada9932eb2d6854",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt": "94c830ed9519636517c1cbf55504d12ccd01f8439d2f11f420884d15c5fc952d",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime.txt": "2286a5af180424a35aa7858670a8bbecd093c6d617a1eec128de326e25715eb1",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/head-A.txt": "3293f26b49824621adf3f92d2983870e12f8c7beb3f4aeaa054d73a0586fa9dc",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/head-B.txt": "d10e13e5e834d5ca24b9556f7ef827a9d22998769b7a261e832cce9cc58f9e70",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/head-C.txt": "c23a64a9217ca5e57cec2aaed2269ce346e9d7a432d28d9c705a67e2824f14fe",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/head-D.txt": "dd9deb4b549a5f2f79aa0357a17dd2a4811b02a876a2e8f03702b1efcc0f90a7",
+    "evidence/pit/2026-11-24-remove-tasktype/run-meta/head-E.txt": "6e380b3ddd7cfc3e440767bdc817a2656f4213b1fbedbff5f14204cda2fb1f21",
+    "evidence/pit/2026-11-24-remove-tasktype/scripts/pit_compare.py": "cd15f64d54bd20a37a928e9c8d406396842326cd18b01618a527286e95ef3b72",
+    "evidence/pit/2026-11-24-remove-tasktype/scripts/pit_sleep.py": "9361463916c2d3855be7afa078e6416c6e2534d61f912c4e4082352bb4ee3ac6",
+    "evidence/pit/2026-11-24-remove-tasktype/scripts/pit_status_table.py": "ae4f801c432c556288e6ca3e0ca1b128c905951057c66030ec05b91d34160315",
+    "evidence/pit/2026-11-24-remove-tasktype.md": "84b27ed1980e05bf9bd02791ab682a63824eea70f266c74cad42d48d9d821341",
+    "evidence/refactoring-review/report.md": "840351843e01628b1352b5c7c251fc31eafa897312ece76934b9032742f12891",
+    "evidence/reviews/remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff-kimi-attempt-1.json": "21f63668ef461adf099379c0a53684fcb4230b06af02f957d5334f6008e63988",
+    "evidence/reviews/remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff-kiro-attempt-1.json": "ec37f480b7bc553a6697e5632be1694d8ff4f900630e3c2a95adf273b3b8720c",
+    "evidence/reviews/remove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b-codex-attempt-1.json": "7077bda7f203f6a836cc132b35793b1931787bea216b7466e74eaea24021b79b",
+    "evidence/reviews/remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5-kimi-attempt-1.json": "325feb71edde5f74008ca1dbdf7e0399818792634b10eda2c6bc389ed8b72b01",
+    "evidence/reviews/remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176-kimi-attempt-1.json": "595d38d13be1dc7911385b26a8b5512a5d61641b527dbf717018b31c4e3de4e8",
+    "evidence/reviews/remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca-codex-attempt-1.json": "5931940ad1c21ff429c47d1d250f8acd2fcf5d5baa39a11ff37756207a6c9731",
+    "evidence/reviews/remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca-kimi-attempt-1.json": "a2f7bac239f28746cabc07802fbb40c0c9508a8605b849b834d337ee4fbfe6cc",
+    "evidence/reviews/remove-workload-fit-tasktype-6fb1ad34-20261125-153340-1922af-kimi-attempt-1.json": "b583d1fc5b415c523fb55b86199519235c7ec7469aca8566294ab7f0235acad0",
+    "evidence/reviews/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901-kimi-attempt-1.json": "b73897ef233a7bfc4b569c236ceecfd89920f0d2696c666b9e1c4eab2e856d18",
+    "evidence/reviews/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee-codex-attempt-1.json": "4389e36a9ebccef51a7f5dda62dc21e0d3d855ac9dab155e10b6cb6f1c998c64",
+    "evidence/reviews/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee-kimi-attempt-1.json": "70c30f727446914486088993ca92d238f3787bdaea2aa54c4557409d30b2e3f4",
+    "logs/001-isolated-generation.ended": "4ea1e9f652314ae044c92ff07d1b60ca950c16945fad4c3892a681464f36608b",
+    "logs/001-isolated-generation.gateway.log": "a4c99bfb85b214d6526d74a8bdfad8a5cb7b2ff09b6b27e3f1bc7d0323bd7f3d",
+    "logs/001-isolated-generation.last-message.md": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/001-isolated-generation.started": "3054e2de523875712ca063df932efa0590f615a6a7d21875f938ead294263e08",
+    "logs/001-isolated-generation.stderr.log": "784c711425e9f5a244c2569d37cf98a59fe7d98097e06014088369d558f1edc6",
+    "logs/001-isolated-generation.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/002-isolated-generation-attempt2.exit.log": "fe106424392bec3827167321ba0fae4348573f4e1f1bdba167575acc3a0c722b",
+    "logs/002-isolated-generation-attempt2.last-message.md": "7f5ace17a2c2951ff3a652903e1dea01668059f0f82fcb9ea20c9f2db612968f",
+    "logs/002-isolated-generation-attempt2.started": "265ea283d627ca31a93ec1e78a43cd2f96bec129d64ac3269b4fab31bb72060a",
+    "logs/002-isolated-generation-attempt2.stderr.log": "6c9239ab20819dac31f4a7e7a834717b68e87872a86e9122aa210dd7400c54d9",
+    "logs/002-isolated-generation-attempt2.stdout.log": "374440ab5c2e1009d17ea8bee137078a1e6069e205036854629e02aa0cdbcd9f",
+    "logs/002-sealed-candidates.sha256": "a0d4ef1db0f9f443305714dd2902ddbf65e662064e6fe1462e926fa1c7c58fa9",
+    "logs/010-docs.stderr.log": "84b790196ddbc083f7efda1e03f46924fa7ffda7345a673f60a1159a23194a3b",
+    "logs/010-docs.stdout.log": "6c4bb379eb375f05272be17f1a0c85c1805274103ced961df3dd07a503b5d943",
+    "logs/011-candidate-compile.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/011-candidate-compile.stdout.log": "5e0817faed5f3538b5e1e8382a3ee86d4b264031de42a32f8e7bc4e21659a66d",
+    "logs/012-candidate-compile-adapted.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/012-candidate-compile-adapted.stdout.log": "6295d8dca8a6406d929f4a9882af402466cfc6a231c2cadf359be9ae1f97cd27",
+    "logs/013-candidate-initial-run.stderr.log": "97de09c67c8823a24bf314d0ee8c5336016549c7b5169455c3508ba8dd6e2dbf",
+    "logs/013-candidate-initial-run.stdout.log": "08676f99f7a841772d591708e2a1e2a8f10e1d35697155c4d8fc231b2e778bef",
+    "logs/014-reverse-apply-tdd-005.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/014-reverse-apply-tdd-005.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/015-reverse-candidate-tdd-005.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/015-reverse-candidate-tdd-005.stdout.log": "753ee5dccb68003b29627bd7926404783a518d4fc09bade26023316efd967862",
+    "logs/016-reverse-restore-tdd-005.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/016-reverse-restore-tdd-005.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/017-reverse-clean-tdd-005.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/017-reverse-clean-tdd-005.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/018-reverse-apply-tdd-012.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/018-reverse-apply-tdd-012.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/019-reverse-candidate-tdd-012.stderr.log": "6a7770516ccc9464771b25eb3d2bb310cf8cb2c22d6f4ffecf1d18ab9e91f6ab",
+    "logs/019-reverse-candidate-tdd-012.stdout.log": "dad2e7a72ffe96f946a3092c49d268d04cc89fe27c62c76c6d5d78b2fba772fd",
+    "logs/020-reverse-restore-tdd-012.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/020-reverse-restore-tdd-012.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/021-reverse-clean-tdd-012.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/021-reverse-clean-tdd-012.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/022-reverse-apply-tdd-013.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/022-reverse-apply-tdd-013.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/023-reverse-candidate-tdd-013.stderr.log": "67b058966e6b2606c2c66647912ca975961ce7a6c3b4127ff84aadb2f36d224b",
+    "logs/023-reverse-candidate-tdd-013.stdout.log": "73fd991bb39f95b839e953ef68643432785eafdba6cdd052b762eac27ce212c7",
+    "logs/024-reverse-restore-tdd-013.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/024-reverse-restore-tdd-013.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/025-reverse-clean-tdd-013.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/025-reverse-clean-tdd-013.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/026-reverse-apply-tdd-015.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/026-reverse-apply-tdd-015.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/027-reverse-candidate-tdd-015.stderr.log": "222af257b625755b3d03678e6981536db9fbfb5700fe1ce022944b420a3d3e1b",
+    "logs/027-reverse-candidate-tdd-015.stdout.log": "14a926761353ec321f8fd2f428d3356435b9e99b77a8f18be368ec02ef121cfe",
+    "logs/028-reverse-restore-tdd-015.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/028-reverse-restore-tdd-015.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/029-reverse-clean-tdd-015.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/029-reverse-clean-tdd-015.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/030-reverse-restored-run.stderr.log": "74a92ec858696c3327c650395843aaa0d336d422bfd6655f4a167d106120bcd1",
+    "logs/030-reverse-restored-run.stdout.log": "da60792d1810f17abdd8937a8d6d8281872e9f5b556b8aa547385de702577588",
+    "logs/031-full-suite-clean.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/031-full-suite-clean.stdout.log": "60304ccea975efe39a606531fa4e0d75f54037e331f9b573b33d0c3db2620d1d",
+    "logs/032-full-suite.stderr.log": "493b1a15361a15124837f0a4ae8115512bd58a6f3f9f0d316747e26e631b7e2a",
+    "logs/032-full-suite.stdout.log": "11af403a216bf2f920bce1f95c8b71d758d13d9f0d9161fc82b55fee127d21a4",
+    "logs/033-format-spotless.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/033-format-spotless.stdout.log": "1ac901f520cad3fa231a5f1488e4ddcc4c8052c78810d334f35bd5656509fc74",
+    "logs/034-format-doc-refs.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/034-format-doc-refs.stdout.log": "972f50c61c2d961fc3f493f09960d7babd78287559b21a4b9cd8936e1e0b1b7a",
+    "logs/035-race-claims.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/035-race-claims.stdout.log": "19c6d98898f5e9006ee64bfb5b30cc9eff8a796ca06037c292ede4f2c5236dec",
+    "logs/036-library-version.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/036-library-version.stdout.log": "0273632ecf9c84fcc14e07cac931e7385b1e9a3b296c0dd1b0c2abe02cb6a98e",
+    "logs/037-consumer-build.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/037-consumer-build.stdout.log": "05dd52f5dd2da0fd0bedaf9d8c817786eb7634e5b52e7224bed599c13f039479",
+    "logs/038-consumer-local-matrix.stderr.log": "25f386f5b40c9f286c7450a007897f0633c5dffd6963aa9fccd811d5b28a7f3a",
+    "logs/038-consumer-local-matrix.stdout.log": "9bd11d5745ffc16a7c3d006caba20f72c3b6cc6955efe5b616da06afe0357f42",
+    "logs/039-docs.stderr.log": "2641e2134b3f9fb792ce8145d24c7099f8bf57f71124f73bfbf31a65c90a9f8b",
+    "logs/039-docs.stdout.log": "5fa03f7d911349685db4cf8b9c8e749af18534e83cd680402c21557b745ca2ff",
+    "logs/040-consumer-jdk11.stderr.log": "8f56b912e5941bc603c5f8fa5ef0f514857d4d7de810623e13fb3a7f49c0b481",
+    "logs/040-consumer-jdk11.stdout.log": "ef448721d80e0657a96ec2744aa7f3715f519f1377eebf5818cf28c50bdfa758",
+    "logs/041-consumer-jdk11-rerun.stderr.log": "d96d3181fd653848052705fb96e4189509697df9edc3c32c60f27803bf312ee2",
+    "logs/041-consumer-jdk11-rerun.stdout.log": "dd053ddd71f4c445b58b4d57b1c6fd38638111c621c10832675155e80e4162ca",
+    "logs/045-regression-metadata.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/045-regression-metadata.stdout.log": "ebcafb87c979c7a3f0a7c93ed0f999e8b3c0691215f39a34d367eaa21651c1f9",
+    "logs/046-regression-tests.stderr.log": "44675fbdd6a7b3c29e308d232e14aa17d4fefc6dd23cea0524a93a51c7b10b9e",
+    "logs/046-regression-tests.stdout.log": "2903a05b80062579ce0c97defc50337c6839705c724d97b473f2cf08550dce95",
+    "logs/047-regression-execution.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/047-regression-execution.stdout.log": "b2838e264d6904dea67b595c6cf7a028f1cfe2402ac9706525f4db4d1a499ead",
+    "logs/048-regression-format.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/048-regression-format.stdout.log": "2b8ba4ddf4229625ce5faec76013eb0615d1dc9ad1a9b6d66193732ed47e7b59",
+    "logs/049-regression-metadata.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/049-regression-metadata.stdout.log": "ebcafb87c979c7a3f0a7c93ed0f999e8b3c0691215f39a34d367eaa21651c1f9",
+    "logs/050-regression-tests.stderr.log": "f3c3425626cb46c88e1b953b712bf393ed6a1936184ab9c154ce936ec87d894b",
+    "logs/050-regression-tests.stdout.log": "ef95aa6c8eb2674cabce8b036357a16aedd016c161161ab995244dee20b4c2a9",
+    "logs/051-regression-metadata-final.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/051-regression-metadata-final.stdout.log": "ebcafb87c979c7a3f0a7c93ed0f999e8b3c0691215f39a34d367eaa21651c1f9",
+    "logs/052-regression-tests-final.stderr.log": "2b61a06d758b96f41aa3fb73784b68ac6b7c40b5d93dcc85c8b4ebd016a9b08f",
+    "logs/052-regression-tests-final.stdout.log": "8775cca17725a034314233780d1403980a2c04284e80739e19e3be3db2abbe6f",
+    "logs/053-regression-execution-final.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/053-regression-execution-final.stdout.log": "b2838e264d6904dea67b595c6cf7a028f1cfe2402ac9706525f4db4d1a499ead",
+    "logs/054-regression-metadata-post-withdrawal.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/054-regression-metadata-post-withdrawal.stdout.log": "ebcafb87c979c7a3f0a7c93ed0f999e8b3c0691215f39a34d367eaa21651c1f9",
+    "logs/055-regression-tests-post-withdrawal.stderr.log": "554b294b1f8047a6aa8f9b8405b539340efa3c1e232c0c347f581295d8e831ac",
+    "logs/055-regression-tests-post-withdrawal.stdout.log": "c47b0d27a054e27ed691ddbb56922944c60e8dedd121e0cddf07ed0a4e5d07cd",
+    "logs/056-regression-execution-post-withdrawal.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/056-regression-execution-post-withdrawal.stdout.log": "b2838e264d6904dea67b595c6cf7a028f1cfe2402ac9706525f4db4d1a499ead",
+    "logs/commands.jsonl": "71615b440551c936d1906bd0c76cf35b29ed39300eac5939b277a70201de9510",
+    "promotion-status.csv": "7727d2f5889db7434437202365774cd7bd0206c945c3f8fd0924749899006136",
+    "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java": "100526a696fa3c392a68b1ca18244cf94a9d620718ebb7c6ac2ddfe15a6c942b",
+    "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java": "839a5eaaecd91fe0a513fbe6768a95db1cc88038a9ee24c8c2316b04fc394fbb",
+    "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java": "740d06a8e39740615c3e20ab83eb48c6639a112b8fef3cee210772e14804d7b3",
+    "promotions/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java": "100526a696fa3c392a68b1ca18244cf94a9d620718ebb7c6ac2ddfe15a6c942b",
+    "promotions/C0003ConcurrentFirstAdmissionsOnceContractTest.java": "839a5eaaecd91fe0a513fbe6768a95db1cc88038a9ee24c8c2316b04fc394fbb",
+    "promotions/C0004OffThreadBlockingHandlerContractTest.java": "740d06a8e39740615c3e20ab83eb48c6639a112b8fef3cee210772e14804d7b3",
+    "promotions/C0005RegistrationAndCycleWarningsContractTest.java": "ef418848d5886c651435455cba051dddf564317d3a7bb1c0a8b081fe96b53a6f",
+    "report.md": "aa39bb06714fb2888edcfc3f7225546a93289cb2401869199e93f5c67b39c2b2",
+    "reverse-verification/README.md": "b750c56f113a1bb1048acc6863dbd2dd6926814c85b2f18caf91b5f54c9b1cb6",
+    "reverse-verification/patches/005-combine-inherits-batch-refusal.patch": "6a69f752fc342c9e948369b96c7ef580d5f0cc4c3352af38ada1d5adda7b4ca7",
+    "reverse-verification/patches/012-racy-once-only-guard.patch": "6c2cee353dcf4489f54f5700cc9f40ccbf0d097a017d1347c2de2679cf65ace7",
+    "reverse-verification/patches/013-caller-waits-for-delivery.patch": "d077418993dab047692b0ba5bc36c398930b29850e70a325c2db7453670c41ee",
+    "reverse-verification/patches/015-registration-warning-on-build-thread.patch": "d690cb63a20ede956cd2912dee9c12042eca8b6859b87ade5648a11b9fa4157b",
+    "verification-summary.md": "73db2913d7e5c5d9414b55e4c6dafe73a5c39650d17dfdce369cb8ac9639d3b7"
+  },
+  "acceptedExceptions": [
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime.awaitQuiescence VoidMethodCallMutator: removed Monitor::leave in the zero-budget branch",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/032-full-suite.stdout.log",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-24-remove-tasktype/SHA256SUMS",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/head-D.xml",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime-killer-tests.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/reviews/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901-kimi-attempt-1.json"
+        ]
+      },
+      "approvedBy": "Independent review, kimi-code/k3.1-pro, llm-review-bench run remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901 (items 3a to 3d APPROVE)"
+    },
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime.enterAdmission NegateConditionalsMutator #1: negated open-runtime return",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/032-full-suite.stdout.log",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-24-remove-tasktype/SHA256SUMS",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/head-D.xml",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime-killer-tests.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/reviews/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901-kimi-attempt-1.json"
+        ]
+      },
+      "approvedBy": "Independent review, kimi-code/k3.1-pro, llm-review-bench run remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901 (items 3a to 3d APPROVE)"
+    },
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime lambda$trackExecutions$0 VoidMethodCallMutator: removed Monitor::leave",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/032-full-suite.stdout.log",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-24-remove-tasktype/SHA256SUMS",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/head-D.xml",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime-killer-tests.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/reviews/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901-kimi-attempt-1.json"
+        ]
+      },
+      "approvedBy": "Independent review, kimi-code/k3.1-pro, llm-review-bench run remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901 (items 3a to 3d APPROVE)"
+    },
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime$DispatchingScheduledExecutorService lambda$schedule$0 VoidMethodCallMutator: removed ExecutorService::execute",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime.txt",
+          "evidence/pit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/032-full-suite.stdout.log",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-24-remove-tasktype/SHA256SUMS",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/head-D.xml",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/head-D.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/reports/focused-par-runtime-killer-tests.xml.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime.log.gz",
+          "evidence/pit/2026-11-24-remove-tasktype/logs/focused-par-runtime-killer-tests.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/reviews/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901-kimi-attempt-1.json"
+        ]
+      },
+      "approvedBy": "Independent review, kimi-code/k3.1-pro, llm-review-bench run remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901 (items 3a to 3d APPROVE)"
+    }
+  ],
+  "promotionTargets": {
+    "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java": "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java",
+    "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java": "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java",
+    "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java": "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java"
+  }
+}

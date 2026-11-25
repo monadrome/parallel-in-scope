@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-25T03:15:32.425Z",
+  "judge": {
+    "kind": "agent",
+    "name": "claude",
+    "model": "ctrip-ada/claude-kr-claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "adr/0016 Supersedes at lines 10-11 listed only ADR 0008 and ADR 0010; adr/0001 lines 9-11 and adr/0005 lines 9-13 list ADR 0016 under Partially superseded by; adr/AGENTS.md File And Status Rules require linking both directions, as ADR 0008 and ADR 0010 do for partial supersessions. Fixed in 66d22906.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "adr/0008 lines 19-22 and 72-74 said section 3.2.1 was retired; design/task-group-api-and-options.md section 3.2.1 Admission diagnostics is live and holds the retained inert-refusal and delivery rules. Fixed in 66d22906.",
+      "confidence": 1
+    }
+  ]
+}

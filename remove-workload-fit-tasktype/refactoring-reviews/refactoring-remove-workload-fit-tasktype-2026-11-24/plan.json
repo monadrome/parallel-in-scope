@@ -1,0 +1,1069 @@
+{
+  "version": 1,
+  "baseRef": "origin/dev/v0.5.0",
+  "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+  "head": "07f83919e72414a6987648c3288788a5db7abc6b",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+      "head": "07f83919e72414a6987648c3288788a5db7abc6b",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 147,
+        "touchedCandidates": 0,
+        "injectedCandidates": 0
+      },
+      "candidates": [],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "56 code file(s), 2391 changed code line(s)",
+  "totals": {
+    "codeFiles": 56,
+    "codeLines": 2391
+  },
+  "files": [
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+      "class": "main",
+      "codeLines": 40,
+      "commentLines": 16
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+      "class": "main",
+      "codeLines": 16,
+      "commentLines": 7
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+      "class": "main",
+      "codeLines": 43,
+      "commentLines": 25
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+      "class": "main",
+      "codeLines": 38,
+      "commentLines": 39
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+      "class": "main",
+      "codeLines": 12,
+      "commentLines": 7
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+      "class": "main",
+      "codeLines": 33,
+      "commentLines": 5
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java",
+      "class": "main",
+      "codeLines": 6,
+      "commentLines": 1
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+      "class": "main",
+      "codeLines": 19,
+      "commentLines": 13
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+      "class": "main",
+      "codeLines": 6,
+      "commentLines": 27
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+      "class": "main",
+      "codeLines": 49,
+      "commentLines": 17
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+      "class": "main",
+      "codeLines": 12,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java",
+      "class": "main",
+      "codeLines": 6,
+      "commentLines": 11
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+      "class": "main",
+      "codeLines": 270,
+      "commentLines": 32
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java",
+      "class": "main",
+      "codeLines": 159,
+      "commentLines": 80
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/BatchOptionsTest.java",
+      "class": "test",
+      "codeLines": 12,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java",
+      "class": "test",
+      "codeLines": 1,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java",
+      "class": "test",
+      "codeLines": 25,
+      "commentLines": 10
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java",
+      "class": "test",
+      "codeLines": 1,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java",
+      "class": "test",
+      "codeLines": 13,
+      "commentLines": 8
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java",
+      "class": "test",
+      "codeLines": 12,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java",
+      "class": "test",
+      "codeLines": 26,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java",
+      "class": "test",
+      "codeLines": 2,
+      "commentLines": 4
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+      "class": "test",
+      "codeLines": 1,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+      "class": "test",
+      "codeLines": 6,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java",
+      "class": "test",
+      "codeLines": 14,
+      "commentLines": 6
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScriptedWorkloadClock.java",
+      "class": "test",
+      "codeLines": 42,
+      "commentLines": 7
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java",
+      "class": "test",
+      "codeLines": 78,
+      "commentLines": 2
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueueTest.java",
+      "class": "test",
+      "codeLines": 14,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultExecutionExitTest.java",
+      "class": "test",
+      "codeLines": 20,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java",
+      "class": "test",
+      "codeLines": 9,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java",
+      "class": "test",
+      "codeLines": 16,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskOptionsTest.java",
+      "class": "test",
+      "codeLines": 23,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java",
+      "class": "test",
+      "codeLines": 276,
+      "commentLines": 21
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchesTest.java",
+      "class": "test",
+      "codeLines": 174,
+      "commentLines": 10
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java",
+      "class": "test",
+      "codeLines": 470,
+      "commentLines": 16
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitSystemClockTest.java",
+      "class": "test",
+      "codeLines": 72,
+      "commentLines": 8
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java",
+      "class": "test",
+      "codeLines": 188,
+      "commentLines": 19
+    },
+    {
+      "path": "demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java",
+      "class": "main",
+      "codeLines": 9,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/BatchBestPracticesTest.java",
+      "class": "test",
+      "codeLines": 10,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/E1_QueueFloodingTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java",
+      "class": "test",
+      "codeLines": 49,
+      "commentLines": 11
+    },
+    {
+      "path": "demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java",
+      "class": "test",
+      "codeLines": 4,
+      "commentLines": 0
+    },
+    {
+      "path": "demo/src/test/java/demo/article/G6_BatchDbQueryTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 0
+    },
+    {
+      "path": "integrations/src/main/java/integrations/app/QuoteService.java",
+      "class": "main",
+      "codeLines": 3,
+      "commentLines": 0
+    },
+    {
+      "path": "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java",
+      "class": "main",
+      "codeLines": 5,
+      "commentLines": 0
+    },
+    {
+      "path": "scripts/check-verification-integrity.py",
+      "class": "script",
+      "codeLines": 44,
+      "commentLines": 3
+    }
+  ],
+  "skippedFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "README.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "README.zh-CN.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "adr/0001-layered-cartesian-concurrency-testing.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "adr/0005-globalpar-executor-binding.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "adr/0008-tasktype-as-workload-fit-diagnostic.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "adr/0010-always-on-workload-fit-screening.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+      "reason": "no changed code lines"
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueue.java",
+      "reason": "no changed code lines"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/A1-cancel-true-ignored.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/BATCH-best-practices.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/D2-late-bind-race-condition.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/F1-cpu-task-queuing.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/G4-named-executor-pool.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/G5-batch-http-calls.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/G6-batch-db-query.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/I2-java8-compatibility-cost.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/I4-vs-completable-future.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "demo/docs/zh-CN/articles/QUICK-START-5-minutes.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/AGENTS.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/decision-log.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-adopted-futures.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-api-and-options.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-lifecycle.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-terminal-combine.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/workload-fit-screening.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/design/idea-graveyard.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/design/philosophy.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/index.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/reference/diagnostics.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/user-guide.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/design/idea-graveyard.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/design/philosophy.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/index.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/reference/diagnostics.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/user-guide.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "scripts/run-pit-core.sh",
+      "reason": "not a code path"
+    },
+    {
+      "path": "verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java",
+      "reason": "not a code path"
+    }
+  ],
+  "lenses": [
+    "M",
+    "C",
+    "D",
+    "S",
+    "V",
+    "T"
+  ],
+  "mode": "sharded",
+  "agents": [
+    {
+      "id": "M",
+      "lenses": [
+        "M"
+      ],
+      "shard": null,
+      "wholeDiff": true,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/BatchOptionsTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScriptedWorkloadClock.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueueTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultExecutionExitTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskOptionsTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchesTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitSystemClockTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java",
+        "demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java",
+        "demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java",
+        "demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java",
+        "demo/src/test/java/demo/article/BatchBestPracticesTest.java",
+        "demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java",
+        "demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java",
+        "demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java",
+        "demo/src/test/java/demo/article/E1_QueueFloodingTest.java",
+        "demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java",
+        "demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java",
+        "demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java",
+        "demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java",
+        "demo/src/test/java/demo/article/G6_BatchDbQueryTest.java",
+        "integrations/src/main/java/integrations/app/QuoteService.java",
+        "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 2391,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "demo/AGENTS.md",
+        "integrations/AGENTS.md",
+        "design/interruption-contract.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/M/diff.patch",
+      "brief": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/M/brief.md",
+      "findings": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/M/findings.json"
+    },
+    {
+      "id": "C-1",
+      "lenses": [
+        "C"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java"
+      ],
+      "codeLines": 470,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/interruption-contract.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/C-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/C-1/brief.md",
+      "findings": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/C-1/findings.json"
+    },
+    {
+      "id": "D-1",
+      "lenses": [
+        "D"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 270,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/D-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/D-1/brief.md",
+      "findings": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/D-1/findings.json"
+    },
+    {
+      "id": "S-1",
+      "lenses": [
+        "S"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 270,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/S-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/S-1/brief.md",
+      "findings": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/S-1/findings.json"
+    },
+    {
+      "id": "V-1",
+      "lenses": [
+        "V"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 270,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/V-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/V-1/brief.md",
+      "findings": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/V-1/findings.json"
+    },
+    {
+      "id": "T-1",
+      "lenses": [
+        "T"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java"
+      ],
+      "codeLines": 470,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/interruption-contract.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/T-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/T-1/brief.md",
+      "findings": ".agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24/agents/T-1/findings.json"
+    }
+  ],
+  "uncovered": [
+    {
+      "lens": "C",
+      "shard": 2,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java"
+      ],
+      "codeLines": 276
+    },
+    {
+      "lens": "D",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java"
+      ],
+      "codeLines": 188
+    },
+    {
+      "lens": "S",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java"
+      ],
+      "codeLines": 188
+    },
+    {
+      "lens": "V",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java"
+      ],
+      "codeLines": 188
+    },
+    {
+      "lens": "T",
+      "shard": 2,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java"
+      ],
+      "codeLines": 276
+    },
+    {
+      "lens": "C",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 270
+    },
+    {
+      "lens": "D",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java"
+      ],
+      "codeLines": 159
+    },
+    {
+      "lens": "S",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java"
+      ],
+      "codeLines": 159
+    },
+    {
+      "lens": "V",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java"
+      ],
+      "codeLines": 159
+    },
+    {
+      "lens": "T",
+      "shard": 3,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java"
+      ],
+      "codeLines": 188
+    },
+    {
+      "lens": "C",
+      "shard": 4,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java"
+      ],
+      "codeLines": 188
+    },
+    {
+      "lens": "D",
+      "shard": 4,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java"
+      ],
+      "codeLines": 92
+    },
+    {
+      "lens": "S",
+      "shard": 4,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java"
+      ],
+      "codeLines": 92
+    },
+    {
+      "lens": "V",
+      "shard": 4,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java",
+        "demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java",
+        "integrations/src/main/java/integrations/app/QuoteService.java",
+        "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java"
+      ],
+      "codeLines": 109
+    },
+    {
+      "lens": "T",
+      "shard": 4,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchesTest.java"
+      ],
+      "codeLines": 174
+    },
+    {
+      "lens": "C",
+      "shard": 5,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchesTest.java"
+      ],
+      "codeLines": 174
+    },
+    {
+      "lens": "D",
+      "shard": 5,
+      "files": [
+        "demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java",
+        "integrations/src/main/java/integrations/app/QuoteService.java",
+        "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 61
+    },
+    {
+      "lens": "S",
+      "shard": 5,
+      "files": [
+        "demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java",
+        "integrations/src/main/java/integrations/app/QuoteService.java",
+        "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 61
+    },
+    {
+      "lens": "T",
+      "shard": 5,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/BatchOptionsTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScriptedWorkloadClock.java"
+      ],
+      "codeLines": 169
+    },
+    {
+      "lens": "C",
+      "shard": 6,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java"
+      ],
+      "codeLines": 130
+    },
+    {
+      "lens": "T",
+      "shard": 6,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueueTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultExecutionExitTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskOptionsTest.java"
+      ],
+      "codeLines": 164
+    },
+    {
+      "lens": "C",
+      "shard": 7,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScriptedWorkloadClock.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java"
+      ],
+      "codeLines": 130
+    },
+    {
+      "lens": "T",
+      "shard": 7,
+      "files": [
+        "demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java",
+        "demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java",
+        "demo/src/test/java/demo/article/BatchBestPracticesTest.java",
+        "demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java",
+        "demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java",
+        "demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java",
+        "demo/src/test/java/demo/article/E1_QueueFloodingTest.java",
+        "demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java",
+        "demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java",
+        "demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java",
+        "demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java",
+        "demo/src/test/java/demo/article/G6_BatchDbQueryTest.java"
+      ],
+      "codeLines": 108
+    },
+    {
+      "lens": "C",
+      "shard": 8,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitSystemClockTest.java"
+      ],
+      "codeLines": 72
+    },
+    {
+      "lens": "T",
+      "shard": 8,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitSystemClockTest.java"
+      ],
+      "codeLines": 72
+    },
+    {
+      "lens": "C",
+      "shard": 9,
+      "files": [
+        "demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java",
+        "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java"
+      ],
+      "codeLines": 54
+    }
+  ],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

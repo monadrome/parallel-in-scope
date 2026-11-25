@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca",
+  "status": "completed",
+  "createdAt": "2026-11-25T03:16:33.165Z",
+  "updatedAt": "2026-11-25T03:23:19.457Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:16:33.208Z",
+      "error": null
+    },
+    "reviews": {
+      "kimi": {
+        "agent": "kimi",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-25T03:16:33.217Z",
+            "endedAt": "2026-11-25T03:18:47.638Z",
+            "durationMs": 134067,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/kimi/attempt-1.json",
+            "logBase": "logs/kimi-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-25T03:18:47.660Z"
+      },
+      "codex": {
+        "agent": "codex",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-25T03:16:33.217Z",
+            "endedAt": "2026-11-25T03:23:16.189Z",
+            "durationMs": 402393,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-25T03:23:16.729Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:23:17.751Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:23:18.873Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:23:19.298Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-25T03:16:33.165Z",
+      "error": null
+    }
+  },
+  "eventSeq": 51
+}

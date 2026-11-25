@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T03:16:33.051Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "07f83919e72414a6987648c3288788a5db7abc6b",
+    "head": "66d22906a436de2340f04f91e191ac37b581d924",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "07f83919e72414a6987648c3288788a5db7abc6b",
+    "to": "66d22906a436de2340f04f91e191ac37b581d924",
+    "label": "07f83919..66d22906"
+  },
+  "objective": {
+    "subject": "docs: fix supersession links and stale references from review",
+    "body": "Adversarial review round 1 of the TaskType and workload-fit removal:\nrun remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff (kimi,\nkimi-code/k3.1-pro) and run\nremove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b (codex,\nmagpie deepseek/deepseek-v4-pro). Kiro (gpt-5.6-terra) was blocked:\nkiro-cli is not logged in. Each finding was reproduced against the\nworking tree and retained at P3:\n\n- kimi:0: ADR 0016's Supersedes line named only ADR 0008 and ADR 0010,\n  while ADR 0001 and ADR 0005 name ADR 0016 as a partial successor, so\n  the links ran in one direction only. Supersedes now also names the\n  TaskType declaration in ADR 0001 (its decision rule and L1 row) and in\n  ADR 0005 rule 10.\n- kimi:1: ADR 0008 said API and options section 3.2.1 was retired, but\n  the section is live as Admission diagnostics and keeps the\n  inert-refusal warning and log delivery. The dated note and the closing\n  paragraph of the decision now say that only the screening contract and\n  the TaskType clauses were retired, and link the live section.\n- codex:0: the Unreleased Changed entry on diagnostic strings still\n  described the count-only rendering of WorkloadFitReport, which the\n  same release removes. The clause is deleted.\n\nNo executable file changed. check-adr.py, check-doc-refs.py,\ncheck-local-links.py, and check-english-docs.py pass."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "faf06091531877959182d1fc0819c7de86c4cfe8c278f3420b5af2680b0067e6",
+    "bytes": 6271,
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "adr/0008-tasktype-as-workload-fit-diagnostic.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 4
+      },
+      {
+        "path": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 1
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "ced188d5f22d5e86254ebad73aceaa00a089021c0bc2637ea4383c90ec51a129",
+    "bytes": 2362,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "66d22906a436de2340f04f91e191ac37b581d924",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

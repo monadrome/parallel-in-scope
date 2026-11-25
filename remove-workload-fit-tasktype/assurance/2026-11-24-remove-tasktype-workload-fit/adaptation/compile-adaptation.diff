@@ -1,0 +1,67 @@
+--- candidates/ContractTdd003RefusingElementRejectedAtMaxTest.java
++++ adapted/ContractTdd003RefusingElementRejectedAtMaxTest.java
+@@ -68,7 +68,12 @@
+                             el -> {
+                                 if (el == 0) {
+                                     started.countDown();
+-                                    release.await(10, TimeUnit.SECONDS);
++                                    try {
++                                        release.await(10, TimeUnit.SECONDS);
++                                    } catch (InterruptedException e) {
++                                        Thread.currentThread().interrupt();
++                                        throw new IllegalStateException(e);
++                                    }
+                                 }
+                                 ran.incrementAndGet();
+                                 return el;
+--- candidates/ContractTdd004NonRefusingQueuedAndExternalExecuteTest.java
++++ adapted/ContractTdd004NonRefusingQueuedAndExternalExecuteTest.java
+@@ -63,7 +63,12 @@
+                             el -> {
+                                 if (el == 0) {
+                                     started.countDown();
+-                                    release.await(10, TimeUnit.SECONDS);
++                                    try {
++                                        release.await(10, TimeUnit.SECONDS);
++                                    } catch (InterruptedException e) {
++                                        Thread.currentThread().interrupt();
++                                        throw new IllegalStateException(e);
++                                    }
+                                 }
+                                 batchRan.incrementAndGet();
+                                 return el;
+--- candidates/ContractTdd009RefusingOnRefusalCapableNoWarnTest.java
++++ adapted/ContractTdd009RefusingOnRefusalCapableNoWarnTest.java
+@@ -12,6 +12,7 @@
+ import java.util.concurrent.ThreadPoolExecutor;
+ import java.util.concurrent.TimeUnit;
+ import java.util.logging.Handler;
++import java.util.logging.Level;
+ import java.util.logging.LogRecord;
+ import java.util.logging.Logger;
+ import org.junit.jupiter.api.Test;
+--- candidates/ContractTdd016NoRetainedDiagnosticsTest.java
++++ adapted/ContractTdd016NoRetainedDiagnosticsTest.java
+@@ -72,10 +72,20 @@
+             TaskBatchResult<String> batch = batchPar.map(Arrays.asList(0, 1),
+                     el -> {
+                         if (el == 0) {
+-                            Thread.sleep(50);
++                            try {
++                                Thread.sleep(50);
++                            } catch (InterruptedException e) {
++                                Thread.currentThread().interrupt();
++                                throw new IllegalStateException(e);
++                            }
+                             return "a";
+                         }
+-                        Thread.sleep(200);
++                        try {
++                            Thread.sleep(200);
++                        } catch (InterruptedException e) {
++                            Thread.currentThread().interrupt();
++                            throw new IllegalStateException(e);
++                        }
+                         throw new IllegalStateException("boom");
+                     },
+                     batchOptions);

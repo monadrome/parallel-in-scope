@@ -1,0 +1,349 @@
+openjdk version "11.0.29" 2025-10-21
+OpenJDK Runtime Environment Temurin-11.0.29+7 (build 11.0.29+7)
+OpenJDK 64-Bit Server VM Temurin-11.0.29+7 (build 11.0.29+7, mixed mode, sharing)
+Nov 25, 2026 2:20:28 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'fail-fast-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$failureCancelsSiblingTasks$26(MavenCentralConsumerTest.java:345)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:278)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 25, 2026 2:20:28 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'fail-fast-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$failureCancelsSiblingTasks$26(MavenCentralConsumerTest.java:345)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:278)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 25, 2026 2:20:29 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'timeout-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$timeoutCancelsRunningTasks$23(MavenCentralConsumerTest.java:313)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:278)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 25, 2026 2:20:29 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'timeout-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$timeoutCancelsRunningTasks$23(MavenCentralConsumerTest.java:313)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:278)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 25, 2026 2:20:29 PM io.github.monadrome.parallelinscope.ExecutorWaitGraph lambda$announceNewComponents$0
+WARNING: Potential executor deadlock: Component[members=1, cycle=1, witnesses=1]. A task execution on each of these starvation-prone pools synchronously waits for work queued on the next, so under load every worker of the cycle can wait for work queued behind itself. This is a wait structure the ParRuntime has observed at some point, not proof that the waits overlap or that threads are deadlocked now; see ParRuntime.executorWaitReport().
+Nov 25, 2026 2:20:29 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$outerTimeoutPropagatesToNestedTasks$28(MavenCentralConsumerTest.java:377)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:278)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 25, 2026 2:20:29 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$outerTimeoutPropagatesToNestedTasks$28(MavenCentralConsumerTest.java:377)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:278)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 25, 2026 2:20:32 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:20:32 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:20:36 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:20:48 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running: deadline expired
+
+Nov 25, 2026 2:20:51 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'io-task' failed after cancellation
+java.lang.RuntimeException: Task interrupted
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:136)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:133)
+	... 7 more
+
+Nov 25, 2026 2:20:51 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'io-task' failed after cancellation
+java.lang.RuntimeException: Task interrupted
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:136)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:133)
+	... 7 more
+
+Nov 25, 2026 2:20:51 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'io-task' failed after cancellation
+java.lang.RuntimeException: Task interrupted
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:136)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:133)
+	... 7 more
+
+Nov 25, 2026 2:20:51 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'io-task' failed after cancellation
+java.lang.RuntimeException: Task interrupted
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:136)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.G3_CheckpointsCooperativeCancelTest.lambda$solution_parMapTimeoutCancelsIoTasks$2(G3_CheckpointsCooperativeCancelTest.java:133)
+	... 7 more
+
+Nov 25, 2026 2:20:56 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:20:58 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'cancel-demo' failed after cancellation
+java.lang.RuntimeException: Task cancelled
+	at demo.article.D1_GetTimeoutStillRunningTest.lambda$parMap_withTimeout_cancelsTasks$2(D1_GetTimeoutStillRunningTest.java:120)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.D1_GetTimeoutStillRunningTest.lambda$parMap_withTimeout_cancelsTasks$2(D1_GetTimeoutStillRunningTest.java:114)
+	... 7 more
+
+Nov 25, 2026 2:20:58 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'cancel-demo' failed after cancellation
+java.lang.RuntimeException: Task cancelled
+	at demo.article.D1_GetTimeoutStillRunningTest.lambda$parMap_withTimeout_cancelsTasks$2(D1_GetTimeoutStillRunningTest.java:120)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.D1_GetTimeoutStillRunningTest.lambda$parMap_withTimeout_cancelsTasks$2(D1_GetTimeoutStillRunningTest.java:114)
+	... 7 more
+
+Nov 25, 2026 2:21:05 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:21:05 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:21:05 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:21:05 PM com.google.common.util.concurrent.AggregateFuture log
+SEVERE: Got more than one input Future failure. Logging failures after the first
+io.github.monadrome.parallelinscope.CheckpointCancellation: cancel during running
+
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutorWaitGraph lambda$announceNewComponents$0
+WARNING: Potential executor deadlock: Component[members=1, cycle=1, witnesses=1]. A task execution on each of these starvation-prone pools synchronously waits for work queued on the next, so under load every worker of the cycle can wait for work queued behind itself. This is a wait structure the ParRuntime has observed at some point, not proof that the waits overlap or that threads are deadlocked now; see ParRuntime.executorWaitReport().
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner' failed after cancellation
+java.lang.RuntimeException: inner task interrupted
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:125)
+	... 7 more
+
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner' failed after cancellation
+java.lang.RuntimeException: inner task interrupted
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:125)
+	... 7 more
+
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner' failed after cancellation
+java.lang.RuntimeException: inner task interrupted
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:125)
+	... 7 more
+
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner' failed after cancellation
+java.lang.RuntimeException: inner task interrupted
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:125)
+	... 7 more
+
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner' failed after cancellation
+java.lang.RuntimeException: inner task interrupted
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:125)
+	... 7 more
+
+Nov 25, 2026 2:21:34 PM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner' failed after cancellation
+java.lang.RuntimeException: inner task interrupted
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:130)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:369)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:261)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at demo.article.A2_NestedCancelPropagationTest.lambda$testParNestedCancelPropagatesViaTimeout$2(A2_NestedCancelPropagationTest.java:125)
+	... 7 more
+

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b",
+  "status": "completed",
+  "createdAt": "2026-11-25T02:53:49.555Z",
+  "updatedAt": "2026-11-25T03:15:33.004Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T02:53:49.586Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-25T02:53:49.595Z",
+            "endedAt": "2026-11-25T03:05:20.381Z",
+            "durationMs": 690586,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-25T03:05:20.399Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:05:20.487Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:05:20.545Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T03:05:20.606Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-25T02:53:49.555Z",
+      "error": null
+    }
+  },
+  "eventSeq": 64
+}

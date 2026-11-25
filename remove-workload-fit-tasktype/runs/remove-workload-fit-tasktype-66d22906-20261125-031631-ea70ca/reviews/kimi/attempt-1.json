@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T03:16:33.217Z",
+  "endedAt": "2026-11-25T03:18:47.638Z",
+  "durationMs": 134067,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 07f83919e72414a6987648c3288788a5db7abc6b to 66d22906a436de2340f04f91e191ac37b581d924. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: adversarial review round 2\n\nReview the fix commit `07f83919e72414a6987648c3288788a5db7abc6b..66d22906a436de2340f04f91e191ac37b581d924`\nread-only. The implementer is Claude (Opus). Do not edit files, run builds, or commit.\nReport only defects you can tie to a file and symbol with a concrete failure scenario.\n\n## Baseline: round 1 settled findings (all confirmed and fixed by this commit)\n\n- ADR 0016's `Supersedes` line named only ADR 0008 and ADR 0010, while ADR 0001 and ADR 0005 list\n  ADR 0016 under `Partially superseded by`. The fix adds the partial supersessions of ADR 0001 (its\n  `TaskType` decision rule and L1 row) and ADR 0005 rule 10.\n- ADR 0008's dated note and the closing paragraph of its decision called API and options section\n  3.2.1 retired, although the section is live as \"Admission diagnostics\". The fix says only the\n  workload-fit screening contract and the `TaskType` clauses of section 3.2.1 were retired, and links\n  the live section.\n- The Unreleased `Changed` entry of `CHANGELOG.md` on diagnostic strings still described\n  `WorkloadFitReport` rendering, although the same release removes the type. The fix deletes the\n  clause.\n\nDo not re-report these unless the fix itself is wrong or incomplete.\n\n## What to check\n\n1. Each fix against its finding: does the new `Supersedes` text name exactly what ADR 0016 changed in\n   ADR 0001 and ADR 0005 (compare with their `History` sections and the in-place edits); is the new\n   ADR 0008 wording accurate about what was retired and what section 3.2.1 still holds (compare with\n   `design/task-group-api-and-options.md` section 3.2.1 and ADR 0016 decisions); is the CHANGELOG\n   sentence still grammatical and accurate for the remaining types.\n2. Rules: `adr/AGENTS.md` File And Status Rules (metadata, both-direction links, dated notes naming\n   the holding contract for `core` records).\n3. Beyond the baseline: other live documents that still state removed behavior or misdescribe the\n   retained admission diagnostics. Frozen migration guides (`docs/*/migration-v0.*.md`), dated\n   `verification/` records, and released CHANGELOG sections are intentionally unchanged.\n\n## Verification already run\n\n`check-adr.py`, `check-doc-refs.py`, `check-local-links.py`, and `check-english-docs.py` pass on the\nfix commit. No executable file changed.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The fixes accurately describe the partial supersessions of ADR 0001 and ADR 0005, distinguish the retired workload-fit contract from the retained admission-diagnostics rules in ADR 0008, and leave a grammatical, accurate CHANGELOG entry. Bidirectional ADR links and the dated holding-contract note are present, and no additional live-document defects were found.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

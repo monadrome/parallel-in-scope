@@ -1,0 +1,1 @@
+You are a fresh, isolated contract-test generator. Read README.md in the current directory and perform exactly the task it describes. Read only README.md, contract.md, sanitized-api.md, and commands.md in the current directory; do not inspect, list, or search anything outside it. Write the candidate files under candidates/ and stop.

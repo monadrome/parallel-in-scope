@@ -1,0 +1,511 @@
+diff --git a/ledger/2026-11-25-remove-workload-fit-tasktype.json b/ledger/2026-11-25-remove-workload-fit-tasktype.json
+new file mode 100644
+index 00000000..8d152558
+--- /dev/null
++++ b/ledger/2026-11-25-remove-workload-fit-tasktype.json
+@@ -0,0 +1,505 @@
++{
++  "schemaVersion": "process-ledger/v1",
++  "id": "2026-11-25-remove-workload-fit-tasktype",
++  "date": "2026-11-25",
++  "topic": "remove-workload-fit-tasktype",
++  "routes": [
++    "concurrency",
++    "contract",
++    "docs"
++  ],
++  "implementer": {
++    "agent": "claude",
++    "model": "ctrip-ada/claude-kr-claude-opus-5.5"
++  },
++  "change": {
++    "commits": [
++      "feat!: remove TaskType and workload-fit screening",
++      "docs: fix supersession links and stale references from review",
++      "test: check group members, combines and single tasks at admission",
++      "docs: archive TaskType removal PIT evidence",
++      "docs: rewrap GroupStart adoption Javadoc",
++      "docs: withdraw installGlobal PIT equivalence claim",
++      "test: promote TaskType removal regressions",
++      "docs: record maintainer disposition of ParRuntime PIT gaps",
++      "test: withdraw the unstable C-0005 regression"
++    ],
++    "files": 191,
++    "insertions": 3984,
++    "deletions": 3346
++  },
++  "reviews": {
++    "adversarial": [
++      {
++        "runId": "remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff",
++        "status": "partial",
++        "systems": [
++          {
++            "agent": "kiro",
++            "status": "failed",
++            "attempts": 1,
++            "durationMs": 139,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          },
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 410308,
++            "findings": {
++              "total": 2,
++              "adjudicated": 2,
++              "confirmed": 2,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 2,
++          "adjudicated": 2,
++          "confirmed": 2,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 2,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "codex",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 690586,
++            "findings": {
++              "total": 1,
++              "adjudicated": 1,
++              "confirmed": 1,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": {
++              "inputTokens": null,
++              "outputTokens": null,
++              "totalTokens": 149417,
++              "cost": null,
++              "currency": null
++            }
++          }
++        ],
++        "clusters": {
++          "total": 1,
++          "adjudicated": 1,
++          "confirmed": 1,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": 149417,
++          "systemsWithUsage": 1,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-66d22906-20261125-031631-ea70ca",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 134067,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          },
++          {
++            "agent": "codex",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 402393,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": {
++              "inputTokens": null,
++              "outputTokens": null,
++              "totalTokens": 98665,
++              "cost": null,
++              "currency": null
++            }
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": 98665,
++          "systemsWithUsage": 1,
++          "systemsTotal": 2,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 1140068,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          },
++          {
++            "agent": "codex",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 1371286,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": {
++              "inputTokens": null,
++              "outputTokens": null,
++              "totalTokens": 107496,
++              "cost": null,
++              "currency": null
++            }
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": 107496,
++          "systemsWithUsage": 1,
++          "systemsTotal": 2,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 282884,
++            "findings": {
++              "total": 1,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 1
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 1,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 1
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-2f73397f-20261125-135225-acb9f5",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 70282,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 519067,
++            "findings": {
++              "total": 2,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 2
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 2,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 2
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      },
++      {
++        "runId": "remove-workload-fit-tasktype-6fb1ad34-20261125-153340-1922af",
++        "status": "completed",
++        "systems": [
++          {
++            "agent": "kimi",
++            "status": "completed",
++            "attempts": 1,
++            "durationMs": 97115,
++            "findings": {
++              "total": 0,
++              "adjudicated": 0,
++              "confirmed": 0,
++              "rejected": 0,
++              "neutral": 0,
++              "uncertain": 0,
++              "pending": 0
++            },
++            "usage": null
++          }
++        ],
++        "clusters": {
++          "total": 0,
++          "adjudicated": 0,
++          "confirmed": 0,
++          "rejected": 0,
++          "neutral": 0,
++          "uncertain": 0,
++          "pending": 0
++        },
++        "usage": {
++          "inputTokens": null,
++          "outputTokens": null,
++          "totalTokens": null,
++          "systemsWithUsage": 0,
++          "systemsTotal": 1,
++          "costsByCurrency": []
++        }
++      }
++    ],
++    "refactoring": [
++      {
++        "run": "refactoring-remove-workload-fit-tasktype-2026-11-24",
++        "head": "07f83919e72414a6987648c3288788a5db7abc6b",
++        "incompleteAgents": 0,
++        "findings": []
++      }
++    ]
++  },
++  "gates": {
++    "failures": {
++      "python3 scripts/check-verification-integrity.py": 1,
++      "scripts unittest test_check_race_claims ProcessCleanupTest timeout": 1,
++      "python3 scripts/check-adopt-compile-contract.py": 2,
++      "Kiro review seat login": 1,
++      "PIT base batch D CheckpointsTest flake": 1,
++      "assurance candidate compile": 1,
++      "assurance candidate run": 1,
++      "assurance isolated generation gateway": 1,
++      "consumer-jdk11 demo clock step": 1
++    }
++  },
++  "pit": [
++    {
++      "source": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-A.xml",
++      "statuses": {
++        "KILLED": 173,
++        "SURVIVED": 4,
++        "TIMED_OUT": 1
++      },
++      "total": 178,
++      "inconclusive": 1,
++      "inconclusiveRate": 0.0056
++    },
++    {
++      "source": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-B.xml",
++      "statuses": {
++        "KILLED": 253,
++        "NO_COVERAGE": 3,
++        "SURVIVED": 13,
++        "TIMED_OUT": 6
++      },
++      "total": 275,
++      "inconclusive": 6,
++      "inconclusiveRate": 0.0218
++    },
++    {
++      "source": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-C.xml",
++      "statuses": {
++        "KILLED": 634,
++        "NO_COVERAGE": 12,
++        "SURVIVED": 33,
++        "TIMED_OUT": 2
++      },
++      "total": 681,
++      "inconclusive": 2,
++      "inconclusiveRate": 0.0029
++    },
++    {
++      "source": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-D.xml",
++      "statuses": {
++        "KILLED": 241,
++        "NO_COVERAGE": 3,
++        "SURVIVED": 15,
++        "TIMED_OUT": 18
++      },
++      "total": 277,
++      "inconclusive": 18,
++      "inconclusiveRate": 0.065
++    },
++    {
++      "source": "verification/pit-audit/2026-11-24-remove-tasktype/reports/head-E.xml",
++      "statuses": {
++        "KILLED": 276,
++        "NO_COVERAGE": 4,
++        "SURVIVED": 3,
++        "TIMED_OUT": 5
++      },
++      "total": 288,
++      "inconclusive": 5,
++      "inconclusiveRate": 0.0174
++    }
++  ],
++  "interventions": {
++    "asks": 1,
++    "corrections": 0
++  },
++  "usage": {
++    "totalTokens": null,
++    "cost": null,
++    "currency": null
++  },
++  "notes": "ADR 0016 removes TaskType and the ThreadMXBean workload-fit screen; assurance PASS WITH ACCEPTED EXCEPTIONS with C-0002..C-0004 promoted and C-0005 withdrawn after round 6 found a cross-phase async oracle; PIT pass with four maintainer-accepted pre-existing ParRuntime gaps and four accepted liveness timeouts; kiro seat unavailable (not logged in); JDK 11 verified in container"
++}

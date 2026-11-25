@@ -1,0 +1,412 @@
+--- candidates/ContractTdd005MapAndCombineCombineNoRefusalQueuedTest.java
++++ promotions/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java
+@@ -1,12 +1,7 @@
+-package io.github.monadrome.parallelinscope.assurance;
++package io.github.monadrome.parallelinscope;
+ 
+-import io.github.monadrome.parallelinscope.BatchCombinedResult;
+-import io.github.monadrome.parallelinscope.BatchOptions;
+-import io.github.monadrome.parallelinscope.Combiner;
+-import io.github.monadrome.parallelinscope.Par;
+-import io.github.monadrome.parallelinscope.ParId;
+-import io.github.monadrome.parallelinscope.ParRuntime;
+-import io.github.monadrome.parallelinscope.SubmissionAwareBlockingQueue;
++import static org.assertj.core.api.Assertions.assertThat;
++
+ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.List;
+@@ -15,13 +10,17 @@
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+-import static org.assertj.core.api.Assertions.assertThat;
+-
+ /**
+- * CONTRACT-TDD-005 (contract C-2).
++ * CONTRACT-TDD-005 (contract C-2 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+  *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 2;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
++ * {@code SubmissionAwareBlockingQueue}, {@code BatchOptions.rejectEnqueue}, and
++ * {@code TaskOptions.rejectEnqueue}; docs/en/user-guide.md, "Execute a batch".
++ *
+  * <p>Precondition: a batch entry on a refusal-capable pool with headroom, and a combine entry on a
+  * refusal-capable pool (core=1, max=1, queue capacity 1) whose only worker is busy blocked on a
+  * latch.
+@@ -40,14 +39,15 @@
+  * <p>Uncertainty: the exact submission moment is not observable; queued-before-release is asserted
+  * by watching the pool queue, which is application code reading its own executor.
+  */
+-public class ContractTdd005MapAndCombineCombineNoRefusalQueuedTest {
++@Tag("C-0002")
++class C0002MapAndCombineCombineNoRefusalQueuedContractTest {
+ 
+     @Test
+     void mapAndCombineTerminalCombineIsQueuedNotRejected() throws Exception {
+-        ThreadPoolExecutor batchPool = new ThreadPoolExecutor(
+-                2, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(2));
+-        ThreadPoolExecutor combinePool = new ThreadPoolExecutor(
+-                1, 1, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(1));
++        ThreadPoolExecutor batchPool =
++                new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(2));
++        ThreadPoolExecutor combinePool =
++                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(1));
+         ParId batchId = ParId.of("ct005-batch");
+         ParId combineId = ParId.of("ct005-combine");
+ 
+@@ -76,16 +76,13 @@
+             assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+ 
+             List<Integer> elements = Arrays.asList(1, 2);
+-            BatchOptions options = BatchOptions.timeout("ct005-batch", Duration.ofSeconds(30))
+-                    .rejectEnqueue(true);
++            BatchOptions options =
++                    BatchOptions.timeout("ct005-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
+ 
+             Thread submitter = new Thread(() -> {
+                 try {
+-                    resultRef.set(batchPar.mapAndCombine(elements,
+-                            el -> el,
+-                            options,
+-                            combinePar,
+-                            (Combiner<List<Integer>, Integer>) values -> {
++                    resultRef.set(batchPar.mapAndCombine(
++                            elements, el -> el, options, combinePar, (Combiner<List<Integer>, Integer>) values -> {
+                                 combineRan.incrementAndGet();
+                                 return values.size();
+                             }));
+@@ -110,8 +107,8 @@
+         }
+     }
+ 
+-    private static void awaitQueueSize(
+-            ThreadPoolExecutor pool, int expected, Duration timeout) throws InterruptedException {
++    private static void awaitQueueSize(ThreadPoolExecutor pool, int expected, Duration timeout)
++            throws InterruptedException {
+         long deadline = System.nanoTime() + timeout.toNanos();
+         while (System.nanoTime() < deadline) {
+             if (pool.getQueue().size() == expected) {
+@@ -119,7 +116,6 @@
+             }
+             Thread.sleep(20);
+         }
+-        throw new AssertionError(
+-                "queue did not reach size " + expected + " within " + timeout);
++        throw new AssertionError("queue did not reach size " + expected + " within " + timeout);
+     }
+ }
+--- candidates/ContractTdd012ConcurrentFirstAdmissionsOnceTest.java
++++ promotions/C0003ConcurrentFirstAdmissionsOnceContractTest.java
+@@ -1,9 +1,7 @@
+-package io.github.monadrome.parallelinscope.assurance;
++package io.github.monadrome.parallelinscope;
+ 
+-import io.github.monadrome.parallelinscope.BatchOptions;
+-import io.github.monadrome.parallelinscope.Par;
+-import io.github.monadrome.parallelinscope.ParId;
+-import io.github.monadrome.parallelinscope.ParRuntime;
++import static org.assertj.core.api.Assertions.assertThat;
++
+ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.Collections;
+@@ -16,13 +14,16 @@
+ import java.util.logging.Level;
+ import java.util.logging.LogRecord;
+ import java.util.logging.Logger;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+-import static org.assertj.core.api.Assertions.assertThat;
+-
+ /**
+- * CONTRACT-TDD-012 (contract C-3).
++ * CONTRACT-TDD-012 (contract C-3 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+  *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 2;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; docs/en/user-guide.md,
++ * "Execute a batch"; design/task-group-adopted-futures.md, "2. Contract" item A7.
++ *
+  * <p>Precondition: one entry on a plain executor with several idle workers.
+  *
+  * <p>Operation sequence: eight threads admit a refusing single-element batch through the same
+@@ -36,7 +37,8 @@
+  * <p>Uncertainty: the once-only guarantee is asserted after all admissions return; a record that
+  * arrived late would still be within the stated window.
+  */
+-public class ContractTdd012ConcurrentFirstAdmissionsOnceTest {
++@Tag("C-0003")
++class C0003ConcurrentFirstAdmissionsOnceContractTest {
+ 
+     @Test
+     void concurrentFirstAdmissionsStillWarnOnce() throws Exception {
+@@ -48,8 +50,8 @@
+ 
+         try (ParRuntime runtime = ParRuntime.builder().register(id, pool).build()) {
+             Par par = runtime.par(id);
+-            BatchOptions refusing = BatchOptions.timeout("ct012-batch", Duration.ofSeconds(30))
+-                    .rejectEnqueue(true);
++            BatchOptions refusing =
++                    BatchOptions.timeout("ct012-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
+             List<Integer> one = Arrays.asList(1);
+ 
+             int threads = 8;
+@@ -97,12 +99,10 @@
+         }
+ 
+         @Override
+-        public void flush() {
+-        }
++        public void flush() {}
+ 
+         @Override
+-        public void close() {
+-        }
++        public void close() {}
+ 
+         int countContaining(String fragment) {
+             int count = 0;
+@@ -123,8 +123,7 @@
+             return null;
+         }
+ 
+-        void awaitCountContaining(String fragment, int expected, long seconds)
+-                throws InterruptedException {
++        void awaitCountContaining(String fragment, int expected, long seconds) throws InterruptedException {
+             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
+             while (countContaining(fragment) < expected && System.nanoTime() < deadline) {
+                 Thread.sleep(50);
+--- candidates/ContractTdd013OffThreadBlockingHandlerTest.java
++++ promotions/C0004OffThreadBlockingHandlerContractTest.java
+@@ -1,10 +1,7 @@
+-package io.github.monadrome.parallelinscope.assurance;
++package io.github.monadrome.parallelinscope;
+ 
+-import io.github.monadrome.parallelinscope.BatchOptions;
+-import io.github.monadrome.parallelinscope.Par;
+-import io.github.monadrome.parallelinscope.ParId;
+-import io.github.monadrome.parallelinscope.ParRuntime;
+-import io.github.monadrome.parallelinscope.TaskBatchResult;
++import static org.assertj.core.api.Assertions.assertThat;
++
+ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.Collections;
+@@ -18,13 +15,18 @@
+ import java.util.logging.Level;
+ import java.util.logging.LogRecord;
+ import java.util.logging.Logger;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+-import static org.assertj.core.api.Assertions.assertThat;
+-
+ /**
+- * CONTRACT-TDD-013 (contract C-4).
++ * CONTRACT-TDD-013 (contract C-4 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+  *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 3;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
++ * {@code ParRuntime.executorWaitReport}; docs/en/reference/executor-registration.md,
++ * "Visibility: register the physical pool"; docs/en/reference/diagnostics.md,
++ * "Observe nested work".
++ *
+  * <p>Precondition: one entry on a plain executor; a handler under O-1 that records the publishing
+  * thread and blocks on a latch when a matching record is published.
+  *
+@@ -42,7 +44,8 @@
+  * <p>Uncertainty: the runtime-owned thread's identity is not fixed; only "not the admitting
+  * thread" is asserted.
+  */
+-public class ContractTdd013OffThreadBlockingHandlerTest {
++@Tag("C-0004")
++class C0004OffThreadBlockingHandlerContractTest {
+ 
+     @Test
+     void diagnosticIsDeliveredOffThreadAndNeverBlocksCaller() throws Exception {
+@@ -57,8 +60,8 @@
+ 
+         try (ParRuntime runtime = ParRuntime.builder().register(id, pool).build()) {
+             Par par = runtime.par(id);
+-            BatchOptions refusing = BatchOptions.timeout("ct013-batch", Duration.ofSeconds(30))
+-                    .rejectEnqueue(true);
++            BatchOptions refusing =
++                    BatchOptions.timeout("ct013-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
+             List<Integer> one = Arrays.asList(1);
+ 
+             Thread admitThread = new Thread(() -> {
+@@ -82,8 +85,7 @@
+             assertThat(handler.delivered.await(10, TimeUnit.SECONDS)).isTrue();
+             assertThat(handler.records).hasSize(1);
+             assertThat(handler.records.get(0).getLevel()).isEqualTo(Level.WARNING);
+-            assertThat(handler.records.get(0).getMessage())
+-                    .startsWith("Par 'ct013-entry' requested rejectEnqueue");
++            assertThat(handler.records.get(0).getMessage()).startsWith("Par 'ct013-entry' requested rejectEnqueue");
+             assertThat(resultRef.get().termination().successful()).isTrue();
+         } finally {
+             handler.release.countDown();
+@@ -120,11 +122,9 @@
+         }
+ 
+         @Override
+-        public void flush() {
+-        }
++        public void flush() {}
+ 
+         @Override
+-        public void close() {
+-        }
++        public void close() {}
+     }
+ }
+--- candidates/ContractTdd015RegistrationAndCycleWarningsTest.java
++++ promotions/C0005RegistrationAndCycleWarningsContractTest.java
+@@ -1,9 +1,7 @@
+-package io.github.monadrome.parallelinscope.assurance;
++package io.github.monadrome.parallelinscope;
+ 
+-import io.github.monadrome.parallelinscope.BatchOptions;
+-import io.github.monadrome.parallelinscope.Par;
+-import io.github.monadrome.parallelinscope.ParId;
+-import io.github.monadrome.parallelinscope.ParRuntime;
++import static org.assertj.core.api.Assertions.assertThat;
++
+ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.Collections;
+@@ -17,13 +15,18 @@
+ import java.util.logging.Level;
+ import java.util.logging.LogRecord;
+ import java.util.logging.Logger;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+-import static org.assertj.core.api.Assertions.assertThat;
+-
+ /**
+- * CONTRACT-TDD-015 (contract C-4).
++ * CONTRACT-TDD-015 (contract C-4 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+  *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 3;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
++ * {@code ParRuntime.executorWaitReport}; docs/en/reference/executor-registration.md,
++ * "Visibility: register the physical pool"; docs/en/reference/diagnostics.md,
++ * "Observe nested work".
++ *
+  * <p>Precondition: handlers under O-1; a {@link ForkJoinPool} (an executor the library cannot see
+  * through) and a plain fixed pool; later a single-thread fixed pool for a self-wait.
+  *
+@@ -43,7 +46,8 @@
+  * <p>Uncertainty: registration and cycle wording is non-contractual; filtering uses candidate
+  * entry ids.
+  */
+-public class ContractTdd015RegistrationAndCycleWarningsTest {
++@Tag("C-0005")
++class C0005RegistrationAndCycleWarningsContractTest {
+ 
+     @Test
+     void registrationAndCycleWarningsAreOffThread() throws Exception {
+@@ -75,8 +79,7 @@
+             assertThat(registrationRuntime).isNotNull();
+             capture.awaitWarningContaining("ct015-fjp", 1, 10);
+             assertThat(capture.countWarningContaining("ct015-fjp")).isEqualTo(1);
+-            assertThat(capture.firstWarningContaining("ct015-fjp").getLevel())
+-                    .isEqualTo(Level.WARNING);
++            assertThat(capture.firstWarningContaining("ct015-fjp").getLevel()).isEqualTo(Level.WARNING);
+             assertThat((long) capture.firstWarningContaining("ct015-fjp").getThreadID())
+                     .isNotEqualTo(buildingThread.getId());
+             assertThat(capture.countWarningContaining("ct015-fixed")).isZero();
+@@ -91,16 +94,18 @@
+         ExecutorService selfPool = Executors.newFixedThreadPool(1);
+         ParId selfId = ParId.of("ct015-self");
+         AtomicReference<Thread> selfThread = new AtomicReference<>();
+-        try (ParRuntime cycleRuntime = ParRuntime.builder()
+-                .register(selfId, selfPool)
+-                .build()) {
++        try (ParRuntime cycleRuntime =
++                ParRuntime.builder().register(selfId, selfPool).build()) {
+             Par par = cycleRuntime.par(selfId);
+             BatchOptions outer = BatchOptions.timeout("ct015-outer", Duration.ofSeconds(20));
+             BatchOptions inner = BatchOptions.timeout("ct015-inner", Duration.ofSeconds(3));
+-            par.map(Arrays.asList(1), el -> {
+-                selfThread.set(Thread.currentThread());
+-                return par.map(Arrays.asList(2), el2 -> el2, inner);
+-            }, outer);
++            par.map(
++                    Arrays.asList(1),
++                    el -> {
++                        selfThread.set(Thread.currentThread());
++                        return par.map(Arrays.asList(2), el2 -> el2, inner);
++                    },
++                    outer);
+ 
+             awaitCycleReported(cycleRuntime, Duration.ofSeconds(10));
+             assertThat(cycleRuntime.executorWaitReport().cyclicComponents()).isNotEmpty();
+@@ -110,7 +115,8 @@
+             assertThat(cycleRecord.getLevel()).isEqualTo(Level.WARNING);
+             assertThat((long) cycleRecord.getThreadID()).isNotEqualTo(buildingThread.getId());
+             if (selfThread.get() != null) {
+-                assertThat((long) cycleRecord.getThreadID()).isNotEqualTo(selfThread.get().getId());
++                assertThat((long) cycleRecord.getThreadID())
++                        .isNotEqualTo(selfThread.get().getId());
+             }
+         } finally {
+             logger.removeHandler(cycleCapture);
+@@ -118,11 +124,9 @@
+         }
+     }
+ 
+-    private static void awaitCycleReported(ParRuntime runtime, Duration timeout)
+-            throws InterruptedException {
++    private static void awaitCycleReported(ParRuntime runtime, Duration timeout) throws InterruptedException {
+         long deadline = System.nanoTime() + timeout.toNanos();
+-        while (runtime.executorWaitReport().cyclicComponents().isEmpty()
+-                && System.nanoTime() < deadline) {
++        while (runtime.executorWaitReport().cyclicComponents().isEmpty() && System.nanoTime() < deadline) {
+             Thread.sleep(50);
+         }
+     }
+@@ -142,12 +146,10 @@
+         }
+ 
+         @Override
+-        public void flush() {
+-        }
++        public void flush() {}
+ 
+         @Override
+-        public void close() {
+-        }
++        public void close() {}
+     }
+ 
+     private static final class CaptureHandler extends Handler {
+@@ -159,12 +161,10 @@
+         }
+ 
+         @Override
+-        public void flush() {
+-        }
++        public void flush() {}
+ 
+         @Override
+-        public void close() {
+-        }
++        public void close() {}
+ 
+         int countWarningContaining(String fragment) {
+             int count = 0;
+@@ -189,8 +189,7 @@
+             return null;
+         }
+ 
+-        void awaitWarningContaining(String fragment, int expected, long seconds)
+-                throws InterruptedException {
++        void awaitWarningContaining(String fragment, int expected, long seconds) throws InterruptedException {
+             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
+             while (countWarningContaining(fragment) < expected && System.nanoTime() < deadline) {
+                 Thread.sleep(50);

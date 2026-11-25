@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
+  "version": 1,
+  "createdAt": "2026-11-25T04:20:06.897Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "e57602a8288542b2d9090a37bf95188445da6df7",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

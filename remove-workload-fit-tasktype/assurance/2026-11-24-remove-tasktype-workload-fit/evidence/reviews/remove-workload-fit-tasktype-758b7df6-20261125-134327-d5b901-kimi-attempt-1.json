@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T13:43:28.024Z",
+  "endedAt": "2026-11-25T13:48:11.172Z",
+  "durationMs": 282884,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from f020503de120d5bcb525d568f90c02f6f8bcbe2c to 758b7df6429cfd3be554bb716eb9d9537727addf. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: review round 4 (PIT record and Javadoc rewrap)\n\nReview `f020503de120d5bcb525d568f90c02f6f8bcbe2c..758b7df6` read-only. The implementer is Claude\n(Opus). Do not edit files, run Maven, or commit. You may run read-only commands: `git`,\n`gzip -cd`, `grep`, `shasum -a 256 -c`, and `python3 -I` on the archived scripts from inside the\narchive directory. `verification/contract-tests/` is out of scope.\n\n## The commits\n\n1. `99a22c28 docs: archive TaskType removal PIT evidence` adds the record\n   `verification/pit-audit/2026-11-24-remove-tasktype.md` and the archive directory\n   `verification/pit-audit/2026-11-24-remove-tasktype/`: README, raw head XML, gzipped base,\n   early, and focused XML, gzipped logs, run-meta, comparisons, three helper scripts, and\n   SHA256SUMS. About 1.4 MB of the diff is raw XML. Do not page through it; query the XML with the\n   archived scripts, `gzip -cd`, or `grep`.\n2. `758b7df6 docs: rewrap GroupStart adoption Javadoc` changes line breaks in one Javadoc\n   paragraph of `core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java`.\n\nRounds 1 to 3 reviewed the removal itself (`f093bb12..f020503d`); their findings are settled and\nmust not be re-reported.\n\n## Policy\n\n- `verification/pit.md`: raw statuses, dispositions, and the compact record.\n- `.agents/skills/contract-first-assurance/adapters/vformation.yaml` (`mutation_policy`) and\n  `.agents/skills/contract-first-assurance/references/mutation-dispositions.md`: the\n  `EXPECTED_MUTATION_LIVENESS` exception and its required evidence.\n- `.agents/skills/project-delivery/references/assurance.md`, \"Skip eligible\": when later commits\n  leave an assurance run frozen at `f020503d` valid.\n\n## What to check\n\n1. The record and README against the evidence: counts, comparisons, attributions, and every claim\n   that a comparison reproduces from the archive.\n2. The dispositions for the changed classes. Check the four equivalence arguments\n   (`ParRuntime.installGlobal` removed `checkState`, `ParRuntime.ticker` null return,\n   `TaskNode.hashCode` zero return, `SubmissionAwareBlockingQueue` constructor boundary) against\n   the head source. For the last one, the delegate is `ResizableBlockingQueue(int)` in\n   `/Applications/dev_conf/repo/io/github/monadrome/blocking-queues/0.1.0/blocking-queues-0.1.0-sources.jar`.\n   Check the unreachable claim for `ParRuntime.releases()` and the contract, impact, and next-action\n   statements of the three retained gaps. Report any equivalence claim you can refute with a\n   concrete input or interleaving.\n3. The timeout classification. Approve or reject each of these four `TIMED_OUT` entries as\n   `EXPECTED_MUTATION_LIVENESS`, using `comparisons/par-runtime-timeouts.txt`,\n   `reports/focused-par-runtime.xml.gz`, the logs, and the source:\n   - (a) `ParRuntime.awaitQuiescence`: removed `Monitor::leave` in the zero-budget branch;\n   - (b) `ParRuntime.enterAdmission`: negated open-runtime return;\n   - (c) `ParRuntime.lambda$trackExecutions$0`: removed `Monitor::leave`;\n   - (d) `ParRuntime$DispatchingScheduledExecutorService.lambda$schedule$0`: removed\n     `ExecutorService::execute`.\n   The adapter requires a repeatable focused rerun, passing unmutated tests, complete XML and\n   logs, a stated source-level liveness invariant, and approval by a maintainer or an independent\n   reviewer. You are the independent reviewer.\n4. The scope. The record defines the change scope as the nine edited classes and uses the whole\n   root package as an expansion that claims only \"no lost evidence relative to base\". Say whether\n   that scope and its rationale satisfy `verification/pit.md`.\n5. Skip eligibility. Are both commits documentation-only with respect to library requirements, so\n   that the assurance run frozen at `f020503d` stays valid? The second commit must change line\n   breaks only.\n6. Prose: symbols instead of source line numbers in durable prose, English, and working links.\n\n## Output\n\nIn `summary`, give one line for each of 3(a) to 3(d) (`APPROVE` or `REJECT`, with the reason), one\nline for item 4 (`ACCEPT` or `REJECT`), and one line for item 5 (`CONFIRM` or `REJECT`). Report every\nrejection and every defect as a finding tied to a file and a symbol or line, with a concrete\nfailure scenario.\n\n## Verification already run\n\n`shasum -a 256 -c SHA256SUMS` passes. Every file in `comparisons/` reproduces byte for byte from\nthe archived inputs. `check-doc-refs.py`, `check-local-links.py`, `check-english-docs.py`, and\n`mvn -pl core spotless:check` pass.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-758b7df6-20261125-134327-d5b901/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "3(a) APPROVE — the focused reruns reproduce the timeout, and removing Monitor.leave strands the quiescence monitor and blocks later entrants.\n3(b) APPROVE — the negated open-runtime return makes an open-runtime admission register, back out, and retry indefinitely.\n3(c) APPROVE — the execution listener retains the monitor when leave is removed, so service shutdown can block forever.\n3(d) APPROVE — removing ExecutorService.execute prevents deadline actions from running and leaves deadline-dependent waits hanging.\n4 ACCEPT — the nine changed classes receive dispositions, while the root-package base/head comparison is appropriately scoped to detecting lost evidence in unchanged classes.\n5 CONFIRM — the archive commit adds verification documentation and evidence only, and the GroupStart commit changes Javadoc line breaks only. One equivalence disposition is invalid: concurrent installation of closed and live runtimes distinguishes the installGlobal mutant.",
+  "findings": [
+    {
+      "file": "verification/pit-audit/2026-11-24-remove-tasktype.md",
+      "lineStart": 136,
+      "lineEnd": 143,
+      "title": "installGlobal equivalence ignores competing installers",
+      "trigger": "With no global runtime installed, concurrently call installGlobal with an already-closed runtime and a live runtime. In the mutant, let the closed runtime win the initial INSTALLED.compareAndSet(null, runtime), then let the live runtime attempt its CAS before the closed runtime executes the cleanup CAS.",
+      "consequence": "The live installation fails with IllegalStateException, the closed installation also fails and clears the slot, and no global runtime remains installed. In the unmutated code, the closed runtime is rejected by the initial checkState before it can occupy the slot, so the live installation succeeds regardless of this interleaving. The survivor is therefore not equivalent and the record incorrectly closes it without evidence.",
+      "evidence": "The equivalence argument at verification/pit-audit/2026-11-24-remove-tasktype.md:136-143 considers message differences and transient readers but not another installer. The first closed check is at core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java:206; without it, the closed runtime reaches the slot claim at line 207. A competing live installer then fails at lines 207-208 before the closed runtime clears the slot at lines 210-212.",
+      "severity": "P2",
+      "confidence": 0.99,
+      "suggestedFix": "Remove the Equivalent disposition and retain the survivor as an unresolved weak-assertion gap, or add a deterministic concurrent regression test that forces the closed runtime's slot claim before the live runtime's attempt and verifies that the live installation still succeeds.",
+      "id": "kimi:0",
+      "reviewer": "kimi",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "verification/pit-audit/2026-11-24-remove-tasktype.md",
+      "lineStart": 136,
+      "lineEnd": 143,
+      "title": "installGlobal equivalence ignores competing installers",
+      "trigger": "With no global runtime installed, concurrently call installGlobal with an already-closed runtime and a live runtime. In the mutant, let the closed runtime win the initial INSTALLED.compareAndSet(null, runtime), then let the live runtime attempt its CAS before the closed runtime executes the cleanup CAS.",
+      "consequence": "The live installation fails with IllegalStateException, the closed installation also fails and clears the slot, and no global runtime remains installed. In the unmutated code, the closed runtime is rejected by the initial checkState before it can occupy the slot, so the live installation succeeds regardless of this interleaving. The survivor is therefore not equivalent and the record incorrectly closes it without evidence.",
+      "evidence": "The equivalence argument at verification/pit-audit/2026-11-24-remove-tasktype.md:136-143 considers message differences and transient readers but not another installer. The first closed check is at core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java:206; without it, the closed runtime reaches the slot claim at line 207. A competing live installer then fails at lines 207-208 before the closed runtime clears the slot at lines 210-212.",
+      "severity": "P2",
+      "confidence": 0.99,
+      "suggestedFix": "Remove the Equivalent disposition and retain the survivor as an unresolved weak-assertion gap, or add a deterministic concurrent regression test that forces the closed runtime's slot claim before the live runtime's attempt and verifies that the live installation still succeeds."
+    }
+  ],
+  "error": null
+}

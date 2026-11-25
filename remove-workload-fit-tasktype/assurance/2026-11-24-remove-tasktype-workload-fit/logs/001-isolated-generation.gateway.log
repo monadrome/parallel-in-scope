@@ -1,0 +1,4 @@
+2026/11/25 03:49:25 codex: api.deepseek.com refused the WebSocket (405 Method Not Allowed); its turns go over HTTP for 6h0m0s
+2026/11/25 03:55:49 gateway: codex's call to deepseek/deepseek-v4-pro on deepseek failed: 200 after 5m44.674s: DeepSeek: connection lost mid-reply (read tcp 192.168.0.105:64200->61.241.148.62:443: read: connection reset by peer)
+2026/11/25 04:01:40 gateway: codex's call to deepseek/deepseek-v4-pro on deepseek failed: 200 after 5m44.481s: DeepSeek: connection lost mid-reply (read tcp 192.168.0.105:52705->112.84.131.227:443: read: connection reset by peer)
+2026/11/25 04:06:30 gateway: codex's call to deepseek/deepseek-v4-pro on deepseek failed: 499 after 4m49.503s: the agent canceled the request

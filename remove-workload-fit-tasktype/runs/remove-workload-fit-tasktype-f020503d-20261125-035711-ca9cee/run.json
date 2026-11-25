@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T03:57:13.512Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype"
+  },
+  "commits": {
+    "base": "e57602a8288542b2d9090a37bf95188445da6df7",
+    "head": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kimi",
+        "version": "2.7.3",
+        "provider": "kimi-code",
+        "model": "kimi-code/k3.1-pro",
+        "revision": null,
+        "effort": "high",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      },
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "magpie",
+        "model": "deepseek/deepseek-v4-pro",
+        "revision": null,
+        "effort": "high",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 2,
+    "timeouts": {
+      "totalSeconds": 1800,
+      "reviewSeconds": 1500,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "4a11ba91ddf3eae3b1659b4ef744be35433321930222ba5f0eb755fd85690671",
+    "contextJsonSha256": "fb04ea0ad9293fcb11241a114cc2b2c9fd04808b473305e745cc0d6b2341a870",
+    "diffSha256": "0baefc9633069644dce6477dcdaad6f28c8f153d9eab48351a96473bbc51f53f",
+    "caseManifestSha256": "3af5efc96e110d2a66ccd7b815a88d36e6598490f3f6aa27c6c9e9e940e5315a",
+    "promptSha256": "c86b2f6ceef49345f1cf1f6b04826ce053e4b1e085491ef6268bda6aa4a137bf"
+  },
+  "promptPath": "inputs/prompt.md"
+}

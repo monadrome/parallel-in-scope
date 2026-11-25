@@ -1,0 +1,15 @@
+已完成 `candidates/` 下的隔离契约测试生成，按 README 要求只读取了 `README.md`、`contract.md`、`sanitized-api.md`、`commands.md`，未触碰仓库其它内容，也未编译或运行。
+
+**产出**
+- `candidates/ContractTdd001RemovedSurfaceTest.java` — C-1 已移除的 `TaskType`/`WorkloadFitReport` 表面（反射）
+- `ContractTdd002…` C-2 默认 `rejectEnqueue=false`
+- `ContractTdd003…` C-2 拒绝元素在池满时 `SUBMISSION_REJECTED`
+- `ContractTdd004…` C-2 非拒绝元素与 `executor.execute` 正常排队
+- `ContractTdd005…` C-2 `mapAndCombine` 终结 combine 被排队而非拒绝
+- `ContractTdd006–012…` C-3 每入口一次警告、各单元种类归因、并发首准入、`mapAndCombine` combine 不告警、adopt 无诊断
+- `ContractTdd013–015…` C-4 诊断线程分离、阻塞/抛异常 handler、注册与环警告
+- `ContractTdd016…` C-5 移除筛查后无 INFO+ 记录、结果归因不变
+- `candidates/candidate-plan.csv`（16 行 + 表头）
+- `candidates/generation-notes.md`（假设与歧义）
+
+共 16 个候选，每个候选一个 `@Test`、一个 Javadoc 声明 ID/契约/前置/操作/观察/断言/不确定性，均通过 `try-with-resources` 关闭 `ParRuntime`、`finally` 关闭执行器并移除日志 handler，等待均带 10 秒以内上界，缺席断言均显式声明时间窗。

@@ -1,0 +1,639 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025348-8fcc7b",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T02:53:49.525Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "head": "07f83919e72414a6987648c3288788a5db7abc6b",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+    "to": "07f83919e72414a6987648c3288788a5db7abc6b",
+    "label": "06efaae4..07f83919"
+  },
+  "objective": {
+    "subject": "feat!: remove TaskType and workload-fit screening",
+    "body": "ADR 0016 removes the workload declaration and both of its consumers. The\nsubmission-time comparison saw only a declared task wired to the wrong\npool, and the low-CPU screen was an uncalibrated heuristic that read\nThreadMXBean CPU time inside the task boundary. Neither ever changed\nadmission, queueing, rejection, cancellation, deadlines, or outcomes, so\nexisting code only stops compiling; the changelog carries the migration.\n\nRemoved public API: TaskType; the taskType wither and accessor on\nBatchOptions and TaskOptions; ParRuntime.Builder.register(ParId,\nExecutorService, TaskType); Par.taskType(); ParRuntime.workloadFitReport();\nWorkloadFitReport with ParMeasurement and UnitMeasurement. Internally,\nMultiTaskContext no longer holds its Par, UnitSpec and TaskNode drop the\ntype, and ScopedCallable runs the delegate without timing it. rejectEnqueue,\nthe inert-refusal warning, runtime-owned log delivery, the executor wait\ngraph, and starvation observation are unchanged.\n\nRemoved from design/task-group-api-and-options.md:\nMUST NOT: let TaskType change enqueue admission (queue types).\nMUST NOT: let TaskType change admission, enqueue, rejection, cancellation,\ndeadlines, attribution, or task outcomes (former 3.2.1).\nMUST: default both declarations to UNKNOWN.\nMUST NOT: let a nested unit inherit its parent unit's type.\nMUST NOT: warn when either declaration is UNKNOWN.\nMUST: state only \"declarations disagree\"; MUST NOT: phrase the warning as\nstarvation, oversubscription, or misuse.\nMUST: scope mismatch deduplication to the ParRuntime, bounded at 1024 pairs.\nMUST NOT: claim after overflow that all new units are still detected.\nRemoved with the retired design/workload-fit-screening.md: its items 1-9\n(which executions are timed and how, attribution, totals, epoch judgment\nand calibration, warning wording, unmeasured executions and\nsetThreadCpuTimeEnabled, report-only failure handling, and starvation types\ncarrying no workload state).\nKept in 3.2.1, renamed Admission diagnostics:\nMUST: diagnostics only log or enter reports.\nMUST NOT: fail a task, batch, or group, or replace its result.\nMUST: deliver logs on a runtime-owned thread; the admission thread MUST NOT\ninvoke log handlers.\n\nADR 0016 supersedes ADR 0008 and ADR 0010 and partially supersedes ADR 0001\nand ADR 0005. REVIEWED_EXCEPTIONS in check-verification-integrity.py lists\nevery deleted test file, deleted or renamed case, and reduced assertion\ncount; each checked only the removed API. run-pit-core.sh drops the removed\nclasses.\n\nassurance: REQUIRED; public API removal that changes the task boundary\n(ScopedCallable), admission diagnostics, and the evidence for both."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "e62caffbc6647f221cf2d0c605e3d905a535080bf2b118664f1c68687b1a3ae5",
+    "bytes": 338669,
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 0
+      },
+      {
+        "path": "README.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "README.zh-CN.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "adr/0001-layered-cartesian-concurrency-testing.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 5
+      },
+      {
+        "path": "adr/0005-globalpar-executor-binding.md",
+        "status": "M",
+        "additions": 9,
+        "deletions": 5
+      },
+      {
+        "path": "adr/0008-tasktype-as-workload-fit-diagnostic.md",
+        "status": "M",
+        "additions": 10,
+        "deletions": 4
+      },
+      {
+        "path": "adr/0010-always-on-workload-fit-screening.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 2
+      },
+      {
+        "path": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+        "status": "A",
+        "additions": 107,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "status": "M",
+        "additions": 6,
+        "deletions": 52
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/MultiTaskContext.java",
+        "status": "M",
+        "additions": 4,
+        "deletions": 21
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "status": "M",
+        "additions": 10,
+        "deletions": 62
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 77
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 18
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueue.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/SystemWorkloadClock.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 45
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskNode.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 8
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskOptions.java",
+        "status": "M",
+        "additions": 6,
+        "deletions": 29
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskType.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 34
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskTypeMismatches.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 75
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/UnitSpec.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 12
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadClock.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 21
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 326
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFitReport.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 269
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/BatchOptionsTest.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 10
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/CallableReferenceReleaseTest.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 33
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java",
+        "status": "M",
+        "additions": 10,
+        "deletions": 11
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java",
+        "status": "M",
+        "additions": 4,
+        "deletions": 8
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/MultiTaskContextTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 6
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 26
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 5
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 5
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopedTaskContractTest.java",
+        "status": "M",
+        "additions": 6,
+        "deletions": 15
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScriptedWorkloadClock.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 58
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitterTest.java",
+        "status": "M",
+        "additions": 28,
+        "deletions": 52
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/SubmissionAwareBlockingQueueTest.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 9
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultExecutionExitTest.java",
+        "status": "M",
+        "additions": 7,
+        "deletions": 13
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskFutureTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupTest.java",
+        "status": "M",
+        "additions": 4,
+        "deletions": 5
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskNodeTest.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 13
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskOptionsTest.java",
+        "status": "M",
+        "additions": 8,
+        "deletions": 15
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchWarningTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 326
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskTypeMismatchesTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 202
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitScreeningTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 567
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitSystemClockTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 88
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/WorkloadFitTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 220
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/A1-cancel-true-ignored.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 3
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/BATCH-best-practices.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 5
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/C1-thread-pool-deadlock.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/D1-get-timeout-task-still-running.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/D2-late-bind-race-condition.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/F1-cpu-task-queuing.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 9
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/G3-checkpoints-cooperative-cancel.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/G4-named-executor-pool.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/G5-batch-http-calls.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/G6-batch-db-query.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/I2-java8-compatibility-cost.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/I4-vs-completable-future.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "demo/docs/zh-CN/articles/QUICK-START-5-minutes.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "demo/src/main/java/demo/advanced/DeadlockDetectionDemo.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "demo/src/test/java/demo/article/A1_CancelTrueInvalidTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/A3_LeanVsFatExceptionTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/BatchBestPracticesTest.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 7
+      },
+      {
+        "path": "demo/src/test/java/demo/article/C1_ThreadPoolDeadlockTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/D1_GetTimeoutStillRunningTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/D2_LateBindRaceConditionTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/E1_QueueFloodingTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java",
+        "status": "M",
+        "additions": 4,
+        "deletions": 60
+      },
+      {
+        "path": "demo/src/test/java/demo/article/G1_CompletionFutureMonitoringTest.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 5
+      },
+      {
+        "path": "demo/src/test/java/demo/article/G4_NamedExecutorPoolTest.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 5
+      },
+      {
+        "path": "demo/src/test/java/demo/article/G5_BatchHttpCallsTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "demo/src/test/java/demo/article/G6_BatchDbQueryTest.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 5
+      },
+      {
+        "path": "design/AGENTS.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 6
+      },
+      {
+        "path": "design/decision-log.md",
+        "status": "M",
+        "additions": 24,
+        "deletions": 9
+      },
+      {
+        "path": "design/task-group-adopted-futures.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "design/task-group-api-and-options.md",
+        "status": "M",
+        "additions": 32,
+        "deletions": 66
+      },
+      {
+        "path": "design/task-group-lifecycle.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "design/task-group-terminal-combine.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "design/workload-fit-screening.md",
+        "status": "D",
+        "additions": 0,
+        "deletions": 112
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/design/philosophy.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "docs/en/index.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/reference/diagnostics.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 78
+      },
+      {
+        "path": "docs/en/user-guide.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 11
+      },
+      {
+        "path": "docs/zh/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 21,
+        "deletions": 2
+      },
+      {
+        "path": "docs/zh/design/philosophy.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 11
+      },
+      {
+        "path": "docs/zh/index.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/zh/reference/diagnostics.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 61
+      },
+      {
+        "path": "docs/zh/user-guide.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 6
+      },
+      {
+        "path": "integrations/src/main/java/integrations/app/QuoteService.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "integrations/src/main/java/integrations/spring/ParallelInScopeConfiguration.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 3
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 46,
+        "deletions": 1
+      },
+      {
+        "path": "scripts/run-pit-core.sh",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 52
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "8b00b504b63c1cf3f134013771375b982bc0bd96fe9b9dbe4457393a05669499",
+    "bytes": 5542,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "07f83919e72414a6987648c3288788a5db7abc6b",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

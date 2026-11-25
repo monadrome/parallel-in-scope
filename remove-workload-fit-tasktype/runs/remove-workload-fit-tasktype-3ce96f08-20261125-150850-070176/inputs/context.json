@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "remove-workload-fit-tasktype-3ce96f08-20261125-150850-070176",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T15:08:51.491Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype",
+    "name": "remove-workload-fit-tasktype",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "head": "3ce96f08284e3e718311c58669b52c0cf96655e5",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "758b7df6429cfd3be554bb716eb9d9537727addf",
+    "to": "3ce96f08284e3e718311c58669b52c0cf96655e5",
+    "label": "758b7df6..3ce96f08"
+  },
+  "objective": {
+    "subject": "docs: record maintainer disposition of ParRuntime PIT gaps",
+    "body": "On 2026-11-25 the maintainer accepted the four pre-existing ParRuntime\nentries (installGlobal closed-runtime check, awaitQuiescence zero-budget\nboundary, and the two enterAdmission back-out mutants) as residual\nnonblocking limitations under verification/pit.md. The record now states\nthat disposition, keeps each entry's contract, evidence, and impact, and\nleaves the named seams to a later change. With every exception disposed,\nthe overall PIT status is pass with limitations.\n\nThe record also cites the independent review that approved the four\nParRuntime timeouts as expected mutation-induced liveness failures. The\narchive README no longer repeats the overall status, and SHA256SUMS\ncarries the README's new hash."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "70baf9e76e6811321febaa618488d75f7bac45572021c31128d25a1a17d0e97f",
+    "bytes": 37797,
+    "files": [
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java",
+        "status": "A",
+        "additions": 121,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java",
+        "status": "A",
+        "additions": 133,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java",
+        "status": "A",
+        "additions": 130,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java",
+        "status": "A",
+        "additions": 216,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype.md",
+        "status": "M",
+        "additions": 36,
+        "deletions": 26
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/README.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "50d3c871ded6d207214bb60e68135efe8f25d9f4b40964b368c709e5a64b4d8e",
+    "bytes": 5984,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "3ce96f08284e3e718311c58669b52c0cf96655e5",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

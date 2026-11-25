@@ -1,0 +1,766 @@
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java
+new file mode 100644
+index 00000000..8150bb0d
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java
+@@ -0,0 +1,121 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.Arrays;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * CONTRACT-TDD-005 (contract C-2 of assurance run 2026-11-24-remove-tasktype-workload-fit).
++ *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 2;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
++ * {@code SubmissionAwareBlockingQueue}, {@code BatchOptions.rejectEnqueue}, and
++ * {@code TaskOptions.rejectEnqueue}; docs/en/user-guide.md, "Execute a batch".
++ *
++ * <p>Precondition: a batch entry on a refusal-capable pool with headroom, and a combine entry on a
++ * refusal-capable pool (core=1, max=1, queue capacity 1) whose only worker is busy blocked on a
++ * latch.
++ *
++ * <p>Operation sequence: run {@code mapAndCombine} with a refusing batch
++ * ({@code rejectEnqueue(true)}) whose elements succeed immediately, and a terminal combine
++ * submitted to the busy combine entry. The test observes the combine pool's queue reach size one,
++ * releases the blocker, then joins.
++ *
++ * <p>Observation points: the combine pool's queue size before release and the terminal combine's
++ * frozen result and run counter.
++ *
++ * <p>Assertions: the combine is queued while the worker is busy and is not rejected — its
++ * {@code terminalResult()} succeeds and its combiner ran exactly once.
++ *
++ * <p>Uncertainty: the exact submission moment is not observable; queued-before-release is asserted
++ * by watching the pool queue, which is application code reading its own executor.
++ */
++@Tag("C-0002")
++class C0002MapAndCombineCombineNoRefusalQueuedContractTest {
++
++    @Test
++    void mapAndCombineTerminalCombineIsQueuedNotRejected() throws Exception {
++        ThreadPoolExecutor batchPool =
++                new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(2));
++        ThreadPoolExecutor combinePool =
++                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(1));
++        ParId batchId = ParId.of("ct005-batch");
++        ParId combineId = ParId.of("ct005-combine");
++
++        CountDownLatch started = new CountDownLatch(1);
++        CountDownLatch release = new CountDownLatch(1);
++        AtomicInteger combineRan = new AtomicInteger();
++
++        AtomicReference<BatchCombinedResult<Integer, Integer>> resultRef = new AtomicReference<>();
++        AtomicReference<Throwable> errorRef = new AtomicReference<>();
++
++        try (ParRuntime runtime = ParRuntime.builder()
++                .register(batchId, batchPool)
++                .register(combineId, combinePool)
++                .build()) {
++            Par batchPar = runtime.par(batchId);
++            Par combinePar = runtime.par(combineId);
++
++            combinePool.execute(() -> {
++                started.countDown();
++                try {
++                    release.await(10, TimeUnit.SECONDS);
++                } catch (InterruptedException e) {
++                    Thread.currentThread().interrupt();
++                }
++            });
++            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
++
++            List<Integer> elements = Arrays.asList(1, 2);
++            BatchOptions options =
++                    BatchOptions.timeout("ct005-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
++
++            Thread submitter = new Thread(() -> {
++                try {
++                    resultRef.set(batchPar.mapAndCombine(
++                            elements, el -> el, options, combinePar, (Combiner<List<Integer>, Integer>) values -> {
++                                combineRan.incrementAndGet();
++                                return values.size();
++                            }));
++                } catch (Throwable t) {
++                    errorRef.set(t);
++                }
++            });
++            submitter.start();
++
++            awaitQueueSize(combinePool, 1, Duration.ofSeconds(10));
++            release.countDown();
++            submitter.join(TimeUnit.SECONDS.toMillis(20));
++            assertThat(errorRef.get()).isNull();
++
++            BatchCombinedResult<Integer, Integer> result = resultRef.get();
++            assertThat(result.terminalResult().successful()).isTrue();
++            assertThat(result.terminalResult().termination().failureCause()).isNull();
++            assertThat(combineRan.get()).isEqualTo(1);
++        } finally {
++            batchPool.shutdownNow();
++            combinePool.shutdownNow();
++        }
++    }
++
++    private static void awaitQueueSize(ThreadPoolExecutor pool, int expected, Duration timeout)
++            throws InterruptedException {
++        long deadline = System.nanoTime() + timeout.toNanos();
++        while (System.nanoTime() < deadline) {
++            if (pool.getQueue().size() == expected) {
++                return;
++            }
++            Thread.sleep(20);
++        }
++        throw new AssertionError("queue did not reach size " + expected + " within " + timeout);
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java
+new file mode 100644
+index 00000000..1f216534
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java
+@@ -0,0 +1,133 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import java.util.logging.Handler;
++import java.util.logging.Level;
++import java.util.logging.LogRecord;
++import java.util.logging.Logger;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * CONTRACT-TDD-012 (contract C-3 of assurance run 2026-11-24-remove-tasktype-workload-fit).
++ *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 2;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; docs/en/user-guide.md,
++ * "Execute a batch"; design/task-group-adopted-futures.md, "2. Contract" item A7.
++ *
++ * <p>Precondition: one entry on a plain executor with several idle workers.
++ *
++ * <p>Operation sequence: eight threads admit a refusing single-element batch through the same
++ * entry simultaneously, released together by a start latch.
++ *
++ * <p>Observation points: JUL records naming the entry id.
++ *
++ * <p>Assertions: the entry still causes exactly one {@code WARNING}, even under concurrent first
++ * admissions; the count stays one after a 1000 millisecond window.
++ *
++ * <p>Uncertainty: the once-only guarantee is asserted after all admissions return; a record that
++ * arrived late would still be within the stated window.
++ */
++@Tag("C-0003")
++class C0003ConcurrentFirstAdmissionsOnceContractTest {
++
++    @Test
++    void concurrentFirstAdmissionsStillWarnOnce() throws Exception {
++        ExecutorService pool = Executors.newFixedThreadPool(8);
++        ParId id = ParId.of("ct012-entry");
++        Logger logger = Logger.getLogger("io.github.monadrome.parallelinscope");
++        CaptureHandler handler = new CaptureHandler();
++        logger.addHandler(handler);
++
++        try (ParRuntime runtime = ParRuntime.builder().register(id, pool).build()) {
++            Par par = runtime.par(id);
++            BatchOptions refusing =
++                    BatchOptions.timeout("ct012-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
++            List<Integer> one = Arrays.asList(1);
++
++            int threads = 8;
++            CountDownLatch ready = new CountDownLatch(threads);
++            CountDownLatch start = new CountDownLatch(1);
++            Thread[] workers = new Thread[threads];
++            for (int i = 0; i < threads; i++) {
++                workers[i] = new Thread(() -> {
++                    ready.countDown();
++                    try {
++                        start.await(10, TimeUnit.SECONDS);
++                        par.map(one, el -> el, refusing);
++                    } catch (InterruptedException e) {
++                        Thread.currentThread().interrupt();
++                    }
++                });
++                workers[i].start();
++            }
++
++            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
++            start.countDown();
++            for (Thread worker : workers) {
++                worker.join(TimeUnit.SECONDS.toMillis(20));
++            }
++
++            handler.awaitCountContaining("ct012-entry", 1, 10);
++            assertThat(handler.countContaining("ct012-entry")).isEqualTo(1);
++            assertThat(handler.firstContaining("ct012-entry").getLevel()).isEqualTo(Level.WARNING);
++            Thread.sleep(1000);
++            assertThat(handler.countContaining("ct012-entry")).isEqualTo(1);
++        } finally {
++            logger.removeHandler(handler);
++            pool.shutdownNow();
++        }
++    }
++
++    private static final class CaptureHandler extends Handler {
++        final List<LogRecord> records = Collections.synchronizedList(new java.util.ArrayList<>());
++
++        @Override
++        public void publish(LogRecord record) {
++            if (record.getLevel().intValue() == Level.WARNING.intValue()) {
++                records.add(record);
++            }
++        }
++
++        @Override
++        public void flush() {}
++
++        @Override
++        public void close() {}
++
++        int countContaining(String fragment) {
++            int count = 0;
++            for (LogRecord record : records) {
++                if (record.getMessage() != null && record.getMessage().contains(fragment)) {
++                    count++;
++                }
++            }
++            return count;
++        }
++
++        LogRecord firstContaining(String fragment) {
++            for (LogRecord record : records) {
++                if (record.getMessage() != null && record.getMessage().contains(fragment)) {
++                    return record;
++                }
++            }
++            return null;
++        }
++
++        void awaitCountContaining(String fragment, int expected, long seconds) throws InterruptedException {
++            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
++            while (countContaining(fragment) < expected && System.nanoTime() < deadline) {
++                Thread.sleep(50);
++            }
++        }
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java
+new file mode 100644
+index 00000000..72d65ac4
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java
+@@ -0,0 +1,130 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.logging.Handler;
++import java.util.logging.Level;
++import java.util.logging.LogRecord;
++import java.util.logging.Logger;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * CONTRACT-TDD-013 (contract C-4 of assurance run 2026-11-24-remove-tasktype-workload-fit).
++ *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 3;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
++ * {@code ParRuntime.executorWaitReport}; docs/en/reference/executor-registration.md,
++ * "Visibility: register the physical pool"; docs/en/reference/diagnostics.md,
++ * "Observe nested work".
++ *
++ * <p>Precondition: one entry on a plain executor; a handler under O-1 that records the publishing
++ * thread and blocks on a latch when a matching record is published.
++ *
++ * <p>Operation sequence: a dedicated thread admits a refusing batch; the test waits for the
++ * handler to start, joins the admitting thread while the handler is still blocked, then releases
++ * the handler.
++ *
++ * <p>Observation points: the publishing thread, whether the record is delivered before release,
++ * and the admitting thread's return.
++ *
++ * <p>Assertions: the admitting thread returns while the handler is still blocked (a blocking
++ * handler never delays the caller); the publishing thread is not the admitting thread; the record
++ * is published only after the handler is released.
++ *
++ * <p>Uncertainty: the runtime-owned thread's identity is not fixed; only "not the admitting
++ * thread" is asserted.
++ */
++@Tag("C-0004")
++class C0004OffThreadBlockingHandlerContractTest {
++
++    @Test
++    void diagnosticIsDeliveredOffThreadAndNeverBlocksCaller() throws Exception {
++        ExecutorService pool = Executors.newFixedThreadPool(2);
++        ParId id = ParId.of("ct013-entry");
++        Logger logger = Logger.getLogger("io.github.monadrome.parallelinscope");
++        BlockingHandler handler = new BlockingHandler("ct013-entry");
++        logger.addHandler(handler);
++
++        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
++        AtomicReference<Throwable> errorRef = new AtomicReference<>();
++
++        try (ParRuntime runtime = ParRuntime.builder().register(id, pool).build()) {
++            Par par = runtime.par(id);
++            BatchOptions refusing =
++                    BatchOptions.timeout("ct013-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
++            List<Integer> one = Arrays.asList(1);
++
++            Thread admitThread = new Thread(() -> {
++                try {
++                    resultRef.set(par.map(one, el -> el, refusing));
++                } catch (Throwable t) {
++                    errorRef.set(t);
++                }
++            });
++            admitThread.start();
++
++            assertThat(handler.started.await(10, TimeUnit.SECONDS)).isTrue();
++            admitThread.join(TimeUnit.SECONDS.toMillis(10));
++            assertThat(admitThread.isAlive()).isFalse();
++            assertThat(errorRef.get()).isNull();
++            assertThat(handler.records).isEmpty();
++            assertThat(handler.publishThread.get()).isNotNull();
++            assertThat(handler.publishThread.get()).isNotSameAs(admitThread);
++
++            handler.release.countDown();
++            assertThat(handler.delivered.await(10, TimeUnit.SECONDS)).isTrue();
++            assertThat(handler.records).hasSize(1);
++            assertThat(handler.records.get(0).getLevel()).isEqualTo(Level.WARNING);
++            assertThat(handler.records.get(0).getMessage()).startsWith("Par 'ct013-entry' requested rejectEnqueue");
++            assertThat(resultRef.get().termination().successful()).isTrue();
++        } finally {
++            handler.release.countDown();
++            logger.removeHandler(handler);
++            pool.shutdownNow();
++        }
++    }
++
++    private static final class BlockingHandler extends Handler {
++        final String fragment;
++        final CountDownLatch started = new CountDownLatch(1);
++        final CountDownLatch release = new CountDownLatch(1);
++        final CountDownLatch delivered = new CountDownLatch(1);
++        final AtomicReference<Thread> publishThread = new AtomicReference<>();
++        final List<LogRecord> records = Collections.synchronizedList(new java.util.ArrayList<>());
++
++        BlockingHandler(String fragment) {
++            this.fragment = fragment;
++        }
++
++        @Override
++        public void publish(LogRecord record) {
++            if (record.getMessage() != null && record.getMessage().contains(fragment)) {
++                publishThread.set(Thread.currentThread());
++                started.countDown();
++                try {
++                    release.await(10, TimeUnit.SECONDS);
++                } catch (InterruptedException e) {
++                    Thread.currentThread().interrupt();
++                }
++                records.add(record);
++                delivered.countDown();
++            }
++        }
++
++        @Override
++        public void flush() {}
++
++        @Override
++        public void close() {}
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java
+new file mode 100644
+index 00000000..4bd164a3
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java
+@@ -0,0 +1,216 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.List;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ForkJoinPool;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.logging.Handler;
++import java.util.logging.Level;
++import java.util.logging.LogRecord;
++import java.util.logging.Logger;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * CONTRACT-TDD-015 (contract C-4 of assurance run 2026-11-24-remove-tasktype-workload-fit).
++ *
++ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 3;
++ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
++ * {@code ParRuntime.executorWaitReport}; docs/en/reference/executor-registration.md,
++ * "Visibility: register the physical pool"; docs/en/reference/diagnostics.md,
++ * "Observe nested work".
++ *
++ * <p>Precondition: handlers under O-1; a {@link ForkJoinPool} (an executor the library cannot see
++ * through) and a plain fixed pool; later a single-thread fixed pool for a self-wait.
++ *
++ * <p>Operation sequence: (A) build a runtime with a throwing handler while registering a
++ * {@code ForkJoinPool}; (B) build a runtime registering a {@code ForkJoinPool} and a fixed pool
++ * with a capturing handler; (C) admit a batch element that nested-calls {@code map} on its own
++ * entry, forming a self-cycle.
++ *
++ * <p>Observation points: whether {@code build()} returns, JUL record levels, publishing threads,
++ * and {@code ExecutorWaitReport.cyclicComponents()}.
++ *
++ * <p>Assertions: a throwing handler does not make {@code build()} fail; the registration warning
++ * names the {@code ForkJoinPool} entry and is published off the building thread; the fixed entry
++ * causes no warning; the self-cycle produces one {@code WARNING} from a thread other than the
++ * submitting one and {@code cyclicComponents()} reports the cycle.
++ *
++ * <p>Uncertainty: registration and cycle wording is non-contractual; filtering uses candidate
++ * entry ids.
++ */
++@Tag("C-0005")
++class C0005RegistrationAndCycleWarningsContractTest {
++
++    @Test
++    void registrationAndCycleWarningsAreOffThread() throws Exception {
++        Logger logger = Logger.getLogger("io.github.monadrome.parallelinscope");
++        Thread buildingThread = Thread.currentThread();
++
++        ThrowingHandler throwing = new ThrowingHandler("ct015-fjpthrow");
++        logger.addHandler(throwing);
++        ForkJoinPool fjpThrow = new ForkJoinPool(1);
++        try (ParRuntime ignored = ParRuntime.builder()
++                .register(ParId.of("ct015-fjpthrow"), fjpThrow)
++                .build()) {
++            assertThat(ignored).isNotNull();
++        } finally {
++            logger.removeHandler(throwing);
++            fjpThrow.shutdownNow();
++        }
++
++        CaptureHandler capture = new CaptureHandler();
++        logger.addHandler(capture);
++        ForkJoinPool fjp = new ForkJoinPool(1);
++        ExecutorService fixed = Executors.newFixedThreadPool(2);
++        ParId fjpId = ParId.of("ct015-fjp");
++        ParId fixedId = ParId.of("ct015-fixed");
++        try (ParRuntime registrationRuntime = ParRuntime.builder()
++                .register(fjpId, fjp)
++                .register(fixedId, fixed)
++                .build()) {
++            assertThat(registrationRuntime).isNotNull();
++            capture.awaitWarningContaining("ct015-fjp", 1, 10);
++            assertThat(capture.countWarningContaining("ct015-fjp")).isEqualTo(1);
++            assertThat(capture.firstWarningContaining("ct015-fjp").getLevel()).isEqualTo(Level.WARNING);
++            assertThat((long) capture.firstWarningContaining("ct015-fjp").getThreadID())
++                    .isNotEqualTo(buildingThread.getId());
++            assertThat(capture.countWarningContaining("ct015-fixed")).isZero();
++        } finally {
++            logger.removeHandler(capture);
++            fjp.shutdownNow();
++            fixed.shutdownNow();
++        }
++
++        CaptureHandler cycleCapture = new CaptureHandler();
++        logger.addHandler(cycleCapture);
++        ExecutorService selfPool = Executors.newFixedThreadPool(1);
++        ParId selfId = ParId.of("ct015-self");
++        AtomicReference<Thread> selfThread = new AtomicReference<>();
++        try (ParRuntime cycleRuntime =
++                ParRuntime.builder().register(selfId, selfPool).build()) {
++            Par par = cycleRuntime.par(selfId);
++            BatchOptions outer = BatchOptions.timeout("ct015-outer", Duration.ofSeconds(20));
++            BatchOptions inner = BatchOptions.timeout("ct015-inner", Duration.ofSeconds(3));
++            par.map(
++                    Arrays.asList(1),
++                    el -> {
++                        selfThread.set(Thread.currentThread());
++                        return par.map(Arrays.asList(2), el2 -> el2, inner);
++                    },
++                    outer);
++
++            awaitCycleReported(cycleRuntime, Duration.ofSeconds(10));
++            assertThat(cycleRuntime.executorWaitReport().cyclicComponents()).isNotEmpty();
++            cycleCapture.awaitAnyWarning(1, 10);
++            assertThat(cycleCapture.records).isNotEmpty();
++            LogRecord cycleRecord = cycleCapture.records.get(0);
++            assertThat(cycleRecord.getLevel()).isEqualTo(Level.WARNING);
++            assertThat((long) cycleRecord.getThreadID()).isNotEqualTo(buildingThread.getId());
++            if (selfThread.get() != null) {
++                assertThat((long) cycleRecord.getThreadID())
++                        .isNotEqualTo(selfThread.get().getId());
++            }
++        } finally {
++            logger.removeHandler(cycleCapture);
++            selfPool.shutdownNow();
++        }
++    }
++
++    private static void awaitCycleReported(ParRuntime runtime, Duration timeout) throws InterruptedException {
++        long deadline = System.nanoTime() + timeout.toNanos();
++        while (runtime.executorWaitReport().cyclicComponents().isEmpty() && System.nanoTime() < deadline) {
++            Thread.sleep(50);
++        }
++    }
++
++    private static final class ThrowingHandler extends Handler {
++        final String fragment;
++
++        ThrowingHandler(String fragment) {
++            this.fragment = fragment;
++        }
++
++        @Override
++        public void publish(LogRecord record) {
++            if (record.getMessage() != null && record.getMessage().contains(fragment)) {
++                throw new RuntimeException("logging failure");
++            }
++        }
++
++        @Override
++        public void flush() {}
++
++        @Override
++        public void close() {}
++    }
++
++    private static final class CaptureHandler extends Handler {
++        final List<LogRecord> records = Collections.synchronizedList(new java.util.ArrayList<>());
++
++        @Override
++        public void publish(LogRecord record) {
++            records.add(record);
++        }
++
++        @Override
++        public void flush() {}
++
++        @Override
++        public void close() {}
++
++        int countWarningContaining(String fragment) {
++            int count = 0;
++            for (LogRecord record : records) {
++                if (record.getLevel().intValue() == Level.WARNING.intValue()
++                        && record.getMessage() != null
++                        && record.getMessage().contains(fragment)) {
++                    count++;
++                }
++            }
++            return count;
++        }
++
++        LogRecord firstWarningContaining(String fragment) {
++            for (LogRecord record : records) {
++                if (record.getLevel().intValue() == Level.WARNING.intValue()
++                        && record.getMessage() != null
++                        && record.getMessage().contains(fragment)) {
++                    return record;
++                }
++            }
++            return null;
++        }
++
++        void awaitWarningContaining(String fragment, int expected, long seconds) throws InterruptedException {
++            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
++            while (countWarningContaining(fragment) < expected && System.nanoTime() < deadline) {
++                Thread.sleep(50);
++            }
++        }
++
++        void awaitAnyWarning(int expected, long seconds) throws InterruptedException {
++            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
++            while (countWarnings() < expected && System.nanoTime() < deadline) {
++                Thread.sleep(50);
++            }
++        }
++
++        int countWarnings() {
++            int count = 0;
++            for (LogRecord record : records) {
++                if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
++                    count++;
++                }
++            }
++            return count;
++        }
++    }
++}
+diff --git a/verification/pit-audit/2026-11-24-remove-tasktype.md b/verification/pit-audit/2026-11-24-remove-tasktype.md
+index 13fbdb06..ed4ac920 100644
+--- a/verification/pit-audit/2026-11-24-remove-tasktype.md
++++ b/verification/pit-audit/2026-11-24-remove-tasktype.md
+@@ -115,14 +115,14 @@ in batches D and E:
+ 
+ | Class and method | Mutation | Raw status | Disposition |
+ |---|---|---|---|
+-| `ParRuntime.installGlobal` | removed closed-runtime `Preconditions::checkState` | `SURVIVED` | Equivalent |
+ | `ParRuntime.ticker` | null return | `SURVIVED` | Equivalent |
+ | `TaskNode.hashCode` | `0` return | `SURVIVED` | Equivalent |
+ | `SubmissionAwareBlockingQueue.<init>` | `capacity <= 0` boundary | `SURVIVED` | Equivalent |
+ | `ParRuntime.releases` | null return | `NO_COVERAGE` | Unreachable |
+-| `ParRuntime.awaitQuiescence` | zero-budget boundary | `SURVIVED` | Unresolved gap, pre-existing |
+-| `ParRuntime.enterAdmission` | negated last-back-out check | `NO_COVERAGE` | Unresolved gap, pre-existing |
+-| `ParRuntime.enterAdmission` | removed `shutdownServicesWhenAdmissionsComplete` call | `NO_COVERAGE` | Unresolved gap, pre-existing |
++| `ParRuntime.installGlobal` | removed closed-runtime `Preconditions::checkState` | `SURVIVED` | Accepted residual limitation, pre-existing |
++| `ParRuntime.awaitQuiescence` | zero-budget boundary | `SURVIVED` | Accepted residual limitation, pre-existing |
++| `ParRuntime.enterAdmission` | negated last-back-out check | `NO_COVERAGE` | Accepted residual limitation, pre-existing |
++| `ParRuntime.enterAdmission` | removed `shutdownServicesWhenAdmissionsComplete` call | `NO_COVERAGE` | Accepted residual limitation, pre-existing |
+ | `ParRuntime.awaitQuiescence` | removed `Monitor::leave` in the zero-budget branch | `TIMED_OUT` | Expected mutation-induced liveness failure |
+ | `ParRuntime.enterAdmission` | negated open-runtime return | `TIMED_OUT` | Expected mutation-induced liveness failure |
+ | `ParRuntime` execution-tracking listener (`lambda$trackExecutions$0`) | removed `Monitor::leave` | `TIMED_OUT` | Expected mutation-induced liveness failure |
+@@ -133,14 +133,6 @@ base killed.
+ 
+ ### Equivalent mutants
+ 
+-- `ParRuntime.installGlobal`, removed closed-runtime `checkState`: equivalent, as entry E15 of the
+-  [2026-10-31 dispositions](2026-10-31/dispositions.md) records; this change did not touch the
+-  method. The race guard after the slot claim throws the same `IllegalStateException` for a closed
+-  runtime and clears the slot before the call returns. Two differences remain, and neither is
+-  contractual. When another runtime is installed, the mutant reports "already installed" instead of
+-  "closed"; the Javadoc documents `IllegalStateException` for both conditions and no message. A
+-  concurrent reader of the slot can briefly see the closed runtime, which the unmutated code also
+-  allows when a runtime closes during installation.
+ - `ParRuntime.ticker`, null return: equivalent for every runtime the public API can build. Both
+   callers, unit admission in `Par` and `TaskGroup.prepare`, pass the value to
+   `MultiTaskContext.domainFor`, which maps a null root ticker to `Ticker.systemTicker()`. The public
+@@ -162,20 +154,37 @@ base killed.
+ - `ParRuntime.releases`, null return: no production or test code calls the method, at head or at
+   base. See "Unrelated observation".
+ 
+-### Unresolved pre-existing gaps
+-
+-The 2026-10-31 dispositions list these three under "D / retained gaps (recorded, not claimed
+-equivalent)", with no maintainer disposition. This change did not touch either method.
+-
++### Pre-existing gaps accepted as residual limitations
++
++This change did not touch these methods. On 2026-11-25 the maintainer accepted all four entries as
++residual nonblocking limitations, so this delivery adds none of the seams named below. The
++[2026-10-31 dispositions](2026-10-31/dispositions.md) list the `awaitQuiescence` and
++`enterAdmission` entries under "D / retained gaps (recorded, not claimed equivalent)". They class
++the `installGlobal` survivor as equivalent (entry E15), and a competing installer refutes that
++claim.
++
++- `ParRuntime.installGlobal`, removed closed-runtime `checkState`. Contract: installing a closed
++  instance fails with `IllegalStateException` without occupying the slot (`installGlobal` Javadoc).
++  Evidence: `SURVIVED` in every run. E15 treats the removed check as a duplicate of the re-check
++  after the slot claim, which throws the same exception and clears the slot. That holds for one
++  installer but not for two. Under the mutant, the installation of an already-closed runtime claims
++  an empty slot before its re-check clears it. A live runtime whose installation runs in that
++  window fails with "already installed", and no runtime remains installed. The unmutated code
++  rejects the closed runtime before the claim, so the live installation succeeds. It allows the
++  same outcome only when a runtime closes during its own installation, which the Javadoc permits.
++  Impact: a spurious installation failure, only when installing a closed runtime races installing
++  a live one. Next action: a later change can add a seam that pauses an installer between its slot
++  claim and its re-check so that a test can force the interleaving.
++  A single-threaded test that asserts the closed-runtime message while another runtime is installed
++  would also detect the mutant, but it would pin a message that the Javadoc does not document.
+ - `ParRuntime.awaitQuiescence`, zero-budget boundary. Contract: a non-positive timeout performs one
+   check and reports the current state. Evidence: `SURVIVED` in every run. Impact: under the
+   mutant, a zero-budget call that finds the quiescence monitor held by another thread returns
+   `false` instead of waiting for the monitor and reporting the state. `Duration.ZERO` makes the
+   zero budget deterministic, but only library threads hold the monitor: the execution-tracking
+   listener, the service-shutdown pulse, and another caller's guard check. Each holds it for a short
+-  critical section that no public operation keeps open. Next action: accept it as a residual
+-  nonblocking limitation, or add a package-private seam that holds the monitor so a test can
+-  construct the contention.
++  critical section that no public operation keeps open. Next action: a later change can add a
++  package-private seam that holds the monitor so a test can construct the contention.
+ - `ParRuntime.enterAdmission`, the losing side of a close-versus-admission race: the negated
+   last-back-out check and the removed `shutdownServicesWhenAdmissionsComplete` call. Contract: after
+   `close()`, quiescence requires that no admission is in progress and that the runtime services
+@@ -184,8 +193,8 @@ equivalent)", with no maintainer disposition. This change did not touch either m
+   `NO_COVERAGE` in every run. Impact: under either mutant, a runtime closed during its last racing
+   admission could keep its services running; the unmutated code is not implicated. The window lies
+   between two reads of `closed` on one thread, and no test reaches it without a production hook.
+-  Next action: accept it as a residual nonblocking limitation, or add a hook that pauses an
+-  admission between its registration and its re-check.
++  Next action: a later change can add a hook that pauses an admission between its registration
++  and its re-check.
+ 
+ ## Timeout classification
+ 
+@@ -258,17 +267,18 @@ above.
+ 
+ ## Overall status
+ 
+-**Inconclusive**, with these limitations:
++**Pass**, with these limitations:
+ 
+ - Head keeps 32 raw `TIMED_OUT` entries. The four in `ParRuntime` are expected mutation-induced
+-  liveness failures by the evidence above. The other 28 sit in unchanged classes:
++  liveness failures by the evidence above, approved as such by the independent review of
++  `f020503d..758b7df6`. The other 28 sit in unchanged classes:
+   `TaskObservation.unattributed` (1), `ExecutionPhaseHintFuture.run` (6),
+   `Checkpoints.checkPut` (1), `TaskGroup.prepare` (1), `SlidingWindowSubmitter` and its
+   `RefillDriver` (14), and `ThreadPoolStarvationObservationScope.close` (3) and `.sampleNow` (2).
+   Apart from the two `ExecutionPhaseHintFuture.run` entries attributed above, each has the same raw
+   status at base and was not reproduced in a focused run for this change.
+-- The three pre-existing `ParRuntime` gaps need an explicit maintainer disposition: accept them as
+-  residual nonblocking limitations, or add the seams named above.
++- On 2026-11-25 the maintainer accepted the four pre-existing `ParRuntime` gaps as residual
++  nonblocking limitations. The seams named above remain open for a later change.
+ - This record does not re-disposition the pre-existing `SURVIVED` and `NO_COVERAGE` entries in
+   unchanged classes. Their statuses equal base apart from the `Task.of` kill, so the change neither
+   adds nor removes such entries there.
+diff --git a/verification/pit-audit/2026-11-24-remove-tasktype/README.md b/verification/pit-audit/2026-11-24-remove-tasktype/README.md
+index 61f60735..c3304448 100644
+--- a/verification/pit-audit/2026-11-24-remove-tasktype/README.md
++++ b/verification/pit-audit/2026-11-24-remove-tasktype/README.md
+@@ -43,8 +43,7 @@ POMs, and runner; both differ from head only by the test that `f020503d` adds.
+ | Head total | 1577 | 68 | 22 | 32 | 1699 |
+ | Base total | 1696 | 70 | 24 | 33 | 1823 |
+ 
+-The aggregate result is **inconclusive**, not pass. The parent record gives every run's counts,
+-the dispositions, and the open decisions.
++The parent record gives every run's counts, the dispositions, and the overall status.
+ 
+ ## Contents
+ 
+diff --git a/verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS b/verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS
+index bc4b8538..67fe0d37 100644
+--- a/verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS
++++ b/verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS
+@@ -1,4 +1,4 @@
+-cc347ac19000cff9b881296a625312a3dcd91e73bceb29a145d3556933c22fb2  README.md
++d07298c16ab50699d21c6c603cb18517cdd5869eb7cf1494030553a196257abd  README.md
+ 7bf0185c3f878a1d9b626978567aa98055b0ea04e1ef3d175ab674eb24296f81  comparisons/base-vs-head-A.txt
+ 28a570cf84d75be11305bc7ac014a82d63fdbf1de52baee93512ef0e0a3a5fb6  comparisons/base-vs-head-B.txt
+ c4518654c09a1849c07192f160891179c4deddb38e1613f449bfc6bd515d92d5  comparisons/base-vs-head-C.txt

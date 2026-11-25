@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "remove-workload-fit-tasktype-07f83919-20261125-025147-d740ff",
+  "version": 2,
+  "createdAt": "2026-11-25T03:15:32.342Z",
+  "method": "imported",
+  "note": "imported: agent adjudication of round 1; each finding is a separate documentation-drift root cause",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "kimi:0"
+      ],
+      "note": "ADR 0016 Supersedes named only ADR 0008 and ADR 0010 while ADR 0001 and ADR 0005 name ADR 0016 as a partial successor; adr/AGENTS.md requires links in both directions"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "kimi:1"
+      ],
+      "note": "ADR 0008's dated note and closing decision paragraph called API and options section 3.2.1 retired although it is live as Admission diagnostics"
+    }
+  ]
+}

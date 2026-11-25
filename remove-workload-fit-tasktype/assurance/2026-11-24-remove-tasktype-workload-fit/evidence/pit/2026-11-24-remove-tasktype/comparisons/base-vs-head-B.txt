@@ -1,0 +1,8 @@
+base=275 head=275 matched=275 removed=0 added=0
+KILLED at base, not KILLED at head: 2
+  REGRESSION ExecutionPhaseHintFuture.run NegateConditionalsMutator #0 'negated conditional' base:241:KILLED head:241:TIMED_OUT
+  REGRESSION ExecutionPhaseHintFuture.run NegateConditionalsMutator #11 'negated conditional' base:277:KILLED head:277:TIMED_OUT
+other status changes: 0
+removed-at-head by class: {}
+removed non-KILLED at base: []
+added-at-head by class: {}

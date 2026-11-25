@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-d88ccda8-20261125-153851-f099e5",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T15:38:52.528Z",
+  "endedAt": "2026-11-25T15:43:01.838Z",
+  "durationMs": 249080,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 6fb1ad345fb161bf3921aab71430b57575e7baa9 to d88ccda8c64d56519101dda826a78c277bfd043f. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-d88ccda8-20261125-153851-f099e5/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-d88ccda8-20261125-153851-f099e5/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: delivery ledger review\n\nReview `6fb1ad34..d88ccda8` read-only. The implementer is Claude (Opus). Do not edit files, run\nMaven, or commit. You may run read-only commands such as `git`, `grep`, `sed -n`, `ls`, `python3\n-c` for JSON reading, and `python3 scripts/process-metrics.py report`.\n\n`d88ccda8 chore: record delivery remove-workload-fit-tasktype` adds one file,\n`ledger/2026-11-25-remove-workload-fit-tasktype.json`, written by\n`python3 scripts/process-metrics.py record`. The rules are in `verification/delivery-ledger.md`.\n\n## What to check\n\n1. The commit adds only the record, alone, with the subject `chore: record delivery <topic>`, and\n   it is the last commit after the change's other commits (`origin/dev/v0.5.0..d88ccda8`).\n2. `change.commits` lists every subject of `f093bb12..6fb1ad34`, in order.\n3. `reviews.adversarial` names each llm-review-bench run of this topic once, in round order,\n   including the partial round-1 run whose kiro seat failed. The runs are under\n   `.review-benchmark/runs/remove-workload-fit-tasktype-*`. Check the counts the record copies\n   against each run's files.\n4. `reviews.refactoring` names `.agents/reviews/refactoring-remove-workload-fit-tasktype-2026-11-24`.\n   `pit` reads the head reports `verification/pit-audit/2026-11-24-remove-tasktype/reports/head-A.xml`\n   to `head-E.xml`, and its raw counts and inconclusive counts match those files.\n5. `routes`, `implementer`, `interventions`, `gates.failures`, and `notes` follow the field table.\n   The self-reported values are lower bounds, and you cannot verify them from files. Report only a\n   value that contradicts evidence in the repository or in the assurance run at\n   `.contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/`, whose `logs/commands.jsonl`\n   records the assurance steps. Do not read `verification/contract-tests/` or the run's\n   `candidates/`, `promotions/`, `promotion-targets/`, or `adaptation/`. This review does not need\n   them.\n\n## Output\n\nIn `summary`, give one line per item: `PASS` or `FAIL`. Report every defect as a finding tied to\na file and a line, with a concrete consequence for a later reader of the ledger.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-d88ccda8-20261125-153851-f099e5/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "1. PASS — the ledger commit is last, has the required subject, and adds only the record.\n2. PASS — change.commits and diff totals match f093bb12..6fb1ad34 in order.\n3. PASS — all eight applicable adversarial runs appear once in round order, including the partial kiro run, and their copied counts match the latest evaluations.\n4. PASS — the refactoring run and all five PIT reports match the recorded counts and inconclusive rates.\n5. FAIL — gates.failures omits the failed assurance candidate-verification run.",
+  "findings": [
+    {
+      "file": "ledger/2026-11-25-remove-workload-fit-tasktype.json",
+      "lineStart": 422,
+      "lineEnd": 431,
+      "title": "Candidate test failure is missing from gate failures",
+      "trigger": "A later reader compares gates.failures with the assurance command history or uses process-metrics to rank failed local checks.",
+      "consequence": "The ledger undercounts assurance failures and omits the candidate test run entirely, so downstream process metrics misrepresent which verification steps failed before passing.",
+      "evidence": "ledger/2026-11-25-remove-workload-fit-tasktype.json:422-431 records the candidate compile, generation gateway, and JDK 11 failures but no candidate test failure. .contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/logs/commands.jsonl:4 records candidate-verification with exitCode 1, and .contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/report.md:157-161 explicitly lists that candidate run among the failed steps. verification/delivery-ledger.md:65 requires counting every failed run before it passed.",
+      "severity": "P2",
+      "confidence": 0.99,
+      "suggestedFix": "Add a gates.failures entry such as \"assurance candidate verification\": 1 for the failed candidate test run recorded in log 013.",
+      "id": "kimi:0",
+      "reviewer": "kimi",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "ledger/2026-11-25-remove-workload-fit-tasktype.json",
+      "lineStart": 422,
+      "lineEnd": 431,
+      "title": "Candidate test failure is missing from gate failures",
+      "trigger": "A later reader compares gates.failures with the assurance command history or uses process-metrics to rank failed local checks.",
+      "consequence": "The ledger undercounts assurance failures and omits the candidate test run entirely, so downstream process metrics misrepresent which verification steps failed before passing.",
+      "evidence": "ledger/2026-11-25-remove-workload-fit-tasktype.json:422-431 records the candidate compile, generation gateway, and JDK 11 failures but no candidate test failure. .contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/logs/commands.jsonl:4 records candidate-verification with exitCode 1, and .contract-first-assurance/2026-11-24-remove-tasktype-workload-fit/report.md:157-161 explicitly lists that candidate run among the failed steps. verification/delivery-ledger.md:65 requires counting every failed run before it passed.",
+      "severity": "P2",
+      "confidence": 0.99,
+      "suggestedFix": "Add a gates.failures entry such as \"assurance candidate verification\": 1 for the failed candidate test run recorded in log 013."
+    }
+  ],
+  "error": null
+}

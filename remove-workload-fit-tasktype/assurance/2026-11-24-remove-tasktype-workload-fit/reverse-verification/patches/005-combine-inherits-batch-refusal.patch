@@ -1,0 +1,11 @@
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+@@ -223,7 +223,7 @@
+                         callableMapper.apply(list.get(index))))
+                 .collect(toImmutableList());
+         MultiTaskContext terminalUnit =
+-                MultiTaskContext.resolve(MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, false), 1)
++                MultiTaskContext.resolve(MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, unit.rejectEnqueue()), 1)
+                         .structuralParent(unit)
+                         .cancellationParent(unit.cancellationToken())
+                         .deadlineCeilingNanos(unit.deadlineNanos())

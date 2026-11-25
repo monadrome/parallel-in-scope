@@ -1,0 +1,20 @@
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java
+@@ -17,13 +17,17 @@
+ 
+     static void deliver(Executor announcements, Runnable message) {
+         try {
++            java.util.concurrent.CountDownLatch delivered = new java.util.concurrent.CountDownLatch(1);
+             announcements.execute(() -> {
+                 try {
+                     message.run();
+                 } catch (Throwable handlerFailure) {
+                     return;
++                } finally {
++                    delivered.countDown();
+                 }
+             });
++            com.google.common.util.concurrent.Uninterruptibles.awaitUninterruptibly(delivered);
+         } catch (Throwable deliveryNotStarted) {
+             return;
+         }

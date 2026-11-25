@@ -1,0 +1,7 @@
+base=288 head=288 matched=288 removed=0 added=0
+KILLED at base, not KILLED at head: 0
+other status changes: 1
+  CHANGE Task.of VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/Task::pinTerminati' base:87:SURVIVED head:87:KILLED
+removed-at-head by class: {}
+removed non-KILLED at base: []
+added-at-head by class: {}

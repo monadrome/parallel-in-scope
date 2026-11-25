@@ -1,0 +1,93 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] ---------------< io.github.monadrome:parallel-in-scope >----------------
+[INFO] Building parallel-in-scope 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:3.7.0:enforce (enforce-jdk-25-plus) @ parallel-in-scope ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 66 source files with javac [debug release 8] to target/classes
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[WARNING] target value 8 is obsolete and will be removed in a future release
+[WARNING] To suppress warnings about obsolete options, use -Xlint:-options.
+[WARNING] unknown enum constant java.lang.annotation.ElementType.MODULE
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/package-info.java: unknown enum constant java.lang.annotation.ElementType.MODULE
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java:[136,15] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java:[434,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskId.java:[60,26] [EqualsGetClass] Prefer instanceof to getClass when implementing Object#equals. Note that this may be a behaviour change.
+    (see https://errorprone.info/bugpattern/EqualsGetClass)
+  Did you mean 'return other instanceof TaskId && other instanceof TaskId && label.equals(((TaskId) other).label);'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java:[162,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java:[270,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java:[180,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java:[133,13] [NotJavadoc] This comment is attached to a method inside a local class, but methods inside local classes cannot be documented with Javadoc. Please convert this to a regular comment.
+    (see https://errorprone.info/bugpattern/NotJavadoc)
+  Did you mean '/*'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java:[179,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java:[134,41] [CollectionUndefinedEquality] Future does not have well-defined equals behavior.
+    (see https://errorprone.info/bugpattern/CollectionUndefinedEquality)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java:[1025,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java:[32,19] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (value.equals(owner)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java:[51,21] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (failure.equals(owner)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java:[196,15] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 121 source files with javac [debug release 11] to target/test-classes
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/AggregateReadRuleTest.java: Some input files use or override a deprecated API.
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/AggregateReadRuleTest.java: Recompile with -Xlint:deprecation for details.
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java: Some input files use unchecked or unsafe operations.
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd009RefusingOnRefusalCapableNoWarnTest.java:[64,54] package Level does not exist
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd003RefusingElementRejectedAtMaxTest.java:[71,50] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd004NonRefusingQueuedAndExternalExecuteTest.java:[66,50] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd016NoRetainedDiagnosticsTest.java:[75,41] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd016NoRetainedDiagnosticsTest.java:[78,37] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[INFO] 5 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  7.655 s
+[INFO] Finished at: 2026-11-25T05:48:01-08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.16.0:testCompile (default-testCompile) on project parallel-in-scope: Compilation failure: Compilation failure: 
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd009RefusingOnRefusalCapableNoWarnTest.java:[64,54] package Level does not exist
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd003RefusingElementRejectedAtMaxTest.java:[71,50] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd004NonRefusingQueuedAndExternalExecuteTest.java:[66,50] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd016NoRetainedDiagnosticsTest.java:[75,41] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rwf-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/assurance/ContractTdd016NoRetainedDiagnosticsTest.java:[78,37] unreported exception java.lang.InterruptedException; must be caught or declared to be thrown
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

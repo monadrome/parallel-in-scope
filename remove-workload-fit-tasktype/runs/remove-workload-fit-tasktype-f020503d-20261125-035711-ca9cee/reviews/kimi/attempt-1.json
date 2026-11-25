@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-25T03:57:13.595Z",
+  "endedAt": "2026-11-25T04:16:15.003Z",
+  "durationMs": 1140068,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "kimi",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "kimi-code/k3.1-pro",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from e57602a8288542b2d9090a37bf95188445da6df7 to f020503de120d5bcb525d568f90c02f6f8bcbe2c. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Remove TaskType and workload-fit screening: adversarial review round 3\n\nReview the test commit `e57602a8288542b2d9090a37bf95188445da6df7..f020503de120d5bcb525d568f90c02f6f8bcbe2c`\nread-only. The implementer is Claude (Opus). Do not edit files, run builds, or commit. Report only\ndefects you can tie to a file and symbol with a concrete failure scenario.\n\n## Background\n\nThe delivery removes `TaskType`, the submission-time mismatch comparison, and the workload-fit\nscreen (ADR 0016). Rounds 1 and 2 reviewed the removal and its documentation fixes; their findings\nare settled and must not be re-reported.\n\nA PIT discovery run on the removal (all root-package tests, `VOID_METHOD_CALLS` included) left two\nmutants `SURVIVED` in unchanged `TaskGroup` code: `TaskGroup$PreparationContext.prepareMember` and\n`prepareTerminalCombine`, \"removed call to `Par::diagnoseAdmission`\". Their only killing test was the\ndeleted `TaskTypeMismatchWarningTest`. This commit adds\n`InertEnqueueRefusalWarningTest.groupMembersCombinesAndSingleTasksAreCheckedAtAdmission` so that the\nadmission check of group members and group combines has evidence again. The implementer reports that\ndeleting either call fails the new test with \"Expected size: 3 but was: 2\".\n\n## Contract to check the test against\n\n`design/task-group-api-and-options.md` section 3.2.1 Admission diagnostics: refusal is expressed only\nby `rejectEnqueue`; every unit (batch, single task, group member, group combine) is checked at\nadmission; the first refusing unit through a `Par` whose executor lacks a\n`SubmissionAwareBlockingQueue` logs one warning per `Par`; a `Par.mapAndCombine` terminal combine does\nnot request refusal; diagnostics never fail a task or change its result; logs are delivered on a\nruntime-owned thread. Tests replace that thread with `announcements(MoreExecutors.directExecutor())`.\n`design/task-group-adopted-futures.md` A7: adopted members undergo no admission diagnostics.\n\nImplementation: `Par.diagnoseAdmission`, `Par.admitUnit`, and the two `TaskGroup` call sites.\n\n## What to check\n\n1. Does the test kill exactly what it claims? Would it still pass if a member or combine were checked\n   against the wrong `Par`, if the warning were issued for the group instead of the unit, or if the\n   once-per-`Par` deduplication were shared across `Par` instances?\n2. Determinism and isolation: warning delivery timing with the direct announcement executor, the\n   shared `records` capture and the class-level `runtime`, registering one executor under three ids,\n   closing the extra runtime, and the bounded `TaskFuture.get`.\n3. Test conventions in `.agents/skills/project-delivery/references/conventions.md` and the\n   verification-integrity rules in `verification/verification-integrity.md`.\n4. Whether another live admission path (for example a nested batch inside a task, or a\n   `mapAndCombine` combine with explicit options) still lacks evidence after this commit.\n\n## Verification already run\n\n`InertEnqueueRefusalWarningTest` and `TaskGroupTest` (47 tests) pass; spotless,\n`check-verification-integrity.py --base f093bb12`, and `check-java-conventions.py` pass; reverse\nverification as described above.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/.review-benchmark/runs/remove-workload-fit-tasktype-f020503d-20261125-035711-ca9cee/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "2.7.3",
+    "provider": "kimi-code",
+    "model": "kimi-code/k3.1-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The added regression test uses three distinct logical Par entries with direct warning delivery, verifies successful task and group outcomes, and checks exactly one appropriately attributed diagnostic for each admission path. The shared executor, synchronized capture, bounded future wait, and runtime cleanup are consistent with the existing test setup, and I found no concrete defect introduced by this test-only change.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}
