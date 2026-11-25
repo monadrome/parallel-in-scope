@@ -1,0 +1,23 @@
+verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS
+  s_6d416b0102ba87::t_788060bd741cd5 1
+verification/pit-audit/2026-11-24-remove-tasktype/README.md
+  s_6d416b0102ba87::t_788060bd741cd5 46
+verification/pit-audit/2026-11-24-remove-tasktype.md
+  s_6d416b0102ba87::t_788060bd741cd5 122-125,157,159-160,176-177,186-187,196-197,270,273-274,280-281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "3ce96f08284e3e718311c58669b52c0cf96655e5",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
