@@ -16,11 +16,30 @@
       "fix: close verification integrity bypasses",
       "fix: reject remaining test suppression forms",
       "refactor: simplify verification integrity checks",
-      "fix: detect self comparisons with messages"
+      "fix: detect self comparisons with messages",
+      "docs: record verification integrity assurance skip",
+      "fix: close remaining verification integrity bypasses",
+      "refactor: separate typescript noop scanners",
+      "docs: require three model types for full reviews",
+      "refactor: restore inline typescript noop scanners",
+      "fix: resolve pytest suppression decorator aliases",
+      "fix: preserve literal whitespace in comparisons",
+      "fix: resolve wildcard pytest suppression imports",
+      "fix: respect equality semantics in noop scans",
+      "refactor: clarify comparison semantics",
+      "fix: close comparison and wildcard import bypasses",
+      "refactor: name comparison and pytest import views",
+      "fix: align noop scans with expression semantics",
+      "fix: retain function local pytest imports",
+      "refactor: synchronize masked view appends",
+      "fix: preserve evaluation and binding boundaries",
+      "refactor: isolate identity and pytest predicates",
+      "fix: evaluate decorators and comprehensions in scope",
+      "refactor: deduplicate scanner invariants"
     ],
-    "files": 9,
-    "insertions": 1471,
-    "deletions": 14
+    "files": 12,
+    "insertions": 2338,
+    "deletions": 20
   },
   "reviews": {
     "adversarial": [
@@ -195,6 +214,681 @@
           "systemsTotal": 1,
           "costsByCurrency": []
         }
+      },
+      {
+        "runId": "verification-integrity-enforcement-e15010cf-20261124-025844-a5caf6",
+        "status": "running",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "running",
+            "attempts": 1,
+            "durationMs": 0,
+            "findings": null,
+            "usage": null
+          }
+        ],
+        "clusters": null,
+        "usage": null
+      },
+      {
+        "runId": "verification-integrity-enforcement-e0bd5bb8-20261124-034712-d1c8d4",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 2,
+            "durationMs": 1709738,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-e0bd5bb8-20261124-092437-e490c4",
+        "status": "running",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "running",
+            "attempts": 1,
+            "durationMs": 0,
+            "findings": null,
+            "usage": null
+          }
+        ],
+        "clusters": null,
+        "usage": null
+      },
+      {
+        "runId": "verification-integrity-enforcement-e0bd5bb8-20261124-093618-d26ca1",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 585185,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-7b288f07-20261124-093704-505852",
+        "status": "running",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "running",
+            "attempts": 1,
+            "durationMs": 0,
+            "findings": null,
+            "usage": null
+          }
+        ],
+        "clusters": null,
+        "usage": null
+      },
+      {
+        "runId": "verification-integrity-enforcement-7b288f07-20261124-094209-aca501",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 2,
+            "durationMs": 16550,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-7b288f07-20261124-094422-e7a994",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 745338,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 94797,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 94797,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-2b7a51",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 847736,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 99175,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 99175,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-e4814ef9-20261124-124056-cb4b2b",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 581046,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 175228,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 175228,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-ece0c43e-20261124-145021-343915",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 527645,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 62028,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 62028,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-ece0c43e-20261124-145021-60c108",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 238715,
+            "findings": {
+              "total": 5,
+              "adjudicated": 5,
+              "confirmed": 5,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 134432,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 5,
+          "adjudicated": 5,
+          "confirmed": 5,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 134432,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-47f6d18f-20261124-151806-4e7705",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 292831,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-47f6d18f-20261124-151806-d62404",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 651930,
+            "findings": {
+              "total": 3,
+              "adjudicated": 3,
+              "confirmed": 3,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 75784,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 3,
+          "adjudicated": 3,
+          "confirmed": 3,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 75784,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-47f6d18f-20261124-152611-667305",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 282576,
+            "findings": {
+              "total": 5,
+              "adjudicated": 5,
+              "confirmed": 5,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 148671,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 5,
+          "adjudicated": 5,
+          "confirmed": 5,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 148671,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-08b8df42-20261124-154041-3fbba2",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 59622,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-08b8df42-20261124-154041-0c21af",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 97297,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-08b8df42-20261124-154323-b36854",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 942148,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "verification-integrity-enforcement-5180070f-20261124-162649-fb745d",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "kimi",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 36126308,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
       }
     ],
     "refactoring": [
@@ -314,6 +1008,408 @@
             "disposition": "deferred"
           }
         ]
+      },
+      {
+        "run": "refactoring-verification-integrity-enforcement-2026-11-23",
+        "head": "8e1121b8c6d41aafe4233465fede158cf601c15f",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M04"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "reverted"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "reverted"
+          }
+        ]
+      },
+      {
+        "run": "verification-integrity-enforcement-final-complexity",
+        "head": "5aef14d5da6344ae67461132a587fb14c5237cfe",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S06"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      },
+      {
+        "run": "verification-integrity-enforcement-review-fixes-complexity",
+        "head": "42586e6a47da4114bd1ba477c752cdf4c5c8a0fe",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S01"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      },
+      {
+        "run": "verification-integrity-enforcement-delivery-complexity",
+        "head": "f869f40c28c7f5469e9fe89661f517fac6ffb666",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      },
+      {
+        "run": "verification-integrity-enforcement-boundary-complexity",
+        "head": "08b8df42b0612969f1f78fcbf659a9b406adcd08",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M01"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
+      },
+      {
+        "run": "verification-integrity-enforcement-scope-complexity",
+        "head": "0d0c686b60135ea7b11ca88a8e4b20e45e56a96e",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M01"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "M05"
+            ],
+            "tier": "T2",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "deferred"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "D02"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R4",
+            "rules": [
+              "S02"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R5",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R6",
+            "rules": [
+              "S03"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R7",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R8",
+            "rules": [
+              "T04"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "rejected"
+          }
+        ]
       }
     ]
   },
@@ -324,19 +1420,21 @@
       "python3 scripts/check-verification-integrity.py --base origin/dev/v0.5.0": 1,
       "mvn clean install": 1,
       "python3 scripts/refactoring-review.py plan": 1,
-      "python3 scripts/refactoring-review.py detect": 1,
-      "python3 scripts/refactoring-review.py verify": 1
+      "python3 scripts/refactoring-review.py detect": 2,
+      "python3 scripts/refactoring-review.py verify": 1,
+      "python3 -m unittest discover -s scripts -t scripts": 4,
+      "mvn test": 2
     }
   },
   "pit": [],
   "interventions": {
     "asks": 0,
-    "corrections": 0
+    "corrections": 2
   },
   "usage": {
     "totalTokens": null,
     "cost": null,
     "currency": null
   },
-  "notes": "Added Java/Python/TypeScript verification-integrity gate with effective CODEOWNERS enforcement. assurance: SKIPPED; scope: verification checker and tests, CI/CODEOWNERS, project routing, gate contract, and delivery metadata; reason: agent/repository verification workflow only, with no library runtime contract, observable behavior, or behavioral evidence change. PIT skipped: no Java production or mutation evidence changed. Local JDK 11 unavailable; remote CI required. Two Codex runs blocked by max_output_tokens; Kiro confirmed and then verified the fixes. GitHub classic branch protection is absent and both rulesets are disabled, so required-check/code-owner enforcement remains a maintainer action."
+  "notes": "Final assurance run verification-integrity-enforcement-final-2026-11-24-delivery passed verify_run.py with all required gates passing. Full review coverage uses DeepSeek Flash through 47f6d18f and Magpie Claude Sonnet 5.5 through 9ba18c80, with implementer Kimi providing the third model type. Earlier DeepSeek Pro/Flash reviews confirmed and fixed all reported findings. DeepSeek 402, Claude max_output_tokens, CLI health-check failures, a timed-out Sonnet run, and environment-related test hangs are retained as failed evidence, not clean reviews. PIT not applicable: no Java production or Java mutation evidence changed. JDK 11 requires remote CI. GitHub required-check and code-owner enforcement will be verified separately after push."
 }
