@@ -4,3 +4,4 @@
 /scripts/tests/ @monadrome
 /scripts/**/test_*.py @monadrome
 /verification/verification-integrity.md @monadrome
+# Temporary branch-protection smoke test; this PR is closed unmerged.
