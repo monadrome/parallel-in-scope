@@ -1,9 +1,12 @@
 package io.github.monadrome.parallelinscope;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.concurrent.Executor;
 
 /**
- * Delivery of the runtime's diagnostic log messages on a runtime-owned executor.
+ * Delivery of the runtime's diagnostic log messages on a runtime-owned executor. Every diagnostic
+ * log station of one runtime delivers through its single instance.
  *
  * <p>An admitting thread never calls a logging handler, which may throw, block, or re-enter. A
  * failing handler drops the message, and so does a delivery the executor cannot start: a rejection
@@ -13,11 +16,21 @@ import java.util.concurrent.Executor;
  * are delivered independently, so they may appear out of admission order.
  */
 final class Announcements {
-    private Announcements() {}
+    private final Executor delivery;
 
-    static void deliver(Executor announcements, Runnable message) {
+    /**
+     * Creates the delivery for one runtime.
+     *
+     * @param delivery the runtime-owned executor that runs each message
+     */
+    Announcements(Executor delivery) {
+        this.delivery = checkNotNull(delivery, "delivery cannot be null");
+    }
+
+    /** Hands {@code message} to the delivery executor; never throws, whatever the message or executor does. */
+    void deliver(Runnable message) {
         try {
-            announcements.execute(() -> {
+            delivery.execute(() -> {
                 try {
                     message.run();
                 } catch (Throwable handlerFailure) {

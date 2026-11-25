@@ -266,8 +266,7 @@ public final class Par {
                     public void onFailure(Throwable failure) {}
                 },
                 MoreExecutors.directExecutor());
-        runtime.retainUntilComplete(completion);
-        runtime.trackExecutions(executionExit);
+        runtime.trackAdmission(completion, executionExit);
         TaskBatch<R> batch = submitter.submitAll(tasks, views);
         submitCanceller.setFuture(batch.submitCanceller());
         return batch.finishCombined(terminalView);
@@ -351,8 +350,7 @@ public final class Par {
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         ListenableFuture<?> completion = unit.cancellationToken()
                 .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
-        runtime.retainUntilComplete(completion);
-        runtime.trackExecutions(executionExit);
+        runtime.trackAdmission(completion, executionExit);
         TaskSubmissions.submitScoped(future, unit, executorRuntime.submissionExecutor());
         return view;
     }
@@ -390,8 +388,7 @@ public final class Par {
         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
         SettableFuture<Object> submitCanceller = SettableFuture.create();
         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
-        runtime.retainUntilComplete(completion);
-        runtime.trackExecutions(executionExit);
+        runtime.trackAdmission(completion, executionExit);
         TaskBatch<R> result = submitter.submitAll(tasks, views);
         submitCanceller.setFuture(result.submitCanceller());
         return result;
@@ -414,7 +411,7 @@ public final class Par {
                     + " what happens to an element that cannot start at once is left to the"
                     + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
                     + " whose work queue is a SubmissionAwareBlockingQueue to make the option effective.";
-            runtime.announce(() -> LOGGER.warning(message));
+            runtime.announcements().deliver(() -> LOGGER.warning(message));
         }
     }
 

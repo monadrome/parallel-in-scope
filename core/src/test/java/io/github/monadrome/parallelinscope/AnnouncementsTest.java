@@ -14,14 +14,14 @@ class AnnouncementsTest {
     void aMessageRunsOnTheGivenExecutor() {
         AtomicInteger runs = new AtomicInteger();
 
-        Announcements.deliver(Runnable::run, runs::incrementAndGet);
+        new Announcements(Runnable::run).deliver(runs::incrementAndGet);
 
         assertThat(runs).hasValue(1);
     }
 
     @Test
     void aFailingHandlerIsDropped() {
-        Announcements.deliver(Runnable::run, () -> {
+        new Announcements(Runnable::run).deliver(() -> {
             throw new IllegalStateException("handler failure");
         });
     }
@@ -30,16 +30,14 @@ class AnnouncementsTest {
     void aRejectedOrFailedDeliveryIsDropped() {
         AtomicInteger runs = new AtomicInteger();
 
-        Announcements.deliver(
-                command -> {
+        new Announcements(command -> {
                     throw new RejectedExecutionException("services shut down");
-                },
-                runs::incrementAndGet);
-        Announcements.deliver(
-                command -> {
+                })
+                .deliver(runs::incrementAndGet);
+        new Announcements(command -> {
                     throw new SecurityException("thread creation denied");
-                },
-                runs::incrementAndGet);
+                })
+                .deliver(runs::incrementAndGet);
 
         assertThat(runs).hasValue(0);
     }
@@ -51,13 +49,12 @@ class AnnouncementsTest {
      */
     @Test
     void anErrorStartingOrRunningADeliveryIsDropped() {
-        assertThatCode(() -> Announcements.deliver(
-                        command -> {
+        assertThatCode(() -> new Announcements(command -> {
                             throw new OutOfMemoryError("unable to create native thread");
-                        },
-                        () -> {}))
+                        })
+                        .deliver(() -> {}))
                 .doesNotThrowAnyException();
-        assertThatCode(() -> Announcements.deliver(Runnable::run, () -> {
+        assertThatCode(() -> new Announcements(Runnable::run).deliver(() -> {
                     throw new AssertionError("handler error");
                 }))
                 .doesNotThrowAnyException();

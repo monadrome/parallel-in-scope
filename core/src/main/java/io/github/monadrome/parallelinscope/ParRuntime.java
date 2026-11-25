@@ -88,8 +88,8 @@ public final class ParRuntime implements AutoCloseable {
     private final ScheduledExecutorService starvationScheduler;
     private final ExecutorService timeoutActionPool;
 
-    /** The runtime-owned executor that delivers diagnostic log messages; see {@link Announcements}. */
-    private final Executor announcements;
+    /** The delivery shared by every diagnostic log message of this runtime. */
+    private final Announcements announcements;
 
     private final ScheduledExecutorService timeoutScheduler;
 
@@ -114,7 +114,8 @@ public final class ParRuntime implements AutoCloseable {
                 ? builder.timeoutScheduler
                 : new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
         this.defaultId = builder.defaultId;
-        Executor announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
+        Announcements announcements =
+                new Announcements(builder.announcements != null ? builder.announcements : timeoutActionPool);
         this.announcements = announcements;
         ImmutableMap.Builder<ParId, Par> builtPars = ImmutableMap.builderWithExpectedSize(builder.executors.size());
         ImmutableMap.Builder<ParId, ExecutorRuntime> builtRuntimes =
@@ -143,20 +144,17 @@ public final class ParRuntime implements AutoCloseable {
      *
      * @throws IllegalArgumentException if the physical executor silently discards rejected tasks
      */
-    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor, Executor announcements) {
+    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor, Announcements announcements) {
         ExecutorService introspectable = TtlUnwrap.unwrap(executor);
         if (!(introspectable instanceof ThreadPoolExecutor)) {
-            Announcements.deliver(
-                    announcements,
-                    () -> LOGGER.warning(
-                            "Par '" + id + "' is registered with "
-                                    + executor.getClass().getName()
-                                    + ", which this library cannot see through:"
-                                    + " blocking-risk detection is disabled for it. If this executor only"
-                                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
-                                    + " instead of the wrapper to keep it. An executor that starts a fresh"
-                                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
-                                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it."));
+            announcements.deliver(() -> LOGGER.warning("Par '" + id + "' is registered with "
+                    + executor.getClass().getName()
+                    + ", which this library cannot see through:"
+                    + " blocking-risk detection is disabled for it. If this executor only"
+                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
+                    + " instead of the wrapper to keep it. An executor that starts a fresh"
+                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it."));
         } else {
             RejectedExecutionHandler policy = ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
             if (policy instanceof ThreadPoolExecutor.DiscardPolicy
@@ -171,12 +169,10 @@ public final class ParRuntime implements AutoCloseable {
             }
         }
         if (TtlUnwrap.isWrapper(executor)) {
-            Announcements.deliver(
-                    announcements,
-                    () -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
-                            + executor.getClass().getName()
-                            + "; register the physical pool instead. TTL capture then happens twice"
-                            + " for every task: once at the executor boundary and once at prepare."));
+            announcements.deliver(() -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
+                    + executor.getClass().getName()
+                    + "; register the physical pool instead. TTL capture then happens twice"
+                    + " for every task: once at the executor boundary and once at prepare."));
         }
         return new ExecutorRuntime(executor);
     }
@@ -561,18 +557,32 @@ public final class ParRuntime implements AutoCloseable {
     }
 
     /**
-     * Keeps a submitted batch's futures from being dropped until every one reaches a terminal
-     * state. Callers that already hold a completion aggregate — such as the one returned by {@link
-     * CancellationToken#bind} over the same futures — pass it to {@link
-     * #retainUntilComplete(ListenableFuture)} instead of building a second aggregate here.
+     * Registers one admission's lifecycle: keeps its futures referenced until every one reaches a
+     * terminal state, then tracks its execution exit; see {@link #trackAdmission(ListenableFuture,
+     * ExecutionExitTracker)}. An empty {@code results} retains nothing. Callers that already hold a
+     * completion aggregate, such as the one returned by {@link CancellationToken#bind} over the same
+     * futures, pass it to that overload instead of building a second aggregate here.
      */
-    void retainUntilComplete(List<? extends ListenableFuture<?>> results) {
-        if (results.isEmpty()) return;
-        retainUntilComplete(Futures.successfulAsList(results));
+    void trackAdmission(List<? extends ListenableFuture<?>> results, ExecutionExitTracker executionExit) {
+        if (!results.isEmpty()) {
+            retainUntilComplete(Futures.successfulAsList(results));
+        }
+        trackExecutions(executionExit);
+    }
+
+    /**
+     * Registers one admission's lifecycle: keeps {@code completion} referenced until it reaches a
+     * terminal state, so service shutdown waits for it, then tracks {@code executionExit}, so
+     * {@link #awaitQuiescence} waits for every execution to exit. Must be called inside {@link
+     * #whileOpen}; see {@link #trackExecutions}.
+     */
+    void trackAdmission(ListenableFuture<?> completion, ExecutionExitTracker executionExit) {
+        retainUntilComplete(completion);
+        trackExecutions(executionExit);
     }
 
     /** Keeps a completion aggregate referenced until it reaches a terminal state. */
-    void retainUntilComplete(ListenableFuture<?> completion) {
+    private void retainUntilComplete(ListenableFuture<?> completion) {
         activeBatches.incrementAndGet();
         completion.addListener(
                 () -> {
@@ -590,7 +600,7 @@ public final class ParRuntime implements AutoCloseable {
      * empty set is stable.
      */
     @SuppressWarnings("CollectionUndefinedEquality")
-    void trackExecutions(ExecutionExitTracker tracker) {
+    private void trackExecutions(ExecutionExitTracker tracker) {
         ListenableFuture<@Nullable Void> signal = tracker.executionExit();
         if (signal.isDone()) return;
         liveExecutionSignals.add(signal);
@@ -622,9 +632,9 @@ public final class ParRuntime implements AutoCloseable {
         return ticker;
     }
 
-    /** Delivers a diagnostic log message off the calling thread; never throws or blocks the caller. */
-    void announce(Runnable message) {
-        Announcements.deliver(announcements, message);
+    /** The delivery for this runtime's diagnostic log messages; see {@link Announcements}. */
+    Announcements announcements() {
+        return announcements;
     }
 
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService

@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntFunction;
 import java.util.logging.Level;
@@ -41,16 +40,16 @@ final class ExecutorWaitGraph {
 
     private final ImmutableSetMultimap<ExecutorIdentity, ParId> aliases;
     private final ImmutableMap<ExecutorIdentity, Integer> registrationOrder;
-    private final Executor announcements;
+    private final Announcements announcements;
     private final AtomicReference<State> state;
 
     /**
      * Creates an empty graph over the runtime's registrations.
      *
      * @param aliases every id each registered executor is registered under, in registration order
-     * @param announcements the runtime-owned executor that delivers cycle warnings
+     * @param announcements the runtime's delivery for cycle warnings
      */
-    ExecutorWaitGraph(ImmutableSetMultimap<ExecutorIdentity, ParId> aliases, Executor announcements) {
+    ExecutorWaitGraph(ImmutableSetMultimap<ExecutorIdentity, ParId> aliases, Announcements announcements) {
         this.aliases = checkNotNull(aliases, "aliases cannot be null");
         this.announcements = checkNotNull(announcements, "announcements cannot be null");
         ImmutableMap.Builder<ExecutorIdentity, Integer> order = ImmutableMap.builder();
@@ -138,7 +137,7 @@ final class ExecutorWaitGraph {
                 missing.add(new Wait(from, to, waiter + " -> " + target));
             }
         } catch (RuntimeException failure) {
-            announce(() -> LOGGER.log(Level.WARNING, "Reading executor wait units failed", failure));
+            announcements.deliver(() -> LOGGER.log(Level.WARNING, "Reading executor wait units failed", failure));
             return;
         }
         if (missing != null) {
@@ -163,7 +162,7 @@ final class ExecutorWaitGraph {
         try {
             install(missing);
         } catch (RuntimeException failure) {
-            announce(() -> LOGGER.log(Level.WARNING, "Recording an executor wait failed", failure));
+            announcements.deliver(() -> LOGGER.log(Level.WARNING, "Recording an executor wait failed", failure));
         }
     }
 
@@ -193,7 +192,7 @@ final class ExecutorWaitGraph {
     /** Announces exactly those components formed by the successful installation. */
     private void announceNewComponents(State previous, State installed) {
         for (ExecutorWaitReport.Component component : installed.componentsAbsentFrom(previous)) {
-            announce(() -> LOGGER.warning(warning(component)));
+            announcements.deliver(() -> LOGGER.warning(warning(component)));
         }
     }
 
@@ -204,10 +203,6 @@ final class ExecutorWaitGraph {
                 + " behind itself. This is a wait structure the ParRuntime has observed at some point,"
                 + " not proof that the waits overlap or that threads are deadlocked now; see"
                 + " ParRuntime.executorWaitReport().";
-    }
-
-    private void announce(Runnable message) {
-        Announcements.deliver(announcements, message);
     }
 
     private ExecutorWaitReport.Component component(

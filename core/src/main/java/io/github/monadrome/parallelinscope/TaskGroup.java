@@ -607,8 +607,7 @@ final class TaskGroup<R> implements AutoCloseable {
         if (terminal != null) {
             retained.add(terminal.future);
         }
-        env.retainUntilComplete(retained);
-        env.trackExecutions(executionExit);
+        env.trackAdmission(retained, executionExit);
         return group;
     }
 

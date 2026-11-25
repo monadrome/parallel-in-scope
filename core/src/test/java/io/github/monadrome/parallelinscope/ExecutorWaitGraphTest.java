@@ -52,7 +52,7 @@ class ExecutorWaitGraphTest {
         for (int index = 0; index < identitiesAndIds.length; index += 2) {
             aliases.put((ExecutorIdentity) identitiesAndIds[index], ParId.of((String) identitiesAndIds[index + 1]));
         }
-        return new ExecutorWaitGraph(aliases.build(), announcements::add);
+        return new ExecutorWaitGraph(aliases.build(), new Announcements(announcements::add));
     }
 
     private static TaskNode unit(String name, ExecutorIdentity executor) {
@@ -381,9 +381,10 @@ class ExecutorWaitGraphTest {
     @Test
     void anAnnouncementRejectedAfterShutdownDoesNotFailTheAdmission() {
         ExecutorIdentity a = executor();
-        ExecutorWaitGraph graph = new ExecutorWaitGraph(ImmutableSetMultimap.of(a, ParId.of("a")), command -> {
-            throw new RejectedExecutionException("shut down");
-        });
+        ExecutorWaitGraph graph =
+                new ExecutorWaitGraph(ImmutableSetMultimap.of(a, ParId.of("a")), new Announcements(command -> {
+                    throw new RejectedExecutionException("shut down");
+                }));
 
         graph.record(unit("outer", a), unit("inner", a));
 
