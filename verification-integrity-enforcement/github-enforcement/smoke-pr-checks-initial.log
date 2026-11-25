@@ -1,0 +1,13 @@
+analyze	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807248/job/138951948156	
+build (25)	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949120	
+docs	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951948737	
+hidden-contract-regression	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949218	
+dependency-review	pass	5s	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807345/job/138951948556	
+greeting	pass	25s	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807344/job/138951952083	
+verification-integrity	pass	7s	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949277	
+runtime-consumer (11)	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949097	
+runtime-consumer (17)	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949189	
+runtime-consumer (21)	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949118	
+runtime-consumer (25)	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949243	
+runtime-consumer (8)	pending	0	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949275	
+javadoc	pass	23s	https://github.com/monadrome/parallel-in-scope/actions/runs/45538807271/job/138951949089	
