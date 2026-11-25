@@ -542,7 +542,8 @@
       "archive policy check": 1,
       "assurance cache manifest": 1,
       "incremental review timeout": 1,
-      "adopt compile default JDK": 1
+      "adopt compile default JDK": 1,
+      "delivery ledger independent review": 1
     }
   },
   "pit": [],
@@ -555,5 +556,5 @@
     "cost": null,
     "currency": null
   },
-  "notes": "PIT: SKIPPED — Python assurance tooling, tests, and workflow documents only; no Java production mutation site. Assurance history: round 1 FAIL (fixture contract gaps), round 2 FAIL (two confirmed review defects), round 3 BLOCKED (Python promotion adapter and two missing reverse failures), round 4 PASS with four promoted targets and verifier OK. Fixed-model Kiro reviews used gpt-5.6-terra max; Codex final reviews used magpie deepseek-v4-pro. Kiro MONTHLY_REQUEST_COUNT failure is retained, not clean evidence. Eleven verifier defects were fixed; the rebased full review confirmed one additional host-adapter documentation mapping gap, fixed without relaxing strict key validation. Local JDK 25 preflight: clean install 3446 + 2 tests passed, Javadoc and hidden-contract execution passed, 135 classes verified at Java 8, all four adoption probes passed after rerunning the default-JDK-21 failure under JDK 25. Strict MkDocs and design/ADR/proposal checks passed. Final incremental Codex review contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644 completed with zero findings across all five follow-up files and explicitly confirmed the later documentation/test-only assurance SKIPPED disposition. Root, demo, and hidden-contract Spotless checks passed; demo package and four Java 8 demo classes passed."
+  "notes": "PIT: SKIPPED — Python assurance tooling, tests, and workflow documents only; no Java production mutation site. Assurance history: round 1 FAIL (fixture contract gaps), round 2 FAIL (two confirmed review defects), round 3 BLOCKED (Python promotion adapter and two missing reverse failures), round 4 PASS with four promoted targets and verifier OK. Fixed-model Kiro reviews used gpt-5.6-terra max; Codex final reviews used magpie deepseek-v4-pro. Kiro MONTHLY_REQUEST_COUNT failure is retained, not clean evidence. Eleven verifier defects were fixed; the rebased full review confirmed one additional host-adapter documentation mapping gap, fixed without relaxing strict key validation. Local JDK 25 preflight: clean install 3446 + 2 tests passed, Javadoc and hidden-contract execution passed, and 135 classes verified at Java 8. The assurance Java consumer gate was NOT APPLICABLE; the local runtime-consumer matrix was not executed. Strict MkDocs and design/ADR/proposal checks passed. Final incremental Codex review contract-assurance-audit-remediation-3434e3fd-20261124-153029-b7b644 completed with zero findings across all five follow-up files and explicitly confirmed the later documentation/test-only assurance SKIPPED disposition. Root, demo, and hidden-contract Spotless checks passed; demo package and four Java 8 demo classes passed."
 }
