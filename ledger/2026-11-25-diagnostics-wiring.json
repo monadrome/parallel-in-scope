@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-25-diagnostics-wiring",
+  "date": "2026-11-25",
+  "topic": "diagnostics-wiring",
+  "routes": [
+    "other"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "claude-opus-5.5"
+  },
+  "change": {
+    "commits": [
+      "refactor: unify admission tracking and diagnostic delivery",
+      "refactor: keep diagnostic delivery behind ParRuntime",
+      "chore: record delivery diagnostics-wiring"
+    ],
+    "files": 8,
+    "insertions": 262,
+    "deletions": 74
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "diagnostics-wiring-27ff7b56-20261125-152939-6c2224",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 234142,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "diagnostics-wiring-27ff7b56-20261125-152939-7886e6",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 149688,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": [
+      {
+        "run": "refactoring-refactor-diagnostics-wiring-2026-11-25",
+        "head": "72237bfbaf687741a6a7d48c94636b657c03babe",
+        "incompleteAgents": 0,
+        "findings": [
+          {
+            "id": "R1",
+            "rules": [
+              "M07"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          },
+          {
+            "id": "R2",
+            "rules": [
+              "D01"
+            ],
+            "tier": "T1",
+            "scope": "in-diff",
+            "mechanizable": true,
+            "disposition": "rejected"
+          },
+          {
+            "id": "R3",
+            "rules": [
+              "V05"
+            ],
+            "tier": "T0",
+            "scope": "in-diff",
+            "mechanizable": false,
+            "disposition": "applied"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": {
+    "failures": {
+      "mvn test": 2
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit-diagnostics-wiring-2026-11-25-rebased/head/mutations.xml",
+      "statuses": {
+        "KILLED": 417,
+        "NO_COVERAGE": 20,
+        "SURVIVED": 25,
+        "TIMED_OUT": 13
+      },
+      "total": 475,
+      "inconclusive": 13,
+      "inconclusiveRate": 0.0274
+    }
+  ],
+  "interventions": {
+    "asks": 1,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "behavior-preserving internal refactor, rebased onto TaskType removal (conflicts only in deleted code); reviews ran on the pre-rebase diff; PIT non-killed set matches base except TIMED_OUT variance"
+}
