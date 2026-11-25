@@ -1,0 +1,29 @@
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java
+  s_6d416b0102ba87::t_44e8d8ae9e304d 17-22
+  s_6d416b0102ba87::t_b739155a651bf3 1-16,23-121
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java
+  s_6d416b0102ba87::t_44e8d8ae9e304d 22-28
+  s_6d416b0102ba87::t_b739155a651bf3 1-21,29-130
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java
+  s_6d416b0102ba87::t_44e8d8ae9e304d 21-25
+  s_6d416b0102ba87::t_b739155a651bf3 1-20,26-133
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java
+  s_6d416b0102ba87::t_44e8d8ae9e304d 22-28
+  s_6d416b0102ba87::t_b739155a651bf3 1-21,29-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ac95c948ad6c5c1b150f206b20cc3bea96d4d27c",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": null
+    }
+  }
+}
