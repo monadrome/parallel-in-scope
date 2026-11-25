@@ -115,11 +115,11 @@ in batches D and E:
 
 | Class and method | Mutation | Raw status | Disposition |
 |---|---|---|---|
-| `ParRuntime.installGlobal` | removed closed-runtime `Preconditions::checkState` | `SURVIVED` | Equivalent |
 | `ParRuntime.ticker` | null return | `SURVIVED` | Equivalent |
 | `TaskNode.hashCode` | `0` return | `SURVIVED` | Equivalent |
 | `SubmissionAwareBlockingQueue.<init>` | `capacity <= 0` boundary | `SURVIVED` | Equivalent |
 | `ParRuntime.releases` | null return | `NO_COVERAGE` | Unreachable |
+| `ParRuntime.installGlobal` | removed closed-runtime `Preconditions::checkState` | `SURVIVED` | Unresolved gap, pre-existing |
 | `ParRuntime.awaitQuiescence` | zero-budget boundary | `SURVIVED` | Unresolved gap, pre-existing |
 | `ParRuntime.enterAdmission` | negated last-back-out check | `NO_COVERAGE` | Unresolved gap, pre-existing |
 | `ParRuntime.enterAdmission` | removed `shutdownServicesWhenAdmissionsComplete` call | `NO_COVERAGE` | Unresolved gap, pre-existing |
@@ -133,14 +133,6 @@ base killed.
 
 ### Equivalent mutants
 
-- `ParRuntime.installGlobal`, removed closed-runtime `checkState`: equivalent, as entry E15 of the
-  [2026-10-31 dispositions](2026-10-31/dispositions.md) records; this change did not touch the
-  method. The race guard after the slot claim throws the same `IllegalStateException` for a closed
-  runtime and clears the slot before the call returns. Two differences remain, and neither is
-  contractual. When another runtime is installed, the mutant reports "already installed" instead of
-  "closed"; the Javadoc documents `IllegalStateException` for both conditions and no message. A
-  concurrent reader of the slot can briefly see the closed runtime, which the unmutated code also
-  allows when a runtime closes during installation.
 - `ParRuntime.ticker`, null return: equivalent for every runtime the public API can build. Both
   callers, unit admission in `Par` and `TaskGroup.prepare`, pass the value to
   `MultiTaskContext.domainFor`, which maps a null root ticker to `Ticker.systemTicker()`. The public
@@ -164,9 +156,26 @@ base killed.
 
 ### Unresolved pre-existing gaps
 
-The 2026-10-31 dispositions list these three under "D / retained gaps (recorded, not claimed
-equivalent)", with no maintainer disposition. This change did not touch either method.
+This change did not touch these methods, and none of the entries has a maintainer disposition. The
+[2026-10-31 dispositions](2026-10-31/dispositions.md) list the `awaitQuiescence` and
+`enterAdmission` entries under "D / retained gaps (recorded, not claimed equivalent)". They class
+the `installGlobal` survivor as equivalent (entry E15), and a competing installer refutes that
+claim.
 
+- `ParRuntime.installGlobal`, removed closed-runtime `checkState`. Contract: installing a closed
+  instance fails with `IllegalStateException` without occupying the slot (`installGlobal` Javadoc).
+  Evidence: `SURVIVED` in every run. E15 treats the removed check as a duplicate of the re-check
+  after the slot claim, which throws the same exception and clears the slot. That holds for one
+  installer but not for two. Under the mutant, the installation of an already-closed runtime claims
+  an empty slot before its re-check clears it. A live runtime whose installation runs in that
+  window fails with "already installed", and no runtime remains installed. The unmutated code
+  rejects the closed runtime before the claim, so the live installation succeeds. It allows the
+  same outcome only when a runtime closes during its own installation, which the Javadoc permits.
+  Impact: a spurious installation failure, only when installing a closed runtime races installing
+  a live one. Next action: accept it as a residual nonblocking limitation, or add a seam that pauses
+  an installer between its slot claim and its re-check so that a test can force the interleaving.
+  A single-threaded test that asserts the closed-runtime message while another runtime is installed
+  would also detect the mutant, but it would pin a message that the Javadoc does not document.
 - `ParRuntime.awaitQuiescence`, zero-budget boundary. Contract: a non-positive timeout performs one
   check and reports the current state. Evidence: `SURVIVED` in every run. Impact: under the
   mutant, a zero-budget call that finds the quiescence monitor held by another thread returns
@@ -267,7 +276,7 @@ above.
   `RefillDriver` (14), and `ThreadPoolStarvationObservationScope.close` (3) and `.sampleNow` (2).
   Apart from the two `ExecutionPhaseHintFuture.run` entries attributed above, each has the same raw
   status at base and was not reproduced in a focused run for this change.
-- The three pre-existing `ParRuntime` gaps need an explicit maintainer disposition: accept them as
+- The four pre-existing `ParRuntime` gaps need an explicit maintainer disposition: accept them as
   residual nonblocking limitations, or add the seams named above.
 - This record does not re-disposition the pre-existing `SURVIVED` and `NO_COVERAGE` entries in
   unchanged classes. Their statuses equal base apart from the `Task.of` kill, so the change neither
