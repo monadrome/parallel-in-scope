@@ -8,7 +8,9 @@
 - Stability: beta
 - Category: core
 - Supersedes: [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) and
-  [ADR 0010](0010-always-on-workload-fit-screening.md)
+  [ADR 0010](0010-always-on-workload-fit-screening.md); the `TaskType` declaration in
+  [ADR 0001](0001-layered-cartesian-concurrency-testing.md) (its decision rule and L1 row); the
+  optional `TaskType` declaration in [ADR 0005](0005-globalpar-executor-binding.md) rule 10
 
 ## Context
 
