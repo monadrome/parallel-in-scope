@@ -119,10 +119,10 @@ in batches D and E:
 | `TaskNode.hashCode` | `0` return | `SURVIVED` | Equivalent |
 | `SubmissionAwareBlockingQueue.<init>` | `capacity <= 0` boundary | `SURVIVED` | Equivalent |
 | `ParRuntime.releases` | null return | `NO_COVERAGE` | Unreachable |
-| `ParRuntime.installGlobal` | removed closed-runtime `Preconditions::checkState` | `SURVIVED` | Unresolved gap, pre-existing |
-| `ParRuntime.awaitQuiescence` | zero-budget boundary | `SURVIVED` | Unresolved gap, pre-existing |
-| `ParRuntime.enterAdmission` | negated last-back-out check | `NO_COVERAGE` | Unresolved gap, pre-existing |
-| `ParRuntime.enterAdmission` | removed `shutdownServicesWhenAdmissionsComplete` call | `NO_COVERAGE` | Unresolved gap, pre-existing |
+| `ParRuntime.installGlobal` | removed closed-runtime `Preconditions::checkState` | `SURVIVED` | Accepted residual limitation, pre-existing |
+| `ParRuntime.awaitQuiescence` | zero-budget boundary | `SURVIVED` | Accepted residual limitation, pre-existing |
+| `ParRuntime.enterAdmission` | negated last-back-out check | `NO_COVERAGE` | Accepted residual limitation, pre-existing |
+| `ParRuntime.enterAdmission` | removed `shutdownServicesWhenAdmissionsComplete` call | `NO_COVERAGE` | Accepted residual limitation, pre-existing |
 | `ParRuntime.awaitQuiescence` | removed `Monitor::leave` in the zero-budget branch | `TIMED_OUT` | Expected mutation-induced liveness failure |
 | `ParRuntime.enterAdmission` | negated open-runtime return | `TIMED_OUT` | Expected mutation-induced liveness failure |
 | `ParRuntime` execution-tracking listener (`lambda$trackExecutions$0`) | removed `Monitor::leave` | `TIMED_OUT` | Expected mutation-induced liveness failure |
@@ -154,9 +154,10 @@ base killed.
 - `ParRuntime.releases`, null return: no production or test code calls the method, at head or at
   base. See "Unrelated observation".
 
-### Unresolved pre-existing gaps
+### Pre-existing gaps accepted as residual limitations
 
-This change did not touch these methods, and none of the entries has a maintainer disposition. The
+This change did not touch these methods. On 2026-11-25 the maintainer accepted all four entries as
+residual nonblocking limitations, so this delivery adds none of the seams named below. The
 [2026-10-31 dispositions](2026-10-31/dispositions.md) list the `awaitQuiescence` and
 `enterAdmission` entries under "D / retained gaps (recorded, not claimed equivalent)". They class
 the `installGlobal` survivor as equivalent (entry E15), and a competing installer refutes that
@@ -172,8 +173,8 @@ claim.
   rejects the closed runtime before the claim, so the live installation succeeds. It allows the
   same outcome only when a runtime closes during its own installation, which the Javadoc permits.
   Impact: a spurious installation failure, only when installing a closed runtime races installing
-  a live one. Next action: accept it as a residual nonblocking limitation, or add a seam that pauses
-  an installer between its slot claim and its re-check so that a test can force the interleaving.
+  a live one. Next action: a later change can add a seam that pauses an installer between its slot
+  claim and its re-check so that a test can force the interleaving.
   A single-threaded test that asserts the closed-runtime message while another runtime is installed
   would also detect the mutant, but it would pin a message that the Javadoc does not document.
 - `ParRuntime.awaitQuiescence`, zero-budget boundary. Contract: a non-positive timeout performs one
@@ -182,9 +183,8 @@ claim.
   `false` instead of waiting for the monitor and reporting the state. `Duration.ZERO` makes the
   zero budget deterministic, but only library threads hold the monitor: the execution-tracking
   listener, the service-shutdown pulse, and another caller's guard check. Each holds it for a short
-  critical section that no public operation keeps open. Next action: accept it as a residual
-  nonblocking limitation, or add a package-private seam that holds the monitor so a test can
-  construct the contention.
+  critical section that no public operation keeps open. Next action: a later change can add a
+  package-private seam that holds the monitor so a test can construct the contention.
 - `ParRuntime.enterAdmission`, the losing side of a close-versus-admission race: the negated
   last-back-out check and the removed `shutdownServicesWhenAdmissionsComplete` call. Contract: after
   `close()`, quiescence requires that no admission is in progress and that the runtime services
@@ -193,8 +193,8 @@ claim.
   `NO_COVERAGE` in every run. Impact: under either mutant, a runtime closed during its last racing
   admission could keep its services running; the unmutated code is not implicated. The window lies
   between two reads of `closed` on one thread, and no test reaches it without a production hook.
-  Next action: accept it as a residual nonblocking limitation, or add a hook that pauses an
-  admission between its registration and its re-check.
+  Next action: a later change can add a hook that pauses an admission between its registration
+  and its re-check.
 
 ## Timeout classification
 
@@ -267,17 +267,18 @@ above.
 
 ## Overall status
 
-**Inconclusive**, with these limitations:
+**Pass**, with these limitations:
 
 - Head keeps 32 raw `TIMED_OUT` entries. The four in `ParRuntime` are expected mutation-induced
-  liveness failures by the evidence above. The other 28 sit in unchanged classes:
+  liveness failures by the evidence above, approved as such by the independent review of
+  `f020503d..758b7df6`. The other 28 sit in unchanged classes:
   `TaskObservation.unattributed` (1), `ExecutionPhaseHintFuture.run` (6),
   `Checkpoints.checkPut` (1), `TaskGroup.prepare` (1), `SlidingWindowSubmitter` and its
   `RefillDriver` (14), and `ThreadPoolStarvationObservationScope.close` (3) and `.sampleNow` (2).
   Apart from the two `ExecutionPhaseHintFuture.run` entries attributed above, each has the same raw
   status at base and was not reproduced in a focused run for this change.
-- The four pre-existing `ParRuntime` gaps need an explicit maintainer disposition: accept them as
-  residual nonblocking limitations, or add the seams named above.
+- On 2026-11-25 the maintainer accepted the four pre-existing `ParRuntime` gaps as residual
+  nonblocking limitations. The seams named above remain open for a later change.
 - This record does not re-disposition the pre-existing `SURVIVED` and `NO_COVERAGE` entries in
   unchanged classes. Their statuses equal base apart from the `Task.of` kill, so the change neither
   adds nor removes such entries there.
