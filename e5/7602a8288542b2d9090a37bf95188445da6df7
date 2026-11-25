@@ -1,0 +1,26 @@
+CHANGELOG.md
+  s_6d416b0102ba87::t_23b5c9c8dc3f11 95
+adr/0008-tasktype-as-workload-fit-diagnostic.md
+  s_6d416b0102ba87::t_f90fbde1247540 3,16-20
+  s_6d416b0102ba87::t_75b1cf37733949 21-24
+  s_6d416b0102ba87::t_6d8ab076fda549 75-77
+adr/0016-remove-tasktype-and-workload-fit-screening.md
+  s_6d416b0102ba87::t_daa4084bf216bf 1-10,14-109
+  s_6d416b0102ba87::t_17bb4145c4939e 11-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e57602a8288542b2d9090a37bf95188445da6df7",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
