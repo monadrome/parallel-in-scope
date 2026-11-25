@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
-import com.alibaba.ttl.TtlCallable;
 import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -284,7 +283,8 @@ class CallableReferenceReleaseTest {
         TaskExecutionContext context =
                 new TaskExecutionContext(unit, index, Ticker.systemTicker().read(), tracker.register(unit));
         Callable<String> wrapped = TaskSubmissions.wrapScoped(context, taskCode);
-        ScopedCallable<String> scoped = (ScopedCallable<String>) ((TtlCallable<String>) wrapped).unwrap();
+        ScopedCallable<String> scoped =
+                (ScopedCallable<String>) ((ContextPropagation.CapturedCallable<String>) wrapped).unwrap();
         ExecutionPhaseHintFuture<String> future = ExecutionPhaseHintFuture.create(wrapped, context.executionState());
         return new Fixture(context, scoped, future);
     }

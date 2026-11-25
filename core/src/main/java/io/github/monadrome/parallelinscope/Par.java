@@ -1,7 +1,6 @@
 package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
@@ -21,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -135,7 +133,7 @@ public final class Par {
      * Executes a batch and then, only when every element succeeded, one terminal combine over the
      * element values.
      *
-     * <p>The combine is a scoped task whose TTL context is captured on the calling thread. It
+     * <p>The combine is a scoped task whose application context is captured on the calling thread. It
      * shares the batch's deadline and cancellation lifecycle and is submitted to {@code combinePar}
      * exactly once, only after every element succeeded. When any element fails, is cancelled, or
      * the deadline expires first, the combine never runs and its result is terminal: cancelled with
@@ -201,6 +199,37 @@ public final class Par {
         return executeCombined(elements, item -> () -> function.apply(item), unit, options, combinePar, combiner);
     }
 
+    /**
+     * Prepares every element before submission. If a mapper or context capture fails, already
+     * prepared futures are cancelled and the unit token is cancelled before the failure escapes;
+     * no element has been handed to an executor at this point.
+     */
+    private static <T, R> ImmutableList<ExecutionPhaseHintFuture<R>> prepareElements(
+            ImmutableList<T> list,
+            MultiTaskContext unit,
+            ExecutionExitTracker executionExit,
+            Function<T, Callable<R>> callableMapper) {
+        List<ExecutionPhaseHintFuture<R>> tasks = new ArrayList<>(list.size());
+        try {
+            for (int index = 0; index < list.size(); index++) {
+                TaskExecutionContext taskContext =
+                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit));
+                tasks.add(TaskSubmissions.prepare(taskContext, callableMapper.apply(list.get(index))));
+            }
+            return ImmutableList.copyOf(tasks);
+        } catch (RuntimeException | Error failure) {
+            cancelPrepared(tasks);
+            unit.cancellationToken().cancel();
+            throw failure;
+        }
+    }
+
+    private static void cancelPrepared(Iterable<? extends ExecutionPhaseHintFuture<?>> tasks) {
+        for (ExecutionPhaseHintFuture<?> task : tasks) {
+            task.cancel(true);
+        }
+    }
+
     /** Copies input references while releasing the admitted token if snapshot validation fails. */
     private static <T> ImmutableList<T> snapshotInputs(Collection<T> elements, MultiTaskContext unit) {
         try {
@@ -235,22 +264,24 @@ public final class Par {
             Combiner<List<@Nullable R>, C> combiner) {
         ImmutableList<T> list = snapshotInputs(elements, unit);
         ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size() + 1);
-        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
-                .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
-                        callableMapper.apply(list.get(index))))
-                .collect(toImmutableList());
+        List<ExecutionPhaseHintFuture<R>> tasks = prepareElements(list, unit, executionExit, callableMapper);
         MultiTaskContext terminalUnit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, TaskType.UNKNOWN, false), 1)
                         .structuralParent(unit)
                         .cancellationParent(unit.cancellationToken())
                         .deadlineCeilingNanos(unit.deadlineNanos())
                         .executor(combinePar));
+        ExecutionPhaseHintFuture<C> terminalFuture;
+        try {
+            TaskExecutionContext terminalContext =
+                    new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), executionExit.register(terminalUnit));
+            terminalFuture = TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
+        } catch (RuntimeException | Error failure) {
+            cancelPrepared(tasks);
+            unit.cancellationToken().cancel();
+            throw failure;
+        }
         runtime.executorWaits().record(unit.structuralParentNode(), unit.node(), terminalUnit.node());
-        TaskExecutionContext terminalContext =
-                new TaskExecutionContext(terminalUnit, 0, System.nanoTime(), executionExit.register(terminalUnit));
-        ExecutionPhaseHintFuture<C> terminalFuture =
-                TaskSubmissions.prepare(terminalContext, () -> combiner.apply(settledValues(tasks)));
         if (combinePar.executorRuntime().threadPoolBacked()) {
             terminalFuture.forbidInlineExecution();
         }
@@ -339,8 +370,8 @@ public final class Par {
      * Submits one scoped task to the executor bound when the owning {@link ParRuntime} was built.
      *
      * <p>This is the unary entry point of the same pipeline {@link #map} uses: the task gets its
-     * own child {@link CancellationToken} with the resolved deadline, a TTL snapshot taken on this
-     * thread, an observation future published on completion, and structured cancellation from any
+     * own child {@link CancellationToken} with the resolved deadline, an application-context snapshot
+     * taken on this thread, an observation future published on completion, and structured cancellation from any
      * enclosing scope. A deadline that expires before the task starts never enters user code.
      *
      * @param taskName the task name reported on the returned future
@@ -362,10 +393,16 @@ public final class Par {
                 MultiTaskContext.requireDeadlineSource(options.timeout().orElse(null), "call timeout(Duration)");
         MultiTaskContext unit = admitUnit(options.spec(taskName), 1, parent);
         ExecutionExitTracker executionExit = ExecutionExitTracker.create(1);
-        runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         TaskExecutionContext taskContext =
                 new TaskExecutionContext(unit, 0, System.nanoTime(), executionExit.register(unit));
-        ExecutionPhaseHintFuture<T> future = TaskSubmissions.prepare(taskContext, task);
+        ExecutionPhaseHintFuture<T> future;
+        try {
+            future = TaskSubmissions.prepare(taskContext, task);
+        } catch (RuntimeException | Error failure) {
+            unit.cancellationToken().cancel();
+            throw failure;
+        }
+        runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
         ListenableFuture<?> completion = unit.cancellationToken()
                 .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
@@ -393,13 +430,9 @@ public final class Par {
             MultiTaskContext unit,
             BatchOptions options) {
         ImmutableList<T> list = snapshotInputs(elements, unit);
-        runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         ExecutionExitTracker executionExit = ExecutionExitTracker.create(list.size());
-        List<ExecutionPhaseHintFuture<R>> tasks = IntStream.range(0, list.size())
-                .mapToObj(index -> TaskSubmissions.prepare(
-                        new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
-                        callableMapper.apply(list.get(index))))
-                .collect(toImmutableList());
+        List<ExecutionPhaseHintFuture<R>> tasks = prepareElements(list, unit, executionExit, callableMapper);
+        runtime.executorWaits().record(unit.structuralParentNode(), unit.node());
         SlidingWindowSubmitter<R> submitter = new SlidingWindowSubmitter<>(
                 executorRuntime.submissionExecutor(),
                 unit,

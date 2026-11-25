@@ -551,8 +551,8 @@ whether `failedTaskName()` is in `results()`.
 ## Cancellation and nested batches
 
 Nested map/runAll calls automatically inherit cancellation and the minimum deadline through the
-execution context. TTL values are captured when preparing tasks and replayed/restored on workers.
-Ordinary ThreadLocal values do not propagate. Use checkpoints and finite IO timeouts in task executions.
+execution context. TTL values and runtime-registered `ContextPropagator` snapshots are captured when preparing tasks and installed/restored on workers.
+Unregistered ordinary ThreadLocal values do not propagate. Use checkpoints and finite IO timeouts in task executions.
 No public running handle supports member cancellation or asynchronous submission; move concurrent
 business work into the same group. Application-owned asynchronous wrappers have their own lifetime
 and cancellation, which do not prove the inner synchronous call exited.
@@ -692,9 +692,35 @@ alone does not reclassify a spontaneous business cancellation exception.
 
 ### MDC (SLF4J)
 
-Context propagation here is Alibaba TransmittableThreadLocal: the library captures TTL bindings when
-it prepares a task and replays them on the worker. MDC is an ordinary ThreadLocal, so it neither
-crosses the pool boundary nor gets captured automatically. Hold the diagnostic fields in a TTL and
+Context propagation here is Alibaba TransmittableThreadLocal by default: the library captures TTL bindings when
+it prepares a task and replays them on the worker. MDC is an ordinary ThreadLocal, so it is not captured
+automatically. For a mechanism shared by every entry, register a `ContextPropagator` once on the runtime;
+it captures on the admitting thread, installs on the executing thread, and restores the previous value on close:
+
+```java
+ContextPropagator mdc = () -> {
+    Map<String, String> captured = MDC.getCopyOfContextMap();
+    return () -> {
+        Map<String, String> previous = MDC.getCopyOfContextMap();
+        if (captured != null) MDC.setContextMap(captured); else MDC.clear();
+        return () -> {
+            if (previous != null) MDC.setContextMap(previous); else MDC.clear();
+        };
+    };
+};
+ParRuntime runtime = ParRuntime.builder()
+        .register(ParId.of("worker"), pool)
+        .propagate(mdc)
+        .build();
+```
+
+Propagators apply to single tasks, batch elements (including deferred elements), group members, and terminal
+combines. They install in registration order after TTL and close in reverse order. Capture failure aborts
+admission; install failure skips task code; a task failure remains primary with close failures suppressed;
+a close failure after successful task code fails the task. Snapshots do not deep-copy mutable values. The
+static `ContextExecutors` remain TTL-only and do not discover runtime propagators.
+
+For a one-off execution or code outside a runtime, hold the diagnostic fields in a TTL and
 bridge them into MDC inside the execution. Copy this application-owned helper once instead of re-deriving
 the save/restore blocks per call site:
 

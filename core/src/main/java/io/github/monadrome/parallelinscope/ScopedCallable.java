@@ -11,9 +11,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Executes a task with its scoped context, cancellation checkpoint, timing, and final observation.
  *
- * <p>The previous {@link TaskExecutionContext} is restored on exit. Execution exit is published only
- * after the user task code's {@code finally} has completed and its captured execution reference has been
- * released. Workload diagnostics must not replace the execution's own value or failure.
+ * <p>The previous {@link TaskExecutionContext} is restored on exit. Execution exit is published by
+ * the outer prepared future after the context scopes have closed and after the user task code's
+ * {@code finally} has completed and its captured execution reference has been released. Workload
+ * diagnostics must not replace the execution's own value or failure.
  *
  * @param <V> return value type
  */
@@ -42,10 +43,6 @@ final class ScopedCallable<V> implements Callable<V> {
         } finally {
             releaseDelegate();
             taskContext.markEnded(ticker.read());
-            TaskExecutionState executionState = taskContext.executionState();
-            if (executionState != null) {
-                executionState.exited();
-            }
             TaskExecutionContext.restore(null);
             // restore(null) already removed the slot, so a null previous task needs no second remove.
             if (previousTask != null) {

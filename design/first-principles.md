@@ -43,10 +43,12 @@
 
 ### Context
 
-- All thread bindings (TTL, `TaskExecutionContext`, `SubmissionScope`) are stack-wise
-  install/restore, covering normal, exceptional, cancelled, rejected, and inline paths.
+- All thread bindings (TTL, registered `ContextPropagator` stages, `TaskExecutionContext`,
+  `SubmissionScope`) are stack-wise install/restore, covering normal, exceptional, cancelled, rejected,
+  and inline paths. Application propagators are captured at admission and closed in reverse order;
+  framework state remains outside the application propagation set.
 - No implicit state: no current-group ThreadLocal, no promise to propagate ordinary
-  ThreadLocal/MDC.
+  ThreadLocal/MDC unless the application registers a `ContextPropagator` for it.
 
 ### Results and observation
 

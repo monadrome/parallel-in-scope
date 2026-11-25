@@ -30,6 +30,7 @@ final class MultiTaskContext {
     private final @Nullable MultiTaskContext structuralParent;
     private final boolean rejectEnqueue;
     private final @Nullable Par par;
+    private final ContextPropagation contextPropagation;
 
     private MultiTaskContext(
             TaskNode node,
@@ -37,13 +38,15 @@ final class MultiTaskContext {
             CancellationToken cancellationToken,
             @Nullable MultiTaskContext structuralParent,
             boolean rejectEnqueue,
-            @Nullable Par par) {
+            @Nullable Par par,
+            ContextPropagation contextPropagation) {
         this.node = node;
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.structuralParent = structuralParent;
         this.rejectEnqueue = rejectEnqueue;
         this.par = par;
+        this.contextPropagation = contextPropagation;
     }
 
     /**
@@ -211,7 +214,8 @@ final class MultiTaskContext {
                 new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
                 spec.rejectEnqueue(),
-                par);
+                par,
+                par == null ? ContextPropagation.ttlOnly() : par.runtime().contextPropagation());
     }
 
     /**
@@ -295,6 +299,11 @@ final class MultiTaskContext {
 
     boolean rejectEnqueue() {
         return rejectEnqueue;
+    }
+
+    /** The application context captured for each task prepared in this unit. */
+    ContextPropagation contextPropagation() {
+        return contextPropagation;
     }
 
     /** The entry the unit was submitted through, or null for a unit resolved without one. */

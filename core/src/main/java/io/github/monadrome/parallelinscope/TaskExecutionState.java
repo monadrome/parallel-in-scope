@@ -96,9 +96,9 @@ final class TaskExecutionState {
     }
 
     /**
-     * Publishes execution exit, releasing the slot once. Idempotent: the normal path publishes after the
-     * user task code's finally and the outer future finally retries as a fallback, so a missed inner
-     * publish (for example a context-install failure) cannot leak the slot. The terminal signal is
+     * Publishes execution exit, releasing the slot once. Idempotent: the prepared future publishes after
+     * the user task code's finally and the outer context scopes have closed, before result settlement;
+     * its outer finally retries as a fallback, so a missed publish cannot leak the slot. The terminal
      * set before the tracker release, so observation futures keyed on it are published before any
      * execution exit waiter can return.
      */

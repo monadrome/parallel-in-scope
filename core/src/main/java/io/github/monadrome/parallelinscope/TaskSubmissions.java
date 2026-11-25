@@ -1,14 +1,13 @@
 package io.github.monadrome.parallelinscope;
 
-import com.alibaba.ttl.TtlCallable;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 
 /**
  * Prepares scoped tasks and hands them to executors under their submission policy.
  *
- * <p>Preparation captures TTL context and attaches lifecycle observations without executing the
- * execution. Submission installs only the unit's enqueue policy; executor handoff failures are recorded
+ * <p>Preparation captures the unit's application context and attaches lifecycle observations without
+ * executing the execution. Submission installs only the unit's enqueue policy; executor handoff failures are recorded
  * without entering user code. Callers own cancellation binding and the choice of submission order.
  */
 final class TaskSubmissions {
@@ -16,11 +15,14 @@ final class TaskSubmissions {
     private TaskSubmissions() {}
 
     /**
-     * Wraps {@code callable} with {@link ScopedCallable} instrumentation and captures the current
-     * thread's TTL context for replay on the worker thread.
+     * Wraps {@code callable} with {@link ScopedCallable} instrumentation and captures the unit's
+     * application context for installation on the worker thread.
      */
     static <V> Callable<V> wrapScoped(TaskExecutionContext taskContext, Callable<V> callable) {
-        return TtlCallable.get(new ScopedCallable<>(taskContext, callable), true, true);
+        return taskContext
+                .multiTaskContext()
+                .contextPropagation()
+                .capturing(new ScopedCallable<>(taskContext, callable));
     }
 
     /**

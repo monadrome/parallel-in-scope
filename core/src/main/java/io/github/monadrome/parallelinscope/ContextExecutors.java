@@ -2,7 +2,6 @@ package io.github.monadrome.parallelinscope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.alibaba.ttl.TransmittableThreadLocal.Transmitter;
 import java.util.concurrent.Executor;
 
 /**
@@ -55,7 +54,7 @@ public final class ContextExecutors {
      * @return an executor that replays the creation-time context for every command
      */
     public static Executor registrationContextExecutor() {
-        return new CapturedDirectExecutor(Transmitter.capture());
+        return new CapturedDirectExecutor(ContextPropagation.ttlOnly().capture());
     }
 
     /**
@@ -68,7 +67,7 @@ public final class ContextExecutors {
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
-            runWithCaptured(Transmitter.capture(), command);
+            ContextPropagation.run(ContextPropagation.ttlOnly().capture(), command);
         }
 
         @Override
@@ -78,39 +77,21 @@ public final class ContextExecutors {
     }
 
     private static final class CapturedDirectExecutor implements Executor {
-        private final Object captured;
+        private final ContextPropagator.Snapshot captured;
 
-        private CapturedDirectExecutor(Object captured) {
+        private CapturedDirectExecutor(ContextPropagator.Snapshot captured) {
             this.captured = captured;
         }
 
         @Override
         public void execute(Runnable command) {
             checkNotNull(command, "command cannot be null");
-            runWithCaptured(captured, command);
+            ContextPropagation.run(captured, command);
         }
 
         @Override
         public String toString() {
             return "ContextExecutors.registrationContextExecutor()";
-        }
-    }
-
-    /**
-     * Runs a command with a captured TTL context and restores the context that was active on entry.
-     *
-     * <p>The command runs synchronously on the calling thread. If the command throws, its failure
-     * is propagated after the entry context has been restored.
-     *
-     * @param captured the non-null context to replay
-     * @param command the non-null command to run
-     */
-    private static void runWithCaptured(Object captured, Runnable command) {
-        Object previous = Transmitter.replay(captured);
-        try {
-            command.run();
-        } finally {
-            Transmitter.restore(previous);
         }
     }
 }

@@ -202,7 +202,7 @@ batch. Historical source: `proposal:P0010`; the remaining executor-diagnostic di
 | `SubmissionScope` | Queue policy for one executor submission |
 | `ExecutionPhaseHintFuture` | run/cancel execution-rights race and current-phase query |
 | `CancellationToken` | outer→group→member cancellation propagation and interruption |
-| `TtlCallable` | Submission-time snapshot and restoration of configured TTL |
+| `ContextPropagation` | Submission-time capture and execution-time installation/restoration of TTL and runtime-registered application context |
 
 ### 9.2 Must not reuse
 

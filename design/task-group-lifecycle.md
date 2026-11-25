@@ -146,12 +146,17 @@ for each member and the combine"; a preparation failure records nothing, and mem
 a wait. Recording does not go through TTL and does not depend on any scope on the submitting
 thread; no group TTL MUST be added. The rules are in [task-graph.md](task-graph.md).
 
-### 4.8 TTL boundaries
+### 4.8 Application context boundaries
 
-Members still use `TtlCallable.get(callable, true, true)`, so the `TransmittableThreadLocal`s
-the application already has at submission are captured and restored per TTL rules. The framework
-does not promise to propagate ordinary `ThreadLocal`s or to configure MDC automatically. A
-queued task holds a TTL snapshot — that is TTL's own retention semantics.
+Members are prepared through `TaskSubmissions.prepare`, which captures the unit's application context
+on the admitting thread. The built-in TTL participant is always first; `ContextPropagator`s registered
+on the owning `ParRuntime` follow in registration order. Installation occurs on the executing thread
+outside `ScopedCallable`, and scopes close in reverse order after task code exits, before execution-exit
+publication and result settlement. The framework does not propagate unregistered ordinary `ThreadLocal`s or configure MDC
+automatically. A queued task holds its snapshot until it runs or is cancelled — that is the context
+layer's retention semantics; no snapshot release callback is provided. Adopted members run no task code
+and install no application context. The full protocol and failure precedence are in
+[extension-and-wrapping.md](extension-and-wrapping.md) §2.4 (proposal:P0040).
 
 ## 5. Structural parent, cancellation parent, and deadline ceiling must be decoupled
 

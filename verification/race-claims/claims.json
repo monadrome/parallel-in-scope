@@ -148,6 +148,22 @@
       "tests": "ExecutionPhaseHintFutureTest#aCancellationLandingBetweenThePhaseClaimAndTheExecutionClaimSkipsUserCodeAndReleasesTheCallable",
       "expect": "failure",
       "note": "The prepared-state test parks the runner inside the claim and lands the cancellation; dropping the skip makes the slot stay PENDING and keeps the callable, both asserted before the claim resumes. The final-tree PIT partition kills the same window's three surviving mutants (afterDone conditional negation, skipExecutionIfPending removal, releaseCallable removal) with this test. The claimExecution TRUE_RETURNS mutant forces the return only after the real claim CAS runs and is equivalent: a failed claim is reachable only when skipIfPending already won, which implies the callable was released and the future completed as cancelled, so the flipped local never reaches user code."
+    },
+    {
+      "id": "context-close-before-execution-exit",
+      "protocol": "ExecutionPhaseHintFuture context lifecycle",
+      "claim": "A task's application-context scopes close before execution exit is published; a blocking close during cancellation therefore keeps the observation and execution-exit barriers unfinished.",
+      "method": "mutation",
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/ScopedCallable.java",
+      "mutations": [
+        {
+          "find": "            releaseDelegate();\n            taskContext.markEnded(ticker.read());\n            TaskExecutionContext.restore(null);",
+          "replace": "            releaseDelegate();\n            taskContext.markEnded(ticker.read());\n            TaskExecutionState executionState = taskContext.executionState();\n            if (executionState != null) {\n                executionState.exited();\n            }\n            TaskExecutionContext.restore(null);"
+        }
+      ],
+      "tests": "ContextPropagationTest#cancellationDoesNotPublishExecutionExitBeforeContextClose",
+      "expect": "failure",
+      "note": "The test blocks a registered scope close, cancels the running task, and requires completionFuture to stay pending until close resumes. Reintroducing the inner early publication fails the assertion even though the outer future's idempotent fallback remains."
     }
   ]
 }
