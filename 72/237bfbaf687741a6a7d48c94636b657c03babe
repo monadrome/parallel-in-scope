@@ -1,0 +1,20 @@
+core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java
+  s_262df874518ac1::t_59e189dbb4e33a 3-4,8-9,19-28,31,33
+  s_262df874518ac1::t_602f3213422bf6 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "72237bfbaf687741a6a7d48c94636b657c03babe",
+  "prompts": {},
+  "sessions": {
+    "s_262df874518ac1": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_c1c20a2b-a193-420a-9719-efb00aa03332",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
