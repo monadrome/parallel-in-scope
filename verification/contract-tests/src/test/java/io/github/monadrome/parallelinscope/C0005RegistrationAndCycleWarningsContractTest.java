@@ -1,0 +1,216 @@
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/**
+ * CONTRACT-TDD-015 (contract C-4 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+ *
+ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 3;
+ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
+ * {@code ParRuntime.executorWaitReport}; docs/en/reference/executor-registration.md,
+ * "Visibility: register the physical pool"; docs/en/reference/diagnostics.md,
+ * "Observe nested work".
+ *
+ * <p>Precondition: handlers under O-1; a {@link ForkJoinPool} (an executor the library cannot see
+ * through) and a plain fixed pool; later a single-thread fixed pool for a self-wait.
+ *
+ * <p>Operation sequence: (A) build a runtime with a throwing handler while registering a
+ * {@code ForkJoinPool}; (B) build a runtime registering a {@code ForkJoinPool} and a fixed pool
+ * with a capturing handler; (C) admit a batch element that nested-calls {@code map} on its own
+ * entry, forming a self-cycle.
+ *
+ * <p>Observation points: whether {@code build()} returns, JUL record levels, publishing threads,
+ * and {@code ExecutorWaitReport.cyclicComponents()}.
+ *
+ * <p>Assertions: a throwing handler does not make {@code build()} fail; the registration warning
+ * names the {@code ForkJoinPool} entry and is published off the building thread; the fixed entry
+ * causes no warning; the self-cycle produces one {@code WARNING} from a thread other than the
+ * submitting one and {@code cyclicComponents()} reports the cycle.
+ *
+ * <p>Uncertainty: registration and cycle wording is non-contractual; filtering uses candidate
+ * entry ids.
+ */
+@Tag("C-0005")
+class C0005RegistrationAndCycleWarningsContractTest {
+
+    @Test
+    void registrationAndCycleWarningsAreOffThread() throws Exception {
+        Logger logger = Logger.getLogger("io.github.monadrome.parallelinscope");
+        Thread buildingThread = Thread.currentThread();
+
+        ThrowingHandler throwing = new ThrowingHandler("ct015-fjpthrow");
+        logger.addHandler(throwing);
+        ForkJoinPool fjpThrow = new ForkJoinPool(1);
+        try (ParRuntime ignored = ParRuntime.builder()
+                .register(ParId.of("ct015-fjpthrow"), fjpThrow)
+                .build()) {
+            assertThat(ignored).isNotNull();
+        } finally {
+            logger.removeHandler(throwing);
+            fjpThrow.shutdownNow();
+        }
+
+        CaptureHandler capture = new CaptureHandler();
+        logger.addHandler(capture);
+        ForkJoinPool fjp = new ForkJoinPool(1);
+        ExecutorService fixed = Executors.newFixedThreadPool(2);
+        ParId fjpId = ParId.of("ct015-fjp");
+        ParId fixedId = ParId.of("ct015-fixed");
+        try (ParRuntime registrationRuntime = ParRuntime.builder()
+                .register(fjpId, fjp)
+                .register(fixedId, fixed)
+                .build()) {
+            assertThat(registrationRuntime).isNotNull();
+            capture.awaitWarningContaining("ct015-fjp", 1, 10);
+            assertThat(capture.countWarningContaining("ct015-fjp")).isEqualTo(1);
+            assertThat(capture.firstWarningContaining("ct015-fjp").getLevel()).isEqualTo(Level.WARNING);
+            assertThat((long) capture.firstWarningContaining("ct015-fjp").getThreadID())
+                    .isNotEqualTo(buildingThread.getId());
+            assertThat(capture.countWarningContaining("ct015-fixed")).isZero();
+        } finally {
+            logger.removeHandler(capture);
+            fjp.shutdownNow();
+            fixed.shutdownNow();
+        }
+
+        CaptureHandler cycleCapture = new CaptureHandler();
+        logger.addHandler(cycleCapture);
+        ExecutorService selfPool = Executors.newFixedThreadPool(1);
+        ParId selfId = ParId.of("ct015-self");
+        AtomicReference<Thread> selfThread = new AtomicReference<>();
+        try (ParRuntime cycleRuntime =
+                ParRuntime.builder().register(selfId, selfPool).build()) {
+            Par par = cycleRuntime.par(selfId);
+            BatchOptions outer = BatchOptions.timeout("ct015-outer", Duration.ofSeconds(20));
+            BatchOptions inner = BatchOptions.timeout("ct015-inner", Duration.ofSeconds(3));
+            par.map(
+                    Arrays.asList(1),
+                    el -> {
+                        selfThread.set(Thread.currentThread());
+                        return par.map(Arrays.asList(2), el2 -> el2, inner);
+                    },
+                    outer);
+
+            awaitCycleReported(cycleRuntime, Duration.ofSeconds(10));
+            assertThat(cycleRuntime.executorWaitReport().cyclicComponents()).isNotEmpty();
+            cycleCapture.awaitAnyWarning(1, 10);
+            assertThat(cycleCapture.records).isNotEmpty();
+            LogRecord cycleRecord = cycleCapture.records.get(0);
+            assertThat(cycleRecord.getLevel()).isEqualTo(Level.WARNING);
+            assertThat((long) cycleRecord.getThreadID()).isNotEqualTo(buildingThread.getId());
+            if (selfThread.get() != null) {
+                assertThat((long) cycleRecord.getThreadID())
+                        .isNotEqualTo(selfThread.get().getId());
+            }
+        } finally {
+            logger.removeHandler(cycleCapture);
+            selfPool.shutdownNow();
+        }
+    }
+
+    private static void awaitCycleReported(ParRuntime runtime, Duration timeout) throws InterruptedException {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (runtime.executorWaitReport().cyclicComponents().isEmpty() && System.nanoTime() < deadline) {
+            Thread.sleep(50);
+        }
+    }
+
+    private static final class ThrowingHandler extends Handler {
+        final String fragment;
+
+        ThrowingHandler(String fragment) {
+            this.fragment = fragment;
+        }
+
+        @Override
+        public void publish(LogRecord record) {
+            if (record.getMessage() != null && record.getMessage().contains(fragment)) {
+                throw new RuntimeException("logging failure");
+            }
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void close() {}
+    }
+
+    private static final class CaptureHandler extends Handler {
+        final List<LogRecord> records = Collections.synchronizedList(new java.util.ArrayList<>());
+
+        @Override
+        public void publish(LogRecord record) {
+            records.add(record);
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void close() {}
+
+        int countWarningContaining(String fragment) {
+            int count = 0;
+            for (LogRecord record : records) {
+                if (record.getLevel().intValue() == Level.WARNING.intValue()
+                        && record.getMessage() != null
+                        && record.getMessage().contains(fragment)) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        LogRecord firstWarningContaining(String fragment) {
+            for (LogRecord record : records) {
+                if (record.getLevel().intValue() == Level.WARNING.intValue()
+                        && record.getMessage() != null
+                        && record.getMessage().contains(fragment)) {
+                    return record;
+                }
+            }
+            return null;
+        }
+
+        void awaitWarningContaining(String fragment, int expected, long seconds) throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
+            while (countWarningContaining(fragment) < expected && System.nanoTime() < deadline) {
+                Thread.sleep(50);
+            }
+        }
+
+        void awaitAnyWarning(int expected, long seconds) throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
+            while (countWarnings() < expected && System.nanoTime() < deadline) {
+                Thread.sleep(50);
+            }
+        }
+
+        int countWarnings() {
+            int count = 0;
+            for (LogRecord record : records) {
+                if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
+}
