@@ -364,6 +364,28 @@ class PythonIntegrityTest(TreeTest):
         self.assertEqual(code, 1)
         self.assertIn(": V3: new runtime test skip or xfail", out)
 
+    def test_decorated_function_bindings_do_not_shadow_decorator(self):
+        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+        changed = "from pytest import skip\n" + PYTHON_TEST.replace(
+            "def test_works(self):",
+            "@skip\n    def test_works(self, skip):",
+        )
+        head = self.tree("head", {PYTHON_PATH: changed})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new skip, expected-failure, or xfail decorator", out)
+
+    def test_nested_comprehension_variable_does_not_leak(self):
+        base = self.tree("base", {PYTHON_PATH: PYTHON_TEST})
+        changed = "from pytest import skip\n" + PYTHON_TEST.replace(
+            "self.assertTrue(value)",
+            "values = [x for x in [skip for skip in y]]\n        skip('reason')\n        self.assertTrue(value)",
+        )
+        head = self.tree("head", {PYTHON_PATH: changed})
+        code, out, _ = self.run_check(base, head)
+        self.assertEqual(code, 1)
+        self.assertIn(": V3: new runtime test skip or xfail", out)
+
     def test_local_pytest_alias_shadowing_passes(self):
         for binding in ("suppress = str", "def suppress(value):\n            return value"):
             with self.subTest(binding=binding):

@@ -516,20 +516,20 @@ def python_function_bindings(function: ast.FunctionDef | ast.AsyncFunctionDef) -
     names.update(argument.arg for argument in (arguments.vararg, arguments.kwarg) if argument is not None)
 
     def collect(node: ast.AST) -> None:
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            for generator in node.generators:
+                collect(generator.iter)
+                for condition in generator.ifs:
+                    collect(condition)
+            if isinstance(node, ast.DictComp):
+                collect(node.key)
+                collect(node.value)
+            else:
+                collect(node.elt)
+            return
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 names.add(child.name)
-                continue
-            if isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
-                for generator in child.generators:
-                    collect(generator.iter)
-                    for condition in generator.ifs:
-                        collect(condition)
-                if isinstance(child, ast.DictComp):
-                    collect(child.key)
-                    collect(child.value)
-                else:
-                    collect(child.elt)
                 continue
             if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
                 names.add(child.id)
@@ -555,6 +555,9 @@ def python_shadowed_calls(tree: ast.AST, aliases: dict[str, str]) -> set[int]:
     shadowed: set[int] = set()
 
     def visit(node: ast.AST, scopes: list[set[str]]) -> None:
+        decorators = node.decorator_list if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else []
+        for decorator in decorators:
+            visit(decorator, scopes)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             scopes = [*scopes, python_function_bindings(node)]
         if isinstance(node, (ast.Call, ast.Name, ast.Attribute)):
@@ -563,7 +566,8 @@ def python_shadowed_calls(tree: ast.AST, aliases: dict[str, str]) -> set[int]:
                 if any(head in scope for scope in scopes):
                     shadowed.add(id(node))
         for child in ast.iter_child_nodes(node):
-            visit(child, scopes)
+            if child not in decorators:
+                visit(child, scopes)
 
     visit(tree, [])
     return shadowed
