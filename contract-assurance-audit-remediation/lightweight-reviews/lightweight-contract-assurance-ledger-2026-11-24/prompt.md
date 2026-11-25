@@ -10,4 +10,6 @@ Read `git show --stat --oneline HEAD`, the complete committed diff, `verificatio
 - the later documentation/test-only assurance skip is supported by the final independent review;
 - no secret, raw reviewer log, unsupported cost/token value, or unsupported completion claim was introduced.
 
+This is a fresh re-review after the first DeepSeek Flash round found that the notes could claim Java consumer execution through the four adoption probes. The implementer removed that pass claim, explicitly recorded the assurance Java consumer gate as NOT APPLICABLE and the local runtime-consumer matrix as not executed, and added one failed gate entry for the review round. Treat that finding as the settled baseline, verify its fix, and look beyond it.
+
 Return `PASS: <concise rationale>` if no defect exists. Otherwise return `FINDINGS:` and list each concrete defect with its trigger and consequence. Do not modify files, run external messages, or inspect unrelated worktrees.
