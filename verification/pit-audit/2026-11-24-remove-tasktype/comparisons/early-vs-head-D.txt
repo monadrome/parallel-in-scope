@@ -1,0 +1,12 @@
+base=277 head=277 matched=277 removed=0 added=0
+KILLED at base, not KILLED at head: 1
+  REGRESSION ParRuntime$DispatchingScheduledExecutorService.lambda$schedule$0 VoidMethodCallMutator #0 'removed call to java/util/concurrent/ExecutorService::execute' base:642:KILLED head:642:TIMED_OUT
+other status changes: 5
+  CHANGE ParRuntime.close VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/ParRuntime::shutdo' base:435:TIMED_OUT head:435:KILLED
+  CHANGE ParRuntime.shutdownServicesWhenAdmissionsComplete NegateConditionalsMutator #0 'negated conditional' base:550:TIMED_OUT head:550:KILLED
+  CHANGE ParRuntime.shutdownServicesWhenAdmissionsComplete NegateConditionalsMutator #1 'negated conditional' base:551:TIMED_OUT head:551:KILLED
+  CHANGE ParRuntime.shutdownServicesWhenAdmissionsComplete NegateConditionalsMutator #2 'negated conditional' base:552:TIMED_OUT head:552:KILLED
+  CHANGE SlidingWindowSubmitter.submit NegateConditionalsMutator #0 'negated conditional' base:175:TIMED_OUT head:175:KILLED
+removed-at-head by class: {}
+removed non-KILLED at base: []
+added-at-head by class: {}

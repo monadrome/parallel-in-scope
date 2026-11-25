@@ -1,0 +1,8 @@
+base=294 head=277 matched=271 removed=23 added=6
+KILLED at base, not KILLED at head: 1
+  REGRESSION ParRuntime.lambda$trackExecutions$0 VoidMethodCallMutator #0 'removed call to com/google/common/util/concurrent/Monitor::leave' base:630:KILLED head:601:TIMED_OUT
+other status changes: 1
+  CHANGE SlidingWindowSubmitter.submit NegateConditionalsMutator #0 'negated conditional' base:175:TIMED_OUT head:175:KILLED
+removed-at-head by class: {'ParRuntime': 9, 'Par': 14}
+removed non-KILLED at base: []
+added-at-head by class: {'Par': 4, 'ParRuntime': 2}
