@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "verification-integrity-enforcement-08b8df42-20261124-154323-b36854",
+  "version": 1,
+  "createdAt": "2026-11-24T15:59:13.603Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

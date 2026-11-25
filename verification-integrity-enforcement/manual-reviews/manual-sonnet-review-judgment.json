@@ -1,0 +1,27 @@
+{
+  "status": "completed",
+  "reviewer": {
+    "agent": "kimi",
+    "provider": "magpie",
+    "model": "magpie/ctrip-ada/claude-kr-claude-sonnet-5.5[1M]",
+    "cliVersion": "2.7.3"
+  },
+  "base": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+  "head": "5180070f9274c2f41657e7e7d3b614370bb1e03e",
+  "readOnlySnapshotModified": false,
+  "findings": [
+    {
+      "title": "Decorators are checked against the decorated function's own bindings",
+      "verdict": "confirmed",
+      "fixCommit": "0d0c686b",
+      "evidence": "A parameterized @skip regression failed before and passed after decorator evaluation moved to the enclosing scope."
+    },
+    {
+      "title": "A comprehension nested directly in another comprehension leaks its loop variable into the function scope",
+      "verdict": "confirmed",
+      "fixCommit": "0d0c686b",
+      "evidence": "A nested-comprehension skip regression failed before and passed after comprehension-root collection was fixed."
+    }
+  ],
+  "notes": "Direct fresh-context review on the read-only snapshot was used after repeated CLI health-check failures. The returned JSON was extracted from Markdown fencing without changing its content. The two P3 findings were fixed; no other finding was reported."
+}

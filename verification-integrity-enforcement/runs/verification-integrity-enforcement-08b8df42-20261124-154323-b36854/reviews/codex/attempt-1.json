@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "verification-integrity-enforcement-08b8df42-20261124-154323-b36854",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-24T15:43:23.670Z",
+  "endedAt": "2026-11-24T15:59:06.715Z",
+  "durationMs": 942148,
+  "exitCode": 1,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-08b8df42-20261124-154323-b36854/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-08b8df42-20261124-154323-b36854/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-08b8df42-20261124-154323-b36854/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "ctrip-ada/claude-auto[1M]",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 47f6d18f719a6b5ec20774a82bc0d0e3bf338fad to 08b8df42b0612969f1f78fcbf659a9b406adcd08. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-08b8df42-20261124-154323-b36854/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-08b8df42-20261124-154323-b36854/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 3 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Boundary-fix follow-up review\n\nReview only committed range `47f6d18f719a6b5ec20774a82bc0d0e3bf338fad..08b8df42` read-only. Earlier findings through expression semantics and mechanical refactors are settled.\n\nThis commit addresses eight independently reproduced findings: ordered local pytest imports, decorator shadowing, balanced template substitutions with nested objects/string braces, regex type/non-null suffixes, computed property calls, comprehension-local variables, and boolean operators incorrectly accepted as type suffixes. Every regression failed before and passes after; all 477 repository script tests and all three isolated contract candidates pass.\n\nCheck these fixes and look for concrete introduced defects in balanced delimiter offsets, nested literals/templates, identity-suffix classification, computed calls, binding order, decorator evaluation scope, and comprehension scope. Do not re-report the tracked ledger correction, GitHub enforcement, or settled structural suggestions. Return at most three findings, or an empty findings list promptly.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-08b8df42-20261124-154323-b36854/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "ctrip-ada",
+    "model": "ctrip-ada/claude-auto[1M]",
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": null,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "failed",
+  "summary": null,
+  "findings": null,
+  "rawFindings": null,
+  "error": "reviewer exited with code 1"
+}

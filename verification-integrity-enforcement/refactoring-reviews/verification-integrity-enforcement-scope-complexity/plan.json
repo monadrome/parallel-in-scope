@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "baseRef": "origin/dev/v0.5.0",
+  "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+  "head": "0d0c686b60135ea7b11ca88a8e4b20e45e56a96e",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "06efaae43c0f343efc6e2bb6c289b907b218b9be",
+      "head": "0d0c686b60135ea7b11ca88a8e4b20e45e56a96e",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 0,
+        "touchedCandidates": 0,
+        "injectedCandidates": 0
+      },
+      "candidates": [],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "2 code file(s), 495 changed code line(s)",
+  "totals": {
+    "codeFiles": 2,
+    "codeLines": 495
+  },
+  "files": [
+    {
+      "path": "scripts/check-verification-integrity.py",
+      "class": "script",
+      "codeLines": 243,
+      "commentLines": 0
+    },
+    {
+      "path": "scripts/tests/test_check_verification_integrity.py",
+      "class": "test",
+      "codeLines": 252,
+      "commentLines": 0
+    }
+  ],
+  "skippedFiles": [
+    {
+      "path": ".agents/skills/multi-review/SKILL.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": ".agents/skills/project-delivery/references/review.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "ledger/2026-11-23-verification-integrity-gate.json",
+      "reason": "not a code path"
+    },
+    {
+      "path": "verification/verification-integrity.md",
+      "reason": "not a code path"
+    }
+  ],
+  "lenses": [
+    "M",
+    "D",
+    "S",
+    "T"
+  ],
+  "mode": "sharded",
+  "agents": [
+    {
+      "id": "M",
+      "lenses": [
+        "M"
+      ],
+      "shard": null,
+      "wholeDiff": true,
+      "files": [
+        "scripts/check-verification-integrity.py",
+        "scripts/tests/test_check_verification_integrity.py"
+      ],
+      "codeLines": 495,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/M/diff.patch",
+      "brief": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/M/brief.md",
+      "findings": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/M/findings.json"
+    },
+    {
+      "id": "D-1",
+      "lenses": [
+        "D"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 243,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/D-1/diff.patch",
+      "brief": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/D-1/brief.md",
+      "findings": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/D-1/findings.json"
+    },
+    {
+      "id": "S-1",
+      "lenses": [
+        "S"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 243,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/S-1/diff.patch",
+      "brief": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/S-1/brief.md",
+      "findings": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/S-1/findings.json"
+    },
+    {
+      "id": "T-1",
+      "lenses": [
+        "T"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "scripts/tests/test_check_verification_integrity.py"
+      ],
+      "codeLines": 252,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/T-1/diff.patch",
+      "brief": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/T-1/brief.md",
+      "findings": ".agents/reviews/verification-integrity-enforcement-scope-complexity/agents/T-1/findings.json"
+    }
+  ],
+  "uncovered": [],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

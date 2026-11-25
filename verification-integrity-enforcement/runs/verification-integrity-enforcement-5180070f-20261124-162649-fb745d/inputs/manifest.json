@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "verification-integrity-enforcement-5180070f-20261124-162649-fb745d",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T16:27:04.978Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "head": "5180070f9274c2f41657e7e7d3b614370bb1e03e",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "to": "5180070f9274c2f41657e7e7d3b614370bb1e03e",
+    "label": "47f6d18f..5180070f"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "f0238b8a13857da036c17b41eb2680b76b7e6b16fc267728ee3bb2a7328a6429",
+    "bytes": 12126,
+    "files": [
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 52,
+        "deletions": 19
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 41,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "7d4114d1adf4f4420816000f4c34775b3a4dfd1355f043b77fa6f50bbd94dace",
+    "bytes": 919,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "1a1c1a3a3c9d1af1820d6b0d9d12d3fc23d32884f5a48ff0d1bb4668f1113948",
+    "bytes": 2039
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "5180070f9274c2f41657e7e7d3b614370bb1e03e",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

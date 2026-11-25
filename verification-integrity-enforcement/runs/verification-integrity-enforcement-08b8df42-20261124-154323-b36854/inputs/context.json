@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "verification-integrity-enforcement-08b8df42-20261124-154323-b36854",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T15:43:23.613Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "head": "08b8df42b0612969f1f78fcbf659a9b406adcd08",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "to": "08b8df42b0612969f1f78fcbf659a9b406adcd08",
+    "label": "47f6d18f..08b8df42"
+  },
+  "objective": {
+    "subject": "fix: preserve evaluation and binding boundaries",
+    "body": "MUST: Scan balanced template substitutions and computed calls, honor identity suffixes, and resolve ordered pytest bindings without comprehension leakage.\n\nMUST NOT: Treat boolean expressions as type suffixes or suppress decorated/runtime pytest detection after local rebinding."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "cb0e8a82a22e60b334f662c086b512aceb3b48471da97710e9e50609abe9f8fc",
+    "bytes": 10154,
+    "files": [
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 36,
+        "deletions": 10
+      },
+      {
+        "path": "scripts/tests/test_check_verification_integrity.py",
+        "status": "M",
+        "additions": 41,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "52db8d27c6969c36cbc809b0c411db68db3a88e6efbd4dd1af0c554a4551c146",
+    "bytes": 1072,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "08b8df42b0612969f1f78fcbf659a9b406adcd08",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

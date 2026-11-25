@@ -1,0 +1,24 @@
+• ```json
+  {
+    "summary": "No defects found in the template-substitution balancing, the computed-call regex, the identity-suffix lookahead, or the two predicate extractions. `is_pytest_module` and `typescript_fresh_identity_literal` keep the old behavior apart from the intended `/a/!` and `/a/ as T` cases. Two scope bugs in the Python shadowing analysis can hide a real pytest skip. Both are false negatives that need unusual code to trigger.",
+    "findings": [
+      {
+        "file": "scripts/check-verification-integrity.py",
+        "lineStart": 559,
+        "title": "Decorators are checked against the decorated function's own bindings",
+        "trigger": "`visit` appends `python_function_bindings(node)` to `scopes` before it visits the node's children. Those children include `decorator_list`, which Python evaluates in the enclosing scope. A new test such as `from pytest import skip` followed by `@skip` on `def test_x(self, skip): ...` is the simplest case. A local assignment or import named `skip`, `mark` or `pytest` in the body has the same effect.",
+        "consequence": "The decorator's Name or Attribute node lands in `shadowed_calls`. The new `continue` in `scan_python` at line 646 then drops it, so a real `@skip` or `@pytest.mark.skip` is not reported as V3. The diff extended this to bare Name and Attribute decorators, so the false negative now covers them too.",
+        "severity": "P3"
+      },
+      {
+        "file": "scripts/check-verification-integrity.py",
+        "lineStart": 525,
+        "title": "A comprehension nested directly in another comprehension leaks its loop variable into the function scope",
+        "trigger": "`collect` is called on `generator.iter`, on each `generator.ifs` item and on `elt`, `key` or `value`. `collect` only looks at a node's children, so the `isinstance(child, ListComp...)` branch never runs for that node itself. Examples are `[x for x in [skip for skip in y]]` and `[[skip for skip in a] for a in b]`. The inner `comprehension` target `skip` is a `Name` with a Store context, and it gets added to `names`.",
+        "consequence": "A later `skip('reason')` (imported with `from pytest import skip`) is treated as shadowed. The V3 'new runtime test skip' violation is silently missed. The new comprehension handling was meant to prevent exactly this leak, but it only covers comprehensions that are not the direct child being collected.",
+        "severity": "P3"
+      }
+    ]
+  }
+  ```
+

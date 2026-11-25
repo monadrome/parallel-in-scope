@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "verification-integrity-enforcement-5180070f-20261124-162649-fb745d",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-24T16:27:06.763Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement",
+    "name": "verification-integrity-enforcement"
+  },
+  "commits": {
+    "base": "47f6d18f719a6b5ec20774a82bc0d0e3bf338fad",
+    "head": "5180070f9274c2f41657e7e7d3b614370bb1e03e",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kimi",
+        "version": "kimi-code 2.7.3",
+        "provider": "magpie",
+        "model": "magpie/ctrip-ada/claude-kr-claude-sonnet-5.5[1M]",
+        "revision": null,
+        "effort": null,
+        "command": "/tmp/kimi-review-command.sh",
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 3,
+    "concurrency": 1,
+    "timeouts": {
+      "totalSeconds": 1200,
+      "reviewSeconds": 1080,
+      "adjudicationSeconds": 60,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "7d4114d1adf4f4420816000f4c34775b3a4dfd1355f043b77fa6f50bbd94dace",
+    "contextJsonSha256": "1a1c1a3a3c9d1af1820d6b0d9d12d3fc23d32884f5a48ff0d1bb4668f1113948",
+    "diffSha256": "f0238b8a13857da036c17b41eb2680b76b7e6b16fc267728ee3bb2a7328a6429",
+    "caseManifestSha256": "4ae50a5eb720603b6d05f4e3787cc626630bc6d68d33a8051250b583245c88fd",
+    "promptSha256": "45c36389af8fd196650f1ac8b7f691f8d1ceed4269b52f1c2e43798d7d8c5966"
+  },
+  "promptPath": "inputs/prompt.md"
+}

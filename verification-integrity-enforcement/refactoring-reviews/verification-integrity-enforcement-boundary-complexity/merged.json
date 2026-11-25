@@ -1,0 +1,247 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S-1",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T-1",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "comparison_form",
+      "refactoring": "Move Function",
+      "rules": [
+        "M01"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "comparison_form, comparison_span, and template_side_effect primarily read Source.code, Source.comparison_view, and Source.literal_spans while passing the same offsets between them. Moving span trimming and literal traversal onto Source would keep the parallel-representation invariant with its owner and leave self_comparing focused on equality and purity policy."
+      ],
+      "behaviorRisks": [
+        "Preserve offset alignment, whitespace and comment normalization, quote handling, parenthesis stripping, template side-effect decisions, and existing V5 diagnostic locations and keys."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M01"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "scan_python",
+      "refactoring": "Move Function",
+      "rules": [
+        "M07"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "scan_python must know that python_shadowed_calls returns id() values for several AST node kinds and must probe both a decorator and its target. Move shadow filtering behind python_resolved_name, with a documented empty or non-pytest result for shadowed nodes, so AST identity bookkeeping has one owner and the scanner only consumes resolved names."
+      ],
+      "behaviorRisks": [
+        "Preserve alias and wildcard resolution, local shadowing decisions, decorator-call exclusion, V3 messages and keys, and the absence of unrelated V4 diagnostics."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M07"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "scan_typescript",
+      "refactoring": "Extract Function: move the assert and expect no-op scanning loops into typescript_noops",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The added expect loop makes the scanner combine test discovery, suppression selection, and two assertion families. A dedicated no-op scanner would mirror java_noops, leave scan_typescript as orchestration, and make assertion-detection changes easier to locate and reason about."
+      ],
+      "behaviorRisks": [
+        "Preserve malformed-call handling, violation spans and messages, and marker ordering: existing V3 markers first, then assert V5 markers, then expect V5 markers. Test discovery and assertion counts must remain unchanged."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "self_comparing",
+      "refactoring": "Extract Function: move the by_identity JavaScript literal block into a named TypeScript identity-operand predicate",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The function currently mixes normalized equality, general side-effect screening, template handling, and TypeScript identity semantics. Extracting the object/array/regular-expression literal rules would make the main decision sequence readable and give future TypeScript suffix or literal-syntax changes one focused home."
+      ],
+      "behaviorRisks": [
+        "Allocated object, array, and regex literals must remain excluded only for identity comparisons with no suffix or an accepted TypeScript assertion suffix. Member access, deep equality, side-effect screening, and all Java results must remain unchanged."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "python_pytest_imports and python_function_bindings",
+      "refactoring": "Extract Function: introduce is_pytest_module and use it at all three added pytest or pytest-submodule checks",
+      "rules": [
+        "S03"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Alias discovery and function-local binding collection now repeat the same module-recognition expression. Sharing it prevents the import resolver and shadowing analysis from drifting when module recognition changes."
+      ],
+      "behaviorRisks": [
+        "Recognize exactly pytest and its dotted submodules, preserve the existing None guards, and retain current wildcard-import resolution and local-import unshadowing behavior."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S03"
+        }
+      ],
+      "flags": [],
+      "id": "R5"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TypeScriptIntegrityTest",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The six added assertion-classification tests repeat the same base-tree creation, assertion substitution, head-tree creation, and checker invocation. Extracting a helper that runs one replacement assertion and returns the checker result would leave each test focused on its inputs and expected V5 outcome, making additional parser cases easier to add without copying setup."
+      ],
+      "behaviorRisks": [
+        "Preserve every assertion string, the replacement of assert.ok(value), the base and head contents, checker arguments, exit-code assertions, diagnostic assertions, and subtest behavior exactly."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R6"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "PythonIntegrityTest",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The imported-alias and wildcard runtime-skip tests repeat identical tree construction, source weakening, checker invocation, and V3 assertions. Extracting a helper parameterized by import text and call text would centralize the fixture mechanics while keeping the binding cases and their expected diagnostics visible in the tests."
+      ],
+      "behaviorRisks": [
+        "Preserve all import and call inputs, assertion replacement text, exit code 1, the exact V3 diagnostic checks, the existing V4 negative assertion where present, and subtest behavior exactly."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R7"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 7,
+    "byTier": {
+      "T0": 5,
+      "T1": 2,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

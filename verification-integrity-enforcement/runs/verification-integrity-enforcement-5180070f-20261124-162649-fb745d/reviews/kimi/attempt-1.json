@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "verification-integrity-enforcement-5180070f-20261124-162649-fb745d",
+  "agent": "kimi",
+  "attempt": 1,
+  "startedAt": "2026-11-24T16:27:15.050Z",
+  "endedAt": "2026-11-25T02:29:26.257Z",
+  "durationMs": 36126308,
+  "exitCode": null,
+  "timedOut": true,
+  "command": {
+    "file": "/tmp/kimi-review-command.sh",
+    "args": [
+      "--output-format",
+      "stream-json",
+      "--model",
+      "magpie/ctrip-ada/claude-kr-claude-sonnet-5.5[1M]",
+      "-p",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 47f6d18f719a6b5ec20774a82bc0d0e3bf338fad to 5180070f9274c2f41657e7e7d3b614370bb1e03e. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-5180070f-20261124-162649-fb745d/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-5180070f-20261124-162649-fb745d/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 3 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Bounded final follow-up review\n\nReview `47f6d18f719a6b5ec20774a82bc0d0e3bf338fad..5180070f9274c2f41657e7e7d3b614370bb1e03e` read-only. The earlier full DeepSeek Flash review through 47f6d18f is settled. This range fixes ordered pytest bindings, decorator shadowing, comprehension scope, balanced template substitutions, computed calls, identity suffixes, and boolean-suffix classification, then performs two behavior-preserving predicate extractions. Every behavioral finding has before-failing and after-passing regressions; all 477 script tests and three isolated candidates pass.\n\nUse at most 12 read-only tool calls. Inspect the complete diff and relevant tests, but do not enumerate speculative syntax beyond the changed mechanisms. Return only concrete introduced defects with a trigger, at most three findings, or an empty findings list immediately after those checks. Do not re-report ledger or GitHub tasks.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/verification-integrity-enforcement/.review-benchmark/runs/verification-integrity-enforcement-5180070f-20261124-162649-fb745d/snapshot"
+  },
+  "stdoutPath": "logs/kimi-attempt-1.stdout.log",
+  "stderrPath": "logs/kimi-attempt-1.stderr.log",
+  "messagePath": null,
+  "worktreeModified": false,
+  "system": {
+    "agent": "kimi",
+    "version": "kimi-code 2.7.3",
+    "provider": "magpie",
+    "model": "magpie/ctrip-ada/claude-kr-claude-sonnet-5.5[1M]",
+    "revision": null,
+    "effort": null
+  },
+  "budgetDropped": null,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "timed_out",
+  "summary": null,
+  "findings": null,
+  "rawFindings": null,
+  "error": "review exceeded the hard timeout of 1076s; process group was terminated"
+}

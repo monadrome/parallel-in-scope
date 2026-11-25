@@ -1,0 +1,277 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D-1",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S-1",
+      "status": "completed",
+      "error": null,
+      "findings": 3,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T-1",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "Source#comparison_form",
+      "refactoring": "Move Function",
+      "rules": [
+        "M01"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "`comparison_span`, `comparison_form`, `template_side_effect`, `typescript_fresh_identity_literal` and `self_comparing` take `source: Source` first and read only its fields (`comparison_view`, `code`, `literal_spans`); the type gained that data but not its behavior. Moving them onto `Source` gives the load-bearing invariant one owner (all three strings share offsets with `text`; `literal_spans` maps a literal's opening offset to its end), makes each derivation reachable without a full mask pass, and stops the change from adding the fourth-to-seventh copies of the `f(source, start, end)` shape alongside the existing `violation`, `call_arguments` and `java_noops`. Today a masking change can silently misalign `literal_spans` while any derived V5 decision flips with no test naming the invariant."
+      ],
+      "behaviorRisks": [
+        "Must keep every normalized comparison form, literal-span boundary, Java class-literal exception, JS template/tagged-template side-effect rejection and TS fresh-identity decision byte-identical, so the same `(path, rule, key)` violations and exit codes are produced."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M01"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "Source#literal_spans",
+      "refactoring": "Move Function (reuse the existing masked-source helper, extracting it if needed)",
+      "rules": [
+        "M05"
+      ],
+      "tier": "T2",
+      "scope": "in-diff",
+      "rationales": [
+        "`scripts/check-java-conventions.py` already models exactly this: a `Source` dataclass with `text`, `code` and `literals: dict[int, int]` documented as \"the [start, end) span of every string literal, quotes included\", populated at the same masking branches. The change adds a second span map with a narrower, unstated contract and a rewritten docstring (`mask_c_like` no longer promises offset preservation), so a reader must compare two gate scripts to answer \"what counts as a literal\". Sharing the concept leaves one definition to keep in step with the two maskers' deliberate differences."
+      ],
+      "behaviorRisks": [
+        "Reuse must not merge the deliberately different literal rules (Java double-quoted only vs. JS/TS single quotes, backticks and regex literals); a shared helper that widens or narrows either set changes V5 decisions. Extracting the helper into a new file outside `/scripts/check-*.py` also shrinks the path-based CODEOWNERS protection the gate enforces, so the protected-path set must be extended in the same move."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M05"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "scan_python",
+      "refactoring": "Remove Dead Code",
+      "rules": [
+        "D02"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "python_shadowed_calls records the id of every shadowed ast.Call, ast.Name and ast.Attribute node, and both the decorator call and its .func are visited under the same scope stack, so their shadow answers are always identical; for a non-call decorator target is the decorator itself. The second disjunct `id(target) in shadowed_calls` therefore cannot change the outcome in either branch. Dropping it leaves one place that decides shadowing, so a future narrowing of python_shadowed_calls (for example recording only Name nodes, or only the outer call) shows up as a failing test instead of being silently papered over by the duplicate ids check."
+      ],
+      "behaviorRisks": [
+        "None: the remaining `id(decorator) in shadowed_calls` covers both the `@alias` and `@alias()` shapes, and the runtime-skip loop below already keys on the call node alone."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "D-1",
+          "rule": "D02"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "scan_typescript",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S02"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The change adds a second inline V5 pass (TS_EXPECT_CALL / TS_EXPECT_EQUALITY / call_arguments / self_comparing) beside the existing assert pass, so one function now runs five unrelated scans (test titles, three selection passes, assert no-ops, expect no-ops) at mixed abstraction levels. Extracting typescript_noops(source, path) as an Iterator[Violation] (or assert_noops/expect_noops) restores the file's own convention, where java_noops, java_assumptions and python_noops each yield markers for one concern, and makes the next matcher family a new generator instead of another block in the scanner."
+      ],
+      "behaviorRisks": [
+        "The extracted generators must emit the same (start, end) span per marker, because violation() derives the baseline-subtraction key from normalize(source.text[start:end]); marker order inside a TestFile is not observable (new_markers counts keys and main sorts), and the assert path's close_index+1 span and the expect path's expectation_close+1 span must stay as they are."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S02"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "mask_c_like",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S03"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The change makes the function maintain three offset-identical views (out, comparison_view_out, literal_spans) by hand; the regex-literal hunk and the quoted-literal hunk repeat the same triple (record literal_spans[i], append the masked form, append the raw text), while only the plain characters go through the new append_both helper. Any future masked construct must remember three synchronized updates, and the only guard is the after-the-fact equal-length CheckError. One append_literal(masked, raw, end) helper beside append_both makes the three-output invariant explicit and keeps new branches two lines long."
+      ],
+      "behaviorRisks": [
+        "Must record exactly the same literal_spans entries (regex spans ending after the flags, quoted spans ending after the closing quote or at the unterminated end) and keep comparison_view carrying the raw literal text including its delimiters; the length check must still raise the same CheckError for either view."
+      ],
+      "guardingTests": [
+        "JavaIntegrityTest",
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S03"
+        }
+      ],
+      "flags": [],
+      "id": "R5"
+    },
+    {
+      "file": "scripts/check-verification-integrity.py",
+      "symbol": "typescript_fresh_identity_literal",
+      "refactoring": "Extract Function",
+      "rules": [
+        "S03"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Both branches of the new function repeat the same acceptance predicate, `not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix) is not None`, once bare and once inside a conjunction. That predicate is the documented rule \"newly allocated object/array/regex literals with a TypeScript type or non-null suffix are fresh\", so it should have one name (for example identity_only_suffix(suffix)) that both the delimiter branch and the regex branch call; today a change to the suffix grammar has to be repeated, and a missed copy silently reverses V5 for one literal kind."
+      ],
+      "behaviorRisks": [
+        "The `{`/`[` branch must keep the enclosing close >= 0 guard, because an unmatched delimiter yields an empty suffix that the predicate alone would accept; the regex branch must keep requiring start in literal_spans, and the suffix regex (no `||`/`&&`, `!` or `as`/`satisfies` only) must not change."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "S-1",
+          "rule": "S03"
+        }
+      ],
+      "flags": [],
+      "id": "R6"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "PythonIntegrityTest#test_imported_pytest_skip_aliases_fail (+ test_wildcard_pytest_runtime_skips_fail, test_function_local_pytest_alias_fails, test_function_local_pytest_import_overrides_earlier_binding, test_comprehension_variable_does_not_shadow_pytest_alias, test_nested_comprehension_variable_does_not_leak, test_local_pytest_alias_shadowing_passes)",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Six added rejection tests and two added acceptance tests in PythonIntegrityTest expand the same block: build a base tree from PYTHON_TEST, prepend or inject an import, replace one statement, run_check, then assert exit code and either the V3 runtime-skip message or code 0. Only the fixture text varies. Extracting helpers on the class, for example assert_runtime_skip_rejected(imports, statement) and assert_shadowing_accepted(head_text), turns each alias/shadowing variant into one data row, so the next pytest-alias case is a single tuple instead of a 5-line copy, and the expected message literal and PYTHON_PATH fixture have one edit site. The pre-existing test_runtime_python_skips_fail copy may migrate in the same move because this change adds the seventh copy of the shape (R2 exception)."
+      ],
+      "behaviorRisks": [
+        "Every subTest variant must keep its exact head text (import line placement, statement indentation inside test_works), its expected exit code (1 with the substring ': V3: new runtime test skip or xfail' for rejection cases, 0 for the two shadowing cases), and its own subTest label so a failure still names the offending variant. A helper must not parameterize exit code or message so loosely that an acceptance case and a rejection case share one assertion path."
+      ],
+      "guardingTests": [
+        "PythonIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R7"
+    },
+    {
+      "file": "scripts/tests/test_check_verification_integrity.py",
+      "symbol": "TypeScriptIntegrityTest#test_typescript_template_and_member_self_comparisons_fail (+ test_typescript_expect_trailing_commas_fail, test_typescript_deep_equality_and_pure_operands_fail, test_typescript_different_expect_values_pass, test_typescript_different_literal_whitespace_passes, test_typescript_non_pure_equality_calls_pass, test_typescript_identity_assertions_with_allocated_literals_pass)",
+      "refactoring": "Extract Function",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "Three added V5 rejection tests and four added acceptance tests repeat the identical four-step block: base tree from TS_TEST, head tree whose assert.ok(value) is replaced by the candidate assertion, run_check, then assert code 1 with ': V5:' or code 0. Extracting assert_typescript_violation(assertion) and assert_typescript_accepted(assertion) on the class collapses seven blocks into one-line rows, so a new TypeScript self-comparison case costs one tuple and the rule-message assertion has a single site. The same helper also lets the modified test_typescript_assertion_reduction_and_noops_fail express its widened matrix as (replacement, rule) rows instead of eight near-identical TS_TEST.replace locals."
+      ],
+      "behaviorRisks": [
+        "Each variant must keep the exact replacement text (comment markers, regex/template literals, trailing commas, parenthesization), the expected exit code and asserted substring (1 with ': V5:' for rejection, 0 for acceptance), and a distinct subTest label identifying the variant; the helper must not normalize whitespace or wrap the replacement in a way that changes what the checker parses."
+      ],
+      "guardingTests": [
+        "TypeScriptIntegrityTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R8"
+    }
+  ],
+  "conflicts": [],
+  "uncovered": [],
+  "totals": {
+    "findings": 8,
+    "byTier": {
+      "T0": 5,
+      "T1": 2,
+      "T2": 1
+    },
+    "incompleteAgents": 0
+  }
+}

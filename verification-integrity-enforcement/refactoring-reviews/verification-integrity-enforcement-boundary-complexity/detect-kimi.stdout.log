@@ -1,0 +1,41 @@
+{
+  "detectors": [
+    {
+      "agent": "M",
+      "reviewer": "kimi",
+      "attempt": 2,
+      "status": "completed",
+      "seconds": 272,
+      "findings": 2,
+      "progress": "agents/M/attempt-2.progress.jsonl"
+    },
+    {
+      "agent": "D-1",
+      "reviewer": "kimi",
+      "attempt": 2,
+      "status": "completed",
+      "seconds": 174,
+      "findings": 0,
+      "progress": "agents/D-1/attempt-2.progress.jsonl"
+    },
+    {
+      "agent": "S-1",
+      "reviewer": "kimi",
+      "attempt": 2,
+      "status": "completed",
+      "seconds": 138,
+      "findings": 3,
+      "progress": "agents/S-1/attempt-2.progress.jsonl"
+    },
+    {
+      "agent": "T-1",
+      "reviewer": "kimi",
+      "attempt": 2,
+      "status": "completed",
+      "seconds": 53,
+      "findings": 2,
+      "progress": "agents/T-1/attempt-2.progress.jsonl"
+    }
+  ],
+  "snapshotModified": false
+}

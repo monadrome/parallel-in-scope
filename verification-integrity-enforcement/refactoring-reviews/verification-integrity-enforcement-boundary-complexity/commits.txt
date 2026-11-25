@@ -1,0 +1,16 @@
+08b8df42 fix: preserve evaluation and binding boundaries
+47f6d18f refactor: synchronize masked view appends
+f869f40c fix: retain function local pytest imports
+9375b334 fix: align noop scans with expression semantics
+ece0c43e refactor: name comparison and pytest import views
+42586e6a fix: close comparison and wildcard import bypasses
+e4814ef9 refactor: clarify comparison semantics
+5aef14d5 fix: respect equality semantics in noop scans
+8afa3129 fix: resolve wildcard pytest suppression imports
+87be1a7c fix: preserve literal whitespace in comparisons
+7b288f07 fix: resolve pytest suppression decorator aliases
+e0bd5bb8 refactor: restore inline typescript noop scanners
+413aa468 docs: require three model types for full reviews
+656cc677 refactor: separate typescript noop scanners
+8e1121b8 fix: close remaining verification integrity bypasses
+610aba30 docs: record verification integrity assurance skip

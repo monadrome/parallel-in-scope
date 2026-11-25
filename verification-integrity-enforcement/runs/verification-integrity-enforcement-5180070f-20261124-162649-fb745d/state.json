@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "verification-integrity-enforcement-5180070f-20261124-162649-fb745d",
+  "status": "failed",
+  "createdAt": "2026-11-24T16:27:08.710Z",
+  "updatedAt": "2026-11-25T02:44:23.050Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T16:27:14.022Z",
+      "error": null
+    },
+    "reviews": {
+      "kimi": {
+        "agent": "kimi",
+        "status": "timed_out",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "timed_out",
+            "startedAt": "2026-11-24T16:27:15.050Z",
+            "endedAt": "2026-11-25T02:29:26.257Z",
+            "durationMs": 36126308,
+            "exitCode": null,
+            "timedOut": true,
+            "error": "review exceeded the hard timeout of 1076s; process group was terminated",
+            "recordPath": "reviews/kimi/attempt-1.json",
+            "logBase": "logs/kimi-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-25T02:29:27.276Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T02:29:30.356Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T02:29:32.002Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T02:29:33.353Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-25T02:44:22.930Z",
+      "error": null
+    }
+  },
+  "eventSeq": 32
+}

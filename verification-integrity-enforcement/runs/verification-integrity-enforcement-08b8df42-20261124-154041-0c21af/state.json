@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "verification-integrity-enforcement-08b8df42-20261124-154041-0c21af",
+  "status": "failed",
+  "createdAt": "2026-11-24T15:40:42.277Z",
+  "updatedAt": "2026-11-24T15:45:56.537Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:40:42.333Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-24T15:40:42.342Z",
+            "endedAt": "2026-11-24T15:42:20.167Z",
+            "durationMs": 97297,
+            "exitCode": 1,
+            "timedOut": false,
+            "error": "reviewer exited with code 1",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-24T15:42:20.179Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:42:20.269Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:42:20.327Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:42:20.401Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-24T15:45:56.502Z",
+      "error": null
+    }
+  },
+  "eventSeq": 23
+}
