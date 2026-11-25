@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "baseRef": "origin/dev/v0.5.0",
+  "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+  "head": "72237bfbaf687741a6a7d48c94636b657c03babe",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+      "head": "72237bfbaf687741a6a7d48c94636b657c03babe",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 185,
+        "touchedCandidates": 1,
+        "injectedCandidates": 1
+      },
+      "candidates": [
+        {
+          "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+          "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+          "startLine": 555,
+          "endLine": 612,
+          "cyclomatic": 13,
+          "cyclomaticParts": {
+            "if": 3,
+            "loop": 1,
+            "case": 0,
+            "catch": 1,
+            "ternary": 5,
+            "boolean": 2
+          },
+          "codeLines": 58,
+          "maxNesting": 1,
+          "nestingPath": "for",
+          "status": "modified",
+          "base": {
+            "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+            "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+            "startLine": 555,
+            "endLine": 613,
+            "cyclomatic": 13,
+            "cyclomaticParts": {
+              "if": 3,
+              "loop": 1,
+              "case": 0,
+              "catch": 1,
+              "ternary": 5,
+              "boolean": 2
+            },
+            "codeLines": 59,
+            "maxNesting": 1,
+            "nestingPath": "for"
+          },
+          "delta": {
+            "cyclomatic": 0,
+            "codeLines": -1,
+            "maxNesting": 0
+          },
+          "triggers": [
+            "head.cyclomatic>=threshold"
+          ]
+        }
+      ],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "8 code file(s), 112 changed code line(s)",
+  "totals": {
+    "codeFiles": 8,
+    "codeLines": 112
+  },
+  "files": [
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+      "class": "main",
+      "codeLines": 10,
+      "commentLines": 9
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+      "class": "main",
+      "codeLines": 14,
+      "commentLines": 2
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+      "class": "main",
+      "codeLines": 15,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+      "class": "main",
+      "codeLines": 34,
+      "commentLines": 19
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "class": "main",
+      "codeLines": 3,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+      "class": "main",
+      "codeLines": 2,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java",
+      "class": "test",
+      "codeLines": 27,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 0
+    }
+  ],
+  "skippedFiles": [],
+  "lenses": [
+    "M",
+    "C",
+    "D",
+    "S",
+    "V",
+    "T"
+  ],
+  "mode": "per-lens",
+  "agents": [
+    {
+      "id": "M",
+      "lenses": [
+        "M"
+      ],
+      "shard": null,
+      "wholeDiff": true,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java"
+      ],
+      "codeLines": 112,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/M/diff.patch",
+      "brief": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/M/brief.md",
+      "findings": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/M/findings.json"
+    },
+    {
+      "id": "C",
+      "lenses": [
+        "C"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java"
+      ],
+      "codeLines": 65,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/C/diff.patch",
+      "brief": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/C/brief.md",
+      "findings": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/C/findings.json"
+    },
+    {
+      "id": "D",
+      "lenses": [
+        "D"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 78,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/D/diff.patch",
+      "brief": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/D/brief.md",
+      "findings": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/D/findings.json"
+    },
+    {
+      "id": "S",
+      "lenses": [
+        "S"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 78,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/S/diff.patch",
+      "brief": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/S/brief.md",
+      "findings": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/S/findings.json"
+    },
+    {
+      "id": "V",
+      "lenses": [
+        "V"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/WorkloadFit.java"
+      ],
+      "codeLines": 78,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/V/diff.patch",
+      "brief": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/V/brief.md",
+      "findings": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/V/findings.json"
+    },
+    {
+      "id": "T",
+      "lenses": [
+        "T"
+      ],
+      "shard": null,
+      "wholeDiff": false,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java"
+      ],
+      "codeLines": 34,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/T/diff.patch",
+      "brief": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/T/brief.md",
+      "findings": ".agents/reviews/refactoring-refactor-diagnostics-wiring-2026-11-25/agents/T/findings.json"
+    }
+  ],
+  "uncovered": [],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

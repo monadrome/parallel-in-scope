@@ -1,0 +1,388 @@
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java b/core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java
+index 5f7d3149..df96048a 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java
+@@ -1,9 +1,12 @@
+ package io.github.monadrome.parallelinscope;
+ 
++import static com.google.common.base.Preconditions.checkNotNull;
++
+ import java.util.concurrent.Executor;
+ 
+ /**
+- * Delivery of the runtime's diagnostic log messages on a runtime-owned executor.
++ * Delivery of the runtime's diagnostic log messages on a runtime-owned executor. Every diagnostic
++ * log station of one runtime delivers through its single instance.
+  *
+  * <p>An admitting thread never calls a logging handler, which may throw, block, or re-enter. A
+  * failing handler drops the message, and so does a delivery the executor cannot start: a rejection
+@@ -13,11 +16,22 @@ import java.util.concurrent.Executor;
+  * are delivered independently, so they may appear out of admission order.
+  */
+ final class Announcements {
+-    private Announcements() {}
++    private final Executor delivery;
++
++    /**
++     * Creates the delivery for one runtime.
++     *
++     * @param delivery the runtime-owned executor that runs each message
++     * @throws NullPointerException if {@code delivery} is null
++     */
++    Announcements(Executor delivery) {
++        this.delivery = checkNotNull(delivery, "delivery cannot be null");
++    }
+ 
+-    static void deliver(Executor announcements, Runnable message) {
++    /** Hands {@code message} to the delivery executor; never throws, whatever the message or executor does. */
++    void deliver(Runnable message) {
+         try {
+-            announcements.execute(() -> {
++            delivery.execute(() -> {
+                 try {
+                     message.run();
+                 } catch (Throwable handlerFailure) {
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java b/core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java
+index 600d4a71..35f6b304 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java
+@@ -20,7 +20,6 @@ import java.util.HashSet;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
+-import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicReference;
+ import java.util.function.IntFunction;
+ import java.util.logging.Level;
+@@ -41,16 +40,16 @@ final class ExecutorWaitGraph {
+ 
+     private final ImmutableSetMultimap<ExecutorIdentity, ParId> aliases;
+     private final ImmutableMap<ExecutorIdentity, Integer> registrationOrder;
+-    private final Executor announcements;
++    private final Announcements announcements;
+     private final AtomicReference<State> state;
+ 
+     /**
+      * Creates an empty graph over the runtime's registrations.
+      *
+      * @param aliases every id each registered executor is registered under, in registration order
+-     * @param announcements the runtime-owned executor that delivers cycle warnings
++     * @param announcements the runtime's delivery for cycle warnings
+      */
+-    ExecutorWaitGraph(ImmutableSetMultimap<ExecutorIdentity, ParId> aliases, Executor announcements) {
++    ExecutorWaitGraph(ImmutableSetMultimap<ExecutorIdentity, ParId> aliases, Announcements announcements) {
+         this.aliases = checkNotNull(aliases, "aliases cannot be null");
+         this.announcements = checkNotNull(announcements, "announcements cannot be null");
+         ImmutableMap.Builder<ExecutorIdentity, Integer> order = ImmutableMap.builder();
+@@ -138,7 +137,7 @@ final class ExecutorWaitGraph {
+                 missing.add(new Wait(from, to, waiter + " -> " + target));
+             }
+         } catch (RuntimeException failure) {
+-            announce(() -> LOGGER.log(Level.WARNING, "Reading executor wait units failed", failure));
++            announcements.deliver(() -> LOGGER.log(Level.WARNING, "Reading executor wait units failed", failure));
+             return;
+         }
+         if (missing != null) {
+@@ -163,7 +162,7 @@ final class ExecutorWaitGraph {
+         try {
+             install(missing);
+         } catch (RuntimeException failure) {
+-            announce(() -> LOGGER.log(Level.WARNING, "Recording an executor wait failed", failure));
++            announcements.deliver(() -> LOGGER.log(Level.WARNING, "Recording an executor wait failed", failure));
+         }
+     }
+ 
+@@ -193,7 +192,7 @@ final class ExecutorWaitGraph {
+     /** Announces exactly those components formed by the successful installation. */
+     private void announceNewComponents(State previous, State installed) {
+         for (ExecutorWaitReport.Component component : installed.componentsAbsentFrom(previous)) {
+-            announce(() -> LOGGER.warning(warning(component)));
++            announcements.deliver(() -> LOGGER.warning(warning(component)));
+         }
+     }
+ 
+@@ -206,10 +205,6 @@ final class ExecutorWaitGraph {
+                 + " ParRuntime.executorWaitReport().";
+     }
+ 
+-    private void announce(Runnable message) {
+-        Announcements.deliver(announcements, message);
+-    }
+-
+     private ExecutorWaitReport.Component component(
+             List<ExecutorIdentity> members,
+             Graph<ExecutorIdentity> graph,
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+index eb32f3dc..f29b9752 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+@@ -284,8 +284,7 @@ public final class Par {
+                     public void onFailure(Throwable failure) {}
+                 },
+                 MoreExecutors.directExecutor());
+-        runtime.retainUntilComplete(completion);
+-        runtime.trackExecutions(executionExit);
++        runtime.trackAdmission(completion, executionExit);
+         TaskBatch<R> batch = submitter.submitAll(tasks, views);
+         submitCanceller.setFuture(batch.submitCanceller());
+         return batch.finishCombined(terminalView);
+@@ -369,8 +368,7 @@ public final class Par {
+         Task<T> view = Task.of(unit.name(), unit.cancellationToken(), future);
+         ListenableFuture<?> completion = unit.cancellationToken()
+                 .bind(Collections.singletonList(future), NO_SUBMISSION, runtime.timeoutScheduler());
+-        runtime.retainUntilComplete(completion);
+-        runtime.trackExecutions(executionExit);
++        runtime.trackAdmission(completion, executionExit);
+         TaskSubmissions.submitScoped(future, unit, executorRuntime.submissionExecutor());
+         return view;
+     }
+@@ -408,8 +406,7 @@ public final class Par {
+         ImmutableList<Task<R>> views = submitter.viewsFor(tasks);
+         SettableFuture<Object> submitCanceller = SettableFuture.create();
+         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, views, submitCanceller);
+-        runtime.retainUntilComplete(completion);
+-        runtime.trackExecutions(executionExit);
++        runtime.trackAdmission(completion, executionExit);
+         TaskBatch<R> result = submitter.submitAll(tasks, views);
+         submitCanceller.setFuture(result.submitCanceller());
+         return result;
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+index 22735564..f0fb4f13 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+@@ -92,8 +92,8 @@ public final class ParRuntime implements AutoCloseable {
+     private final ScheduledExecutorService starvationScheduler;
+     private final ExecutorService timeoutActionPool;
+ 
+-    /** The runtime-owned executor that delivers diagnostic log messages; see {@link Announcements}. */
+-    private final Executor announcements;
++    /** The delivery shared by every diagnostic log message of this runtime. */
++    private final Announcements announcements;
+ 
+     private final ScheduledExecutorService timeoutScheduler;
+ 
+@@ -119,7 +119,8 @@ public final class ParRuntime implements AutoCloseable {
+                 ? builder.timeoutScheduler
+                 : new DispatchingScheduledExecutorService(timerService, timeoutActionPool);
+         this.defaultId = builder.defaultId;
+-        Executor announcements = builder.announcements != null ? builder.announcements : timeoutActionPool;
++        Announcements announcements =
++                new Announcements(builder.announcements != null ? builder.announcements : timeoutActionPool);
+         this.announcements = announcements;
+         ImmutableMap.Builder<ParId, Par> builtPars = ImmutableMap.builderWithExpectedSize(builder.executors.size());
+         ImmutableMap.Builder<ParId, ExecutorRuntime> builtRuntimes =
+@@ -149,20 +150,17 @@ public final class ParRuntime implements AutoCloseable {
+      *
+      * @throws IllegalArgumentException if the physical executor silently discards rejected tasks
+      */
+-    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor, Executor announcements) {
++    private static ExecutorRuntime runtimeFor(ParId id, ExecutorService executor, Announcements announcements) {
+         ExecutorService introspectable = TtlUnwrap.unwrap(executor);
+         if (!(introspectable instanceof ThreadPoolExecutor)) {
+-            Announcements.deliver(
+-                    announcements,
+-                    () -> LOGGER.warning(
+-                            "Par '" + id + "' is registered with "
+-                                    + executor.getClass().getName()
+-                                    + ", which this library cannot see through:"
+-                                    + " blocking-risk detection is disabled for it. If this executor only"
+-                                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
+-                                    + " instead of the wrapper to keep it. An executor that starts a fresh"
+-                                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
+-                                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it."));
++            announcements.deliver(() -> LOGGER.warning("Par '" + id + "' is registered with "
++                    + executor.getClass().getName()
++                    + ", which this library cannot see through:"
++                    + " blocking-risk detection is disabled for it. If this executor only"
++                    + " decorates a physical ThreadPoolExecutor, register that pool itself"
++                    + " instead of the wrapper to keep it. An executor that starts a fresh"
++                    + " thread per task, such as Executors.newVirtualThreadPerTaskExecutor(),"
++                    + " cannot be starved by a child queued on the same pool, so this feature does not apply to it."));
+         } else {
+             RejectedExecutionHandler policy = ((ThreadPoolExecutor) introspectable).getRejectedExecutionHandler();
+             if (policy instanceof ThreadPoolExecutor.DiscardPolicy
+@@ -177,12 +175,10 @@ public final class ParRuntime implements AutoCloseable {
+             }
+         }
+         if (TtlUnwrap.isWrapper(executor)) {
+-            Announcements.deliver(
+-                    announcements,
+-                    () -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
+-                            + executor.getClass().getName()
+-                            + "; register the physical pool instead. TTL capture then happens twice"
+-                            + " for every task: once at the executor boundary and once at prepare."));
++            announcements.deliver(() -> LOGGER.warning("Par '" + id + "' is registered with the TTL wrapper "
++                    + executor.getClass().getName()
++                    + "; register the physical pool instead. TTL capture then happens twice"
++                    + " for every task: once at the executor boundary and once at prepare."));
+         }
+         return new ExecutorRuntime(executor);
+     }
+@@ -590,18 +586,32 @@ public final class ParRuntime implements AutoCloseable {
+     }
+ 
+     /**
+-     * Keeps a submitted batch's futures from being dropped until every one reaches a terminal
+-     * state. Callers that already hold a completion aggregate — such as the one returned by {@link
+-     * CancellationToken#bind} over the same futures — pass it to {@link
+-     * #retainUntilComplete(ListenableFuture)} instead of building a second aggregate here.
++     * Registers one admission's lifecycle: keeps its futures referenced until every one reaches a
++     * terminal state, then tracks its execution exit; see {@link #trackAdmission(ListenableFuture,
++     * ExecutionExitTracker)}. An empty {@code results} retains nothing. Callers that already hold a
++     * completion aggregate, such as the one returned by {@link CancellationToken#bind} over the same
++     * futures, pass it to that overload instead of building a second aggregate here.
+      */
+-    void retainUntilComplete(List<? extends ListenableFuture<?>> results) {
+-        if (results.isEmpty()) return;
+-        retainUntilComplete(Futures.successfulAsList(results));
++    void trackAdmission(List<? extends ListenableFuture<?>> results, ExecutionExitTracker executionExit) {
++        if (!results.isEmpty()) {
++            retainUntilComplete(Futures.successfulAsList(results));
++        }
++        trackExecutions(executionExit);
++    }
++
++    /**
++     * Registers one admission's lifecycle: keeps {@code completion} referenced until it reaches a
++     * terminal state, so service shutdown waits for it, then tracks {@code executionExit}, so
++     * {@link #awaitQuiescence} waits for every execution to exit. Must be called inside {@link
++     * #whileOpen}; see {@link #trackExecutions}.
++     */
++    void trackAdmission(ListenableFuture<?> completion, ExecutionExitTracker executionExit) {
++        retainUntilComplete(completion);
++        trackExecutions(executionExit);
+     }
+ 
+     /** Keeps a completion aggregate referenced until it reaches a terminal state. */
+-    void retainUntilComplete(ListenableFuture<?> completion) {
++    private void retainUntilComplete(ListenableFuture<?> completion) {
+         activeBatches.incrementAndGet();
+         completion.addListener(
+                 () -> {
+@@ -619,7 +629,7 @@ public final class ParRuntime implements AutoCloseable {
+      * empty set is stable.
+      */
+     @SuppressWarnings("CollectionUndefinedEquality")
+-    void trackExecutions(ExecutionExitTracker tracker) {
++    private void trackExecutions(ExecutionExitTracker tracker) {
+         ListenableFuture<@Nullable Void> signal = tracker.executionExit();
+         if (signal.isDone()) return;
+         liveExecutionSignals.add(signal);
+@@ -661,9 +671,12 @@ public final class ParRuntime implements AutoCloseable {
+         return workloadClock;
+     }
+ 
+-    /** Delivers a diagnostic log message off the calling thread; never throws or blocks the caller. */
++    /**
++     * Delivers a diagnostic log message through this runtime's {@link Announcements}; never throws,
++     * whatever the message or delivery executor does.
++     */
+     void announce(Runnable message) {
+-        Announcements.deliver(announcements, message);
++        announcements.deliver(message);
+     }
+ 
+     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+index a1d7a3fe..de48ee25 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+@@ -607,8 +607,7 @@ final class TaskGroup<R> implements AutoCloseable {
+         if (terminal != null) {
+             retained.add(terminal.future);
+         }
+-        env.retainUntilComplete(retained);
+-        env.trackExecutions(executionExit);
++        env.trackAdmission(retained, executionExit);
+         return group;
+     }
+ 
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java
+index 88cd5765..1fc37bc6 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java
+@@ -14,14 +14,14 @@ class AnnouncementsTest {
+     void aMessageRunsOnTheGivenExecutor() {
+         AtomicInteger runs = new AtomicInteger();
+ 
+-        Announcements.deliver(Runnable::run, runs::incrementAndGet);
++        new Announcements(Runnable::run).deliver(runs::incrementAndGet);
+ 
+         assertThat(runs).hasValue(1);
+     }
+ 
+     @Test
+     void aFailingHandlerIsDropped() {
+-        Announcements.deliver(Runnable::run, () -> {
++        new Announcements(Runnable::run).deliver(() -> {
+             throw new IllegalStateException("handler failure");
+         });
+     }
+@@ -30,16 +30,14 @@ class AnnouncementsTest {
+     void aRejectedOrFailedDeliveryIsDropped() {
+         AtomicInteger runs = new AtomicInteger();
+ 
+-        Announcements.deliver(
+-                command -> {
++        new Announcements(command -> {
+                     throw new RejectedExecutionException("services shut down");
+-                },
+-                runs::incrementAndGet);
+-        Announcements.deliver(
+-                command -> {
++                })
++                .deliver(runs::incrementAndGet);
++        new Announcements(command -> {
+                     throw new SecurityException("thread creation denied");
+-                },
+-                runs::incrementAndGet);
++                })
++                .deliver(runs::incrementAndGet);
+ 
+         assertThat(runs).hasValue(0);
+     }
+@@ -51,13 +49,12 @@ class AnnouncementsTest {
+      */
+     @Test
+     void anErrorStartingOrRunningADeliveryIsDropped() {
+-        assertThatCode(() -> Announcements.deliver(
+-                        command -> {
++        assertThatCode(() -> new Announcements(command -> {
+                             throw new OutOfMemoryError("unable to create native thread");
+-                        },
+-                        () -> {}))
++                        })
++                        .deliver(() -> {}))
+                 .doesNotThrowAnyException();
+-        assertThatCode(() -> Announcements.deliver(Runnable::run, () -> {
++        assertThatCode(() -> new Announcements(Runnable::run).deliver(() -> {
+                     throw new AssertionError("handler error");
+                 }))
+                 .doesNotThrowAnyException();
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java
+index 515efa95..c8504210 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java
+@@ -52,7 +52,7 @@ class ExecutorWaitGraphTest {
+         for (int index = 0; index < identitiesAndIds.length; index += 2) {
+             aliases.put((ExecutorIdentity) identitiesAndIds[index], ParId.of((String) identitiesAndIds[index + 1]));
+         }
+-        return new ExecutorWaitGraph(aliases.build(), announcements::add);
++        return new ExecutorWaitGraph(aliases.build(), new Announcements(announcements::add));
+     }
+ 
+     private static TaskNode unit(String name, ExecutorIdentity executor) {
+@@ -382,9 +382,10 @@ class ExecutorWaitGraphTest {
+     @Test
+     void anAnnouncementRejectedAfterShutdownDoesNotFailTheAdmission() {
+         ExecutorIdentity a = executor();
+-        ExecutorWaitGraph graph = new ExecutorWaitGraph(ImmutableSetMultimap.of(a, ParId.of("a")), command -> {
+-            throw new RejectedExecutionException("shut down");
+-        });
++        ExecutorWaitGraph graph =
++                new ExecutorWaitGraph(ImmutableSetMultimap.of(a, ParId.of("a")), new Announcements(command -> {
++                    throw new RejectedExecutionException("shut down");
++                }));
+ 
+         graph.record(unit("outer", a), unit("inner", a));
+ 

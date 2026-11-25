@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "diagnostics-wiring-27ff7b56-20261125-152939-6c2224",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T15:29:41.256Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/diagnostics-wiring",
+    "name": "diagnostics-wiring",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+    "head": "27ff7b56dd8cb2e7626b05fc5248375f7cf29113",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+    "to": "27ff7b56dd8cb2e7626b05fc5248375f7cf29113",
+    "label": "f093bb12..27ff7b56"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "d6c2a8a799ada92815d4e66f4e7d9d016d1dcd8dcc466fdd2fba1a5c215f6a92",
+    "bytes": 20767,
+    "files": [
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Announcements.java",
+        "status": "M",
+        "additions": 18,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ExecutorWaitGraph.java",
+        "status": "M",
+        "additions": 6,
+        "deletions": 11
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "status": "M",
+        "additions": 45,
+        "deletions": 32
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/AnnouncementsTest.java",
+        "status": "M",
+        "additions": 12,
+        "deletions": 15
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitGraphTest.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "2660de5af15f44695bfdb4da5254fcdee9b19a6d4fb279263d816ee3e97427b1",
+    "bytes": 3228,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "1d8dea3dc654765d7d97e016eeca85c1c6f388da8751e6b8d23e4f2c1ea0934b",
+    "bytes": 3276
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "27ff7b56dd8cb2e7626b05fc5248375f7cf29113",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

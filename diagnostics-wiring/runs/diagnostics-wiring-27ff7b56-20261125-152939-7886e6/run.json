@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "diagnostics-wiring-27ff7b56-20261125-152939-7886e6",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T15:29:41.328Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/diagnostics-wiring",
+    "name": "diagnostics-wiring"
+  },
+  "commits": {
+    "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+    "head": "27ff7b56dd8cb2e7626b05fc5248375f7cf29113",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "kimi-k3",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1800,
+      "reviewSeconds": 1500,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "671f21fa1a3059cb5df8d308f15561f839c99c7d71bfad509cec12ff68bef703",
+    "contextJsonSha256": "6ff51d45f40c441311b0caff20837e1acccb6f53c7725f6cc04d6a7aeab92d35",
+    "diffSha256": "d6c2a8a799ada92815d4e66f4e7d9d016d1dcd8dcc466fdd2fba1a5c215f6a92",
+    "caseManifestSha256": "598f6826b3274551027ae3e51c652b336474077bc5adf764ffdc818bae4650f8",
+    "promptSha256": "e8561978f48b69c01e1730da55fedc6bd1a74c3365f5d643ad14e2dac8ec5590"
+  },
+  "promptPath": "inputs/prompt.md"
+}

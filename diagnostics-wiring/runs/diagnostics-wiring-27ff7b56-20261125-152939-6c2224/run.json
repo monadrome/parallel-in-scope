@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "diagnostics-wiring-27ff7b56-20261125-152939-6c2224",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-25T15:29:41.285Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/diagnostics-wiring",
+    "name": "diagnostics-wiring"
+  },
+  "commits": {
+    "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+    "head": "27ff7b56dd8cb2e7626b05fc5248375f7cf29113",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "kiro",
+        "version": "kiro-cli 3.5.0",
+        "provider": "kiro",
+        "model": "gpt-5.6-terra",
+        "revision": null,
+        "effort": "max",
+        "command": null,
+        "extraArgs": [
+          "--effort",
+          "max"
+        ],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1800,
+      "reviewSeconds": 1500,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "2660de5af15f44695bfdb4da5254fcdee9b19a6d4fb279263d816ee3e97427b1",
+    "contextJsonSha256": "1d8dea3dc654765d7d97e016eeca85c1c6f388da8751e6b8d23e4f2c1ea0934b",
+    "diffSha256": "d6c2a8a799ada92815d4e66f4e7d9d016d1dcd8dcc466fdd2fba1a5c215f6a92",
+    "caseManifestSha256": "4c13bec5c4313a9eea27e7e7c7414daeecc71050d1ac805d71665de78ad326eb",
+    "promptSha256": "03f932fab1d82f658bcbae081af1166fdf16b4ee2807c373ff0dc3843a76c1ee"
+  },
+  "promptPath": "inputs/prompt.md"
+}

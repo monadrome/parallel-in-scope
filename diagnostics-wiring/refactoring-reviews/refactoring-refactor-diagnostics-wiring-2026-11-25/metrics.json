@@ -1,0 +1,70 @@
+{
+  "version": "complexity-metrics/v1",
+  "stage": "gray-evaluation",
+  "purpose": "attention-routing evidence; not a quality score or CI gate",
+  "base": "f093bb12f7695db32eaeb1e7e89cba2539944db7",
+  "head": "72237bfbaf687741a6a7d48c94636b657c03babe",
+  "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+  "thresholds": {
+    "cyclomatic": 10,
+    "codeLines": 80,
+    "maxNesting": 4,
+    "deltaCyclomatic": 2,
+    "deltaCodeLines": 10,
+    "deltaMaxNesting": 1
+  },
+  "summary": {
+    "methods": 185,
+    "touchedCandidates": 1,
+    "injectedCandidates": 1
+  },
+  "candidates": [
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+      "startLine": 555,
+      "endLine": 612,
+      "cyclomatic": 13,
+      "cyclomaticParts": {
+        "if": 3,
+        "loop": 1,
+        "case": 0,
+        "catch": 1,
+        "ternary": 5,
+        "boolean": 2
+      },
+      "codeLines": 58,
+      "maxNesting": 1,
+      "nestingPath": "for",
+      "status": "modified",
+      "base": {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+        "startLine": 555,
+        "endLine": 613,
+        "cyclomatic": 13,
+        "cyclomaticParts": {
+          "if": 3,
+          "loop": 1,
+          "case": 0,
+          "catch": 1,
+          "ternary": 5,
+          "boolean": 2
+        },
+        "codeLines": 59,
+        "maxNesting": 1,
+        "nestingPath": "for"
+      },
+      "delta": {
+        "cyclomatic": 0,
+        "codeLines": -1,
+        "maxNesting": 0
+      },
+      "triggers": [
+        "head.cyclomatic>=threshold"
+      ]
+    }
+  ],
+  "omittedCandidates": 0,
+  "status": "completed"
+}
