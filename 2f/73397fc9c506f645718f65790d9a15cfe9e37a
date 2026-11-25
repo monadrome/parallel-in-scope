@@ -1,0 +1,21 @@
+verification/pit-audit/2026-11-24-remove-tasktype.md
+  s_6d416b0102ba87::t_6a2a45e21f8c98 279
+  s_6d416b0102ba87::t_cb9545ef458e63 159-178
+  s_6d416b0102ba87::t_e1351a6c7085a1 122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2f73397fc9c506f645718f65790d9a15cfe9e37a",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
