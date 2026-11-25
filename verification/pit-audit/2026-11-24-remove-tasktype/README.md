@@ -43,8 +43,7 @@ POMs, and runner; both differ from head only by the test that `f020503d` adds.
 | Head total | 1577 | 68 | 22 | 32 | 1699 |
 | Base total | 1696 | 70 | 24 | 33 | 1823 |
 
-The aggregate result is **inconclusive**, not pass. The parent record gives every run's counts,
-the dispositions, and the open decisions.
+The parent record gives every run's counts, the dispositions, and the overall status.
 
 ## Contents
 
