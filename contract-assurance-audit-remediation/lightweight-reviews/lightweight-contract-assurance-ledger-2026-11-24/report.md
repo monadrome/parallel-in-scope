@@ -17,8 +17,8 @@
 | codex-cli 0.169.0, `gpt-6.1-terra` | failed | The configured magpie provider returned HTTP 404: this Codex-owned model requires a ChatGPT account not present in the current provider/auth configuration. |
 | kiro-cli, `gpt-5.6-terra`, effort max | setup failed | The CLI reported `Not logged in` and requested API-key or interactive login configuration. No credentials were changed and no review result was produced. |
 
-The implementation and follow-up code/test diffs already have completed independent reviews. This blocker applies only to the final delivery-ledger commit. A same-model Kimi self-review was rejected as a substitute because the repository requires a different model for lightweight reviews as well.
+The implementation and follow-up code/test diffs already have completed independent reviews. The earlier blocker applied only to the final delivery-ledger commit and was cleared by the completed DeepSeek Flash re-review. A same-model Kimi self-review was not used because the repository requires a different model for lightweight reviews as well.
 
-Raw agent output and logs remain outside the archive. The frozen review prompt and committed diff are included so a later available reviewer can resume without changing the ledger or rewriting prior evidence.
+Raw agent output and logs remain outside the archive. The review prompt and committed diff preserve the follow-up inputs without rewriting the failed attempts recorded above.
 
 Review gate: PASS
