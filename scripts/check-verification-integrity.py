@@ -168,6 +168,11 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
         out.append(segment)
         comparison_view_out.append(segment)
 
+    def append_literal(masked: str, raw: str, end: int) -> None:
+        literal_spans[i] = end
+        out.append(masked)
+        comparison_view_out.append(raw)
+
     i, n = 0, len(text)
     while i < n:
         if text.startswith("//", i):
@@ -182,9 +187,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             i = end
         elif javascript and text[i] == "/" and (span := javascript_regex_span(text, i)) is not None:
             close, end = span
-            literal_spans[i] = end
-            out.append("/" + blank(text[i + 1:close]) + text[close:end])
-            comparison_view_out.append(text[i:end])
+            append_literal("/" + blank(text[i + 1:close]) + text[close:end], text[i:end], end)
             i = end
         elif text[i] in "\"'`":
             quote = '"""' if text.startswith('"""', i) else text[i]
@@ -198,9 +201,7 @@ def mask_c_like(text: str, javascript: bool = False) -> Source:
             j = min(j, n)
             closed = text.startswith(quote, j)
             end = j + len(quote) if closed else j
-            literal_spans[i] = end
-            out.append(quote + blank(text[i + len(quote):j]) + (quote if closed else ""))
-            comparison_view_out.append(text[i:end])
+            append_literal(quote + blank(text[i + len(quote):j]) + (quote if closed else ""), text[i:end], end)
             i = end
         else:
             append_both(text[i])
@@ -307,15 +308,19 @@ def template_side_effect(source: Source, start: int, end: int) -> bool:
     return False
 
 
+def identity_only_suffix(suffix: str) -> bool:
+    return not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix) is not None
+
+
 def typescript_fresh_identity_literal(source: Source, start: int, end: int) -> bool:
     opening = source.comparison_view[start]
     if opening in "{[":
         close = matching_delimiter(source.code, start, opening, "}" if opening == "{" else "]")
         suffix = normalize(source.comparison_view[close + 1:end]) if close >= 0 else ""
-        return close >= 0 and (not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix) is not None)
+        return close >= 0 and identity_only_suffix(suffix)
     if opening == "/" and start in source.literal_spans:
         suffix = normalize(source.comparison_view[source.literal_spans[start]:end])
-        return not suffix or TS_IDENTITY_SUFFIX.fullmatch(suffix) is not None
+        return identity_only_suffix(suffix)
     return False
 
 
@@ -647,7 +652,7 @@ def scan_python(path: str, text: str, digest: str) -> TestFile:
             if isinstance(decorator, ast.Call):
                 decorator_calls.add(id(decorator))
             target = decorator.func if isinstance(decorator, ast.Call) else decorator
-            if id(decorator) in shadowed_calls or id(target) in shadowed_calls:
+            if id(decorator) in shadowed_calls:
                 continue
             name = python_resolved_name(target, aliases, wildcard_imports)
             if name.rsplit(".", 1)[-1].lower() in PYTHON_DISABLED:
