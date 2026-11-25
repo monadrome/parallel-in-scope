@@ -1,0 +1,19 @@
+scripts/tests/test_check_verification_integrity.py
+  s_e5dc359c2ecea7::t_81af3eb288c745 249-261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "4e0247aea2bf75bc90c8e9a94561464ae11b3039",
+  "prompts": {},
+  "sessions": {
+    "s_e5dc359c2ecea7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20cdb-e403-7490-a3ae-0590c1319e35",
+        "model": "ctrip-ada/claude-auto[1M]"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
