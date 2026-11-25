@@ -1,0 +1,25 @@
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java
+  s_6d416b0102ba87::t_b739155a651bf3 1-116
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java
+  s_6d416b0102ba87::t_b739155a651bf3 1-129
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005RegistrationAndCycleWarningsContractTest.java
+  s_6d416b0102ba87::t_b739155a651bf3 1-210
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java
+  s_6d416b0102ba87::t_b739155a651bf3 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c247635c50f0b89e2afcd93c4d38e430d672c6fb",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
