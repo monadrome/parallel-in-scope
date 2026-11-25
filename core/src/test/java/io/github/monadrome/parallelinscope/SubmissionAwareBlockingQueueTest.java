@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 
 class SubmissionAwareBlockingQueueTest {
     @AfterEach
@@ -34,13 +32,12 @@ class SubmissionAwareBlockingQueueTest {
         assertThat(queue.capacity()).isEqualTo(2);
     }
 
-    @ParameterizedTest
-    @EnumSource(TaskType.class)
-    void onlyRejectEnqueueRefusesWhateverTheTaskType(TaskType taskType) {
+    @Test
+    void onlyRejectEnqueueRefuses() {
         SubmissionAwareBlockingQueue<Integer> queue = new SubmissionAwareBlockingQueue<>(2);
-        assertOfferRejects(queue, context(taskType, true), 1);
+        assertOfferRejects(queue, context(true), 1);
 
-        MultiTaskContext previous = SubmissionScope.install(context(taskType, false));
+        MultiTaskContext previous = SubmissionScope.install(context(false));
         try {
             assertThat(queue.offer(2)).isTrue();
             assertThat(queue.poll()).isEqualTo(2);
@@ -60,10 +57,9 @@ class SubmissionAwareBlockingQueueTest {
         }
     }
 
-    private static MultiTaskContext context(TaskType taskType, boolean rejectEnqueue) {
+    private static MultiTaskContext context(boolean rejectEnqueue) {
         return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("queue", Duration.ofSeconds(30))
-                        .taskType(taskType)
                         .rejectEnqueue(rejectEnqueue)
                         .spec(),
                 1));

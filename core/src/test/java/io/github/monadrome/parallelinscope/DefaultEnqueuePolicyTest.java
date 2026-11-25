@@ -10,14 +10,14 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
- * Locks the consequence of the default options, and of a task type, on the pool shape this library
- * recommends: a {@link SubmissionAwareBlockingQueue} paired with a {@code CallerRunsPolicy}.
+ * Locks the consequence of the default options, and of {@code rejectEnqueue}, on the pool shape this
+ * library recommends: a {@link SubmissionAwareBlockingQueue} paired with a {@code CallerRunsPolicy}.
  *
  * <p>{@code SubmissionAwareBlockingQueue.offer} refuses only when the unit sets {@code rejectEnqueue}. A
  * refused offer leaves the capacity unused, grows the pool to its maximum, and runs every further
  * task on whichever thread called {@code execute} — a parallel library running its work serially on
  * the caller. These tests pin that by observable effect rather than by option value: default options
- * and a {@link TaskType} declaration alone must enqueue, and only {@code rejectEnqueue} may refuse.
+ * must enqueue, and only {@code rejectEnqueue} may refuse.
  */
 class DefaultEnqueuePolicyTest {
 
@@ -59,36 +59,6 @@ class DefaultEnqueuePolicyTest {
             // documents the count as approximate for exactly this reason.
             assertThat(threads).doesNotContain(callerThread);
             assertThat(threads).allMatch(name -> name.equals("worker"));
-        } finally {
-            runtime.close();
-            pool.shutdownNow();
-        }
-    }
-
-    /**
-     * A task type is a diagnostic declaration: declaring {@link TaskType#COMPUTE} must not refuse
-     * the queue, so every execution still runs on a pool worker.
-     */
-    @Test
-    void declaringComputeAloneStillEnqueuesOntoASmartQueue() throws Exception {
-        ThreadPoolExecutor pool = recommendedPool("compute-worker", 100);
-        ParRuntime runtime = ParRuntime.builder()
-                .register(ParId.of("w"), pool, TaskType.COMPUTE)
-                .build();
-        List<Integer> inputs = new ArrayList<>();
-        for (int i = 0; i < 12; i++) {
-            inputs.add(i);
-        }
-        String callerThread = Thread.currentThread().getName();
-        try {
-            List<String> threads = runtime.par(ParId.of("w"))
-                    .submitBatch(
-                            inputs,
-                            i -> Thread.currentThread().getName(),
-                            BatchOptions.timeout("b", Duration.ofSeconds(30)).taskType(TaskType.COMPUTE))
-                    .valuesOrThrow();
-            assertThat(threads).doesNotContain(callerThread);
-            assertThat(threads).allMatch(name -> name.equals("compute-worker"));
         } finally {
             runtime.close();
             pool.shutdownNow();

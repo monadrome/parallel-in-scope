@@ -208,18 +208,11 @@ token 本身是包私有的内核类型：用户既拿不到也不需要它，�
 
 解决了取消和超时之后，还需要控制有界线程池的排队行为。提交所有任务会淹没队列，也会让嵌套调用更容易形成线程池死锁；滑动窗口负责限制同时提交的任务数，而队列适配器负责把一次提交是否允许入队交给调用方明确决定。
 
-`SubmissionAwareBlockingQueue` 只在提交单元设置 `rejectEnqueue(true)` 时拒绝入队。`TaskType` 不再是调度开关，而是诊断声明：
-
-- `COMPUTE` 表示任务主要消耗 CPU；
-- `BLOCKING` 表示任务会等待 I/O、锁、sleep、join 或其他任务；
-- `UNKNOWN` 表示未声明类型。
-
-类型用于提交时的任务/执行器类型比对和工作负载适配诊断，不改变入队、拒绝、取消、deadline 或任务结果。需要让队列拒绝任务时，必须显式打开 `rejectEnqueue`：
+`SubmissionAwareBlockingQueue` 只在提交单元设置 `rejectEnqueue(true)` 时拒绝入队。没有任何任务标签能改变入队、拒绝或调度；需要让队列拒绝任务时，必须显式打开 `rejectEnqueue`：
 
 ```java
 BatchOptions options = BatchOptions.timeout("fetchRemote", Duration.ofSeconds(5))
         .parallelism(20)
-        .taskType(TaskType.BLOCKING)
         .rejectEnqueue(true);
 ```
 
@@ -236,7 +229,7 @@ public boolean offer(E element) {
 }
 ```
 
-因此，队列策略和工作负载诊断各自只有一个来源：`rejectEnqueue` 控制准入，`TaskType` 提供诊断。两者不会因为一个任务标签而隐式改变执行位置。
+因此，入队策略只有一个来源：`rejectEnqueue` 控制准入，执行位置不会因为一个任务标签而隐式改变。
 
 > 并发控制还要决定哪些任务进入线程池，以及何时进入。
 
@@ -333,7 +326,7 @@ par.map("io-pool", urls, url -> {
 
 **请求：** 提供 `parallel-in-scope-spring-boot-starter`，通过 `@Parallel` 注解声明并行任务。
 
-**为什么拒绝：** `@Parallel` 注解看起来很酷，但它隐藏了关键的并发参数（并行度、超时、任务类型），让开发者在不理解底层行为的情况下使用并发工具。
+**为什么拒绝：** `@Parallel` 注解看起来很酷，但它隐藏了关键的并发参数（并行度、超时、执行器），让开发者在不理解底层行为的情况下使用并发工具。
 
 这是真正的危险所在。一个 `@Parallel` 注解意味着开发者不需要思考"这个任务是 CPU 密集还是 IO 密集"、"并行度设多少合理"、"超时多久合适"——这些恰恰是并发编程中最需要思考的问题。注解的便利性会制造一种虚假的安全感：你以为框架帮你处理好了一切，实际上你只是把问题藏起来了。
 
@@ -359,7 +352,7 @@ par.map("io-pool", urls, url -> {
 2. **一个 scope，要么全成功，要么第一个失败时停止。** Fail-fast 是唯一语义。
 3. **提交是提交，绑定是绑定。** 不要在上菜之前开酒。
 4. **取消不只是中断线程，还要告诉它为什么。** 双异常策略。
-5. **入队策略必须显式。** `rejectEnqueue(true)` 才会让 `SubmissionAwareBlockingQueue` 拒绝入队；`TaskType` 只用于诊断，不隐式改变调度。
+5. **入队策略必须显式。** 只有 `rejectEnqueue(true)` 会让 `SubmissionAwareBlockingQueue` 拒绝入队，没有任务标签能隐式改变调度。
 
 这些不是最佳实践，是设计约束。一旦在某条上让步，整个设计就会像多米诺骨牌一样坍塌。
 

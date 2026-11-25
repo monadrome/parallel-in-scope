@@ -20,19 +20,12 @@ final class UnitSpec {
     private final String name;
     private final int requestedParallelism;
     private final @Nullable Duration timeout;
-    private final TaskType taskType;
     private final boolean rejectEnqueue;
 
-    UnitSpec(
-            String name,
-            int requestedParallelism,
-            @Nullable Duration timeout,
-            TaskType taskType,
-            boolean rejectEnqueue) {
+    UnitSpec(String name, int requestedParallelism, @Nullable Duration timeout, boolean rejectEnqueue) {
         this.name = name;
         this.requestedParallelism = requestedParallelism;
         this.timeout = timeout;
-        this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
     }
 
@@ -53,10 +46,6 @@ final class UnitSpec {
     @Nullable
     Duration timeout() {
         return timeout;
-    }
-
-    TaskType taskType() {
-        return taskType;
     }
 
     boolean rejectEnqueue() {

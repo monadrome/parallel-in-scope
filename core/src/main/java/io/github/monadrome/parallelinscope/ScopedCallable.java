@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The previous {@link TaskExecutionContext} is restored on exit. Execution exit is published only
  * after the user task code's {@code finally} has completed and its captured execution reference has been
- * released. Workload diagnostics must not replace the execution's own value or failure.
+ * released.
  *
  * @param <V> return value type
  */
@@ -38,7 +38,7 @@ final class ScopedCallable<V> implements Callable<V> {
         try {
             taskContext.markStarted(ticker.read());
             Checkpoints.checkpoint();
-            return callTimed(checkNotNull(delegate));
+            return checkNotNull(delegate).call();
         } finally {
             releaseDelegate();
             taskContext.markEnded(ticker.read());
@@ -50,22 +50,6 @@ final class ScopedCallable<V> implements Callable<V> {
             // restore(null) already removed the slot, so a null previous task needs no second remove.
             if (previousTask != null) {
                 TaskExecutionContext.restore(previousTask);
-            }
-        }
-    }
-
-    /**
-     * Runs the execution inside its workload-fit timing, if it is screened. The timing ends before
-     * {@link #call()}'s cleanup begins and never throws, so the caller sees the execution's own result
-     * or exception.
-     */
-    private V callTimed(Callable<V> taskCode) throws Exception {
-        WorkloadFit.Timing timing = WorkloadFit.start(taskContext.multiTaskContext());
-        try {
-            return taskCode.call();
-        } finally {
-            if (timing != null) {
-                timing.stop();
             }
         }
     }

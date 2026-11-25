@@ -70,8 +70,7 @@ class InlineSubmissionLivenessTest {
                                         return value;
                                     },
                                     BatchOptions.timeout("inline-liveness", DEADLINE)
-                                            .parallelism(6)
-                                            .taskType(TaskType.COMPUTE));
+                                            .parallelism(6));
                     returned.set(true);
                     flagLeaked.set(Thread.currentThread().isInterrupted());
                     assertThat(batch.report().terminationCounts()).containsOnlyKeys(TaskTermination.Kind.CANCELLED);
@@ -127,8 +126,7 @@ class InlineSubmissionLivenessTest {
                                         return value;
                                     },
                                     BatchOptions.timeout("inline-verdict", DEADLINE)
-                                            .parallelism(3)
-                                            .taskType(TaskType.COMPUTE));
+                                            .parallelism(3));
                     // The first thing any real caller does after map() returns. A leaked flag makes
                     // this throw, so the caller learns nothing about why the batch ended.
                     try {
@@ -227,8 +225,7 @@ class InlineSubmissionLivenessTest {
                                 return flagOnEntry;
                             },
                             BatchOptions.timeout("pooled-control", Duration.ofSeconds(10))
-                                    .parallelism(1)
-                                    .taskType(TaskType.BLOCKING));
+                                    .parallelism(1));
 
             assertThat(batch.valuesOrThrow()).containsExactly(false, false);
         } finally {
@@ -270,8 +267,7 @@ class InlineSubmissionLivenessTest {
                                 return value;
                             },
                             BatchOptions.timeout("completing-thread", Duration.ofSeconds(15))
-                                    .parallelism(1)
-                                    .taskType(TaskType.COMPUTE));
+                                    .parallelism(1));
 
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(15))).isTrue();
             assertThat(executed.get())

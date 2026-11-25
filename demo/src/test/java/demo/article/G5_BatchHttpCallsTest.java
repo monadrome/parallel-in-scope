@@ -9,7 +9,6 @@ import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskTermination;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -144,8 +143,7 @@ public class G5_BatchHttpCallsTest {
                 "analytics");
 
         BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(5000))
-                .parallelism(4)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(4);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 

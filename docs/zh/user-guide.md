@@ -23,8 +23,6 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-注册时还可以声明该条目预期承载的工作：`register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)`。声明可选，只用于诊断，见[声明任务类型](reference/diagnostics.md#task-type)。
-
 id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定和构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 会在已准入运行排空、饥饿观测关闭后释放内部 timer、timeout-action 和采样服务，绝不会关闭已注册执行器。队列清理由执行器所有者负责。
 
 注册时还会校验每个执行器的契约并读取其结构用于阻塞风险检测：请注册物理池而非装饰器，并避免会静默丢弃任务的拒绝策略。具体规则见[执行器注册](reference/executor-registration.md)。
@@ -80,7 +78,7 @@ ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
         4, 4, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .register(ParId.of("cpu"), cpuPool)
         .build();
 
 TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
@@ -290,7 +288,7 @@ TaskGroupResult<Page> result = global
   因此排在等待者自己身后的 future 会同时表现为等待环与 `POTENTIAL_STARVATION`，组则在 deadline 处以
   `TIMEOUT` 结束。
 
-收养成员不运行任何执行：不提交任务、不回放 TTL 上下文，任务类型诊断与负载匹配计时都不适用。
+收养成员不运行任何执行：不提交任务，也不回放 TTL 上下文。
 
 <a id="read-task-attribution-from-a-future"></a>
 
@@ -544,9 +542,7 @@ TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
 
 运行时的诊断能力只观测、不改变行为；完整契约见[诊断与观测](reference/diagnostics.md)：
 
-- [任务类型](reference/diagnostics.md#task-type)——可选负载声明，驱动提交时比对与低 CPU 筛查。
 - [执行器等待报告](reference/diagnostics.md#nested-observation)——记录注册池之间的同步等待，成环时告警。
-- [负载匹配筛查](reference/diagnostics.md#workload-fit)——对声明 COMPUTE 的条目比较 CPU 时间与执行时间，发现隐藏的阻塞。
 - [饥饿观测](reference/diagnostics.md#observe-direct-executor-work)——有界采样作用域，检测同时跑直接提交工作的池停滞。
 - [完成观测](reference/diagnostics.md#completion-snapshots)——冻结在批次与组结果中的每任务计时与结果遥测。
 

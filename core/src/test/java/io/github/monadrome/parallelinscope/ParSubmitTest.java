@@ -98,8 +98,8 @@ class ParSubmitTest {
     }
 
     /**
-     * The default: a rejected task fails without entering user code, for every task type. No task
-     * type or rejection handling is declared, so this is what an unconfigured task does.
+     * The default: a rejected task fails without entering user code. No rejection handling is
+     * declared, so this is what an unconfigured task does.
      */
     @Test
     void submitFailsWithoutRunningItsExecutionWhenRejectedByDefault() throws Exception {
@@ -159,7 +159,7 @@ class ParSubmitTest {
                                     Checkpoints.checkpoint();
                                 }
                             },
-                            TaskOptions.timeout(Duration.ofMillis(50)).taskType(TaskType.BLOCKING));
+                            TaskOptions.timeout(Duration.ofMillis(50)));
 
             assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> task.get(2, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);

@@ -8,7 +8,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -102,8 +101,7 @@ class E1_QueueFloodingTest {
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
             BatchOptions options = BatchOptions.timeout("queue-flood-test", java.time.Duration.ofSeconds(5))
-                    .parallelism(parallelism)
-                    .taskType(TaskType.BLOCKING);
+                    .parallelism(parallelism);
 
             TaskBatchResult<Void> result = par.map(
                     input,

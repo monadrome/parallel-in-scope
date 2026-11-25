@@ -27,10 +27,9 @@ class MultiTaskContextTest {
     void resolvesParallelismAndRuntimeMetadata() {
         BatchOptions options = BatchOptions.timeout("io", Duration.ofSeconds(30))
                 .parallelism(99)
-                .taskType(TaskType.BLOCKING)
                 .rejectEnqueue(false);
         try (ParRuntime runtime = ParRuntime.builder()
-                .register(ParId.of("http"), new ExecutorServiceStub(), TaskType.COMPUTE)
+                .register(ParId.of("http"), new ExecutorServiceStub())
                 .build()) {
             Par par = runtime.par(ParId.of("http"));
             ExecutorRuntime executor = par.executorRuntime();
@@ -41,8 +40,6 @@ class MultiTaskContextTest {
             assertThat(context.node().executor()).isSameAs(executor.identity());
             assertThat(context.node().executorLabel()).isEqualTo("http");
             assertThat(context.node().starvationProne()).isEqualTo(executor.starvationProne());
-            assertThat(context.par()).isSameAs(par);
-            assertThat(context.taskType()).isEqualTo(TaskType.BLOCKING);
             assertThat(context.rejectEnqueue()).isFalse();
             assertThat(context.remaining().isNegative()).isFalse();
         }
@@ -59,7 +56,6 @@ class MultiTaskContextTest {
         MultiTaskContext child = MultiTaskContext.resolve(MultiTaskContext.resolution(
                         BatchOptions.timeout("inner", Duration.ofSeconds(60))
                                 .parallelism(4)
-                                .taskType(TaskType.COMPUTE)
                                 .spec(),
                         6)
                 .structuralParent(parent));
@@ -70,7 +66,6 @@ class MultiTaskContextTest {
         assertThat(node.name()).isEqualTo("inner");
         assertThat(node.taskCount()).isEqualTo(6);
         assertThat(node.parallelism()).isEqualTo(4);
-        assertThat(node.taskType()).isEqualTo(TaskType.COMPUTE);
         assertThat(node.budget()).isEqualTo(Duration.ofSeconds(20));
         assertThat(node.executor()).isNull();
         assertThat(node.starvationProne()).isFalse();

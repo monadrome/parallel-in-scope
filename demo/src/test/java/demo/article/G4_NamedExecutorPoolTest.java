@@ -7,7 +7,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -115,8 +114,7 @@ class G4_NamedExecutorPoolTest {
 
             // IO 任务：按名引用 io-pool
             BatchOptions ioOpts = BatchOptions.timeout("fetch-data", java.time.Duration.ofMillis(5000))
-                    .parallelism(4)
-                    .taskType(TaskType.BLOCKING);
+                    .parallelism(4);
             TaskBatchResult<String> ioResult = par.map(
                     items,
                     item -> {
@@ -126,8 +124,7 @@ class G4_NamedExecutorPoolTest {
 
             // CPU 任务：按名引用 cpu-pool
             BatchOptions cpuOpts = BatchOptions.timeout("compute", java.time.Duration.ofMillis(5000))
-                    .parallelism(4)
-                    .taskType(TaskType.COMPUTE);
+                    .parallelism(4);
             TaskBatchResult<String> cpuResult = cpuPar.map(
                     items,
                     item -> {

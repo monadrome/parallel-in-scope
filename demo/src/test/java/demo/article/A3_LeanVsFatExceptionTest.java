@@ -7,7 +7,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -101,8 +100,7 @@ public class A3_LeanVsFatExceptionTest {
     void parMap_withShortTimeout_completesEfficiently() {
         // 解决方案：Par.map() 配合短超时，内部使用轻量级异常处理取消
         BatchOptions opts = BatchOptions.timeout("lean-cancel-demo", java.time.Duration.ofMillis(200))
-                .parallelism(4)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(4);
 
         // 提交 100 个任务，大部分会在 200ms 后被取消
         List<Integer> items = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());

@@ -8,7 +8,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskKey;
-import io.github.monadrome.parallelinscope.TaskType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.retry.Retry;
 import java.time.Duration;
@@ -106,7 +105,7 @@ public final class QuoteService {
         return quotes.map(
                 skus,
                 sku -> quote(caller, sku),
-                BatchOptions.timeout("quotes", BATCH_TIMEOUT).parallelism(8).taskType(TaskType.BLOCKING));
+                BatchOptions.timeout("quotes", BATCH_TIMEOUT).parallelism(8));
     }
 
     private long price(String sku) {

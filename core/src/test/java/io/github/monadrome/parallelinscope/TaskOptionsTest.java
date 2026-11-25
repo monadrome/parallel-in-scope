@@ -29,8 +29,7 @@ class TaskOptionsTest {
         // No name, no parallelism, no listener: identity comes from the name declared to the
         // group chain (or the explicit name at Par.submit) and a single task has no fan-out to
         // limit, so those fields must not exist rather than be silently ignored.
-        assertThat(names)
-                .isEqualTo(new TreeSet<>(Arrays.asList("inheritTimeout", "rejectEnqueue", "taskType", "timeout")));
+        assertThat(names).isEqualTo(new TreeSet<>(Arrays.asList("inheritTimeout", "rejectEnqueue", "timeout")));
     }
 
     @Test
@@ -39,28 +38,25 @@ class TaskOptionsTest {
     }
 
     @Test
-    void defaultsAreUndeclaredAndEnqueueing() {
+    void defaultsAreEnqueueing() {
         TaskOptions options = TaskOptions.timeout(Duration.ofSeconds(30));
 
-        assertThat(options.taskType()).isEqualTo(TaskType.UNKNOWN);
         assertThat(options.rejectEnqueue()).isFalse();
     }
 
     @Test
     void withersReturnNewInstancesWithoutMutatingTheOriginal() {
-        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1)).taskType(TaskType.COMPUTE);
+        TaskOptions base = TaskOptions.timeout(Duration.ofSeconds(1));
 
-        TaskOptions derived = base.rejectEnqueue(true).taskType(TaskType.BLOCKING);
+        TaskOptions derived = base.rejectEnqueue(true);
 
-        assertThat(base.taskType()).isEqualTo(TaskType.COMPUTE);
         assertThat(base.rejectEnqueue()).isFalse();
-        assertThat(derived.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(derived.rejectEnqueue()).isTrue();
         assertThat(derived.timeout()).contains(Duration.ofSeconds(1));
 
         TaskOptions inherited = TaskOptions.inheritTimeout();
-        assertThat(inherited.taskType(TaskType.COMPUTE).taskType()).isEqualTo(TaskType.COMPUTE);
-        assertThat(inherited.taskType()).isEqualTo(TaskType.UNKNOWN);
+        assertThat(inherited.rejectEnqueue(true).rejectEnqueue()).isTrue();
+        assertThat(inherited.rejectEnqueue()).isFalse();
     }
 
     @SuppressWarnings("NullAway")
@@ -74,15 +70,12 @@ class TaskOptionsTest {
 
     @Test
     void specCarriesTheKeyNameAndNoFanOut() {
-        UnitSpec spec = TaskOptions.timeout(Duration.ofSeconds(3))
-                .taskType(TaskType.BLOCKING)
-                .rejectEnqueue(false)
-                .spec("get-user");
+        UnitSpec spec =
+                TaskOptions.timeout(Duration.ofSeconds(3)).rejectEnqueue(false).spec("get-user");
 
         assertThat(spec.name()).isEqualTo("get-user");
         assertThat(spec.requestedParallelism()).isEqualTo(1);
         assertThat(spec.timeout()).isEqualTo(Duration.ofSeconds(3));
-        assertThat(spec.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(spec.rejectEnqueue()).isFalse();
     }
 

@@ -25,7 +25,6 @@ final class TaskNode {
     private final @Nullable ExecutorIdentity executor;
     private final @Nullable String executorLabel;
     private final boolean starvationProne;
-    private final TaskType taskType;
     private final int parallelism;
     private final int taskCount;
     private final long budgetNanos;
@@ -38,7 +37,6 @@ final class TaskNode {
      * @param executor the supplied executor the unit runs on, or null when resolved without one
      * @param executorLabel the executor's display label, or null when resolved without one
      * @param starvationProne whether an execution blocked on this unit can starve it of a thread
-     * @param taskType the unit's workload classification
      * @param parallelism the effective parallelism
      * @param taskCount the number of tasks in the unit
      * @param budgetNanos the deadline budget left at resolution, {@link Long#MAX_VALUE} for none
@@ -49,7 +47,6 @@ final class TaskNode {
             @Nullable ExecutorIdentity executor,
             @Nullable String executorLabel,
             boolean starvationProne,
-            TaskType taskType,
             int parallelism,
             int taskCount,
             long budgetNanos) {
@@ -58,7 +55,6 @@ final class TaskNode {
         this.executor = executor;
         this.executorLabel = executorLabel;
         this.starvationProne = starvationProne;
-        this.taskType = checkNotNull(taskType, "taskType cannot be null");
         this.parallelism = parallelism;
         this.taskCount = taskCount;
         this.budgetNanos = budgetNanos;
@@ -92,10 +88,6 @@ final class TaskNode {
      */
     boolean starvationProne() {
         return starvationProne;
-    }
-
-    TaskType taskType() {
-        return taskType;
     }
 
     /** The effective parallelism: the request capped by the task count. */

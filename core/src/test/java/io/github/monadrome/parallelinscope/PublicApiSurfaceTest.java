@@ -53,8 +53,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskState",
             BASE_PACKAGE + ".TaskTermination",
             BASE_PACKAGE + ".TaskTermination$Kind",
-            BASE_PACKAGE + ".TaskType",
-            BASE_PACKAGE + ".WorkloadFitReport",
             // Nested types are named with the binary '$' separator; the visibility of a nested
             // type is part of the API just like a top-level one, so it is pinned here too.
             BASE_PACKAGE + ".ExecutorWaitReport$Component",
@@ -62,9 +60,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskId$GroupRun",
             BASE_PACKAGE + ".TaskId$Unit",
             BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
-            BASE_PACKAGE + ".ThreadPoolStarvationReport$Status",
-            BASE_PACKAGE + ".WorkloadFitReport$ParMeasurement",
-            BASE_PACKAGE + ".WorkloadFitReport$UnitMeasurement"));
+            BASE_PACKAGE + ".ThreadPoolStarvationReport$Status"));
 
     @Test
     void publicTypesMatchTheReviewedApi() throws Exception {

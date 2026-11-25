@@ -28,9 +28,8 @@ futures.forEach(f -> f.cancel(true));
 
 `parallel-in-scope` 的 `Par.map()` 提供批次级超时与协作式取消。`BatchOptions.timeout()` 限制本次 `map` 调用的整体执行时间；超时后框架会取消该批次中所有未完成任务并尝试中断执行线程。任务仍需响应中断，或通过 `Checkpoints` 主动检查取消状态，才能及时退出。
 
-配合 `BatchOptions` 的 `parallelism()` 和 `taskType()` 配置，可以精确控制并发行为：
+配合 `BatchOptions` 的 `parallelism()` 配置，可以精确控制并发行为：
 - `parallelism(3)` 限制最大并行数为 3，采用滑动窗口调度避免线程池过载
-- `taskType(TaskType.BLOCKING)` 声明为会阻塞的任务；它只用于诊断，不改变入队或调度
 - `timeout(500)` 设置本次批量调用的 500ms 超时，超时后取消未完成任务
 
 ## 代码
@@ -46,7 +45,7 @@ ParRuntime config = ParRuntime.builder()
 Par par = config.defaultPar();
 
 // 设置选项：3 并发，500ms 超时
-BatchOptions opts = BatchOptions.timeout("http-call", java.time.Duration.ofMillis(500)).parallelism(3).taskType(TaskType.BLOCKING);
+BatchOptions opts = BatchOptions.timeout("http-call", java.time.Duration.ofMillis(500)).parallelism(3);
 
 // 并行执行，超时自动取消
 List<String> urls = Arrays.asList("url1", "url2", "url3");

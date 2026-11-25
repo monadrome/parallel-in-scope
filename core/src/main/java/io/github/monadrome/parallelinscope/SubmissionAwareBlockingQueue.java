@@ -10,9 +10,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>When the submitting unit sets {@code rejectEnqueue}, {@link #offer(Object)} returns {@code
  * false} instead of queueing the task. The pool can then grow a worker or invoke its rejection
- * handler rather than buffer the task behind existing work. Its {@link TaskType} never takes part:
- * the type is a diagnostic declaration, so a unit declared {@link TaskType#COMPUTE} is queued like
- * any other unless it also sets {@code rejectEnqueue}.
+ * handler rather than buffer the task behind existing work.
  *
  * <p>Note what that means for the pool as a whole: a refused {@code offer} does not by itself run
  * anything on the caller. {@code ThreadPoolExecutor.execute} first tries to start a new worker, and

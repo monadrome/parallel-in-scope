@@ -249,7 +249,7 @@ class TaskGroupTest {
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
-                            TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING),
+                            TaskOptions.timeout(TIMEOUT),
                             () -> 1)
                     .submitAll();
             TaskGroupReport result = group.convergenceFuture().get(2, TimeUnit.SECONDS);
@@ -281,7 +281,7 @@ class TaskGroupTest {
                     .par(
                             KEY_INLINE_THREAD,
                             global.par(ParId.of("direct")),
-                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.COMPUTE),
+                            TaskOptions.timeout(Duration.ofSeconds(30)),
                             Thread::currentThread)
                     .submitAll();
 
@@ -309,7 +309,7 @@ class TaskGroupTest {
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
-                            TaskOptions.timeout(Duration.ofSeconds(30)).taskType(TaskType.COMPUTE),
+                            TaskOptions.timeout(Duration.ofSeconds(30)),
                             () -> {
                                 executionRan.set(true);
                                 return 1;
@@ -777,7 +777,7 @@ class TaskGroupTest {
                     .par(
                             TaskKey.<Integer>named("rejected"),
                             global.par(ParId.of("reject")),
-                            TaskOptions.timeout(TIMEOUT).taskType(TaskType.BLOCKING),
+                            TaskOptions.timeout(TIMEOUT),
                             () -> 1)
                     .par(TaskKey.<Integer>named("later"), global.par(ParId.of("normal")), calls::incrementAndGet)
                     .submitAll()
@@ -994,7 +994,6 @@ class TaskGroupTest {
         TaskOptions options = TaskOptions.inheritTimeout();
 
         assertThat(options.timeout()).isEmpty();
-        assertThat(options.taskType()).isEqualTo(TaskType.UNKNOWN);
         assertThat(options.rejectEnqueue()).isFalse();
     }
 

@@ -139,8 +139,7 @@ Key points:
   `SUBMISSION_FAILURE` (§9 acceptance item 1). `rejectEnqueue` remains effective for combines:
   the default `rejectEnqueue=false` lets `SubmissionAwareBlockingQueue` enqueue normally, with
   the combine waiting in the queue for a worker; only an explicit refusal request hands its
-  fate to the rejection handler. `taskType` is, as with members, only a diagnostic declaration
-  ([API and options §3.2.1](task-group-api-and-options.md)) and does not change enqueueing.
+  fate to the rejection handler.
   Identity is the combine's declaration name. `TaskOptions` contains no name/listeners, so a
   combine cannot override the Group's name or cancellation policy through options (see
   [API and options §3.2](task-group-api-and-options.md));

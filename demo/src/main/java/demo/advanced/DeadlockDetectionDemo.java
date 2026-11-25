@@ -7,7 +7,6 @@ import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.ScopeTermination;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -60,8 +59,7 @@ public class DeadlockDetectionDemo {
             System.out.println("→ 可能形成循环等待，等待环报告会在返回后确认\n");
 
             BatchOptions optionsA = BatchOptions.timeout("task-A", java.time.Duration.ofSeconds(5))
-                    .parallelism(4)
-                    .taskType(TaskType.BLOCKING);
+                    .parallelism(4);
 
             long start = System.currentTimeMillis();
 
@@ -106,9 +104,8 @@ public class DeadlockDetectionDemo {
 
     /** task-B：从 task-A 内部调用，向同一个线程池提交任务，可能形成等待环 */
     private static void callTaskB(Par par, int parentItem) {
-        BatchOptions optionsB = BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5))
-                .parallelism(2)
-                .taskType(TaskType.BLOCKING);
+        BatchOptions optionsB =
+                BatchOptions.timeout("task-B", java.time.Duration.ofSeconds(5)).parallelism(2);
 
         List<String> items = Arrays.asList("x", "y");
         TaskBatchResult<String> resultB = par.map(

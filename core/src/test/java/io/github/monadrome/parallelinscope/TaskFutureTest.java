@@ -84,9 +84,7 @@ class TaskFutureTest {
                     .submitBatch(
                             Arrays.asList("first", "second"),
                             item -> item,
-                            BatchOptions.timeout("rejected", SCOPE_TIMEOUT)
-                                    .parallelism(2)
-                                    .taskType(TaskType.BLOCKING));
+                            BatchOptions.timeout("rejected", SCOPE_TIMEOUT).parallelism(2));
 
             assertThat(batch.results()).allSatisfy(future -> assertThat(future).isNotNull());
             for (TaskFuture<String> element : batch.results()) {

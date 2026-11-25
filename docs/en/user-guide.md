@@ -31,10 +31,6 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-An entry can also declare the work it is meant to carry:
-`register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)`. The declaration is optional and only
-diagnostic; see [Declare task types](reference/diagnostics.md#task-type).
-
 Ids are registered at build time. The topology — the id-to-executor bindings and policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer, timeout-action, and starvation-sampling services after admitted runs drain and open starvation observations close, never a registered executor. Queue cleanup belongs to the executor owner.
 
 Registration also checks each executor's contract and reads its structure for blocking-risk
@@ -99,7 +95,7 @@ ThreadPoolExecutor cpuPool = new ThreadPoolExecutor(
         4, 4, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<>(64));
 
 ParRuntime global = ParRuntime.builder()
-        .register(ParId.of("cpu"), cpuPool, TaskType.COMPUTE)
+        .register(ParId.of("cpu"), cpuPool)
         .build();
 
 TaskBatchResult<Score> scores = global.par(ParId.of("cpu")).map(
@@ -334,8 +330,7 @@ TaskGroupResult<Page> result = global
   future queued behind its own waiter shows up as both a wait cycle and `POTENTIAL_STARVATION` while
   the group ends at its deadline with a deadline-exceeded cancellation.
 
-No execution runs for an adopted member: nothing is submitted, no TTL context is replayed, and task-type
-diagnostics and workload-fit timing do not apply.
+No execution runs for an adopted member: nothing is submitted and no TTL context is replayed.
 
 <a id="read-task-attribution-from-a-future"></a>
 
@@ -630,12 +625,8 @@ a `Callable`, which can also throw checked exceptions.
 The runtime's diagnostics observe without changing behavior; their full contracts live in
 [Diagnostics](reference/diagnostics.md):
 
-- [Task types](reference/diagnostics.md#task-type) — optional workload declarations feeding
-  submission-time comparison and low-CPU screening.
 - [Executor wait report](reference/diagnostics.md#observe-nested-work) — records which registered
   pools synchronously wait on which, warning on cycles.
-- [Workload fit](reference/diagnostics.md#workload-fit) — screens compute-declared entries for
-  blocking by comparing CPU time with execution time.
 - [Starvation observation](reference/diagnostics.md#observe-direct-executor-work) — a bounded
   sampling scope detecting stalled pools that also run direct submissions.
 - [Final observations](reference/diagnostics.md#completion-snapshots) — per-task timing and outcome

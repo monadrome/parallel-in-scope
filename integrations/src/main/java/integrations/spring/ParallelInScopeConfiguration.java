@@ -3,7 +3,6 @@ package integrations.spring;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.time.Duration;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -75,8 +74,8 @@ public class ParallelInScopeConfiguration {
             @Qualifier("quotesExecutor") ThreadPoolExecutor quotesExecutor,
             @Qualifier("downstreamExecutor") ThreadPoolExecutor downstreamExecutor) {
         return ParRuntime.builder()
-                .register(QUOTES, quotesExecutor, TaskType.BLOCKING)
-                .register(DOWNSTREAM, downstreamExecutor, TaskType.BLOCKING)
+                .register(QUOTES, quotesExecutor)
+                .register(DOWNSTREAM, downstreamExecutor)
                 .defaultPar(DOWNSTREAM)
                 .build();
     }

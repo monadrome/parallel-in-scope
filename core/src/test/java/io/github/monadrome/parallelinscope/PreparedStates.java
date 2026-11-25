@@ -54,7 +54,6 @@ final class PreparedStates {
         return MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout(name, Duration.ofSeconds(30))
                         .parallelism(parallelism)
-                        .taskType(TaskType.BLOCKING)
                         .spec(),
                 taskCount));
     }

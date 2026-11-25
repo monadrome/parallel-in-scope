@@ -66,11 +66,8 @@ class RequestCancellationTest {
         Par par = runtime.par(WORKER);
         TrackingFuture<Void> source = new TrackingFuture<>();
         BatchOptions base = BatchOptions.timeout("batch", TIMEOUT);
-        BatchOptions derived = base.cancelOn(source)
-                .parallelism(2)
-                .taskType(TaskType.COMPUTE)
-                .rejectEnqueue(true)
-                .closeGrace(Duration.ZERO);
+        BatchOptions derived =
+                base.cancelOn(source).parallelism(2).rejectEnqueue(true).closeGrace(Duration.ZERO);
 
         assertThatThrownBy(() -> base.cancelOn(null)).isInstanceOf(NullPointerException.class);
         assertThat(source.listeners()).isEmpty();

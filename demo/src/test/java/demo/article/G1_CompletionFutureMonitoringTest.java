@@ -8,7 +8,6 @@ import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskExitObservation;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -111,8 +110,7 @@ public class G1_CompletionFutureMonitoringTest {
         List<Integer> input = Arrays.asList(1, 2, 3, 4, 5);
         // parallelism=5 确保所有任务同时启动，避免被取消
         BatchOptions opts = BatchOptions.timeout("monitor-demo", java.time.Duration.ofMillis(5000))
-                .parallelism(5)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(5);
 
         // 业务代码：纯逻辑，不碰监控
         TaskBatchResult<String> result = par.map(
@@ -189,8 +187,7 @@ public class G1_CompletionFutureMonitoringTest {
         // 只有 2 个任务，parallelism=2 确保同时启动
         List<Integer> input = Arrays.asList(1, 2);
         BatchOptions opts = BatchOptions.timeout("fail-demo", java.time.Duration.ofMillis(5000))
-                .parallelism(1)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(1);
 
         TaskBatchResult<String> result = par.map(
                 input,

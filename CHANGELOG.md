@@ -29,6 +29,15 @@
 
 ### Breaking changes
 
+- Remove `TaskType` and workload-fit screening (ADR 0016). The declaration never changed
+  execution, so only compilation is affected: delete `.taskType(...)` calls on `BatchOptions` and
+  `TaskOptions`, replace `ParRuntime.Builder.register(id, executor, TaskType.X)` with
+  `register(id, executor)`, and delete reads of `Par.taskType()`, `BatchOptions.taskType()`,
+  `TaskOptions.taskType()`, and `ParRuntime.workloadFitReport()` together with uses of
+  `WorkloadFitReport`. The submission-time mismatch records and the low-CPU `WARNING`/`INFO`
+  records are no longer logged. To keep a pool-purpose check, accept an application type that
+  wraps the intended `Par`; to find blocking calls on compute threads, run a blocking-call detector
+  in tests. `rejectEnqueue` and its inert-refusal warning are unchanged.
 - Simplify the beta scope-termination API: delete the public `ScopeTerminationCause` wrapper and its
   `Kind`, remove `ScopeTermination.cause()`, and read the branch payloads directly from
   `ScopeTermination`. Creation becomes `ScopeTermination.succeeded()`,

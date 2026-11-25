@@ -8,7 +8,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -85,8 +84,7 @@ public class A1_CancelTrueInvalidTest {
     void parMap_withTimeout_cancelsTasks() throws Exception {
         // 解决方案：Par.map() 配合超时自动取消
         BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
-                .parallelism(3)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(3);
 
         List<Integer> input = Arrays.asList(1, 2, 3);
         long start = System.currentTimeMillis();

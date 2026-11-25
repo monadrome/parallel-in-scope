@@ -160,7 +160,7 @@ parent (also the waiter for executor waits), the cancellation token parent, and 
 ceiling. Group members prove these three are not always the same object, so the single
 package-private entry `MultiTaskContext.resolve(Resolution)` takes them as independent,
 order-free parameters: a `Resolution` carries the package-private carrier `UnitSpec` (name,
-requestedParallelism, timeout, taskType, rejectEnqueue) plus the task count, and unset
+requestedParallelism, timeout, rejectEnqueue) plus the task count, and unset
 parent-derived values default from the structural parent — the cancellation parent to its
 token, the deadline ceiling to its deadline — while explicitly set values always win. A caller
 nesting under an enclosing scoped task therefore sets only the parent; a group member overrides

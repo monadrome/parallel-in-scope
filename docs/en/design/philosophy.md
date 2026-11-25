@@ -8,7 +8,7 @@ The library targets three recurring Java 8 problems: cancellation that cannot re
 
 ## The central API: `Par.map`
 
-`Par.map` gives a batch a clear scope, executor, task type, parallelism, timeout, and result report. The scope makes failure and cancellation ownership visible. It also gives the implementation one place to enforce fail-fast behavior, sliding-window submission, and parent-child cancellation.
+`Par.map` gives a batch a clear scope, executor, parallelism, timeout, and result report. The scope makes failure and cancellation ownership visible. It also gives the implementation one place to enforce fail-fast behavior, sliding-window submission, and parent-child cancellation.
 
 ## Prepare, bind, then submit
 
@@ -24,7 +24,7 @@ Normal cancellation is a control-flow event, so `LeanCancellationException` avoi
 
 ## Sliding-window scheduling
 
-Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. Only an explicit `rejectEnqueue` makes `SubmissionAwareBlockingQueue` refuse a task; `TaskType` is a diagnostic declaration that never selects an executor or changes scheduling, so queue policy does not change the structured scope.
+Submitting every item at once can flood a queue and make nested calls deadlock. `SlidingWindowSubmitter` keeps only a bounded window of work in flight. Only an explicit `rejectEnqueue` makes `SubmissionAwareBlockingQueue` refuse a task, and no task label selects an executor or changes scheduling, so queue policy does not change the structured scope.
 
 ## Explicit execution context and deadlock visibility
 

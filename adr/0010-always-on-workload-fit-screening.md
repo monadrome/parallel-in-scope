@@ -1,6 +1,6 @@
 # ADR 0010: Workload-fit screening becomes always-on at runtime level, judged per entry
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-10-30
 - Decision scope: the lifecycle, judgment granularity, and report shape of the `TaskType` runtime
   consumer; the observable surface of the submission-time comparison dedup table
@@ -9,6 +9,11 @@
 - Supersedes: "the runtime low-CPU screen reuses the pool starvation observation window" in
   [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md) decision 4, and "two extra thread CPU
   time reads per execution within the observation window" in its consequences
+- Superseded by: [ADR 0016](0016-remove-tasktype-and-workload-fit-screening.md) (the runtime screen removed)
+
+> Note (2026-11-24): superseded by [ADR 0016](0016-remove-tasktype-and-workload-fit-screening.md), which removed the
+> runtime screen, `WorkloadFitReport`, and `TaskType`. The workload-fit screening contract was
+> retired with them; this record explains history, not current behavior.
 
 ## Context
 
@@ -59,7 +64,7 @@ runtime level, judged per entry.
    summary warning; the count of suppressed warnings and its snapshot accessor are deleted.
 
 Thresholds and epoch length are internal calibration values; the mechanism and contract clauses
-live in the [workload-fit screening contract](../design/workload-fit-screening.md).
+lived in the workload-fit screening contract, retired on 2026-11-24.
 
 ## Alternatives Considered
 

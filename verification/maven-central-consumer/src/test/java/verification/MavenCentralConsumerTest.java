@@ -15,8 +15,6 @@ import io.github.monadrome.parallelinscope.TaskKey;
 import io.github.monadrome.parallelinscope.TaskTermination;
 import io.github.monadrome.parallelinscope.ScopeTermination;
 import io.github.monadrome.parallelinscope.TaskOptions;
-import io.github.monadrome.parallelinscope.TaskType;
-import io.github.monadrome.parallelinscope.WorkloadFitReport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -33,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -105,8 +102,7 @@ class MavenCentralConsumerTest {
         ParRuntime runtime = ParRuntime.builder().register(CONSUMER, executor).build();
         try {
             BatchOptions options = BatchOptions.timeout("consumer-smoke", Duration.ofSeconds(5))
-                    .parallelism(2)
-                    .taskType(TaskType.BLOCKING);
+                    .parallelism(2);
 
             Par par = runtime.par(CONSUMER);
             TaskBatchResult<Integer> result = par.map(Arrays.asList(1, 2), value -> value * 2, options);
@@ -121,49 +117,10 @@ class MavenCentralConsumerTest {
             assertEquals("consumer-smoke", options.name());
             assertEquals(2, options.parallelism());
             assertEquals(Optional.of(Duration.ofSeconds(5)), options.timeout());
-            assertEquals(TaskType.BLOCKING, options.taskType());
             assertEquals(CONSUMER, par.id());
             assertEquals(runtime, par.runtime());
         } finally {
             runtime.close();
-            executor.shutdownNow();
-        }
-    }
-
-    /**
-     * Always-on workload-fit screening times every execution admitted through an entry declared
-     * {@code COMPUTE} with thread CPU time. Screening drops its own failures, so a CPU-time path that
-     * breaks on the Java 8 runtime shows up only here, as unmeasured or missing executions.
-     */
-    @Test
-    void computeEntryIsScreenedWithThreadCpuTimeOnJava8() throws Exception {
-        ParId compute = ParId.of("consumer-compute");
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        try (ParRuntime runtime = ParRuntime.builder().register(compute, executor, TaskType.COMPUTE).build()) {
-            TaskBatchResult<Long> result = runtime.par(compute).map(
-                    Arrays.asList(1, 2, 3, 4),
-                    value -> {
-                        long sum = 0;
-                        for (int i = 0; i < 100_000; i++) {
-                            sum += i % (value + 1);
-                        }
-                        return sum;
-                    },
-                    BatchOptions.timeout("consumer-compute", Duration.ofSeconds(5)).parallelism(2));
-            assertEquals(4, result.valuesOrThrow().size());
-
-            WorkloadFitReport report = runtime.workloadFitReport();
-            assertEquals(1, report.pars().size());
-            WorkloadFitReport.ParMeasurement measurement = report.pars().get(0);
-            assertEquals(compute, measurement.par());
-            assertEquals(TaskType.COMPUTE, measurement.taskType());
-            assertEquals(4L, measurement.executions());
-            assertEquals(0L, measurement.unmeasuredExecutions());
-            assertEquals(1, measurement.units().size());
-            assertEquals(4L, measurement.units().get(0).executions());
-            assertFalse(measurement.issue());
-            assertFalse(report.anyIssue());
-        } finally {
             executor.shutdownNow();
         }
     }
@@ -355,8 +312,7 @@ class MavenCentralConsumerTest {
                     Arrays.asList(1, 2),
                     value -> awaitInterruption(started, interrupted, value),
                     BatchOptions.timeout("timeout-contract", Duration.ofMillis(200))
-                            .parallelism(2)
-                            .taskType(TaskType.BLOCKING));
+                            .parallelism(2));
 
             assertTrue(started.await(5, TimeUnit.SECONDS), "tasks did not start");
             assertThrows(
@@ -389,8 +345,7 @@ class MavenCentralConsumerTest {
                         return awaitInterruption(siblingsStarted, siblingsInterrupted, value);
                     },
                     BatchOptions.timeout("fail-fast-contract", Duration.ofSeconds(10))
-                            .parallelism(3)
-                            .taskType(TaskType.BLOCKING));
+                            .parallelism(3));
 
             assertThrows(
                     ExecutionException.class, () -> result.results().get(0).valueOrThrow());
@@ -421,8 +376,7 @@ class MavenCentralConsumerTest {
                                 Arrays.asList(10, 20),
                                 value -> awaitInterruption(innerStarted, innerInterrupted, value),
                                 BatchOptions.timeout("inner-contract", Duration.ofSeconds(10))
-                                        .parallelism(2)
-                                        .taskType(TaskType.BLOCKING));
+                                        .parallelism(2));
                         innerResult.set(nested);
                         innerReturned.countDown();
                         // Stay in the execution until the test releases it, swallowing the interrupt the
@@ -432,8 +386,7 @@ class MavenCentralConsumerTest {
                         return outerValue;
                     },
                     BatchOptions.timeout("outer-contract", Duration.ofMillis(300))
-                            .parallelism(1)
-                            .taskType(TaskType.BLOCKING));
+                            .parallelism(1));
 
             assertTrue(innerStarted.await(5, TimeUnit.SECONDS), "nested tasks did not start");
             assertThrows(

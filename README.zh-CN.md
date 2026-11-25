@@ -125,7 +125,7 @@ Profile value = profile.terminalValueOrThrow();
 - 有界并发的滑动窗口提交
 - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
 - 冻结后的任务观测：`completions()`、组 `members()` 与 `terminal()` 结果
-- 线程池等待图、死锁、饥饿和负载匹配诊断
+- 线程池等待图、死锁和饥饿诊断
 - 可选的入队拒绝：`rejectEnqueue` 配合 `SubmissionAwareBlockingQueue`
 - 任务图与执行器图的环路检测
 - 队列扩展：`DrainingBlockingQueue` 与 `ResizableBlockingQueue`
