@@ -1,0 +1,20 @@
+core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java
+  s_6d416b0102ba87::t_5777f0de05874c 12
+  s_6d416b0102ba87::t_658c0f69ae397d 190-224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f020503de120d5bcb525d568f90c02f6f8bcbe2c",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
