@@ -1,0 +1,62 @@
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-D.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-8
+verification/pit-audit/2026-11-24-remove-tasktype.md
+  s_6d416b0102ba87::t_9cdce4419fffe4 180-183
+  s_6d416b0102ba87::t_fccbe9a66aa72f 1-179,184-280
+verification/pit-audit/2026-11-24-remove-tasktype/SHA256SUMS
+  s_6d416b0102ba87::t_cd6a90dda56c8c 1-88
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-C.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-11
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-D.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-12
+verification/pit-audit/2026-11-24-remove-tasktype/run-meta/focused-ephf-killer-tests.txt
+  s_6d416b0102ba87::t_69b204c2a81eb9 1-16
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-E.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-7
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-A.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-6
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/early-vs-head-E.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-7
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/execution-phase-hint-future-run.txt
+  s_6d416b0102ba87::t_69b204c2a81eb9 1-76
+verification/pit-audit/2026-11-24-remove-tasktype/scripts/pit_status_table.py
+  s_6d416b0102ba87::t_69b204c2a81eb9 1-41
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/par-runtime-timeouts.txt
+  s_6d416b0102ba87::t_69b204c2a81eb9 1-48
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/host-sleep.txt
+  s_6d416b0102ba87::t_69b204c2a81eb9 1-18
+verification/pit-audit/2026-11-24-remove-tasktype/scripts/pit_sleep.py
+  s_6d416b0102ba87::t_a505ef20956d19 11,15,20,23,25,30-31,34,36
+  s_6d416b0102ba87::t_eed5b901c4496a 1-10,12-14,16-19,21-22,24,26-29,32-33,35,37-43
+verification/pit-audit/2026-11-24-remove-tasktype/run-meta/focused-par-runtime-killer-tests.txt
+  s_6d416b0102ba87::t_69b204c2a81eb9 1-16
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-C.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-9
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-B.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-8
+verification/pit-audit/2026-11-24-remove-tasktype/logs/host-sleep-wake.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-62
+verification/pit-audit/2026-11-24-remove-tasktype/comparisons/base-vs-head-A.txt
+  s_6d416b0102ba87::t_a505ef20956d19 1-6
+verification/pit-audit/2026-11-24-remove-tasktype/scripts/pit_compare.py
+  s_6d416b0102ba87::t_a505ef20956d19 1-48
+verification/pit-audit/2026-11-24-remove-tasktype/README.md
+  s_6d416b0102ba87::t_11a8f7e63fc282 56-57
+  s_6d416b0102ba87::t_405fa182f1ac84 1-55,58-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "99a22c28a16b901833b57b81eff350d5c5c0fabe",
+  "prompts": {},
+  "sessions": {
+    "s_6d416b0102ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00437ab2-5602-4143-a97c-54b208334556",
+        "model": "ctrip-ada/claude-kr-claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
