@@ -24,11 +24,11 @@ Java 10 的 `var` 让局部变量声明更简洁，Java 16 的 `Record` 让不�
 
 ```java
 // Java 16+ 可以用 Record
-record BatchOptions(String name, int parallelism, Duration timeout, TaskType taskType) {}
-BatchOptions opts = new BatchOptions("task", 5, Duration.ofMillis(3000), TaskType.BLOCKING);
+record BatchOptions(String name, int parallelism, Duration timeout) {}
+BatchOptions opts = new BatchOptions("task", 5, Duration.ofMillis(3000));
 
 // Java 8：不可变类 + 静态工厂 + wither
-BatchOptions opts = BatchOptions.timeout("task", java.time.Duration.ofMillis(3000)).parallelism(5).taskType(TaskType.BLOCKING);
+BatchOptions opts = BatchOptions.timeout("task", java.time.Duration.ofMillis(3000)).parallelism(5);
 ```
 
 写法更啰嗦，但约束更强：timeout 必须在两个互斥工厂里显式二选一，wither 每次返回新实例，因此不存在"配置对象被后续调用悄悄改掉"的可能。这算是"被迫严谨"。

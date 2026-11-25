@@ -17,8 +17,7 @@ import org.junit.jupiter.api.Test;
 class TaskNodeTest {
 
     private static TaskNode node(String token) {
-        return new TaskNode(
-                TaskId.unit(token), "task-" + token, null, null, false, TaskType.BLOCKING, 1, 1, Long.MAX_VALUE);
+        return new TaskNode(TaskId.unit(token), "task-" + token, null, null, false, 1, 1, Long.MAX_VALUE);
     }
 
     private static TaskNode onPool(String token) {
@@ -28,7 +27,6 @@ class TaskNodeTest {
                 new ExecutorIdentity(MoreExecutors.newDirectExecutorService()),
                 "pool",
                 true,
-                TaskType.BLOCKING,
                 1,
                 1,
                 Long.MAX_VALUE);
@@ -47,13 +45,7 @@ class TaskNodeTest {
     @Test
     void aNodeDescribesOnlyItselfAndHoldsNoNeighbourGraphOrExecutionState() {
         Set<Class<?>> ownFacts = new HashSet<>(Arrays.asList(
-                String.class,
-                TaskId.Unit.class,
-                ExecutorIdentity.class,
-                boolean.class,
-                TaskType.class,
-                int.class,
-                long.class));
+                String.class, TaskId.Unit.class, ExecutorIdentity.class, boolean.class, int.class, long.class));
 
         List<Field> declared = Arrays.stream(TaskNode.class.getDeclaredFields())
                 .filter(field -> !field.isSynthetic() && !Modifier.isStatic(field.getModifiers()))
@@ -69,7 +61,6 @@ class TaskNodeTest {
                         "executor",
                         "executorLabel",
                         "starvationProne",
-                        "taskType",
                         "parallelism",
                         "taskCount",
                         "budgetNanos");
@@ -77,10 +68,9 @@ class TaskNodeTest {
 
     @Test
     void theBudgetIsTheResolvedNanosAsADuration() {
-        TaskNode node = new TaskNode(TaskId.unit("u"), "unit", null, null, false, TaskType.BLOCKING, 2, 3, 1_500L);
+        TaskNode node = new TaskNode(TaskId.unit("u"), "unit", null, null, false, 2, 3, 1_500L);
 
         assertThat(node.budget()).isEqualTo(Duration.ofNanos(1_500L));
-        assertThat(node.taskType()).isEqualTo(TaskType.BLOCKING);
         assertThat(node.parallelism()).isEqualTo(2);
         assertThat(node.taskCount()).isEqualTo(3);
         assertThat(node.executor()).isNull();

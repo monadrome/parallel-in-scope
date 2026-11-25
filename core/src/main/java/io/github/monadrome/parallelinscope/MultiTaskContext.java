@@ -29,21 +29,18 @@ final class MultiTaskContext {
     private final CancellationToken cancellationToken;
     private final @Nullable MultiTaskContext structuralParent;
     private final boolean rejectEnqueue;
-    private final @Nullable Par par;
 
     private MultiTaskContext(
             TaskNode node,
             long deadlineNanos,
             CancellationToken cancellationToken,
             @Nullable MultiTaskContext structuralParent,
-            boolean rejectEnqueue,
-            @Nullable Par par) {
+            boolean rejectEnqueue) {
         this.node = node;
         this.deadlineNanos = deadlineNanos;
         this.cancellationToken = cancellationToken;
         this.structuralParent = structuralParent;
         this.rejectEnqueue = rejectEnqueue;
-        this.par = par;
     }
 
     /**
@@ -117,9 +114,8 @@ final class MultiTaskContext {
 
         /**
          * The entry the unit is submitted through: the unit's node takes its executor's identity,
-         * its id as display label, and whether an execution blocked on the unit can starve it, and the
-         * unit's executions report workload measurements under it. Diagnostic and graph state only,
-         * never a submission target.
+         * its id as display label, and whether an execution blocked on the unit can starve it.
+         * Diagnostic and graph state only, never a submission target.
          */
         Resolution executor(Par par) {
             this.par = checkNotNull(par, "par cannot be null");
@@ -201,7 +197,6 @@ final class MultiTaskContext {
                 executor == null ? null : executor.identity(),
                 par == null ? null : par.id().value(),
                 executor != null && executor.starvationProne(),
-                spec.taskType(),
                 effective,
                 resolution.taskCount,
                 Deadlines.remaining(deadline, resolutionTime));
@@ -210,8 +205,7 @@ final class MultiTaskContext {
                 deadline,
                 new CancellationToken(cancellationParent, deadline, domain, resolution.timeoutScheduler),
                 parent,
-                spec.rejectEnqueue(),
-                par);
+                spec.rejectEnqueue());
     }
 
     /**
@@ -288,18 +282,7 @@ final class MultiTaskContext {
         return structuralParent;
     }
 
-    /** The unit's own diagnostic task type; a nested unit never inherits its parent's. */
-    TaskType taskType() {
-        return node.taskType();
-    }
-
     boolean rejectEnqueue() {
         return rejectEnqueue;
-    }
-
-    /** The entry the unit was submitted through, or null for a unit resolved without one. */
-    @Nullable
-    Par par() {
-        return par;
     }
 }

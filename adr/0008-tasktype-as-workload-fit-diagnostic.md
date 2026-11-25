@@ -1,6 +1,6 @@
 # ADR 0008: `TaskType` as a workload-fit diagnostic declaration between task and pool
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-10-27
 - Decision scope: the values, default, declaration sites, and consumers of `TaskType`; its
   relationship to enqueue rejection
@@ -13,6 +13,13 @@
 - Partially superseded by: [ADR 0010](0010-always-on-workload-fit-screening.md) (the runtime low-CPU
   screen became always-on at runtime level and judged per entry, no longer reusing the pool
   starvation observation window)
+- Superseded by: [ADR 0016](0016-remove-tasktype-and-workload-fit-screening.md) (`TaskType`, the submission-time comparison, and the
+  runtime screen removed)
+
+> Note (2026-11-24): superseded by [ADR 0016](0016-remove-tasktype-and-workload-fit-screening.md), which removed
+> `TaskType`, the pool-side declaration, the submission-time comparison, and the runtime screen.
+> The API and options §3.2.1 section and the workload-fit screening contract that held the
+> mechanism were retired with them; this record explains history, not current behavior.
 
 ## Context
 
@@ -63,9 +70,8 @@ affecting no execution behavior, landed in one step.
 5. Diagnostics are only logged or reported and MUST NOT fail tasks.
 
 Mechanism details, thresholds, warning wording, and contract clauses landed in the live contracts
-on 2026-10-30: [API and options §3.2.1](../design/task-group-api-and-options.md) and the
-[workload-fit screening contract](../design/workload-fit-screening.md); the live contracts are
-authoritative (`proposal:P0025`).
+on 2026-10-30: API and options §3.2.1 and the workload-fit screening contract, both retired on
+2026-11-24 (`proposal:P0025`).
 
 ## Alternatives Considered
 

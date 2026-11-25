@@ -72,10 +72,9 @@ public interface GroupStart {
      *
      * <p>The member succeeds with the source's value and fails with its failure as a {@link
      * FailureCause.Kind#USER_CODE_FAILURE}; cancellation is attributed through the group like
-     * any member's. The library runs no execution for it: no executor submission, TTL replay, task-type
-     * diagnostic, or workload-fit timing applies. Its execution-exit slot is released when the source
-     * settles, so {@link TaskGroupResult#executionExitConfirmed()} also confirms that every adopted
-     * source settled. A source that ignores cancellation keeps the group's bounded cleanup wait
+     * any member's. The library runs no execution for it: no executor submission or TTL replay
+     * applies. Its execution-exit slot is released when the source settles, so {@link
+     * TaskGroupResult#executionExitConfirmed()} also confirms that every adopted source settled. A source that ignores cancellation keeps the group's bounded cleanup wait
      * waiting and is reported among the unfinished executions.
      *
      * <p>The group never closes the source's value. Resource lifetime belongs to the source's own

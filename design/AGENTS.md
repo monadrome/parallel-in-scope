@@ -57,14 +57,13 @@ Related decisions (load only when the task touches the corresponding decision ba
 | [task-graph.md](task-graph.md) | **Executor wait graph contract**: a runtime-owned, always-on, append-only executor waits-for graph; only synchronous waits form edges, both ends must be executors registered with this runtime, one admission's edges install atomically, the hot path is read-only, installation is CAS; reports carry cyclic strongly connected components and one concrete cycle, admission threads never log, and the semantics are "structural risk once observed"; rejected alternatives (request-level scopes, static queries and policy switches, enumerating all simple cycles, aging edges by time, rejecting on cycles) |
 | [task-identity.md](task-identity.md) | `[beta]` **Task identity contract**: the disjoint unit/group-run identity spaces and their minting, the closed `TaskId` hierarchy as the single kind source, kind+label equality as reconciliation, ids as process-local diagnostics only; rejected alternatives (phantom tags + Kind enum, value-only single class, two independent top-level classes) |
 | [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md) | **Unstructured thread-pool observation contract**: explicit scopes, continuous saturation/backlog/no-progress sampling, risk signals and visibility states, executor ownership and shutdown order; never wraps or changes user tasks |
-| [workload-fit-screening.md](workload-fit-screening.md) | **Workload-fit screening contract**: runtime-level always-on, timing only library-admitted task code whose entry or unit is declared `COMPUTE`; judged per entry in epochs of ten seconds of execution time, with a sticky issue and one `WARNING`; units are only attributed (at most 256 per entry) and judged for drift; cumulative counts read through `workloadFitReport()`; never wraps or changes user tasks, shares no state with starvation observation (ADR 0010) |
 
 Related decisions:
 
-- [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md): `TaskType` as a workload-fit
-  diagnostic declaration; the runtime screening window is partially superseded by ADR 0010.
-- [ADR 0010](../adr/0010-always-on-workload-fit-screening.md): runtime-level always-on,
-  per-entry workload-fit screening.
+- [ADR 0016](../adr/0016-remove-tasktype-and-workload-fit-screening.md): no workload declaration
+  (`TaskType`), submission-time declaration comparison, or low-CPU screening; it supersedes
+  [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) and
+  [ADR 0010](../adr/0010-always-on-workload-fit-screening.md), which keep the history.
 - [ADR 0014](../adr/0014-logging-backend-boundary.md): core logging stays on JUL, and the
   application bridges to other logging backends through configuration or a bridge; logging
   remains best effort, with reliable diagnosis carried by the report APIs.
@@ -112,7 +111,7 @@ Related decisions:
 Related decisions and engineering entries:
 
 - [ADR 0001](../adr/0001-layered-cartesian-concurrency-testing.md): layered Cartesian
-  concurrency testing; its `TaskType`-related parts are superseded by ADR 0008.
+  concurrency testing; its `TaskType`-related parts are superseded by ADR 0008 and ADR 0016.
 - [ADR 0009](../adr/0009-comment-minimization-and-placement.md): comment retention and
   placement principles; the implementation-note and local-proof placement parts are superseded
   by ADR 0012.

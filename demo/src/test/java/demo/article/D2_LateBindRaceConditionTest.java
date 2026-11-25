@@ -11,7 +11,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -155,8 +154,7 @@ class D2_LateBindRaceConditionTest {
 
             BatchOptions options = BatchOptions.timeout(
                             "unified-timeout-test", java.time.Duration.ofMillis(batchTimeoutMs))
-                    .parallelism(PARALLELISM)
-                    .taskType(TaskType.BLOCKING);
+                    .parallelism(PARALLELISM);
 
             long startTime = System.currentTimeMillis();
 

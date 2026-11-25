@@ -19,7 +19,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
@@ -41,24 +40,20 @@ public final class Par {
     private final ParRuntime runtime;
     private final ExecutorRuntime executorRuntime;
     private final ParId id;
-    private final TaskType taskType;
-    private final WorkloadFit.Entry workload = new WorkloadFit.Entry();
 
     /**
-     * One-shot latch for the inert enqueue-refusal diagnostic; see {@link
-     * #warnIfEnqueueRefusalInert}.
+     * One-shot latch for the inert enqueue-refusal diagnostic; see {@link #diagnoseAdmission}.
      */
     private final AtomicBoolean enqueueRefusalWarningIssued = new AtomicBoolean();
 
-    private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime, TaskType taskType) {
+    private Par(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime cannot be null");
         this.executorRuntime = Objects.requireNonNull(executorRuntime, "executorRuntime cannot be null");
         this.id = Objects.requireNonNull(id, "id cannot be null");
-        this.taskType = checkNotNull(taskType, "taskType cannot be null");
     }
 
-    static Par forRuntime(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime, TaskType taskType) {
-        return new Par(runtime, id, executorRuntime, taskType);
+    static Par forRuntime(ParRuntime runtime, ParId id, ExecutorRuntime executorRuntime) {
+        return new Par(runtime, id, executorRuntime);
     }
 
     /** Returns the owning immutable ParRuntime. */
@@ -69,19 +64,6 @@ public final class Par {
     /** Returns the logical id this entry is registered under. */
     public ParId id() {
         return id;
-    }
-
-    /**
-     * Returns the work this entry was registered to carry; {@link TaskType#UNKNOWN} when the
-     * registration declared none. The declaration is diagnostic only; see {@link TaskType}.
-     */
-    public TaskType taskType() {
-        return taskType;
-    }
-
-    /** This entry's workload-fit totals; see {@link WorkloadFit}. */
-    WorkloadFit.Entry workload() {
-        return workload;
     }
 
     /**
@@ -240,8 +222,8 @@ public final class Par {
                         new TaskExecutionContext(unit, index, System.nanoTime(), executionExit.register(unit)),
                         callableMapper.apply(list.get(index))))
                 .collect(toImmutableList());
-        MultiTaskContext terminalUnit = MultiTaskContext.resolve(
-                MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, TaskType.UNKNOWN, false), 1)
+        MultiTaskContext terminalUnit =
+                MultiTaskContext.resolve(MultiTaskContext.resolution(new UnitSpec(unit.name(), 1, null, false), 1)
                         .structuralParent(unit)
                         .cancellationParent(unit.cancellationToken())
                         .deadlineCeilingNanos(unit.deadlineNanos())
@@ -416,19 +398,12 @@ public final class Par {
     }
 
     /**
-     * Logs what a unit's admission through this entry can say about the unit's options; never
-     * changes whether or how the unit is admitted, queued, or completed. Messages are delivered on
-     * a runtime-owned thread, so a logging handler that throws or blocks never reaches the caller.
+     * Reports once per Par that a unit admitted through this entry requested an enqueue refusal that
+     * cannot take effect here; never changes whether or how the unit is admitted, queued, or
+     * completed. The message is delivered on a runtime-owned thread, so a logging handler that throws
+     * or blocks never reaches the caller.
      */
     void diagnoseAdmission(MultiTaskContext unit) {
-        warnIfEnqueueRefusalInert(unit);
-        reportTaskTypeMismatch(unit);
-    }
-
-    /**
-     * Reports once per Par that a requested enqueue refusal cannot take effect here.
-     */
-    private void warnIfEnqueueRefusalInert(MultiTaskContext unit) {
         if (!unit.rejectEnqueue() || executorRuntime.enqueueRefusalEffective()) {
             return;
         }
@@ -439,33 +414,6 @@ public final class Par {
                     + " what happens to an element that cannot start at once is left to the"
                     + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
                     + " whose work queue is a SubmissionAwareBlockingQueue to make the option effective.";
-            runtime.announce(() -> LOGGER.warning(message));
-        }
-    }
-
-    /**
-     * Reports, once per this entry and unit name, a unit whose declared {@link TaskType} disagrees
-     * with the entry's. {@link TaskType#UNKNOWN} on either side never disagrees. A blocking unit on
-     * an entry declared for computation is a {@code WARNING}, since it can hold one of few threads
-     * while it waits; the reverse is {@code INFO}. Either message states only that the declarations
-     * disagree, never that starvation, oversubscription, or misuse happened.
-     */
-    private void reportTaskTypeMismatch(MultiTaskContext unit) {
-        TaskType unitType = unit.taskType();
-        if (taskType == TaskType.UNKNOWN || unitType == TaskType.UNKNOWN || unitType == taskType) {
-            return;
-        }
-        TaskTypeMismatches.Outcome outcome = runtime.taskTypeMismatches().record(id, unit.name());
-        if (outcome == TaskTypeMismatches.Outcome.FIRST) {
-            Level level = taskType == TaskType.COMPUTE ? Level.WARNING : Level.INFO;
-            String message = "Par '" + id + "' is registered for TaskType." + taskType + ", but unit '" + unit.name()
-                    + "' declares TaskType." + unitType + ". The declarations disagree; check that the"
-                    + " unit is submitted through the intended Par. Logged once per Par and unit name.";
-            runtime.announce(() -> LOGGER.log(level, message));
-        } else if (outcome == TaskTypeMismatches.Outcome.OVERFLOW) {
-            String message = "The runtime's memory of TaskType mismatches is full at " + TaskTypeMismatches.CAPACITY
-                    + " Par and unit-name pairs; mismatches of further pairs, starting with unit '" + unit.name()
-                    + "' on Par '" + id + "', are not logged. Use fixed unit names rather than names built per call.";
             runtime.announce(() -> LOGGER.warning(message));
         }
     }

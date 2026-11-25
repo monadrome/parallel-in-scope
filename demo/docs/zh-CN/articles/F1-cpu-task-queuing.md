@@ -34,12 +34,10 @@ for (int i = 0; i < 20; i++) {
 ## 解决方法
 
 `Par.map()` 用滑动窗口控制提交量：同时在途的任务最多为 `parallelism` 个，其余任务在提交窗口里等待，
-不进入线程池队列。`taskType(TaskType.COMPUTE)` 声明这是一批 CPU 密集任务，注册时的
-`TaskType.COMPUTE` 声明这个池用于计算；两者都只用于诊断，不改变入队、拒绝或调度。
+不进入线程池队列。
 
 这样做的效果：
 - 线程池队列只保留很少的任务，未开始的任务在提交窗口里等待
-- 如果某个声明为计算型的任务实际在阻塞，runtime 会记一条 `WARNING`，测量值见 `ParRuntime.workloadFitReport()`
 - 需要让 `SubmissionAwareBlockingQueue` 拒绝入队时，显式写 `rejectEnqueue(true)`；被拒任务由 executor 自己的拒绝策略处理
 
 ## 代码
@@ -48,13 +46,13 @@ for (int i = 0; i < 20; i++) {
 
 ExecutorService pool = Executors.newFixedThreadPool(4);
 ParRuntime config = ParRuntime.builder()
-        .register(ParId.of("cpu-pool"), pool, TaskType.COMPUTE)
+        .register(ParId.of("cpu-pool"), pool)
         .defaultPar(ParId.of("cpu-pool"))
         .build();
 Par par = config.defaultPar();
 
-// 滑动窗口限制在途任务数；taskType 只是诊断声明
-BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2).taskType(TaskType.COMPUTE);
+// 滑动窗口限制在途任务数
+BatchOptions options = BatchOptions.timeout("heavy-computation", java.time.Duration.ofMillis(10000)).parallelism(2);
 
 List<Data> items = loadDataset();
 TaskBatchResult<Result> result = par.map( items, item -> {
@@ -70,9 +68,8 @@ System.out.println(result.reportString());
 | 维度 | 原生 FixedThreadPool | Par.map() + 滑动窗口 |
 |------|---------------------|----------------------|
 | 队列深度 | 所有任务一次性入队 | 最多 `parallelism` 个任务在途 |
-| 入队与拒绝 | 由队列和拒绝策略决定 | 同样由 executor 决定，`TaskType` 不参与 |
-| 计算池里的阻塞任务 | 没有信号 | runtime 记 `WARNING`，`workloadFitReport()` 给出测量值 |
-| 调度策略 | 由 executor 配置 | `TaskType` 不选 executor、不改调度 |
+| 入队与拒绝 | 由队列和拒绝策略决定 | 同样由 executor 决定 |
+| 调度策略 | 由 executor 配置 | 仍由 executor 配置，`Par.map()` 不改调度 |
 
 ---
 

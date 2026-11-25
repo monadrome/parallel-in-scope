@@ -93,16 +93,15 @@ be inexpressible at the type level, not warned against in documentation.
 
 | Option type | Sole position | Fields | Consumer of each field |
 |---|---|---|---|
-| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / taskType / rejectEnqueue / closeGrace / request source | batch unit resolution, the sliding window's concurrency cap, `TaskType` diagnostics (submission-time comparison and workload-fit screening, §3.2.1), `SubmissionAwareBlockingQueue` enqueue refusal, bounded cleanup budget, execution-token request cancellation |
-| `TaskOptions` | `par(...)`, `combine(...)` declarations | timeout / taskType / rejectEnqueue | that task execution's deadline, `TaskType` diagnostics (§3.2.1), `SubmissionAwareBlockingQueue` enqueue refusal |
+| `BatchOptions` | `Par.map` / `Par.mapAndCombine` | name / parallelism / timeout / rejectEnqueue / closeGrace / request source | batch unit resolution, the sliding window's concurrency cap, `SubmissionAwareBlockingQueue` enqueue refusal (§3.2.1), bounded cleanup budget, execution-token request cancellation |
+| `TaskOptions` | `par(...)`, `combine(...)` declarations | timeout / rejectEnqueue | that task execution's deadline, `SubmissionAwareBlockingQueue` enqueue refusal (§3.2.1) |
 
 The public queue types' names describe their contracts directly (proposal:P0038):
 `SubmissionAwareBlockingQueue` reads `rejectEnqueue` from the submission scope and refuses
 enqueue only when that option is true; `ResizableBlockingQueue` provides bounded FIFO and
 caller-driven capacity changes through `setCapacity(int)`. Both MUST keep their existing
-enqueue, dynamic-capacity, and concurrency semantics, and MUST NOT let `TaskType` change
-enqueue admission; `DrainingBlockingQueue`'s draining-close contract is unaffected by this
-naming consolidation.
+enqueue, dynamic-capacity, and concurrency semantics; `DrainingBlockingQueue`'s draining-close
+contract is unaffected by this naming consolidation.
 
 > Note: the `runOnCallerThread` field once appeared in this table and was deleted before the
 > 0.3.0 release (rejection handling belongs to the executor's `RejectedExecutionHandler`); the
@@ -118,7 +117,7 @@ and both must be declared before the first `par`.
 its consumers read: member and combine identities come from declaration names, and a single
 task is one execution with no fan-out, so `TaskOptions` MUST NOT contain name, parallelism, or
 listeners; a group is not a single task execution, so group-level configuration MUST NOT
-contain parallelism, taskType, or rejectEnqueue.
+contain parallelism or rejectEnqueue.
 
 **The discriminator is statically decided by the call site.** As far as "one unit's options" is
 concerned, this replaces the former single product type with role-divided products: `Par.map`
@@ -136,9 +135,8 @@ state (omitting the declaration is a compile error), and the two declarations ca
 (both factories return terminal instances). This is stronger than the former "validate exactly
 one of the two at `build()`"; the constraint's semantics are unchanged.
 
-**Immutable withers, no mutable intermediate state.** `taskType(...)`/`rejectEnqueue(...)`/
-`parallelism(...)`/`closeGrace(...)`/`cancelOn(...)` return new instances, leaving the original
-unchanged; no Builder and no intermediate mutable state. No-arg factories (such as
+**Immutable withers, no mutable intermediate state.** `rejectEnqueue(...)`/`parallelism(...)`/
+`closeGrace(...)`/`cancelOn(...)` return new instances, leaving the original unchanged; no Builder and no intermediate mutable state. No-arg factories (such as
 `TaskOptions.inheritTimeout()`) MAY return a shared immutable instance.
 
 Request cancellation belongs only to Batch/Group scopes: `TaskOptions` MUST NOT grow
@@ -164,8 +162,8 @@ any resolution result or execution behavior):
   equivalent to passing `TaskOptions.inheritTimeout()`. Omitting relaxes no constraint — a
   member is always bounded by the group deadline and cannot gain unbounded execution from this;
   that forced choice was already made and documented at group level, so the member-side second
-  declaration normally carries no information. Pass options explicitly when a tighter budget, a
-  different task type, or an enqueue policy is needed;
+  declaration normally carries no information. Pass options explicitly when a tighter budget or
+  an enqueue policy is needed;
 - a member is a single task and produces no multiple execution instances; a member's internal
   nested submissions (`Par.map`, nested groups) read the nested submission's own options;
 - options hold no run state and are safe to reuse; options carrying a request source
@@ -180,76 +178,44 @@ any resolution result or execution behavior):
 
 **The kernel is agnostic to option types.** `MultiTaskContext.resolve(...)` MUST NOT accept
 public option types; each option type provides a package-private adapter method folding its
-options into the kernel carrier (name, requestedParallelism, timeout, taskType, rejectEnqueue).
+options into the kernel carrier (name, requestedParallelism, timeout, rejectEnqueue).
 The member side adapts from `TaskOptions` (name is the member declaration name,
 requestedParallelism is always 1), and the batch side adapts from `BatchOptions`. Request
 sources do not enter `UnitSpec`; they are wired into the execution token separately at
 admission. The resolution entry and the three-parent decoupling semantics are in
 [Lifecycle and state machine §5](task-group-lifecycle.md).
 
-#### 3.2.1 `TaskType`: an optional diagnostic declaration
+#### 3.2.1 Admission diagnostics
 
-`TaskType` is an optional workload declaration shared by the task and pool sides, with values
-`COMPUTE` (mainly consumes CPU; should not hold a thread while waiting), `BLOCKING` (may block
-the thread at any stage: I/O, locks, sleep, join, waiting for other tasks or nested batches),
-and `UNKNOWN` (undeclared). The unit side declares the task code itself through
-`BatchOptions.taskType` / `TaskOptions.taskType`; the entry side declares the task type an
-entry is expected to carry through `ParRuntime.Builder.register(ParId, ExecutorService,
-TaskType)`, with the two-argument overload equivalent to `UNKNOWN`; read it with
-`Par.taskType()`. Multiple entries sharing one physical pool each keep their own declarations.
-
-- `TaskType` MUST NOT change admission, enqueue, rejection, cancellation, deadlines,
-  attribution, or task outcomes. Enqueue refusal is expressed only by `rejectEnqueue`:
-  `SubmissionAwareBlockingQueue.offer` reads only `rejectEnqueue`, and the inert-refusal warning
-  also targets only `rejectEnqueue`.
-- Both sides' default MUST be `UNKNOWN`; `UNKNOWN` may be written explicitly to mean a
-  deliberate non-declaration. A nested unit MUST NOT inherit its parent unit's type: a
-  `Par.map` submitted inside task code, nested groups, and a `Par.mapAndCombine`'s terminal
-  combine all resolve by their own declarations, undeclared being `UNKNOWN`. The type describes
-  the task code itself; inheriting would fabricate a declaration on the user's behalf. The
-  terminal combine likewise does not request enqueue refusal.
-- **Submission-time comparison.** Every unit at admission (batch, single task, group member,
-  group combine) compares the entry's and the unit's declarations: when both sides are
-  non-`UNKNOWN` and differ, record once per `(Par, unit name)`; the direction needs no separate
-  key because an entry has only one declaration. A `COMPUTE` entry with a `BLOCKING` unit logs
-  `WARNING`; the reverse logs `INFO`. Either side being `UNKNOWN` MUST NOT warn. The warning
-  MUST state only "declarations disagree" and MUST NOT be phrased as starvation,
-  oversubscription, or misuse having already occurred.
-- Deduplication MUST be scoped to the `ParRuntime` and bounded: at most 1024 pairs, never
-  evicted. Once full, a new pair's disagreement is recorded only as one summary warning the
-  first time and never again; after overflow it MUST NOT claim all new units are still
-  detected. No counter of suppressed warnings: overflow only occurs when unit names are
-  concatenated per call, and the summary warning already makes it visible (ADR 0010).
+- Enqueue refusal is expressed only by `rejectEnqueue`: `SubmissionAwareBlockingQueue.offer`
+  reads nothing else, and the inert-refusal warning also targets only `rejectEnqueue`. Every
+  unit is checked at admission (batch, single task, group member, group combine): the first unit
+  through a `Par` that requests refusal while that entry's executor does not use a
+  `SubmissionAwareBlockingQueue` logs one warning. A `Par.mapAndCombine`'s terminal combine does
+  not request enqueue refusal.
 - Diagnostics MUST only log or enter reports; they MUST NOT fail a task, batch, or group, and
   MUST NOT replace its result. Logs MUST be delivered on a runtime-owned thread; the admission
   thread MUST NOT invoke log handlers: a handler throwing or blocking, the delivery executor
   rejecting, or being unable to create a thread for delivery (including `OutOfMemoryError`)
   must not affect admission — only that log record is lost. Records are delivered independently
   and may appear out of admission order.
-  The inert-refusal warning follows this same rule.
-  The runtime-side low-CPU screening is in the [workload-fit screening contract](workload-fit-screening.md).
 
 Rejected alternatives:
 
-- Keeping `CPU_BOUND` driving enqueue refusal: a diagnostic label doubling as a behavior
-  switch — one wrong label corrupts both documentation and execution semantics, making users
-  afraid to declare casually; users who need enqueue refusal write `rejectEnqueue(true)`
-  explicitly.
-- Keeping `MIXED`: equivalent to `BLOCKING` in every check.
-- Reusing the `CPU_BOUND`/`IO_BOUND` names with only semantics changed: code depending on the
-  old refusal behavior would silently change behavior; renaming makes it fail compilation,
-  forcing a look during migration.
-- Required declarations on both sides: the default is not dangerous, only one diagnostic
-  fewer; a requirement would only earn careless filler values.
-- Inferring use from pool structure (thread count ≈ core count, `ForkJoinPool`) and warning: a
-  core-sized pool limiting downstream concurrency is legitimate use, and inferred warnings
-  would be noisy.
+- A workload label driving enqueue refusal (the former `CPU_BOUND`): a diagnostic label doubling
+  as a behavior switch — one wrong label corrupts both documentation and execution semantics,
+  making users afraid to declare casually; users who need enqueue refusal write
+  `rejectEnqueue(true)` explicitly.
+- A workload declaration on tasks and entries, compared at submission and screened by thread CPU
+  time: the comparison sees only deliberate declarations wired to the wrong pool and the screen
+  is an uncalibrated heuristic on the execution path; the reasons are in
+  [ADR 0016](../adr/0016-remove-tasktype-and-workload-fit-screening.md).
+- Catching a handler failure at the log call: a blocking or re-entrant handler would still hold
+  admission, so records are delivered off the admitting thread instead.
+- Strict ordering between records, or between records and a summary record: it would need a
+  serial delivery queue, and logs are best effort.
 
-Independent-review dispositions and the mutation-verification record are in the Review history
-section of the [workload-fit screening contract](workload-fit-screening.md). The decisions are
-[ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) and
-[ADR 0010](../adr/0010-always-on-workload-fit-screening.md). Historical source:
-`proposal:P0025` (`P0025-workload-fit-diagnostics`; the same-numbered
+Historical source: `proposal:P0025` (`P0025-workload-fit-diagnostics`; the same-numbered
 `P0025-internal-cancellation-token` is a separate landed proposal).
 
 ### 3.3 Result types

@@ -14,8 +14,7 @@
 
 ```java
 BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000))
-        .parallelism(6)
-        .taskType(TaskType.BLOCKING);   // 统一 5 秒超时
+        .parallelism(6);   // 统一 5 秒超时
 
 TaskBatchResult<Object> result = par.map( tasks, task -> {
     if (task instanceof HttpRequest) {
@@ -48,13 +47,13 @@ String report = result.reportString();
 
 ```java
 // 快速 HTTP 调用
-BatchOptions.timeout("http", java.time.Duration.ofMillis(3000)).taskType(TaskType.BLOCKING);
+BatchOptions.timeout("http", java.time.Duration.ofMillis(3000));
 
 // 数据库查询
-BatchOptions.timeout("db", java.time.Duration.ofMillis(30000)).taskType(TaskType.BLOCKING);
+BatchOptions.timeout("db", java.time.Duration.ofMillis(30000));
 
 // 文件处理
-BatchOptions.timeout("file", java.time.Duration.ofMillis(120000)).taskType(TaskType.BLOCKING);
+BatchOptions.timeout("file", java.time.Duration.ofMillis(120000));
 ```
 
 ### 2. 并行度要匹配资源

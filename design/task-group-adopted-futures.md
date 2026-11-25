@@ -146,8 +146,8 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
   completed by A is a self-loop. The producer is a user-declared fact the library does not
   verify; without a declaration the node has no executor and MUST NOT form edges. The producer
   must belong to the same runtime.
-- A7 Adopted members undergo no TaskType submission diagnostics and no workload-fit screening
-  timing (there is no library-executed execution). Thread-pool starvation observation samples
+- A7 Adopted members undergo no admission diagnostics (there is no library-executed
+  execution). Thread-pool starvation observation samples
   producer pools as usual: adoption MUST NOT wrap, submit, cancel (other than the source), or
   reorder tasks on the pool; when the source is queued on the waiter's own pool, the two
   signals complement each other — the wait graph shows the self-loop, sampling shows
@@ -191,7 +191,7 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
   registered resources' closing. Close completion is outside A5's wait scope.
 - **Mandatory producer `Par`**: a future completed on a client's IO thread belongs to no
   registered executor; mandating one fabricates edges.
-- **Adopted members accepting `TaskOptions`**: taskType and rejectEnqueue would have no
+- **Adopted members accepting `TaskOptions`**: rejectEnqueue would have no
   consumer; member-level timeout is not provided for now — the group deadline is already the
   liveness source, and it can be parameterized when real use cases appear.
 

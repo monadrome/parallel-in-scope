@@ -187,10 +187,7 @@ class TaskBatchResultExecutionExitTest {
         AtomicInteger executions = new AtomicInteger();
         try {
             TaskBatch<Integer> batch = global.par(ParId.of("worker"))
-                    .submitBatch(
-                            Arrays.asList(1, 2),
-                            value -> executions.incrementAndGet(),
-                            options("queued").taskType(TaskType.BLOCKING));
+                    .submitBatch(Arrays.asList(1, 2), value -> executions.incrementAndGet(), options("queued"));
 
             // Every task is parked in the executor queue: the wait must not succeed early.
             assertThat(batch.awaitExecutionExit(Duration.ZERO)).isFalse();
@@ -332,7 +329,7 @@ class TaskBatchResultExecutionExitTest {
                                 sleepInterruptibly(10_000);
                                 return value;
                             },
-                            options("window-external-cancel").parallelism(1).taskType(TaskType.BLOCKING));
+                            options("window-external-cancel").parallelism(1));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             // Cancelling the window-external element's own view cascades fail-fast: the running
@@ -363,7 +360,7 @@ class TaskBatchResultExecutionExitTest {
                                 sleepInterruptibly(10_000);
                                 return value;
                             },
-                            options("abandon").parallelism(1).taskType(TaskType.BLOCKING));
+                            options("abandon").parallelism(1));
             assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
             batch.submitCanceller().cancel(true);
@@ -383,10 +380,7 @@ class TaskBatchResultExecutionExitTest {
         AtomicInteger executions = new AtomicInteger();
         try {
             TaskBatch<Integer> batch = global.par(ParId.of("worker"))
-                    .submitBatch(
-                            Arrays.asList(1, 2, 3),
-                            value -> executions.incrementAndGet(),
-                            options("rejected").taskType(TaskType.BLOCKING));
+                    .submitBatch(Arrays.asList(1, 2, 3), value -> executions.incrementAndGet(), options("rejected"));
 
             assertThat(batch.awaitExecutionExit(Duration.ZERO)).isTrue();
             assertThat(executions).hasValue(0);
@@ -407,7 +401,7 @@ class TaskBatchResultExecutionExitTest {
                     .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("mid-reject").parallelism(1).taskType(TaskType.BLOCKING));
+                            options("mid-reject").parallelism(1));
 
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(1);
@@ -431,7 +425,7 @@ class TaskBatchResultExecutionExitTest {
                     .submitBatch(
                             Arrays.asList(1, 2),
                             value -> executions.incrementAndGet(),
-                            options("inline").parallelism(1).taskType(TaskType.COMPUTE));
+                            options("inline").parallelism(1));
 
             assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
             assertThat(executions).hasValue(2);
@@ -823,7 +817,7 @@ class TaskBatchResultExecutionExitTest {
                                     sleepInterruptibly(10_000);
                                     return value;
                                 },
-                                options("fail-fast-report").parallelism(1).taskType(TaskType.BLOCKING));
+                                options("fail-fast-report").parallelism(1));
                 assertThat(batch.awaitExecutionExit(Duration.ofSeconds(5))).isTrue();
                 assertThat(batch.report().pending()).isZero();
                 batch.close();

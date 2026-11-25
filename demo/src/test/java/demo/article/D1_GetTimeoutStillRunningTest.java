@@ -7,7 +7,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -105,8 +104,7 @@ public class D1_GetTimeoutStillRunningTest {
         AtomicBoolean task2Completed = new AtomicBoolean(false);
 
         BatchOptions opts = BatchOptions.timeout("cancel-demo", java.time.Duration.ofMillis(500))
-                .parallelism(2)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(2);
 
         List<Integer> input = Arrays.asList(1, 2);
         TaskBatchResult<Integer> result = par.map(

@@ -7,8 +7,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
-import io.github.monadrome.parallelinscope.WorkloadFitReport;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -27,7 +25,7 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>问题：CPU 密集任务在线程池队列中排队等待毫无意义——它们不需要等待外部资源， 只需要 CPU 时间。排队只增加延迟，不提升吞吐。
  *
- * <p>解决：Par.map() 通过滑动窗口控制提交量和并发度；BatchOptions.taskType(TaskType.COMPUTE) 只是诊断声明，不选择 executor，也不改变入队或拒绝。
+ * <p>解决：Par.map() 通过滑动窗口控制提交量和并发度，CPU 任务不在池队列里排队。
  */
 class F1_CpuTaskQueuingTest {
 
@@ -43,15 +41,6 @@ class F1_CpuTaskQueuingTest {
             hash ^= (hash >>> 16);
         }
         return hash;
-    }
-
-    private long blockingCall(int input) {
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-        }
-        return input;
     }
 
     /**
@@ -118,8 +107,7 @@ class F1_CpuTaskQueuingTest {
     /**
      * 解决方案：Par.map() 的滑动窗口控制并发，CPU 任务不在池队列里排队。
      *
-     * <p>注册时用 TaskType.COMPUTE 声明池的用途，并用 BatchOptions.taskType(TaskType.COMPUTE) 标记 CPU 密集任务；两者只用于诊断。Par.map()
-     * 通过滑动窗口确保只有 parallelism 个任务在执行中，其余任务等前一个完成后才提交；本测试使用普通队列，TaskType 不会改变 executor 的入队与拒绝处理。
+     * <p>Par.map() 通过滑动窗口确保只有 parallelism 个任务在执行中，其余任务等前一个完成后才提交。
      */
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -129,7 +117,7 @@ class F1_CpuTaskQueuingTest {
 
         ExecutorService pool = Executors.newFixedThreadPool(poolSize);
         ParRuntime config = ParRuntime.builder()
-                .register(ParId.of("cpu-pool"), pool, TaskType.COMPUTE)
+                .register(ParId.of("cpu-pool"), pool)
                 .defaultPar(ParId.of("cpu-pool"))
                 .build();
         Par par = config.defaultPar();
@@ -141,8 +129,7 @@ class F1_CpuTaskQueuingTest {
             List<Integer> input = IntStream.range(0, TASK_COUNT).boxed().collect(Collectors.toList());
 
             BatchOptions options = BatchOptions.timeout("cpu-compute", java.time.Duration.ofMillis(30000))
-                    .parallelism(parallelism)
-                    .taskType(TaskType.COMPUTE);
+                    .parallelism(parallelism);
 
             TaskBatchResult<Long> result = par.map(
                     input,
@@ -178,49 +165,6 @@ class F1_CpuTaskQueuingTest {
                     .as("CPU 任务并发度受控: parallelism=%d, 最大并发=%d", parallelism, maxConcurrency.get())
                     .isLessThanOrEqualTo(parallelism + 1);
 
-            assertThat(options.taskType())
-                    .as("taskType(TaskType.COMPUTE) 只声明任务类型")
-                    .isEqualTo(TaskType.COMPUTE);
-        } finally {
-            pool.shutdownNow();
-        }
-    }
-
-    /**
-     * 诊断：声明为计算用途的池里跑了阻塞任务，runtime 常开的负载匹配筛查会发现它。
-     *
-     * <p>任务体大部分时间在等待（这里用 sleep 模拟远程调用），CPU 时间远低于执行时间。runtime 按条目累计，攒够一个判定周期后把
-     * {@code issue()} 置为 true 并记一条 WARNING；{@code workloadFitReport()} 给出测量值和归因到的单元。判定只做报告，任务结果不变。
-     */
-    @Test
-    @Timeout(value = 60, unit = TimeUnit.SECONDS)
-    void diagnosis_blockingWorkInComputePoolIsFlagged() {
-        ExecutorService pool = Executors.newFixedThreadPool(8);
-        try (ParRuntime runtime = ParRuntime.builder()
-                .register(ParId.of("cpu-pool"), pool, TaskType.COMPUTE)
-                .build()) {
-            Par par = runtime.par(ParId.of("cpu-pool"));
-            List<Integer> input = IntStream.range(0, 8).boxed().collect(Collectors.toList());
-            BatchOptions options = BatchOptions.timeout("remote-lookup", java.time.Duration.ofSeconds(10))
-                    .parallelism(8);
-
-            WorkloadFitReport.ParMeasurement measurement =
-                    runtime.workloadFitReport().pars().get(0);
-            for (int round = 0; round < 50 && !measurement.issue(); round++) {
-                assertThat(par.map(input, this::blockingCall, options).valuesOrThrow())
-                        .as("筛查只报告，任务结果不变")
-                        .hasSize(8);
-                measurement = runtime.workloadFitReport().pars().get(0);
-            }
-
-            assertThat(measurement.par()).isEqualTo(ParId.of("cpu-pool"));
-            assertThat(measurement.issue())
-                    .as("计算池里的阻塞任务被判为 issue: %s", measurement)
-                    .isTrue();
-            assertThat(measurement.cpuToExecutionRatio()).as("任务体几乎不用 CPU").isLessThan(0.5);
-            assertThat(measurement.units())
-                    .extracting(WorkloadFitReport.UnitMeasurement::unit)
-                    .containsExactly("remote-lookup");
         } finally {
             pool.shutdownNow();
         }

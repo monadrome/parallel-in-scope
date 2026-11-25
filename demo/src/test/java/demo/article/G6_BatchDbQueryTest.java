@@ -7,7 +7,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -123,8 +122,7 @@ class G6_BatchDbQueryTest {
         assertThat(shards).hasSize(SHARD_COUNT);
 
         BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
-                .parallelism(parallelism)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(parallelism);
 
         long start = System.currentTimeMillis();
 
@@ -183,8 +181,7 @@ class G6_BatchDbQueryTest {
         AtomicInteger maxConcurrency = new AtomicInteger(0);
 
         BatchOptions options = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
-                .parallelism(parallelism)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(parallelism);
 
         TaskBatchResult<List<User>> result = par.map(
                 shards,

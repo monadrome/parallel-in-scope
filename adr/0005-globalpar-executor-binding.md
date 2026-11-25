@@ -9,7 +9,8 @@
 - Partially superseded by: [execution future simplification](../design/execution-future-simplification.md)
   (the pool-level purge policy); the "Listener SPIs removed" entry in the
   [decision-log](../design/decision-log.md) (global listeners); [ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)
-  (`TaskType` no longer affects queueing or rejection)
+  (`TaskType` no longer affects queueing or rejection); [ADR 0016](0016-remove-tasktype-and-workload-fit-screening.md)
+  (`TaskType` removed; rule 10)
 
 > Note (2026-10-27): `GlobalPar` is now named `ParRuntime` (v0.3.0); the assembly boundary's string
 > name is now the typed `ParId`; the per-call input is now `BatchOptions`/`TaskOptions`. This
@@ -86,10 +87,9 @@ Enforceable rules:
    `Par`; cancellation propagates down along the explicit parent token and does not break across
    thread pools; a child batch does not implicitly cancel the parent batch; a child deadline is no
    later than the parent deadline.
-10. **`TaskType` does not route**: `TaskType` is an optional diagnostic declaration that does not
-    affect queueing, rejection, or any execution behavior, and does not implicitly select a `Par`
-    ([ADR 0008](0008-tasktype-as-workload-fit-diagnostic.md)). When dynamic routing is truly needed,
-    design an explicit application-layer resolver.
+10. **Nothing routes implicitly**: no task declaration selects a `Par`, and the library has no
+    workload declaration ([ADR 0016](0016-remove-tasktype-and-workload-fit-screening.md)). When dynamic routing is truly
+    needed, design an explicit application-layer resolver.
 11. **Java 8 and Java 21**: the public API depends only on `ExecutorService`; virtual threads are
     just another supplied executor; the Java 8 main sources do not link Java 21 APIs directly, and
     such capabilities can only be injected through optional extensions.
@@ -151,3 +151,7 @@ purge policy, the error model and observation field inventory, the typical-usage
 existing-concept disposition table, the W0–W6 implementation task breakdown, the acceptance
 criteria, the final model, and the sections 18–19 change checklists (invariants that remain valid
 were merged into the rules above; the current authority is the `design/` contracts).
+
+On 2026-11-24, ADR 0016 removed `TaskType`. Rule 10 had said that `TaskType` is an optional
+diagnostic declaration that does not affect queueing, rejection, or any execution behavior, and
+does not implicitly select a `Par`.

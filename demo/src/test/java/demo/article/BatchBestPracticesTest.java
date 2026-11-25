@@ -9,7 +9,6 @@ import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
 import io.github.monadrome.parallelinscope.TaskTermination;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -73,8 +72,7 @@ public class BatchBestPracticesTest {
                 "analytics");
 
         BatchOptions opts = BatchOptions.timeout("batch-http", java.time.Duration.ofMillis(3000))
-                .parallelism(5)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(5);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 
@@ -142,8 +140,7 @@ public class BatchBestPracticesTest {
         assertThat(shards).hasSize(10);
 
         BatchOptions opts = BatchOptions.timeout("db-batch-query", java.time.Duration.ofMillis(30000))
-                .parallelism(parallelism)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(parallelism);
 
         long start = System.currentTimeMillis();
 
@@ -204,8 +201,7 @@ public class BatchBestPracticesTest {
         List<String> tasks = Arrays.asList("db-1", "cache-1", "http-1", "db-2", "cache-2");
 
         BatchOptions opts = BatchOptions.timeout("mixed-io", java.time.Duration.ofMillis(5000))
-                .parallelism(3)
-                .taskType(TaskType.BLOCKING);
+                .parallelism(3);
 
         AtomicInteger completedCount = new AtomicInteger(0);
 

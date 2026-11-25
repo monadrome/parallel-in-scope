@@ -47,7 +47,52 @@ REQUIRED_CODEOWNERS = (
     "/scripts/**/test_*.py",
     "/verification/verification-integrity.md",
 )
-REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+_CORE_TESTS = "core/src/test/java/io/github/monadrome/parallelinscope/"
+_F1_DEMO_TEST = "demo/src/test/java/demo/article/F1_CpuTaskQueuingTest.java"
+_CONSUMER_TEST = "verification/maven-central-consumer/src/test/java/verification/MavenCentralConsumerTest.java"
+# ADR 0016 removed TaskType and workload-fit screening. These files, cases, and assertions verified
+# only the removed declaration, mismatch comparison, or screen; renamed cases dropped the
+# declaration from their names.
+_TASK_TYPE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+    {
+        *(
+            (f"{_CORE_TESTS}{name}.java", "V1", f"{_CORE_TESTS}{name}.java")
+            for name in (
+                "TaskTypeMismatchWarningTest",
+                "TaskTypeMismatchesTest",
+                "WorkloadFitScreeningTest",
+                "WorkloadFitSystemClockTest",
+                "WorkloadFitTest",
+            )
+        ),
+        *(
+            (f"{_CORE_TESTS}{name}.java", rule, case)
+            for name, rule, case in (
+                ("BatchOptionsTest", "V2", "defaultsAreUncappedUndeclaredAndEnqueueing"),
+                ("BatchOptionsTest", "V4", "withersRoundTripEveryFieldWithoutMutatingTheOriginal"),
+                ("BatchOptionsTest", "V4", "explicitTimeoutAndParallelismResolveIntoTheBatchContext"),
+                ("DefaultEnqueuePolicyTest", "V2", "declaringComputeAloneStillEnqueuesOntoASmartQueue"),
+                ("InertEnqueueRefusalWarningTest", "V2", "aComputeBatchOnAPlainQueueRequestsNoRefusalAndIsNotReported"),
+                ("InertEnqueueRefusalWarningTest", "V2", "aComputeBatchCombinedOntoAPlainQueueIsNotReported"),
+                ("MultiTaskContextTest", "V4", "resolvesParallelismAndRuntimeMetadata"),
+                ("MultiTaskContextTest", "V4", "theUnitResolvesExactlyOneNodeCarryingItsOwnFacts"),
+                ("ParRuntimeTest", "V2", "registrationDeclaresAnOptionalTaskTypePerEntry"),
+                ("SlidingWindowSubmitterTest", "V2", "rejectedCpuElementFailsWithoutRunningItsExecutionByDefault"),
+                ("SubmissionAwareBlockingQueueTest", "V2", "onlyRejectEnqueueRefusesWhateverTheTaskType"),
+                ("TaskGroupTest", "V4", "omittedMemberOptionsDefaultToAnInheritedTimeoutAndTheStandardPolicy"),
+                ("TaskNodeTest", "V4", "theBudgetIsTheResolvedNanosAsADuration"),
+                ("TaskOptionsTest", "V2", "defaultsAreUndeclaredAndEnqueueing"),
+                ("TaskOptionsTest", "V4", "withersReturnNewInstancesWithoutMutatingTheOriginal"),
+                ("TaskOptionsTest", "V4", "specCarriesTheKeyNameAndNoFanOut"),
+            )
+        ),
+        (_F1_DEMO_TEST, "V2", "diagnosis_blockingWorkInComputePoolIsFlagged"),
+        (_F1_DEMO_TEST, "V4", "solution_cpuTaskWithParMapSlidingWindow"),
+        (_CONSUMER_TEST, "V2", "computeEntryIsScreenedWithThreadCpuTimeOnJava8"),
+        (_CONSUMER_TEST, "V4", "publishedArtifactCanBeResolvedAndUsed"),
+    }
+)
+REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = _TASK_TYPE_REMOVAL_EXCEPTIONS | frozenset(
     ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
     for method in (
         "test_accepts_status_allowed_by_adapter",

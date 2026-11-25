@@ -9,7 +9,6 @@ import io.github.monadrome.parallelinscope.Par;
 import io.github.monadrome.parallelinscope.ParId;
 import io.github.monadrome.parallelinscope.ParRuntime;
 import io.github.monadrome.parallelinscope.TaskBatchResult;
-import io.github.monadrome.parallelinscope.TaskType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -81,8 +80,7 @@ class C1_ThreadPoolDeadlockTest {
 
             // 外层：4 个任务，滑动窗口并行度 2
             BatchOptions outerOpts = BatchOptions.timeout("outer-task", java.time.Duration.ofMillis(10_000))
-                    .parallelism(2)
-                    .taskType(TaskType.BLOCKING);
+                    .parallelism(2);
 
             List<Integer> items = Arrays.asList(1, 2, 3, 4);
             TaskBatchResult<String> result = par.map(

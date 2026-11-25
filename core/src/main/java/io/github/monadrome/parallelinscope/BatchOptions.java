@@ -14,8 +14,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A batch is a fan-out over homogeneous input: its identity is shared by all elements, and its
  * concurrency limit controls the sliding window. Timeout and enqueue rejection form the execution
- * policy; an optional {@link TaskType} declaration is diagnostic only and never changes execution.
- * {@link #cancelOn(ListenableFuture)} adds an optional caller-owned cancellation input for
+ * policy. {@link #cancelOn(ListenableFuture)} adds an optional caller-owned cancellation input for
  * the whole scope.
  *
  * <p>The timeout is a forced explicit choice between {@link #inheritTimeout(String)} and {@link
@@ -27,7 +26,6 @@ public final class BatchOptions {
     private final String name;
     private final int parallelism;
     private final @Nullable Duration timeout;
-    private final TaskType taskType;
     private final boolean rejectEnqueue;
     private final @Nullable Duration closeGrace;
     private final @Nullable ListenableFuture<?> cancellationSignal;
@@ -36,14 +34,12 @@ public final class BatchOptions {
             String name,
             int parallelism,
             @Nullable Duration timeout,
-            TaskType taskType,
             boolean rejectEnqueue,
             @Nullable Duration closeGrace,
             @Nullable ListenableFuture<?> cancellationSignal) {
         this.name = Validation.requireName(name, "name");
         this.parallelism = parallelism;
         this.timeout = timeout;
-        this.taskType = taskType;
         this.rejectEnqueue = rejectEnqueue;
         this.closeGrace = closeGrace;
         this.cancellationSignal = cancellationSignal;
@@ -57,7 +53,7 @@ public final class BatchOptions {
      * @throws IllegalArgumentException if {@code name} is blank
      */
     public static BatchOptions inheritTimeout(String name) {
-        return new BatchOptions(name, Integer.MAX_VALUE, null, TaskType.UNKNOWN, false, null, null);
+        return new BatchOptions(name, Integer.MAX_VALUE, null, false, null, null);
     }
 
     /**
@@ -74,13 +70,7 @@ public final class BatchOptions {
      */
     public static BatchOptions timeout(String name, Duration timeout) {
         return new BatchOptions(
-                name,
-                Integer.MAX_VALUE,
-                Validation.requirePositive(timeout, "timeout"),
-                TaskType.UNKNOWN,
-                false,
-                null,
-                null);
+                name, Integer.MAX_VALUE, Validation.requirePositive(timeout, "timeout"), false, null, null);
     }
 
     /**
@@ -93,27 +83,6 @@ public final class BatchOptions {
                 name,
                 Validation.requirePositive(parallelism, "parallelism"),
                 timeout,
-                taskType,
-                rejectEnqueue,
-                closeGrace,
-                cancellationSignal);
-    }
-
-    /**
-     * Returns a copy of these options with the given diagnostic task type for every element.
-     *
-     * <p>The declaration describes the element executions; nested batches and the terminal combine of
-     * {@link Par#mapAndCombine} do not inherit it. It never changes admission, enqueueing,
-     * rejection, or any element's outcome; see {@link TaskType}.
-     *
-     * @throws NullPointerException if {@code taskType} is null
-     */
-    public BatchOptions taskType(TaskType taskType) {
-        return new BatchOptions(
-                name,
-                parallelism,
-                timeout,
-                checkNotNull(taskType, "taskType cannot be null"),
                 rejectEnqueue,
                 closeGrace,
                 cancellationSignal);
@@ -127,7 +96,7 @@ public final class BatchOptions {
      * is inert.
      */
     public BatchOptions rejectEnqueue(boolean rejectEnqueue) {
-        return new BatchOptions(name, parallelism, timeout, taskType, rejectEnqueue, closeGrace, cancellationSignal);
+        return new BatchOptions(name, parallelism, timeout, rejectEnqueue, closeGrace, cancellationSignal);
     }
 
     /**
@@ -149,7 +118,6 @@ public final class BatchOptions {
                 name,
                 parallelism,
                 timeout,
-                taskType,
                 rejectEnqueue,
                 Validation.requireNonNegative(closeGrace, "closeGrace"),
                 cancellationSignal);
@@ -168,13 +136,7 @@ public final class BatchOptions {
      */
     public BatchOptions cancelOn(ListenableFuture<?> signal) {
         return new BatchOptions(
-                name,
-                parallelism,
-                timeout,
-                taskType,
-                rejectEnqueue,
-                closeGrace,
-                checkNotNull(signal, "signal cannot be null"));
+                name, parallelism, timeout, rejectEnqueue, closeGrace, checkNotNull(signal, "signal cannot be null"));
     }
 
     /** The batch name; every element of the batch shares it. */
@@ -194,14 +156,6 @@ public final class BatchOptions {
     /** The explicit execution timeout; empty means the enclosing scope's deadline is inherited. */
     public Optional<Duration> timeout() {
         return Optional.ofNullable(timeout);
-    }
-
-    /**
-     * Returns the diagnostic task type declared for every element; {@link TaskType#UNKNOWN} by
-     * default.
-     */
-    public TaskType taskType() {
-        return taskType;
     }
 
     /**
@@ -229,6 +183,6 @@ public final class BatchOptions {
 
     /** Adapts these options to the kernel carrier of this batch. */
     UnitSpec spec() {
-        return new UnitSpec(name, parallelism, timeout, taskType, rejectEnqueue);
+        return new UnitSpec(name, parallelism, timeout, rejectEnqueue);
     }
 }

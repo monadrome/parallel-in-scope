@@ -138,7 +138,7 @@ class ScopedTaskContractTest {
             AtomicReference<String> ranOn = new AtomicReference<>();
             String caller = Thread.currentThread().getName();
 
-            ListenableFuture<Object> future = submitSingle(global, entry, "task", TaskType.COMPUTE, () -> {
+            ListenableFuture<Object> future = submitSingle(global, entry, "task", () -> {
                 executions.incrementAndGet();
                 ranOn.set(Thread.currentThread().getName());
                 return "inline";
@@ -155,9 +155,9 @@ class ScopedTaskContractTest {
     }
 
     /**
-     * A rejected task fails without entering user code, whatever its task type. Nothing selects
-     * otherwise: the library has no option that elects the submitting thread, so what a rejection
-     * means is decided entirely by the executor's own handler.
+     * A rejected task fails without entering user code. Nothing selects otherwise: the library has
+     * no option that elects the submitting thread, so what a rejection means is decided entirely by
+     * the executor's own handler.
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource("entries")
@@ -291,27 +291,18 @@ class ScopedTaskContractTest {
      */
     private static ListenableFuture<Object> submitSingle(
             ParRuntime global, Entry entry, String name, Callable<Object> task) {
-        return submitSingle(global, entry, name, TaskType.COMPUTE, task);
-    }
-
-    private static ListenableFuture<Object> submitSingle(
-            ParRuntime global, Entry entry, String name, TaskType taskType, Callable<Object> task) {
         if (entry == Entry.BATCH) {
             return global.par(ParId.of("worker"))
                     .submitBatch(
                             Collections.singletonList("item"),
                             item -> callUnchecked(task),
-                            BatchOptions.timeout(name, Duration.ofSeconds(30)).taskType(taskType))
+                            BatchOptions.timeout(name, Duration.ofSeconds(30)))
                     .results()
                     .get(0);
         }
         TaskKey<Object> member = TaskKey.named(name);
         TaskGroup<Void> group = global.groupDraft("contract", Duration.ofSeconds(30))
-                .par(
-                        member,
-                        global.par(ParId.of("worker")),
-                        TaskOptions.timeout(Duration.ofSeconds(30)).taskType(taskType),
-                        task)
+                .par(member, global.par(ParId.of("worker")), TaskOptions.timeout(Duration.ofSeconds(30)), task)
                 .submitAll();
         LAST_GROUP.set(group);
         return group.futureOf(member);

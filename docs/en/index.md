@@ -26,7 +26,7 @@ workflows. Use the reference pages for exact contracts and the migration guides 
 | [Cooperative cancellation](reference/cooperative-cancellation.md) | Checkpoints, exceptions, and cancellation propagation |
 | [Nullability annotations](reference/nullability-annotations.md) | Public API and internal annotation rules |
 | [Executor registration](reference/executor-registration.md) | Executor contract, rejection policies, visibility, and starvation-prone pools |
-| [Diagnostics](reference/diagnostics.md) | Task types, executor wait report, workload fit, starvation observation, final observations |
+| [Diagnostics](reference/diagnostics.md) | Executor wait report, starvation observation, final observations |
 
 ## Implementation and Design
 

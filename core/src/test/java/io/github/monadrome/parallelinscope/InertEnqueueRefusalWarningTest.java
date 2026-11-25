@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Only {@link SubmissionAwareBlockingQueue} reads {@code rejectEnqueue}, so on any other queue a requested
- * refusal is inert and reaches a once-per-Par warning. A {@link TaskType} declaration never requests
- * refusal, so it never reaches this warning, on any queue.
+ * refusal is inert and reaches a once-per-Par warning. A unit that requests no refusal never reaches
+ * this warning, on any queue.
  */
 @SuppressWarnings("NullAway.Init")
 class InertEnqueueRefusalWarningTest {
@@ -73,13 +73,9 @@ class InertEnqueueRefusalWarningTest {
     }
 
     @Test
-    void aComputeBatchOnAPlainQueueRequestsNoRefusalAndIsNotReported() {
+    void aDefaultBatchOnAPlainQueueRequestsNoRefusalAndIsNotReported() {
         Par par = runtime.par(ParId.of("plain"));
         par.map(Collections.singletonList(1), x -> x, BatchOptions.timeout("default", TIMEOUT));
-        par.map(
-                Collections.singletonList(1),
-                x -> x,
-                BatchOptions.timeout("compute", TIMEOUT).taskType(TaskType.COMPUTE));
 
         assertThat(records).isEmpty();
     }
@@ -100,8 +96,7 @@ class InertEnqueueRefusalWarningTest {
         assertThat(records.get(0).getLevel()).isEqualTo(Level.WARNING);
         assertThat(records.get(0).getMessage())
                 .startsWith("Par 'plain' requested rejectEnqueue, but its executor")
-                .contains("inert", "SubmissionAwareBlockingQueue")
-                .doesNotContain("TaskType");
+                .contains("inert", "SubmissionAwareBlockingQueue");
     }
 
     /**
@@ -122,13 +117,17 @@ class InertEnqueueRefusalWarningTest {
         assertThat(records.get(0).getMessage()).startsWith("Par 'plain' requested rejectEnqueue, but its executor");
     }
 
+    /**
+     * The batch's own queue honors its refusal and the combine requests none, so a plain queue
+     * running the combine is not reported.
+     */
     @Test
-    void aComputeBatchCombinedOntoAPlainQueueIsNotReported() {
+    void aRefusingBatchOnASmartQueueCombinedOntoAPlainQueueIsNotReported() {
         runtime.par(ParId.of("smart"))
                 .mapAndCombine(
                         Arrays.asList(1, 2),
                         x -> x,
-                        BatchOptions.timeout("compute-combine", TIMEOUT).taskType(TaskType.COMPUTE),
+                        BatchOptions.timeout("smart-flag-combine", TIMEOUT).rejectEnqueue(true),
                         runtime.par(ParId.of("plain")),
                         values -> 0);
 

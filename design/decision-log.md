@@ -27,7 +27,7 @@ ADR named here, so this log does not repeat them.
 |---|---|
 | `proposal:P0001` request cancellation input (`cancelOn`) | [cancellation-propagation.md](cancellation-propagation.md) §5.4 |
 | `proposal:P0025` internal cancellation token | [cancellation-propagation.md](cancellation-propagation.md) §5.3 |
-| `proposal:P0025` `TaskType` as a workload-fit diagnostic | [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md), [workload-fit-screening.md](workload-fit-screening.md) |
+| `proposal:P0025` `TaskType` as a workload-fit diagnostic (removed 2026-11-24) | [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md), [ADR 0010](../adr/0010-always-on-workload-fit-screening.md), [ADR 0016](../adr/0016-remove-tasktype-and-workload-fit-screening.md) |
 | `proposal:P0026` runtime executor wait graph | [task-graph.md](task-graph.md) (rejected: request scope, static queries and policy switch, enumerating all cycles, aging by time, refusing on a cycle) |
 | `proposal:P0039` TaskId closed hierarchy | [task-identity.md](task-identity.md) (rejected: phantom tags + Kind enum, value-only single class, two independent top-level classes) |
 | `proposal:P0033` adopted future members | [task-group-adopted-futures.md](task-group-adopted-futures.md) |
@@ -155,8 +155,9 @@ and [interruption-contract.md](interruption-contract.md).
 
 The v0.3 decision kept `TaskType.MIXED` and closed the question; [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md)
 overturned it, making `TaskType` an optional diagnostic (`COMPUTE`, `BLOCKING`, `UNKNOWN`) with its
-reasons. The rest of the v0.3 decision stands: rejection handling belongs to the executor, as the
-previous entry records.
+reasons, and [ADR 0016](../adr/0016-remove-tasktype-and-workload-fit-screening.md) removed `TaskType`
+altogether. The rest of the v0.3 decision stands: rejection handling belongs to the executor, as
+the previous entry records.
 
 ### Submission failures end the affected futures (v0.3)
 
@@ -423,11 +424,25 @@ data and executor waits are read from `ParRuntime.executorWaitReport()`
   scope cannot see the cross-request cycle and its static queries ignored the policy and read
   `false` after close.
 
-### Workload fit and starvation observation
+### Workload declaration and low-CPU screening removed (2026-11-24, maintainer decision)
 
-Rejected alternatives are in [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md),
-[ADR 0010](../adr/0010-always-on-workload-fit-screening.md),
-[workload-fit-screening.md](workload-fit-screening.md), and
+`TaskType`, its submission-time comparison, and the always-on low-CPU screen were removed; the
+reasons and the rejected partial removals are in
+[ADR 0016](../adr/0016-remove-tasktype-and-workload-fit-screening.md), and the screen's design history is
+in [ADR 0008](../adr/0008-tasktype-as-workload-fit-diagnostic.md) and
+[ADR 0010](../adr/0010-always-on-workload-fit-screening.md). Rejections harvested from the retired
+workload-fit screening contract, which bind any reintroduced screen:
+
+- Propagating a `Throwable` from the timing, `Error` included: it comes from diagnostic code, the
+  totals were immutable values replaced by compare-and-set so a failure left no torn state, and
+  propagating it would replace the execution's own result.
+- Rethrowing `ThreadDeath` from the timing: a catch clause naming a class makes its declaring class
+  fail to link when that class is absent, `ThreadDeath` is deprecated for removal, and
+  `Thread.stop()` has thrown `UnsupportedOperationException` since JDK 20.
+- Sharing state or a status with starvation observation: the two signals share no field, and a
+  merged status forced an invented priority between them.
+
+Starvation observation's rejected alternatives are in
 [thread-pool-starvation-observation.md](thread-pool-starvation-observation.md).
 
 ### Task progress reporting rejected (2026-11-15, user decision)
@@ -441,7 +456,7 @@ request) is harvested into this entry and the graveyard.
   settlement, so frozen terminal observations already answer "what happened", and a live stream
   only serves the asynchronous-watcher shape the library removes by design.
 - Existing observation layers cover the real needs: terminal snapshots, starvation observation as
-  a bounded no-progress risk signal, workload-fit screening, and checkpoint cancellation
+  a bounded no-progress risk signal, the executor wait graph, and checkpoint cancellation
   acknowledgement. A progress stream would be a third mechanism needing subscription, replay,
   overflow, and observer-executor contracts.
 - Progress is business semantics (what the total means, whether skips or retries count); the task
