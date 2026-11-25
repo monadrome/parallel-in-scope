@@ -1,0 +1,6 @@
+base=178 head=178 matched=178 removed=0 added=0
+KILLED at base, not KILLED at head: 0
+other status changes: 0
+removed-at-head by class: {}
+removed non-KILLED at base: []
+added-at-head by class: {}

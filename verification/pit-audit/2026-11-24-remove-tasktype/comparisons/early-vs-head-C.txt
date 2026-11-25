@@ -1,0 +1,11 @@
+base=681 head=681 matched=681 removed=0 added=0
+KILLED at base, not KILLED at head: 0
+other status changes: 5
+  CHANGE TaskGroup.start NegateConditionalsMutator #0 'negated conditional' base:742:TIMED_OUT head:742:KILLED
+  CHANGE TaskGroup.start NegateConditionalsMutator #1 'negated conditional' base:742:TIMED_OUT head:742:KILLED
+  CHANGE TaskGroup.start VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/TaskGroup::complet' base:743:TIMED_OUT head:743:KILLED
+  CHANGE TaskGroup$PreparationContext.prepareMember VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/Par::diagnoseAdmis' base:671:SURVIVED head:671:KILLED
+  CHANGE TaskGroup$PreparationContext.prepareTerminalCombine VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/Par::diagnoseAdmis' base:684:SURVIVED head:684:KILLED
+removed-at-head by class: {}
+removed non-KILLED at base: []
+added-at-head by class: {}

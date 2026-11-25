@@ -1,0 +1,48 @@
+ParRuntime.awaitQuiescence ConditionalsBoundaryMutator #0 'changed conditional boundary'
+    base-D: line 472 SURVIVED after 62 test(s)
+    early-D: line 466 SURVIVED after 62 test(s)
+    head-D: line 466 SURVIVED after 62 test(s)
+    focused-par-runtime: line 466 SURVIVED after 62 test(s)
+    focused-par-runtime-killer-tests: line 466 SURVIVED after 9 test(s)
+ParRuntime.awaitQuiescence VoidMethodCallMutator #0 'removed call to com/google/common/util/concurrent/Monitor::leave'
+    base-D: line 477 TIMED_OUT after 0 test(s)
+    early-D: line 471 TIMED_OUT after 0 test(s)
+    head-D: line 471 TIMED_OUT after 0 test(s)
+    focused-par-runtime: line 471 TIMED_OUT after 0 test(s)
+    focused-par-runtime-killer-tests: line 471 TIMED_OUT after 0 test(s)
+ParRuntime.enterAdmission NegateConditionalsMutator #0 'negated conditional'
+    base-D: line 569 KILLED after 1 test(s) by topLevelBatchWithInheritedTimeoutIsRejectedWithoutAnEnclosingTask
+    early-D: line 540 KILLED after 1 test(s) by batchPreAdmissionValidationStaysSynchronousWithBrokenHandoffExecutor
+    head-D: line 540 KILLED after 1 test(s) by topLevelBatchWithInheritedTimeoutIsRejectedWithoutAnEnclosingTask
+    focused-par-runtime: line 540 KILLED after 1 test(s) by topLevelBatchWithInheritedTimeoutIsRejectedWithoutAnEnclosingTask
+    focused-par-runtime-killer-tests: line 540 TIMED_OUT after 0 test(s)
+ParRuntime.enterAdmission NegateConditionalsMutator #1 'negated conditional'
+    base-D: line 571 TIMED_OUT after 0 test(s)
+    early-D: line 542 TIMED_OUT after 0 test(s)
+    head-D: line 542 TIMED_OUT after 0 test(s)
+    focused-par-runtime: line 542 TIMED_OUT after 0 test(s)
+    focused-par-runtime-killer-tests: line 542 TIMED_OUT after 0 test(s)
+ParRuntime.enterAdmission NegateConditionalsMutator #2 'negated conditional'
+    base-D: line 572 NO_COVERAGE after 0 test(s)
+    early-D: line 543 NO_COVERAGE after 0 test(s)
+    head-D: line 543 NO_COVERAGE after 0 test(s)
+    focused-par-runtime: line 543 NO_COVERAGE after 0 test(s)
+    focused-par-runtime-killer-tests: line 543 NO_COVERAGE after 0 test(s)
+ParRuntime.enterAdmission VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/ParRuntime::shutdownServicesWhenAdmissionsComplete'
+    base-D: line 573 NO_COVERAGE after 0 test(s)
+    early-D: line 544 NO_COVERAGE after 0 test(s)
+    head-D: line 544 NO_COVERAGE after 0 test(s)
+    focused-par-runtime: line 544 NO_COVERAGE after 0 test(s)
+    focused-par-runtime-killer-tests: line 544 NO_COVERAGE after 0 test(s)
+ParRuntime.lambda$trackExecutions$0 VoidMethodCallMutator #0 'removed call to com/google/common/util/concurrent/Monitor::leave'
+    base-D: line 630 KILLED after 1 test(s) by installsAndReturnsTheProcessGlobalOnlyOnce
+    early-D: line 601 TIMED_OUT after 0 test(s)
+    head-D: line 601 TIMED_OUT after 0 test(s)
+    focused-par-runtime: line 601 TIMED_OUT after 0 test(s)
+    focused-par-runtime-killer-tests: line 601 TIMED_OUT after 0 test(s)
+ParRuntime$DispatchingScheduledExecutorService.lambda$schedule$0 VoidMethodCallMutator #0 'removed call to java/util/concurrent/ExecutorService::execute'
+    base-D: line 681 TIMED_OUT after 0 test(s)
+    early-D: line 642 KILLED after 2 test(s) by blockedSamplingDoesNotDelayDeadlineDetection
+    head-D: line 642 TIMED_OUT after 0 test(s)
+    focused-par-runtime: line 642 TIMED_OUT after 0 test(s)
+    focused-par-runtime-killer-tests: line 642 KILLED after 1 test(s) by batchReportAttributesDeadlineCancellationAsTimeout

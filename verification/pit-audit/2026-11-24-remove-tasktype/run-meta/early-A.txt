@@ -1,0 +1,28 @@
+batch: A
+started: 2026-11-25T03:04:31Z
+repository: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype
+commit: 07f83919e72414a6987648c3288788a5db7abc6b
+working-tree-status:
+?? .agents/skills/contract-first-assurance/scripts/__pycache__/
+java-home: /opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home
+path-java:
+openjdk version "25.0.4.1" 2026-08-18
+OpenJDK Runtime Environment Homebrew (build 25.0.4.1)
+OpenJDK 64-Bit Server VM Homebrew (build 25.0.4.1, mixed mode, sharing)
+maven-build-jdk:
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/homebrew/Cellar/maven/3.9.11/libexec
+Java version: 25.0.4.1, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home
+Default locale: en_US, platform encoding: UTF-8
+scope: root package only; queue subpackage excluded
+mutators: CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS
+pit-reports-dir: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-workload-fit-tasktype/core/target/pit-reports
+monitor-interval-seconds: 5
+pit-threads: 8
+pit-timeout-constant: 60000
+pit-timeout-factor: 1.25
+no-history-input: true
+command: mvn -o -Ppitest -pl core test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage -DtargetClasses=io.github.monadrome.parallelinscope.TaskId\*\,io.github.monadrome.parallelinscope.ParId\*\,io.github.monadrome.parallelinscope.TaskKey\*\,io.github.monadrome.parallelinscope.TaskOutcome\*\,io.github.monadrome.parallelinscope.ExecutionPhase\,io.github.monadrome.parallelinscope.UnitSpec\*\,io.github.monadrome.parallelinscope.Validation\*\,io.github.monadrome.parallelinscope.BatchOptions\*\,io.github.monadrome.parallelinscope.TaskOptions\*\,io.github.monadrome.parallelinscope.ImmediateResult\*\,io.github.monadrome.parallelinscope.TaskObservation\*\,io.github.monadrome.parallelinscope.ExecutorWaitReport\*\,io.github.monadrome.parallelinscope.ParRuntimeSnapshot\*\,io.github.monadrome.parallelinscope.ThreadPoolStarvationReport\*\,io.github.monadrome.parallelinscope.ExecutorIdentity\* -DtargetTests=io.github.monadrome.parallelinscope.\* -Dmutators=CONDITIONALS_BOUNDARY\,NEGATE_CONDITIONALS\,INCREMENTS\,INVERT_NEGS\,NULL_RETURNS\,FALSE_RETURNS\,TRUE_RETURNS\,PRIMITIVE_RETURNS\,EMPTY_RETURNS\,VOID_METHOD_CALLS -Dpitest.threads=8 -Dpitest.timeoutConstant=60000 -Dpitest.timeoutFactor=1.25
+finished: 2026-11-25T03:08:49Z
+exit-status: 0
+mutations-xml-archived: true

@@ -1,0 +1,76 @@
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #0 'negated conditional'
+    base-B: line 241 KILLED after 2 test(s) by queuedCancellationWithInterruptDoesNotEnterBodyWhenDequeuedLater
+    head-B: line 241 TIMED_OUT after 0 test(s)
+    focused-ephf-killer-tests: line 241 KILLED after 1 test(s) by runningTaskCannotBeClaimedAsSubmissionFailureOrRunTwice
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #1 'negated conditional'
+    base-B: line 246 KILLED after 78 test(s) by anExecutionRunningOnTheSubmittingThreadSeesNoSubmissionScope
+    head-B: line 246 KILLED after 109 test(s) by anExecutionRunningOnTheSubmittingThreadSeesNoSubmissionScope
+    focused-ephf-killer-tests: line 246 SURVIVED after 13 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #2 'negated conditional'
+    base-B: line 250 TIMED_OUT after 0 test(s)
+    head-B: line 250 TIMED_OUT after 0 test(s)
+    focused-ephf-killer-tests: line 250 KILLED after 1 test(s) by runningTaskCannotBeClaimedAsSubmissionFailureOrRunTwice
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #3 'negated conditional'
+    base-B: line 253 KILLED after 26 test(s) by thePhaseHintReachesTerminalAfterAnInlineViolationRejection
+    head-B: line 253 KILLED after 22 test(s) by thePhaseHintReachesTerminalAfterAnInlineViolationRejection
+    focused-ephf-killer-tests: line 253 SURVIVED after 13 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #4 'negated conditional'
+    base-B: line 253 KILLED after 1 test(s) by thePhaseHintReachesTerminalAfterAnInlineViolationRejection
+    head-B: line 253 KILLED after 1 test(s) by thePhaseHintReachesTerminalAfterAnInlineViolationRejection
+    focused-ephf-killer-tests: line 253 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #6 'negated conditional'
+    base-B: line 260 TIMED_OUT after 0 test(s)
+    head-B: line 260 TIMED_OUT after 0 test(s)
+    focused-ephf-killer-tests: line 260 KILLED after 1 test(s) by runningTaskCannotBeClaimedAsSubmissionFailureOrRunTwice
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #7 'negated conditional'
+    base-B: line 260 TIMED_OUT after 0 test(s)
+    head-B: line 260 TIMED_OUT after 0 test(s)
+    focused-ephf-killer-tests: line 260 TIMED_OUT after 0 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #8 'negated conditional'
+    base-B: line 260 TIMED_OUT after 0 test(s)
+    head-B: line 260 TIMED_OUT after 0 test(s)
+    focused-ephf-killer-tests: line 260 TIMED_OUT after 0 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #9 'negated conditional'
+    base-B: line 264 KILLED after 2 test(s) by lateFailureLevelFollowsProvenanceNotType(io.github.monadrome.parallelinscope.LateFailureLoggingTest$LateFailure)]/[test-template-invocation:#1
+    head-B: line 264 KILLED after 2 test(s) by lateFailureLevelFollowsProvenanceNotType(io.github.monadrome.parallelinscope.LateFailureLoggingTest$LateFailure)]/[test-template-invocation:#1
+    focused-ephf-killer-tests: line 264 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #10 'negated conditional'
+    base-B: line 264 KILLED after 1 test(s) by lateFailureLevelFollowsProvenanceNotType(io.github.monadrome.parallelinscope.LateFailureLoggingTest$LateFailure)]/[test-template-invocation:#3
+    head-B: line 264 KILLED after 1 test(s) by lateFailureLevelFollowsProvenanceNotType(io.github.monadrome.parallelinscope.LateFailureLoggingTest$LateFailure)]/[test-template-invocation:#1
+    focused-ephf-killer-tests: line 264 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run NegateConditionalsMutator #11 'negated conditional'
+    base-B: line 277 KILLED after 1 test(s) by failedEntryFlagRestorationStillPublishesTerminal
+    head-B: line 277 TIMED_OUT after 0 test(s)
+    focused-ephf-killer-tests: line 277 KILLED after 1 test(s) by runningTaskCannotBeClaimedAsSubmissionFailureOrRunTwice
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture::releaseExecution'
+    base-B: line 275 KILLED after 219 test(s) by aRefusedCombineStillReleasesItsExecutionExitSlot
+    head-B: line 275 KILLED after 249 test(s) by aRefusedCombineStillReleasesItsExecutionExitSlot
+    focused-ephf-killer-tests: line 275 SURVIVED after 13 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #0 'removed call to io/github/monadrome/parallelinscope/SubmissionScope::restore'
+    base-B: line 247 KILLED after 16 test(s) by anExecutionRunningOnTheSubmittingThreadSeesNoSubmissionScope
+    head-B: line 247 KILLED after 22 test(s) by anExecutionRunningOnTheSubmittingThreadSeesNoSubmissionScope
+    focused-ephf-killer-tests: line 247 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #1 'removed call to io/github/monadrome/parallelinscope/SubmissionScope::restore'
+    base-B: line 281 SURVIVED after 450 test(s)
+    head-B: line 281 SURVIVED after 422 test(s)
+    focused-ephf-killer-tests: line 281 SURVIVED after 13 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #2 'removed call to java/util/concurrent/atomic/AtomicReference::set'
+    base-B: line 288 KILLED after 2 test(s) by thePhaseHintReachesTerminalAfterAFailingInlineRun
+    head-B: line 288 KILLED after 2 test(s) by thePhaseHintReachesTerminalAfterAFailingInlineRun
+    focused-ephf-killer-tests: line 288 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #3 'removed call to java/util/concurrent/atomic/AtomicReference::set'
+    base-B: line 288 NO_COVERAGE after 0 test(s)
+    head-B: line 288 NO_COVERAGE after 0 test(s)
+    focused-ephf-killer-tests: line 288 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #4 'removed call to java/util/concurrent/atomic/AtomicReference::set'
+    base-B: line 288 NO_COVERAGE after 0 test(s)
+    head-B: line 288 NO_COVERAGE after 0 test(s)
+    focused-ephf-killer-tests: line 288 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #5 'removed call to java/util/concurrent/atomic/AtomicReference::set'
+    base-B: line 288 NO_COVERAGE after 0 test(s)
+    head-B: line 288 NO_COVERAGE after 0 test(s)
+    focused-ephf-killer-tests: line 288 NO_COVERAGE after 0 test(s)
+ExecutionPhaseHintFuture.run VoidMethodCallMutator #0 'removed call to java/util/concurrent/locks/LockSupport::parkNanos'
+    base-B: line 278 SURVIVED after 3 test(s)
+    head-B: line 278 SURVIVED after 2 test(s)
+    focused-ephf-killer-tests: line 278 SURVIVED after 1 test(s)
