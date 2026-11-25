@@ -411,7 +411,7 @@ public final class Par {
                     + " what happens to an element that cannot start at once is left to the"
                     + " executor's own queue and rejection policy. Register a ThreadPoolExecutor"
                     + " whose work queue is a SubmissionAwareBlockingQueue to make the option effective.";
-            runtime.announcements().deliver(() -> LOGGER.warning(message));
+            runtime.announce(() -> LOGGER.warning(message));
         }
     }
 

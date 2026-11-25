@@ -632,9 +632,12 @@ public final class ParRuntime implements AutoCloseable {
         return ticker;
     }
 
-    /** The delivery for this runtime's diagnostic log messages; see {@link Announcements}. */
-    Announcements announcements() {
-        return announcements;
+    /**
+     * Delivers a diagnostic log message through this runtime's {@link Announcements}; never throws,
+     * whatever the message or delivery executor does.
+     */
+    void announce(Runnable message) {
+        announcements.deliver(message);
     }
 
     private static final class DispatchingScheduledExecutorService extends AbstractExecutorService

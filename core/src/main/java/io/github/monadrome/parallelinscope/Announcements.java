@@ -22,6 +22,7 @@ final class Announcements {
      * Creates the delivery for one runtime.
      *
      * @param delivery the runtime-owned executor that runs each message
+     * @throws NullPointerException if {@code delivery} is null
      */
     Announcements(Executor delivery) {
         this.delivery = checkNotNull(delivery, "delivery cannot be null");
