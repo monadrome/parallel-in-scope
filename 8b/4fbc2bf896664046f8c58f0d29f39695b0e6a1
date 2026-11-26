@@ -1,0 +1,19 @@
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionState.java
+  s_036ebf19cbe7d7::t_46f66265bc0278 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "8b4fbc2bf896664046f8c58f0d29f39695b0e6a1",
+  "prompts": {},
+  "sessions": {
+    "s_036ebf19cbe7d7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_f574bb16-6a74-491d-a010-fbf45a4c142d",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
