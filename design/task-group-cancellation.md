@@ -237,7 +237,7 @@ settle classification both perform this rerouting.
   fail-fast (the public surface has no direct-cancel entry for the current group);
 - with unfinished members present: equivalent to cancelling (idempotently) the group token;
   cancellation handling synchronously races task admission — tasks that have not yet acquired
-  execution eligibility turn `SKIPPED`, and tasks already `RUNNING` only receive an interrupt
+  execution eligibility turn `SKIPPED`, and tasks already `CLAIMED` only receive an interrupt
   request;
 - after cancellation propagation returns, wait for all members (including the terminal combine)
   to exit execution within the **close grace** budget. Close grace is a cleanup budget: when
@@ -269,7 +269,7 @@ return, so when `map` returns, every container in `results()` is necessarily ter
 task code is still unwinding.
 
 Execution exit is tracked by an atomic state machine each task pre-registers before submission
-(`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`): `RUNNING` only means execution
+(`UNCLAIMED -> CLAIMED -> EXITED` / `UNCLAIMED -> SKIPPED`): `CLAIMED` only means execution
 eligibility was acquired; on the normal path `EXITED` is published after the user task code's
 finally completes and before listeners are invoked, with the outer future's finally as backstop;
 cancellation winning, submission rejection, placeholder cancellation, window abandonment, and

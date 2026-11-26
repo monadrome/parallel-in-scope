@@ -265,7 +265,7 @@ class TaskBatchResultExecutionExitTest {
         assertThat(tracker.awaitExecutionExit(Duration.ofMillis(50))).isFalse();
 
         // The real release path: an execution claims eligibility, runs, then publishes its exit.
-        assertThat(taskCode.claimRunning()).isTrue();
+        assertThat(taskCode.claim()).isTrue();
         taskCode.exited();
 
         assertThat(tracker.awaitExecutionExit(Duration.ZERO)).isTrue();
@@ -289,7 +289,7 @@ class TaskBatchResultExecutionExitTest {
                     return invocation.callRealMethod();
                 })
                 .when(executionState)
-                .claimRunning();
+                .claim();
         ExecutionPhaseHintFuture<Integer> future = TaskSubmissions.prepare(context, executions::incrementAndGet);
 
         Thread worker = new Thread(future);
@@ -784,7 +784,7 @@ class TaskBatchResultExecutionExitTest {
                 unit.cancellationToken(),
                 null);
 
-        slot.claimRunning();
+        slot.claim();
         slot.exited();
 
         // The execution has exited but the element future is still short of settlement: the

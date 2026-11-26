@@ -44,10 +44,10 @@ class ExecutionExitTrackerTest {
         TaskExecutionState second = tracker.register(context("second"));
 
         assertThat(tracker.isDone()).isFalse();
-        assertThat(first.claimRunning()).isTrue();
+        assertThat(first.claim()).isTrue();
         first.exited();
         assertThat(tracker.isDone()).isFalse();
-        assertThat(second.claimRunning()).isTrue();
+        assertThat(second.claim()).isTrue();
         second.exited();
         assertThat(tracker.isDone()).isTrue();
     }
@@ -60,7 +60,7 @@ class ExecutionExitTrackerTest {
         assertThat(tracker.awaitBounded(0L)).isFalse();
         assertThat(tracker.awaitBounded(-1L)).isFalse();
 
-        assertThat(slot.claimRunning()).isTrue();
+        assertThat(slot.claim()).isTrue();
         slot.exited();
         assertThat(tracker.awaitBounded(0L)).isTrue();
         assertThat(tracker.awaitBounded(-1L)).isTrue();
@@ -94,7 +94,7 @@ class ExecutionExitTrackerTest {
     void awaitBoundedPositiveBudgetWaitsForAndReportsCompletion() throws Exception {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         TaskExecutionState slot = tracker.register(context("task"));
-        assertThat(slot.claimRunning()).isTrue();
+        assertThat(slot.claim()).isTrue();
         slot.exited();
 
         assertThat(tracker.awaitBounded(Duration.ofSeconds(10).toNanos())).isTrue();
@@ -108,7 +108,7 @@ class ExecutionExitTrackerTest {
 
         ExecutionExitTracker done = ExecutionExitTracker.create(1);
         TaskExecutionState doneSlot = done.register(context("task"));
-        assertThat(doneSlot.claimRunning()).isTrue();
+        assertThat(doneSlot.claim()).isTrue();
         doneSlot.exited();
         assertThat(done.awaitExecutionExit(Duration.ZERO)).isTrue();
     }
@@ -260,7 +260,7 @@ class ExecutionExitTrackerTest {
         tracker.register(context("worker"));
         tracker.register(context("other"));
 
-        assertThat(first.claimRunning()).isTrue();
+        assertThat(first.claim()).isTrue();
         first.exited();
         assertThat(tracker.unexitedExecutionSummary())
                 .containsEntry("worker", 1)

@@ -217,7 +217,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
 
     private boolean claimExecution() {
         TaskExecutionState taskCode = executionState;
-        return taskCode == null || taskCode.claimRunning();
+        return taskCode == null || taskCode.claim();
     }
 
     private void releaseExecution() {

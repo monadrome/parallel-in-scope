@@ -12,11 +12,11 @@ import org.jspecify.annotations.Nullable;
  * <p>State machine:
  *
  * <pre>
- * PENDING -&gt; RUNNING -&gt; EXITED
- * PENDING -&gt; SKIPPED
+ * UNCLAIMED -&gt; CLAIMED -&gt; EXITED
+ * UNCLAIMED -&gt; SKIPPED
  * </pre>
  *
- * <p>{@code RUNNING} means the task claimed execution eligibility; it does not require the user
+ * <p>{@code CLAIMED} means the task claimed execution eligibility; it does not require the user
  * {@code Callable} to have been entered yet. The slot covers the gap between eligibility and execution
  * exit. Cancellation, rejection, and window abandonment race the task entry through the same atomic
  * state, so every transition to {@code EXITED} or {@code SKIPPED} releases the shared slot exactly
@@ -25,19 +25,7 @@ import org.jspecify.annotations.Nullable;
  */
 final class TaskExecutionState {
 
-    /** Execution lifecycle states; terminal states are EXITED and SKIPPED. */
-    enum State {
-        /** Registered before submission; neither claimed nor skipped yet. */
-        PENDING,
-        /** Execution eligibility claimed by the future's run(). */
-        RUNNING,
-        /** The task execution finally completed (or eligibility was released without entering it). */
-        EXITED,
-        /** Cancellation, rejection, or abandonment won before execution eligibility. */
-        SKIPPED
-    }
-
-    private final AtomicReference<State> state = new AtomicReference<>(State.PENDING);
+    private final AtomicReference<ExecutionState> state = new AtomicReference<>(ExecutionState.UNCLAIMED);
     private final ExecutionExitTracker tracker;
     private final String name;
 
@@ -53,17 +41,17 @@ final class TaskExecutionState {
         return name;
     }
 
-    /** Returns the current internal state for the task wrapper. */
-    State stateValue() {
+    /** Returns the current execution state; never blocks and never changes the record. */
+    ExecutionState state() {
         return Verify.verifyNotNull(state.get());
     }
 
     /** Returns the public live task state represented by this claim state. */
     TaskState taskState() {
         switch (Verify.verifyNotNull(state.get())) {
-            case PENDING:
+            case UNCLAIMED:
                 return TaskState.PENDING;
-            case RUNNING:
+            case CLAIMED:
                 return TaskState.CLAIMED;
             case EXITED:
             case SKIPPED:
@@ -75,24 +63,24 @@ final class TaskExecutionState {
 
     /** Returns the disposition fixed by the claim CAS when a terminal result is frozen. */
     ExecutionDisposition disposition() {
-        State current = Verify.verifyNotNull(state.get());
-        return current == State.RUNNING || current == State.EXITED
+        ExecutionState current = Verify.verifyNotNull(state.get());
+        return current == ExecutionState.CLAIMED || current == ExecutionState.EXITED
                 ? ExecutionDisposition.CLAIMED
                 : ExecutionDisposition.NOT_CLAIMED;
     }
 
     /** Whether the execution has neither exited nor been determined to never enter. */
     boolean isOutstanding() {
-        State current = state.get();
-        return current == State.PENDING || current == State.RUNNING;
+        ExecutionState current = state.get();
+        return current == ExecutionState.UNCLAIMED || current == ExecutionState.CLAIMED;
     }
 
     /**
      * Claims execution eligibility. Returns {@code false} when cancellation or abandonment already
      * marked the task skipped; the caller must not enter the user task code in that case.
      */
-    boolean claimRunning() {
-        return state.compareAndSet(State.PENDING, State.RUNNING);
+    boolean claim() {
+        return state.compareAndSet(ExecutionState.UNCLAIMED, ExecutionState.CLAIMED);
     }
 
     /**
@@ -103,7 +91,7 @@ final class TaskExecutionState {
      * execution exit waiter can return.
      */
     void exited() {
-        if (state.compareAndSet(State.RUNNING, State.EXITED)) {
+        if (state.compareAndSet(ExecutionState.CLAIMED, ExecutionState.EXITED)) {
             ExecutionExitTracker.complete(terminal);
             tracker.release();
         }
@@ -111,7 +99,7 @@ final class TaskExecutionState {
 
     /** Marks the task as never entering its execution, releasing the slot once. */
     void skipped() {
-        if (state.compareAndSet(State.PENDING, State.SKIPPED)) {
+        if (state.compareAndSet(ExecutionState.UNCLAIMED, ExecutionState.SKIPPED)) {
             ExecutionExitTracker.complete(terminal);
             tracker.release();
         }
@@ -119,7 +107,7 @@ final class TaskExecutionState {
 
     /** Marks a still-unclaimed execution skipped and reports whether this call won the claim race. */
     boolean skipIfPending() {
-        if (!state.compareAndSet(State.PENDING, State.SKIPPED)) {
+        if (!state.compareAndSet(ExecutionState.UNCLAIMED, ExecutionState.SKIPPED)) {
             return false;
         }
         ExecutionExitTracker.complete(terminal);

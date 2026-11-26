@@ -72,10 +72,7 @@ final class AdoptedSource {
     void connect() {
         verify(claimed.compareAndSet(false, true), "adopted source '%s' was already claimed", name);
         TaskExecutionContext prepared = verifyNotNull(context, "adopted member '%s' was not prepared", name);
-        verify(
-                verifyNotNull(prepared.executionState()).claimRunning(),
-                "adopted member '%s' already left PENDING",
-                name);
+        verify(verifyNotNull(prepared.executionState()).claim(), "adopted member '%s' already left UNCLAIMED", name);
         prepared.markStarted(System.nanoTime());
         connected = true;
         source.addListener(this::sourceSettled, directExecutor());
@@ -92,7 +89,7 @@ final class AdoptedSource {
         TaskExecutionContext prepared = context;
         TaskExecutionState taskCode = prepared == null ? null : prepared.executionState();
         if (taskCode != null) {
-            taskCode.claimRunning();
+            taskCode.claim();
         }
         cancelSource(true);
         mirror.cancel(false);
