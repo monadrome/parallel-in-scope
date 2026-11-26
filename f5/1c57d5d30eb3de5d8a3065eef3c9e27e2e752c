@@ -1,0 +1,71 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskExecutionStateTest.java
+  s_502c9f90a02f4d::t_6aaf63339a561a 57-58,71
+design/task-group-cancellation.md
+  s_502c9f90a02f4d::t_5316b6ae949a97 14-15
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_502c9f90a02f4d::t_f895349840c5ce 131,136,139,143,148,151
+core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java
+  s_502c9f90a02f4d::t_ad9c883d372058 85
+core/src/main/java/io/github/monadrome/parallelinscope/TaskExitObservation.java
+  s_502c9f90a02f4d::t_6422ff5d0a4172 153,158,161
+  s_502c9f90a02f4d::t_9564f4cc020a6d 163-164
+core/src/test/java/io/github/monadrome/parallelinscope/TaskTerminationTest.java
+  s_502c9f90a02f4d::t_aafde7a12655a4 23
+  s_502c9f90a02f4d::t_9564f4cc020a6d 55
+  s_502c9f90a02f4d::t_7404cf0fe12f8b 163-165
+  s_502c9f90a02f4d::t_d4dc0f1669d56c 12-13,18,25-27,29-30,32,53,58,62,72,77-80,87-88,122-123,138,143,148-149,160-162,166
+design/synchronous-scope-exit.md
+  s_502c9f90a02f4d::t_5316b6ae949a97 21-22,148
+design/task-group-api-and-options.md
+  s_502c9f90a02f4d::t_5316b6ae949a97 228-230,235-236,239
+docs/zh/user-guide.md
+  s_502c9f90a02f4d::t_cf9db94f6f22c6 304,314-316,339,343
+CHANGELOG.md
+  s_502c9f90a02f4d::t_6389e3d49553a5 62-65,73
+design/task-termination-and-scope.md
+  s_502c9f90a02f4d::t_b819174c2da9a3 8-9,16-18,21-25,33-34,42-46,48-51,73,86-99,101-122,145,236,269-271
+  s_502c9f90a02f4d::t_58c2aba2cbec82 100
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultFoldTest.java
+  s_502c9f90a02f4d::t_420cb7a0e7b847 21-22,32,74-75,79,103
+  s_502c9f90a02f4d::t_6aaf63339a561a 49,56,58
+core/src/main/java/io/github/monadrome/parallelinscope/TaskTermination.java
+  s_502c9f90a02f4d::t_8ee0be342a7550 11-13,38,45,47,53,56-58,90,100,107,117
+  s_502c9f90a02f4d::t_9564f4cc020a6d 114,119
+design/proposal/P0037-future-path-staged-outcome-api.md
+  s_502c9f90a02f4d::t_f9644074bf406a 216
+  s_502c9f90a02f4d::t_683fe7573caa62 18,36,70,81,125,148,154
+scripts/check-verification-integrity.py
+  s_502c9f90a02f4d::t_bff228bfcd0d0a 109-123,125-128
+design/task-group-lifecycle.md
+  s_502c9f90a02f4d::t_5316b6ae949a97 282-283
+core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureTest.java
+  s_502c9f90a02f4d::t_6aaf63339a561a 416
+core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java
+  s_502c9f90a02f4d::t_9564f4cc020a6d 168
+core/src/test/java/io/github/monadrome/parallelinscope/TaskExitObservationTest.java
+  s_502c9f90a02f4d::t_6aaf63339a561a 89
+docs/en/user-guide.md
+  s_502c9f90a02f4d::t_cf9db94f6f22c6 346,357-361,381,386
+core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java
+  s_502c9f90a02f4d::t_9564f4cc020a6d 40-41,89-90,216-217,234,248-249
+  s_502c9f90a02f4d::t_25f4fc25b176b2 35,45-46,87-88,91-93,171,218,238
+core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+  s_502c9f90a02f4d::t_9564f4cc020a6d 935-936
+  s_502c9f90a02f4d::t_1688441bb59835 939,943,954,958
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "f51c57d5d30eb3de5d8a3065eef3c9e27e2e752c",
+  "prompts": {},
+  "sessions": {
+    "s_502c9f90a02f4d": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2e05f8d6-2d46-43e2-891b-a5bba4883a56",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
