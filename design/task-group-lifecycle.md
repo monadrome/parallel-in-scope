@@ -279,7 +279,8 @@ Rules:
 
 A task's logical termination is frozen separately by `TaskTermination`; the execution claim is
 linearized by `TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS. A cancellation happening after
-the claim leaves the disposition `CLAIMED`; only an unsuccessful claim is `NOT_CLAIMED`.
+the claim leaves the record `CLAIMED` until execution exits; only a cancellation that wins
+`UNCLAIMED -> SKIPPED` prevents user code from starting.
 `ExecutionPhaseHintFuture.phase()` is diagnostic only and cannot substitute for this CAS.
 
 Distinguish the three terminations (close semantics in

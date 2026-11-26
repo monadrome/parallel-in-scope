@@ -1,20 +1,16 @@
 package io.github.monadrome.parallelinscope;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable logical termination of one task.
  *
- * <p>A termination is exactly one of success, failure, or cancellation. The execution disposition
- * is constrained by the factories so callers cannot construct combinations such as a successful
- * task that never acquired execution permission or a user-code failure that never entered the
- * execution claim. This value is independent from physical thread exit; use execution-exit
- * observation APIs before releasing resources shared with a task.
+ * <p>A termination is exactly one of success, failure, or cancellation. It records the logical
+ * outcome only: it does not say whether user code ran, and it is independent from physical thread
+ * exit. Use execution-exit observation APIs before releasing resources shared with a task.
  *
  * @param <T> the successful value type
  */
@@ -34,61 +30,32 @@ public final class TaskTermination<T> {
     private final @Nullable T value;
     private final @Nullable FailureCause failureCause;
     private final @Nullable CancellationReason cancellationReason;
-    private final ExecutionDisposition disposition;
 
     private TaskTermination(
             Kind kind,
             @Nullable T value,
             @Nullable FailureCause failureCause,
-            @Nullable CancellationReason cancellationReason,
-            ExecutionDisposition disposition) {
+            @Nullable CancellationReason cancellationReason) {
         this.kind = checkNotNull(kind, "kind cannot be null");
         this.value = value;
         this.failureCause = failureCause;
         this.cancellationReason = cancellationReason;
-        this.disposition = checkNotNull(disposition, "disposition cannot be null");
     }
 
-    /** Creates a successful termination; success always requires an acquired execution claim. */
+    /** Creates a successful termination carrying {@code value}, which may be null. */
     public static <T> TaskTermination<T> success(@Nullable T value) {
-        return success(value, ExecutionDisposition.CLAIMED);
-    }
-
-    /** Creates a successful termination with the supplied execution disposition. */
-    public static <T> TaskTermination<T> success(@Nullable T value, ExecutionDisposition disposition) {
-        checkArgument(
-                disposition == ExecutionDisposition.CLAIMED,
-                "successful termination requires an entered execution claim");
-        return new TaskTermination<>(Kind.SUCCESS, value, null, null, disposition);
+        return new TaskTermination<>(Kind.SUCCESS, value, null, null);
     }
 
     /** Creates a failed termination using its closed failure cause. */
     public static <T> TaskTermination<T> failed(FailureCause failureCause) {
-        return failed(failureCause, defaultFailureDisposition(failureCause));
-    }
-
-    /** Creates a failed termination with the supplied execution disposition. */
-    public static <T> TaskTermination<T> failed(FailureCause failureCause, ExecutionDisposition disposition) {
-        checkNotNull(failureCause, "failureCause cannot be null");
-        checkArgument(
-                failureCause.submissionRejected() || disposition == ExecutionDisposition.CLAIMED,
-                "a user-code failure requires an entered execution claim");
-        return new TaskTermination<>(Kind.FAILED, null, failureCause, null, disposition);
-    }
-
-    /** Creates a cancelled termination; cancellation may happen before or after the claim. */
-    public static <T> TaskTermination<T> cancelled(CancellationReason reason) {
-        return cancelled(reason, ExecutionDisposition.CLAIMED);
-    }
-
-    /** Creates a cancelled termination with the supplied execution disposition. */
-    public static <T> TaskTermination<T> cancelled(CancellationReason reason, ExecutionDisposition disposition) {
         return new TaskTermination<>(
-                Kind.CANCELLED, null, null, checkNotNull(reason, "reason cannot be null"), disposition);
+                Kind.FAILED, null, checkNotNull(failureCause, "failureCause cannot be null"), null);
     }
 
-    private static ExecutionDisposition defaultFailureDisposition(FailureCause cause) {
-        return cause.submissionRejected() ? ExecutionDisposition.NOT_CLAIMED : ExecutionDisposition.CLAIMED;
+    /** Creates a cancelled termination; cancellation may happen before or after user code starts. */
+    public static <T> TaskTermination<T> cancelled(CancellationReason reason) {
+        return new TaskTermination<>(Kind.CANCELLED, null, null, checkNotNull(reason, "reason cannot be null"));
     }
 
     /** Returns the branch kind. */
@@ -111,11 +78,6 @@ public final class TaskTermination<T> {
         return cancellationReason;
     }
 
-    /** Returns whether the execution claim was acquired. */
-    public ExecutionDisposition disposition() {
-        return disposition;
-    }
-
     /** Returns whether this is the success branch. */
     public boolean successful() {
         return kind == Kind.SUCCESS;
@@ -125,7 +87,7 @@ public final class TaskTermination<T> {
     public <R> R fold(
             Function<? super @Nullable T, ? extends R> onSuccess,
             Function<? super FailureCause, ? extends R> onFailure,
-            BiFunction<? super CancellationReason, ? super ExecutionDisposition, ? extends R> onCancelled) {
+            Function<? super CancellationReason, ? extends R> onCancelled) {
         checkNotNull(onSuccess, "onSuccess cannot be null");
         checkNotNull(onFailure, "onFailure cannot be null");
         checkNotNull(onCancelled, "onCancelled cannot be null");
@@ -135,28 +97,25 @@ public final class TaskTermination<T> {
             case FAILED:
                 return onFailure.apply(checkNotNull(failureCause, "failureCause cannot be null"));
             case CANCELLED:
-                return onCancelled.apply(
-                        checkNotNull(cancellationReason, "cancellationReason cannot be null"), disposition);
+                return onCancelled.apply(checkNotNull(cancellationReason, "cancellationReason cannot be null"));
             default:
                 throw new AssertionError("unknown task termination kind: " + kind);
         }
     }
 
     /**
-     * Returns a diagnostic string naming the branch, the disposition, and the payload; a success
+     * Returns a diagnostic string naming the branch and its payload; a success
      * value renders as {@code SimpleClassName@identityHash} ("null" when null), never through its
      * own {@code toString}. The format is for logs and debuggers, not for parsing.
      */
     @Override
     public String toString() {
         if (kind == Kind.SUCCESS) {
-            return "TaskTermination[kind=" + kind + ", disposition=" + disposition + ", value="
-                    + ResultObjects.render(value, this) + ']';
+            return "TaskTermination[kind=" + kind + ", value=" + ResultObjects.render(value, this) + ']';
         }
         if (kind == Kind.FAILED) {
-            return "TaskTermination[kind=" + kind + ", disposition=" + disposition + ", failure=" + failureCause + ']';
+            return "TaskTermination[kind=" + kind + ", failure=" + failureCause + ']';
         }
-        return "TaskTermination[kind=" + kind + ", disposition=" + disposition + ", cancellation=" + cancellationReason
-                + ']';
+        return "TaskTermination[kind=" + kind + ", cancellation=" + cancellationReason + ']';
     }
 }

@@ -932,18 +932,15 @@ final class TaskGroup<R> implements AutoCloseable {
      */
     private TaskTermination<Object> classifyMemberTermination(MemberState member) {
         if (member.future.isCancelled()) {
-            return TaskTermination.cancelled(
-                    com.google.common.base.Verify.verifyNotNull(
-                            memberCancellation(member, CancellationReason.cancelledByCaller(member.name))),
-                    memberDisposition(member));
+            return TaskTermination.cancelled(com.google.common.base.Verify.verifyNotNull(
+                    memberCancellation(member, CancellationReason.cancelledByCaller(member.name))));
         }
         try {
-            return TaskTermination.success(Futures.getDone(member.future), memberDisposition(member));
+            return TaskTermination.success(Futures.getDone(member.future));
         } catch (ExecutionException failure) {
             member.failure = failure.getCause();
             if (member.failure instanceof SubmissionException) {
-                return TaskTermination.failed(
-                        FailureCause.submissionRejected(member.failure), memberDisposition(member));
+                return TaskTermination.failed(FailureCause.submissionRejected(member.failure));
             }
             /* A failure that merely signals observed cancellation — a checkpoint threw a
              * CancellationException, or the worker thread was interrupted — can win the race
@@ -954,12 +951,11 @@ final class TaskGroup<R> implements AutoCloseable {
             if (TokenOutcomes.causedByCancellation(member.failure)) {
                 CancellationReason reason = memberCancellation(member, null);
                 if (reason != null) {
-                    return TaskTermination.cancelled(reason, memberDisposition(member));
+                    return TaskTermination.cancelled(reason);
                 }
             }
             return TaskTermination.failed(
-                    FailureCause.userCodeFailure(com.google.common.base.Verify.verifyNotNull(member.failure)),
-                    ExecutionDisposition.CLAIMED);
+                    FailureCause.userCodeFailure(com.google.common.base.Verify.verifyNotNull(member.failure)));
         }
     }
 
@@ -1136,14 +1132,6 @@ final class TaskGroup<R> implements AutoCloseable {
                 snapshots.build(),
                 terminal == null ? null : memberSnapshot(terminal),
                 aggregate);
-    }
-
-    private static ExecutionDisposition memberDisposition(MemberState member) {
-        ExecutionPhaseHintFuture<Object> prepared = member.prepared;
-        if (prepared != null) {
-            return prepared.executionDisposition();
-        }
-        return member.future.isCancelled() ? ExecutionDisposition.NOT_CLAIMED : ExecutionDisposition.CLAIMED;
     }
 
     private static TaskExitObservation<?> memberSnapshot(MemberState member) {

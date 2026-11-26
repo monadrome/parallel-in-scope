@@ -9,28 +9,27 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class TaskTerminationTest {
 
+    @SuppressWarnings("NullAway") // passes null to verify the factories' null checks
     @Test
-    void factoriesRejectIllegalDispositionCombinations() {
-        assertThatThrownBy(() -> TaskTermination.success("value", ExecutionDisposition.NOT_CLAIMED))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> TaskTermination.failed(
-                        FailureCause.userCodeFailure(new IllegalStateException("boom")),
-                        ExecutionDisposition.NOT_CLAIMED))
-                .isInstanceOf(IllegalArgumentException.class);
+    void factoriesBuildEachBranchFromItsPayload() {
+        assertThatThrownBy(() -> TaskTermination.failed(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> TaskTermination.cancelled(null)).isInstanceOf(NullPointerException.class);
 
-        TaskTermination<Object> submission = TaskTermination.failed(
-                FailureCause.submissionRejected(new IllegalStateException("rejected")),
-                ExecutionDisposition.NOT_CLAIMED);
+        TaskTermination<Object> submission =
+                TaskTermination.failed(FailureCause.submissionRejected(new IllegalStateException("rejected")));
         assertThat(submission.kind()).isEqualTo(TaskTermination.Kind.FAILED);
-        assertThat(submission.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+        assertThat(submission.cancellationReason()).isNull();
         assertThat(Verify.verifyNotNull(submission.failureCause()).submissionRejected())
                 .isTrue();
         assertThat(Verify.verifyNotNull(submission.failureCause()).userCodeFailure())
@@ -51,17 +50,16 @@ class TaskTerminationTest {
     @Test
     void toStringNamesTheBranchAndRendersASuccessValueByIdentity() {
         assertThat(TaskTermination.success("value").toString())
-                .isEqualTo("TaskTermination[kind=SUCCESS, disposition=CLAIMED, value=String@"
+                .isEqualTo("TaskTermination[kind=SUCCESS, value=String@"
                         + Integer.toHexString(System.identityHashCode("value")) + ']');
-        assertThat(TaskTermination.success(null).toString())
-                .isEqualTo("TaskTermination[kind=SUCCESS, disposition=CLAIMED, value=null]");
+        assertThat(TaskTermination.success(null).toString()).isEqualTo("TaskTermination[kind=SUCCESS, value=null]");
         assertThat(TaskTermination.failed(FailureCause.userCodeFailure(new IllegalStateException("boom")))
                         .toString())
-                .isEqualTo("TaskTermination[kind=FAILED, disposition=CLAIMED,"
+                .isEqualTo("TaskTermination[kind=FAILED,"
                         + " failure=FailureCause[kind=USER_CODE_FAILURE, cause=java.lang.IllegalStateException]]");
         assertThat(TaskTermination.cancelled(CancellationReason.cancelledByCaller())
                         .toString())
-                .isEqualTo("TaskTermination[kind=CANCELLED, disposition=CLAIMED,"
+                .isEqualTo("TaskTermination[kind=CANCELLED,"
                         + " cancellation=CancellationReason[kind=CANCELLED_BY_CALLER, source=unspecified]]");
     }
 
@@ -71,18 +69,23 @@ class TaskTerminationTest {
         rejected.shutdownNow();
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("worker"), rejected).build();
+        AtomicBoolean ran = new AtomicBoolean();
         try {
             TaskBatchResult<Integer> result = runtime.par(ParId.of("worker"))
                     .map(
                             Collections.singletonList(1),
-                            value -> value,
+                            value -> {
+                                ran.set(true);
+                                return value;
+                            },
                             BatchOptions.timeout("rejected", Duration.ofSeconds(5)));
 
             ImmediateResult<Integer> task = result.results().get(0);
             assertThat(task.termination().kind()).isEqualTo(TaskTermination.Kind.FAILED);
             assertThat(Verify.verifyNotNull(task.failureCause()).submissionRejected())
                     .isTrue();
-            assertThat(task.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+            // A rejected submission never runs the callable.
+            assertThat(ran).isFalse();
             assertThat(result.termination().kind()).isEqualTo(ScopeTermination.Kind.FAILED);
             assertThat(Verify.verifyNotNull(result.termination().failureCause()).submissionRejected())
                     .isTrue();
@@ -116,7 +119,8 @@ class TaskTerminationTest {
             await().atMost(Duration.ofSeconds(2)).until(task::isDone);
             TaskTermination<Void> cancelled = Verify.verifyNotNull(task.termination());
             assertThat(cancelled.kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
-            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
+            assertThat(Verify.verifyNotNull(cancelled.cancellationReason()).kind())
+                    .isEqualTo(CancellationReason.Kind.CANCELLED_BY_CALLER);
             // The result line settled while the execution line still holds the claim.
             assertThat(task.executionState()).isEqualTo(ExecutionState.CLAIMED);
 
@@ -131,16 +135,18 @@ class TaskTerminationTest {
     }
 
     @Test
-    void cancellationBeforeClaimUsesNotEnteredDisposition() throws Exception {
+    void cancellationBeforeClaimSkipsTheExecution() throws Exception {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         ParRuntime runtime =
                 ParRuntime.builder().register(ParId.of("worker"), pool).build();
         CountDownLatch release = new CountDownLatch(1);
+        Set<Integer> ran = ConcurrentHashMap.newKeySet();
         try {
             TaskBatch<Void> batch = runtime.par(ParId.of("worker"))
                     .submitBatch(
                             Arrays.asList(1, 2),
-                            ignored -> {
+                            input -> {
+                                ran.add(input);
                                 Uninterruptibles.awaitUninterruptibly(release);
                                 return null;
                             },
@@ -151,7 +157,13 @@ class TaskTerminationTest {
             await().atMost(Duration.ofSeconds(2)).until(pending::isDone);
             TaskTermination<Void> cancelled = Verify.verifyNotNull(pending.termination());
             assertThat(cancelled.kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
-            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+
+            release.countDown();
+            assertThat(batch.awaitExecutionExit(Duration.ofSeconds(2))).isTrue();
+            // The cancellation won before the claim: the record is skipped and the callable never ran.
+            // Read after exit, because the skip lands in the future's completion hook, just after isDone().
+            assertThat(pending.executionState()).isEqualTo(ExecutionState.SKIPPED);
+            assertThat(ran).containsExactly(1);
         } finally {
             release.countDown();
             runtime.close();

@@ -5,31 +5,24 @@
 
 > This document is the current contract for `TaskTermination`, Batch/Group scope termination,
 > the execution claim, and live task state. It separates logical termination, execution exit,
-> and post-exit observation into three layers; the cancellation reason and the execution
-> disposition cannot substitute for each other.
+> and post-exit observation into three layers; a termination describes the outcome only and
+> carries no execution-line fact.
 
 ## 1. Logical termination
 
 Every task publishes exactly one immutable `TaskTermination<T>`, with only three branches:
 
 ```text
-Success(value, CLAIMED)
-Failed(FailureCause, disposition)
-Cancelled(CancellationReason, disposition)
+Success(value)
+Failed(FailureCause)
+Cancelled(CancellationReason)
 ```
 
-`ExecutionDisposition.CLAIMED` means the task acquired the execution claim; it does not
-guarantee the user callable has executed its first line, nor that the thread has exited.
-`NOT_CLAIMED` means the claim did not succeed; context installation, enqueueing, observation
-registration, and cleanup may still have happened.
-
-Public construction goes through restricted factories only:
-
-- `Success` can only use `CLAIMED`;
-- `Failed(UserCodeFailure, NOT_CLAIMED)` is illegal;
-- `Failed(SubmissionRejected, NOT_CLAIMED)` is legal, and the inline guard failing after the
-  claim may also use `CLAIMED`;
-- `Cancelled` may be published before or after the claim.
+Public construction goes through the restricted factories `success(value)`, `failed(cause)`, and
+`cancelled(reason)` only; each branch carries only its own payload. A termination does not say
+whether user code ran: a failure or cancellation means the task may or may not have run, and a
+caller whose side effects matter tracks them itself (for example with idempotency keys or
+reconciliation). Before compensating, confirm execution exit (§3).
 
 `FailureCause` is a closed final type distinguishing at least `USER_CODE_FAILURE` and
 `SUBMISSION_REJECTED`, and keeps the original `Throwable`. `CancellationReason` distinguishes
@@ -37,8 +30,8 @@ caller, parent scope, deadline, fail-fast, and member, and carries a diagnostic 
 identity.
 
 `ImmediateResult<T>` is the frozen container for synchronous results and holds the task's
-`TaskTermination` directly: `termination()`, `disposition()`, `failureCause()`, and
-`cancellationReason()`. New code must rely on `TaskTermination`'s kind, cause, and disposition.
+`TaskTermination` directly: `termination()`, `failureCause()`, and `cancellationReason()`. New
+code must rely on `TaskTermination`'s kind and cause.
 `TaskTermination` has no in-progress branch: a pending task has no termination yet.
 
 ## 2. The execution claim and the live view
@@ -46,12 +39,16 @@ identity.
 `TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS is the only linearization point of the
 execution claim:
 
-- cancelling after the claim CAS succeeds: the termination object must be `CLAIMED`, even if
-  the callable was never invoked;
-- when the claim CAS fails, cancellation or submission rejection uses `NOT_CLAIMED`, and the
-  user callable must not execute;
+- a cancellation that wins `UNCLAIMED -> SKIPPED` before the claim leaves the record `SKIPPED`,
+  and the user callable must never execute;
+- a rejected submission skips the record, and the user callable must never execute;
+- a cancellation after the claim CAS succeeds leaves the record `CLAIMED` until execution exits,
+  even if the callable was never invoked;
 - `ExecutionPhaseHintFuture.phase()` is only a non-blocking diagnostic hint: it cannot decide
-  the disposition alone and cannot prove thread exit.
+  the claim and cannot prove thread exit.
+
+The claim is an internal mechanism: exit tracking and skipping depend on it, but no public value
+reports it.
 
 A task's live view is two independent package-private reads on its `TaskFuture`, one per line,
 for library-internal diagnostics only; the public surface stays frozen data:
@@ -73,11 +70,7 @@ for library-internal diagnostics only; the public surface stays frozen data:
   separate, so a pair taken before the scope converges may straddle a transition; no read
   combines them into one value.
 
-The bridge between the lines is `ExecutionDisposition`. For a library-executed task it is sampled
-from the execution record into `TaskTermination` when the result freezes. An adopted member's
-disposition is currently derived from whether its member future was cancelled instead, so a
-group-cancelled adopted member freezes as `NOT_CLAIMED` while its live execution state reads
-`CLAIMED` until the source settles.
+No value bridges the two lines: a frozen termination never samples the execution record.
 
 Rejected alternatives (2026-11-25):
 
@@ -89,6 +82,43 @@ Rejected alternatives (2026-11-25):
   separate atomic values, so no combined read is atomic either.
 - A public live view. The public surface is frozen data only; a public live channel (for
   example in-flight tasks in a runtime snapshot) is a new mechanism and needs its own proposal.
+
+The public claim disposition (`ExecutionDisposition`, `CLAIMED` / `NOT_CLAIMED`, sampled into
+every `TaskTermination` and taken by the cancelled handler of `fold`) was removed before it
+shipped (2026-11-26). Its only consumer would retry tasks that provably never ran, and no such
+user is expected; no library logic read the value. It also promised more than the library can
+know: an adopted member's source is already running when it joins, so a group-cancelled adopted
+member reported `NOT_CLAIMED` while its work could still run. No replacement accessor was added;
+adding one later is additive. Rejected alternatives (2026-11-26):
+
+- Keep the shape and only fix the adopted value. The false guarantee goes, but every `fold`
+  caller still handles a parameter named after an internal mechanism, and narrowing the public
+  shape after 0.5.0 would be a breaking change.
+- Rename it to a user-question boolean (for example `startPrevented()`) and move it out of
+  `fold`. That still mixes an execution-line fact into the result value, and has no consumer.
+- Move a `startPrevented()` fact to `TaskExitObservation`, published after exit. It is the
+  cleanest placement, but it still has no consumer; removing the value outright keeps that addition possible.
+- An `UNKNOWN` value for adopted members. To a user it means the same as "no proof"; an
+  `== CLAIMED` check misses it, and the factories would have to relax the success and
+  user-failure rules.
+- Best-effort detection, reading the record when the adopted source happens to be a library
+  task. It adds a guarantee in rare cases, depends on the argument's runtime type, and
+  reintroduces a frozen value that can disagree with the live one.
+- Recording the adoption order (cancelled before connect counts as not started). The external
+  work may already run before connect, so the guarantee stays false, and the value would have
+  to be pinned when the mirror settles.
+- A fourth `SKIPPED` termination kind. It puts an execution-line fact into the result type;
+  `fold` would need a fourth handler or a cancelled-handler flag again, and a rejected
+  submission stays `FAILED`.
+- Carrying it in `CancellationReason`. A reason answers why a task was cancelled, not whether
+  it started, and a rejected submission has no cancellation reason.
+- A separate result type for adopted members. It splits the single outcome vocabulary, so
+  every result reader would have to distinguish two types.
+- Lazy group input (the P0032 `parAsync(key, par, AsyncCallable)` shape, or an async batch with
+  a window) to make "never started" provable for asynchronous work. Eager sources (shared or
+  handed-over futures) remain, so `adopt(future)` stays; the proof it would add has no consumer.
+  Users who need it today wrap a blocking wait in `par`. The 2026-11-02 rejection of
+  `parAsync` in [decision-log.md](decision-log.md) stands.
 
 ## 3. The three completion layers
 
@@ -112,7 +142,7 @@ Batch/Groups' exits separately.
 | Layer | Authoritative signal | Promise |
 |---|---|---|
 | Future completion | `Future.isDone()` | The transport future is terminal; its result can be read. |
-| Logical termination | `ImmediateResult.termination()` / `TaskTermination` | The success, failure, or cancellation cause and `ExecutionDisposition` are frozen. |
+| Logical termination | `ImmediateResult.termination()` / `TaskTermination` | The success, failure, or cancellation cause is frozen. |
 | Execution exit | `executionExitConfirmed()` | Direct user code has exited or was atomically prevented from starting. |
 | Exit observation | `TaskExitObservation` | Final timing and post-exit telemetry have been published. |
 | Runtime quiescence | `ParRuntime.awaitQuiescence(...)` | A closed runtime has drained admitted executions and observation scopes. |
@@ -203,7 +233,7 @@ switch (termination.kind()) {
         log(termination.failureCause());
         break;
     case CANCELLED:
-        log(termination.cancellationReason(), termination.disposition());
+        log(termination.cancellationReason());
         break;
     default:
         throw new AssertionError("unknown termination kind");
@@ -236,8 +266,9 @@ restricted factories.
 
 - Logical-termination publication does not wait for a user thread ignoring interruption to
   exit;
-- `NOT_CLAIMED` only means the claim did not succeed — it does not mean there were no framework
-  side effects;
+- a termination never reports whether user code ran; only the execution record decides the
+  claim, and a skipped record never runs user code, though framework preparation, queueing,
+  observation registration, and cleanup may still have happened;
 - `TaskExitObservation` is published only after exit, and is consistent with the corresponding
   frozen `ImmediateResult`'s logical termination;
 - the scope primary termination is published through exactly one CAS, while member results keep the

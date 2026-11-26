@@ -18,8 +18,8 @@ Two boundaries are independent:
   never enter execution.
 
 Logical termination is expressed by `TaskTermination`/`ImmediateResult.termination()`,
-comprising `kind`, `FailureCause`/`CancellationReason`, and the `ExecutionDisposition` decided
-by the execution-claim CAS. It does not wait for execution exit; `executionExitConfirmed()`
+comprising `kind` and `FailureCause`/`CancellationReason`; it does not say whether user code
+ran. It does not wait for execution exit; `executionExitConfirmed()`
 serves resource-release judgment.
 
 A cancellation may complete the result while the execution is still closing resources. Java
@@ -145,8 +145,7 @@ final observation is missing.
 **Every non-success public ImmediateResult carries a non-null throwable; a success result may be
 null, and a null value is legitimate.** Meanwhile, `termination()` is a three-branch logical
 termination with no `RUNNING`; submission failure is expressed through
-`FailureCause.SUBMISSION_REJECTED`, and cancellation through `CancellationReason` and
-`ExecutionDisposition`. failed requires a non-SUCCESS/RUNNING outcome and a non-null Throwable;
+`FailureCause.SUBMISSION_REJECTED`, and cancellation through `CancellationReason`. failed requires a non-SUCCESS/RUNNING outcome and a non-null Throwable;
 valueOrThrow's Left uniformly throws ExecutionException whose cause is the stored original.
 Member results are normalized by the kernel: USER_FAILURE/SUBMISSION_FAILURE and existing
 CancellationExceptions keep the original object; other cancellation terminal states freeze as a

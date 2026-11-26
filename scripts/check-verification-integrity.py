@@ -106,8 +106,26 @@ _TASK_STATE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
         ("TaskFutureTest", "V2", "stateReadsPendingAndExitedFromAPlainDelegate"),
     )
 )
+# ExecutionDisposition removal (2026-11-26): the claim disposition left the public API, so tests
+# named after it were renamed to the facts that remain. Replacements:
+# TaskTerminationTest.factoriesBuildEachBranchFromItsPayload and
+# cancellationBeforeClaimSkipsTheExecution (asserts SKIPPED and that the callable never ran);
+# ImmediateResultTest.cancelledAndSubmissionRejectedResultsExposeReasonAndCause and
+# submissionFailureFreezingPreservesTheSubmissionCause.
+_DISPOSITION_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+    (f"{_CORE_TESTS}{name}.java", rule, case)
+    for name, rule, case in (
+        ("TaskTerminationTest", "V2", "factoriesRejectIllegalDispositionCombinations"),
+        ("TaskTerminationTest", "V2", "cancellationBeforeClaimUsesNotEnteredDisposition"),
+        ("ImmediateResultTest", "V2", "cancelledAndSubmissionRejectedResultsExposeReasonAndDisposition"),
+        ("ImmediateResultTest", "V2", "submissionFailureFreezingPreservesNotClaimedDisposition"),
+    )
+)
 REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = (
-    _TASK_TYPE_REMOVAL_EXCEPTIONS | _TASK_STATE_REMOVAL_EXCEPTIONS | frozenset(
+    _TASK_TYPE_REMOVAL_EXCEPTIONS
+    | _TASK_STATE_REMOVAL_EXCEPTIONS
+    | _DISPOSITION_REMOVAL_EXCEPTIONS
+    | frozenset(
     ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
     for method in (
         "test_accepts_status_allowed_by_adapter",

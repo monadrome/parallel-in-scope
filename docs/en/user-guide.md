@@ -343,7 +343,7 @@ The lifecycle terms answer different questions:
 | Term | Meaning |
 |---|---|
 | Future completion | The transport future is terminal and can be read without waiting for its execution to exit. |
-| Logical termination | `ImmediateResult.termination()` freezes the success, failure, or cancellation cause and claim disposition. |
+| Logical termination | `ImmediateResult.termination()` freezes the success, failure, or cancellation cause. |
 | Execution exit | `executionExitConfirmed()` says direct task code has exited or was atomically prevented from starting. |
 | Exit observation | `TaskExitObservation<T>` publishes final timing and outcome telemetry after the future is terminal and execution exit is known. |
 | Runtime quiescence | `ParRuntime.awaitQuiescence(...)` waits for a closed runtime's admitted executions and observation scopes. |
@@ -354,9 +354,11 @@ timing or queue telemetry.
 
 Each frozen result also exposes `termination()`, a three-branch `TaskTermination<T>` value:
 `SUCCESS`, `FAILED`, or `CANCELLED`. A failed termination carries a `FailureCause` that distinguishes
-user-code failure from submission rejection. A cancelled termination carries a `CancellationReason`
-and an `ExecutionDisposition`. `CLAIMED` means the execution claim was acquired; `NOT_CLAIMED` means
-the claim was not acquired and does not mean that framework preparation had no side effects.
+user-code failure from submission rejection. A cancelled termination carries a `CancellationReason`.
+A termination does not say whether task code ran: treat every task that did not succeed as possibly
+run. Code whose side effects matter tracks them itself, for example with idempotency keys or
+reconciliation, and confirms execution exit before compensating: `executionExitConfirmed()` for the
+scope, or a non-null `completions().get(i)` / `members().get(name)` for one task.
 
 Logical termination and execution exit are separate. A cancellation can settle the result while user
 code is still unwinding after interruption. Check `executionExitConfirmed()` and
@@ -376,12 +378,12 @@ Price price = batch.results().get(i).fold(
             LOGGER.log(Level.WARNING, "price failed for " + sku, failure.cause());
             return Price.UNKNOWN;
         },
-        (reason, disposition) -> Price.UNKNOWN);
+        reason -> Price.UNKNOWN);
 ```
 
 The first handler receives the possibly-null success value; the second receives the `FailureCause`,
 whose kind distinguishes user-code failure from submission rejection and which retains the original
-throwable; and the third receives the `CancellationReason` and `ExecutionDisposition`, while the
+throwable; and the third receives the `CancellationReason`, while the
 stored throwable — readable through `failure()` — is not always a `CancellationException`. All three
 handlers are required, and `fold` returns the selected handler's result. `successful()` tests for
 `SUCCESS` alone.

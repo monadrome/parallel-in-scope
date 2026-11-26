@@ -82,23 +82,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return current == ExecutionPhase.RUNNING && isCancelled() ? ExecutionPhase.CANCEL_REQUESTED_RUNNING : current;
     }
 
-    /**
-     * Returns the disposition from the execution-claim state machine. The phase hint is deliberately
-     * not consulted: it is a diagnostic observation and is not the linearization point for claim.
-     */
-    ExecutionDisposition executionDisposition() {
-        if (submissionFailure != null) {
-            return ExecutionDisposition.NOT_CLAIMED;
-        }
-        TaskExecutionState taskCode = executionState;
-        if (taskCode != null) {
-            return taskCode.disposition();
-        }
-        return phase() == ExecutionPhase.CANCELLED_BEFORE_RUN
-                ? ExecutionDisposition.NOT_CLAIMED
-                : ExecutionDisposition.CLAIMED;
-    }
-
     private void releaseCallable() {
         callable = null;
     }
@@ -182,9 +165,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         submissionFailure = wrapped;
         TaskObservation<V> published = observation;
         if (published != null) {
-            published.publishSkipped(
-                    TaskTermination.failed(FailureCause.submissionRejected(wrapped), ExecutionDisposition.NOT_CLAIMED),
-                    wrapped);
+            published.publishSkipped(TaskTermination.failed(FailureCause.submissionRejected(wrapped)), wrapped);
         }
         return true;
     }

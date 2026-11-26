@@ -54,7 +54,8 @@ class TaskExecutionStateTest {
         assertThat(slot.skipIfPending()).isTrue();
         assertThat(slot.state()).isEqualTo(ExecutionState.SKIPPED);
         assertThat(slot.isOutstanding()).isFalse();
-        assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+        // A skipped record can never be claimed afterwards.
+        assertThat(slot.claim()).isFalse();
         assertThat(slot.terminal().isDone()).isTrue();
         assertThat(tracker.isDone()).isTrue();
         assertThat(slot.skipIfPending()).isFalse();
@@ -67,7 +68,7 @@ class TaskExecutionStateTest {
 
         assertThat(slot.claim()).isTrue();
         assertThat(slot.skipIfPending()).isFalse();
-        assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
+        assertThat(slot.state()).isEqualTo(ExecutionState.CLAIMED);
         assertThat(slot.terminal().isDone()).isFalse();
         assertThat(tracker.isDone()).isFalse();
     }
