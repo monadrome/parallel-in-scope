@@ -163,7 +163,9 @@ class TaskTerminationTest {
             // The cancellation won before the claim: the record is skipped and the callable never ran.
             // Read after exit, because the skip lands in the future's completion hook, just after isDone().
             assertThat(pending.executionState()).isEqualTo(ExecutionState.SKIPPED);
-            assertThat(ran).containsExactly(1);
+            // The member cancellation also cancels the scope, so element 1 may be skipped too; only
+            // element 2's outcome is pinned.
+            assertThat(ran).doesNotContain(2);
         } finally {
             release.countDown();
             runtime.close();
