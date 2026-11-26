@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Shared execution exit signal for one submission — a task group or a batch.
  *
- * <p>Every prepared task registers a {@link TaskExecutionState} slot before any task is submitted; the
+ * <p>Every prepared task registers an {@link ExecutionRecord} slot before any task is submitted; the
  * {@code executionExit} future starts with an outstanding count of the total task count and completes
  * only when every task execution has exited or has been atomically determined to never enter its execution.
  * Waiting on the signal therefore cannot be defeated by tasks that start late: a {@code true}
@@ -32,7 +32,7 @@ final class ExecutionExitTracker {
     private final AtomicInteger outstanding;
     private final SettableFuture<@Nullable Void> executionExit = SettableFuture.create();
     private final Set<MultiTaskContext> identityUnits = Sets.newIdentityHashSet();
-    private final List<TaskExecutionState> slots;
+    private final List<ExecutionRecord> slots;
 
     private @Nullable MultiTaskContext lastRegisteredUnit;
 
@@ -60,17 +60,17 @@ final class ExecutionExitTracker {
      * Registers one prepared task and records its unit for the self-await guard. Must be called
      * exactly once per task counted at creation, before any task is submitted.
      */
-    TaskExecutionState register(MultiTaskContext unit) {
+    ExecutionRecord register(MultiTaskContext unit) {
         if (lastRegisteredUnit != unit) {
             identityUnits.add(unit);
             lastRegisteredUnit = unit;
         }
-        TaskExecutionState slot = new TaskExecutionState(this, unit.name());
+        ExecutionRecord slot = new ExecutionRecord(this, unit.name());
         slots.add(slot);
         return slot;
     }
 
-    /** Releases one slot; called by {@link TaskExecutionState} on the winning terminal transition. */
+    /** Releases one slot; called by {@link ExecutionRecord} on the winning terminal transition. */
     void release() {
         if (outstanding.decrementAndGet() == 0) {
             complete(executionExit);
@@ -98,7 +98,7 @@ final class ExecutionExitTracker {
      */
     Map<String, Integer> unexitedExecutionSummary() {
         Map<String, Integer> counts = new LinkedHashMap<>();
-        for (TaskExecutionState slot : slots) {
+        for (ExecutionRecord slot : slots) {
             if (slot.isOutstanding()) {
                 counts.merge(slot.name(), 1, Integer::sum);
             }

@@ -216,7 +216,7 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     @Override
     public @Nullable ExecutionState executionState() {
-        TaskExecutionState record = observation.executionState();
+        ExecutionRecord record = observation.executionRecord();
         return record == null ? null : record.state();
     }
 

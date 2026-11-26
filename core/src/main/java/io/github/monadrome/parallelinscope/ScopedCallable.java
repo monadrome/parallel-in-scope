@@ -42,9 +42,9 @@ final class ScopedCallable<V> implements Callable<V> {
         } finally {
             releaseDelegate();
             taskContext.markEnded(ticker.read());
-            TaskExecutionState executionState = taskContext.executionState();
-            if (executionState != null) {
-                executionState.exited();
+            ExecutionRecord record = taskContext.executionRecord();
+            if (record != null) {
+                record.exited();
             }
             TaskExecutionContext.restore(null);
             // restore(null) already removed the slot, so a null previous task needs no second remove.

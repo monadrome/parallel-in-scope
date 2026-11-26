@@ -70,8 +70,9 @@ Java-specific bullets apply only to Java.
   immutable logical-entry identifier.
 - `State` names a stage in a process: one situation inside an encompassing
   lifecycle that implies what may come next. Machine-position enums
-  (`CancellationToken.State`, `ExecutionState`) and aggregate carriers in the GoF
-  State pattern sense (`TaskExecutionState`) both use it.
+  (`CancellationToken.State`, `ExecutionState`) use it. The object that holds such
+  an enum and owns its transitions is named for what it is (`ExecutionRecord`),
+  not as a second `...State`, so the holder and its enum never differ by one word.
   `Status` names the outcome of an operation: a final, resulting condition
   (`ThreadPoolStarvationReport.Status`). Terminal task outcomes keep their own
   type (`TaskTermination`); live stage views are `State`, never `Status`.

@@ -60,7 +60,7 @@ final class AdoptedSource {
 
     /** Attaches the prepared member context; called once on the admitting thread before binding. */
     void attach(TaskExecutionContext prepared) {
-        verify(prepared.executionState() != null, "an adopted member must own an execution slot");
+        verify(prepared.executionRecord() != null, "an adopted member must own an execution slot");
         this.context = prepared;
     }
 
@@ -72,7 +72,7 @@ final class AdoptedSource {
     void connect() {
         verify(claimed.compareAndSet(false, true), "adopted source '%s' was already claimed", name);
         TaskExecutionContext prepared = verifyNotNull(context, "adopted member '%s' was not prepared", name);
-        verify(verifyNotNull(prepared.executionState()).claim(), "adopted member '%s' already left UNCLAIMED", name);
+        verify(verifyNotNull(prepared.executionRecord()).claim(), "adopted member '%s' already left UNCLAIMED", name);
         prepared.markStarted(System.nanoTime());
         connected = true;
         source.addListener(this::sourceSettled, directExecutor());
@@ -87,16 +87,16 @@ final class AdoptedSource {
             return;
         }
         TaskExecutionContext prepared = context;
-        TaskExecutionState taskCode = prepared == null ? null : prepared.executionState();
-        if (taskCode != null) {
-            taskCode.claim();
+        ExecutionRecord record = prepared == null ? null : prepared.executionRecord();
+        if (record != null) {
+            record.claim();
         }
         cancelSource(true);
         mirror.cancel(false);
         source.addListener(
                 () -> {
-                    if (taskCode != null) {
-                        taskCode.exited();
+                    if (record != null) {
+                        record.exited();
                     }
                 },
                 directExecutor());
@@ -109,7 +109,7 @@ final class AdoptedSource {
         TaskExecutionContext prepared = verifyNotNull(context);
         prepared.markEnded(System.nanoTime());
         try {
-            verifyNotNull(prepared.executionState()).exited();
+            verifyNotNull(prepared.executionRecord()).exited();
         } finally {
             mirror.settleFrom(source);
         }

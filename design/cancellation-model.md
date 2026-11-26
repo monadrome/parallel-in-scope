@@ -18,7 +18,7 @@ settles.
 |---|---|---|---|
 | Decision | Who cancels first, and why | The first-wins state machine of `CancellationToken` (package-private) | [cancellation propagation](cancellation-propagation.md) §5, §8 |
 | Propagation | Deliver the decision to bound futures and child scopes | `bind()`'s combined futures, `ParentCancellationLink`, the Guava cascade | [cancellation propagation](cancellation-propagation.md) §1–§4 |
-| Execution | Whether an execution may enter, interrupt delivery, thread handoff | `ExecutionPhaseHintFuture`, `TaskExecutionState` | [interruption contract](interruption-contract.md) §2.3–§2.4, [runner interrupt delivery](runner-interrupt-delivery.md) |
+| Execution | Whether an execution may enter, interrupt delivery, thread handoff | `ExecutionPhaseHintFuture`, `ExecutionRecord` | [interruption contract](interruption-contract.md) §2.3–§2.4, [runner interrupt delivery](runner-interrupt-delivery.md) |
 | Cooperation | Executions observe cancellation and exit | `Checkpoints`' checkpoints and blocking adapters | [interruption contract](interruption-contract.md) §3.1 |
 | Attribution | Map token state to `TaskTermination` | `TokenOutcomes`, the settle pin | [group cancellation](task-group-cancellation.md) §8.4.1, [settle attribution](batch-settle-attribution.md) |
 | Exit | Wait for results to settle, then bounded wait for execution exit | `ExecutionExitTracker`, synchronous freeze | [synchronous exit](synchronous-scope-exit.md) §4 |

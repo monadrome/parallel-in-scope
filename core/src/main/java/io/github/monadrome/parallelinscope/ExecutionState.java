@@ -5,7 +5,7 @@ package io.github.monadrome.parallelinscope;
  * that execution is over.
  *
  * <p>Transitions are {@code UNCLAIMED -> CLAIMED -> EXITED} and {@code UNCLAIMED -> SKIPPED}; each
- * is a compare-and-set on the task's {@link TaskExecutionState} record, which is the only writer.
+ * is a compare-and-set on the task's {@link ExecutionRecord}, which is the only writer.
  * "Execution over" means {@link #EXITED} or {@link #SKIPPED}. This enum says nothing about the
  * result: the result line is the task's {@link TaskTermination}, which may settle while the
  * execution is still {@link #CLAIMED}.

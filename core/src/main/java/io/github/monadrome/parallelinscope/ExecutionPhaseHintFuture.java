@@ -30,7 +30,7 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     /** Execution hints are separate from the future's completion state. */
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.SUBMITTED);
 
-    private final @Nullable TaskExecutionState executionState;
+    private final @Nullable ExecutionRecord executionRecord;
 
     private volatile @Nullable Thread runner;
 
@@ -67,13 +67,13 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
         return new ExecutionPhaseHintFuture<>(callable, null);
     }
 
-    static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable TaskExecutionState executionState) {
-        return new ExecutionPhaseHintFuture<>(callable, executionState);
+    static <V> ExecutionPhaseHintFuture<V> create(Callable<V> callable, @Nullable ExecutionRecord executionRecord) {
+        return new ExecutionPhaseHintFuture<>(callable, executionRecord);
     }
 
-    private ExecutionPhaseHintFuture(Callable<V> callable, @Nullable TaskExecutionState executionState) {
+    private ExecutionPhaseHintFuture(Callable<V> callable, @Nullable ExecutionRecord executionRecord) {
         this.callable = Objects.requireNonNull(callable, "callable cannot be null");
-        this.executionState = executionState;
+        this.executionRecord = executionRecord;
     }
 
     /** Nonblocking hint; cancellation is visible even while interrupt delivery is pending. */
@@ -133,8 +133,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     private String taskLabel() {
-        TaskExecutionState taskCode = executionState;
-        return taskCode == null ? "<untracked>" : taskCode.name();
+        ExecutionRecord record = executionRecord;
+        return record == null ? "<untracked>" : record.name();
     }
 
     @Nullable
@@ -180,22 +180,22 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     private boolean claimExecution() {
-        TaskExecutionState taskCode = executionState;
-        return taskCode == null || taskCode.claim();
+        ExecutionRecord record = executionRecord;
+        return record == null || record.claim();
     }
 
     private void releaseExecution() {
-        TaskExecutionState taskCode = executionState;
-        if (taskCode != null) {
-            taskCode.exited();
+        ExecutionRecord record = executionRecord;
+        if (record != null) {
+            record.exited();
         }
     }
 
     void skipExecution() {
         releaseCallable();
-        TaskExecutionState taskCode = executionState;
-        if (taskCode != null) {
-            taskCode.skipped();
+        ExecutionRecord record = executionRecord;
+        if (record != null) {
+            record.skipped();
         }
     }
 
@@ -320,8 +320,8 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
     }
 
     private void skipExecutionIfPending() {
-        TaskExecutionState taskCode = executionState;
-        if (taskCode != null && taskCode.skipIfPending()) {
+        ExecutionRecord record = executionRecord;
+        if (record != null && record.skipIfPending()) {
             releaseCallable();
         }
     }

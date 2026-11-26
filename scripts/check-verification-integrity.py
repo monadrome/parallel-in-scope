@@ -93,19 +93,21 @@ _TASK_TYPE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
     }
 )
 # Execution-state vocabulary and TaskState removal (2026-11-25): the execution record's states
-# follow the claim vocabulary (claimRunningWinsExactlyOnce -> claimWinsExactlyOnce), and the live
-# view became termination() plus executionState(). Replacements:
-# stateAndOutstandingReflectEachLifecyclePhase, aPlainDelegateHasNoExecutionState, and
+# follow the claim vocabulary, and the live view became termination() plus executionState().
+# Replacements: aPlainDelegateHasNoExecutionState, and
 # TaskFutureTest.executionStateReadsTheRecordWithoutConsultingTheFuture for the phase guess.
+# Execution record rename (2026-11-26): TaskExecutionState became ExecutionRecord, so
+# TaskExecutionStateTest moved to ExecutionRecordTest with the same cases; the class rename keeps
+# the move from being byte-identical. That V1 entry covers the 2026-11-25 renames in the file
+# (claimRunningWinsExactlyOnce -> claimWinsExactlyOnce,
+# stateAndTaskStateReflectEachLifecyclePhase -> stateAndOutstandingReflectEachLifecyclePhase).
 _TASK_STATE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
     (f"{_CORE_TESTS}{name}.java", rule, case)
     for name, rule, case in (
         ("ExecutionPhaseHintFutureTest", "V2", "stateReflectsUntrackedLifecyclePhases"),
-        ("TaskExecutionStateTest", "V2", "claimRunningWinsExactlyOnce"),
-        ("TaskExecutionStateTest", "V2", "stateAndTaskStateReflectEachLifecyclePhase"),
         ("TaskFutureTest", "V2", "stateReadsPendingAndExitedFromAPlainDelegate"),
     )
-)
+) | frozenset({(f"{_CORE_TESTS}TaskExecutionStateTest.java", "V1", f"{_CORE_TESTS}TaskExecutionStateTest.java")})
 # ExecutionDisposition removal (2026-11-26): the claim disposition left the public API, so tests
 # named after it were renamed to the facts that remain. Replacements:
 # TaskTerminationTest.factoriesBuildEachBranchFromItsPayload and

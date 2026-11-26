@@ -36,7 +36,7 @@ code must rely on `TaskTermination`'s kind and cause.
 
 ## 2. The execution claim and the live view
 
-`TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS is the only linearization point of the
+`ExecutionRecord`'s `UNCLAIMED -> CLAIMED` CAS is the only linearization point of the
 execution claim:
 
 - a cancellation that wins `UNCLAIMED -> SKIPPED` before the claim leaves the record `SKIPPED`,

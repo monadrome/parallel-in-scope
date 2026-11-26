@@ -40,8 +40,8 @@ class ExecutionExitTrackerTest {
     @Test
     void outstandingExecutionsKeepTheSignalPendingUntilTheLastRelease() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(2);
-        TaskExecutionState first = tracker.register(context("first"));
-        TaskExecutionState second = tracker.register(context("second"));
+        ExecutionRecord first = tracker.register(context("first"));
+        ExecutionRecord second = tracker.register(context("second"));
 
         assertThat(tracker.isDone()).isFalse();
         assertThat(first.claim()).isTrue();
@@ -55,7 +55,7 @@ class ExecutionExitTrackerTest {
     @Test
     void awaitBoundedNonPositiveBudgetPerformsASingleCheck() throws Exception {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context("task"));
+        ExecutionRecord slot = tracker.register(context("task"));
 
         assertThat(tracker.awaitBounded(0L)).isFalse();
         assertThat(tracker.awaitBounded(-1L)).isFalse();
@@ -93,7 +93,7 @@ class ExecutionExitTrackerTest {
     @Test
     void awaitBoundedPositiveBudgetWaitsForAndReportsCompletion() throws Exception {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context("task"));
+        ExecutionRecord slot = tracker.register(context("task"));
         assertThat(slot.claim()).isTrue();
         slot.exited();
 
@@ -107,7 +107,7 @@ class ExecutionExitTrackerTest {
         assertThat(pending.awaitExecutionExit(Duration.ZERO)).isFalse();
 
         ExecutionExitTracker done = ExecutionExitTracker.create(1);
-        TaskExecutionState doneSlot = done.register(context("task"));
+        ExecutionRecord doneSlot = done.register(context("task"));
         assertThat(doneSlot.claim()).isTrue();
         doneSlot.exited();
         assertThat(done.awaitExecutionExit(Duration.ZERO)).isTrue();
@@ -256,7 +256,7 @@ class ExecutionExitTrackerTest {
     @Test
     void stuckExecutionSummaryCountsOutstandingExecutionsByName() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(3);
-        TaskExecutionState first = tracker.register(context("worker"));
+        ExecutionRecord first = tracker.register(context("worker"));
         tracker.register(context("worker"));
         tracker.register(context("other"));
 

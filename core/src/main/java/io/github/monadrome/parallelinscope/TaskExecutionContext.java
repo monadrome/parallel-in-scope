@@ -11,7 +11,7 @@ final class TaskExecutionContext {
     private final MultiTaskContext multiTaskContext;
     private final int taskIndex;
     private final long submitTimeNanos;
-    private final @Nullable TaskExecutionState executionState;
+    private final @Nullable ExecutionRecord executionRecord;
 
     private volatile long startTimeNanos;
     private volatile long endTimeNanos;
@@ -28,12 +28,12 @@ final class TaskExecutionContext {
             MultiTaskContext multiTaskContext,
             int taskIndex,
             long submitTimeNanos,
-            @Nullable TaskExecutionState executionState) {
+            @Nullable ExecutionRecord executionRecord) {
         this.multiTaskContext = Objects.requireNonNull(multiTaskContext, "multiTaskContext cannot be null");
         Validation.requireNonNegative(taskIndex, "taskIndex");
         this.taskIndex = taskIndex;
         this.submitTimeNanos = submitTimeNanos;
-        this.executionState = executionState;
+        this.executionRecord = executionRecord;
     }
 
     MultiTaskContext multiTaskContext() {
@@ -51,8 +51,8 @@ final class TaskExecutionContext {
 
     /** The execution exit slot of this task, or null when the submission is not tracked. */
     @Nullable
-    TaskExecutionState executionState() {
-        return executionState;
+    ExecutionRecord executionRecord() {
+        return executionRecord;
     }
 
     long startTimeNanos() {

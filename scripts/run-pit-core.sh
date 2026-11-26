@@ -97,7 +97,7 @@ batch_classes() {
       printf '%s' "$package.TaskId*,$package.ParId*,$package.TaskKey*,$package.TaskOutcome*,$package.ExecutionPhase,$package.UnitSpec*,$package.Validation*,$package.BatchOptions*,$package.TaskOptions*,$package.ImmediateResult*,$package.TaskObservation*,$package.ExecutorWaitReport*,$package.ParRuntimeSnapshot*,$package.ThreadPoolStarvationReport*,$package.ExecutorIdentity*"
       ;;
     B)
-      printf '%s' "$package.CancellationToken*,$package.Deadlines*,$package.LeanCancellationException*,$package.TokenOutcomes*,$package.TaskExecutionState*,$package.ExecutionExitTracker*,$package.ExecutionPhaseHintFuture*,$package.TaskFuture,$package.TaskCompletion*"
+      printf '%s' "$package.CancellationToken*,$package.Deadlines*,$package.LeanCancellationException*,$package.TokenOutcomes*,$package.ExecutionRecord*,$package.ExecutionExitTracker*,$package.ExecutionPhaseHintFuture*,$package.TaskFuture,$package.TaskCompletion*"
       ;;
     C)
       printf '%s' "$package.TaskGroup*,$package.GroupDraft*,$package.GroupStart*,$package.GroupStep*,$package.GroupValues*,$package.CombinedGroupStep*,$package.Combiner*,$package.TaskBatch*,$package.BatchCombinedResult*,$package.MultiTaskContext*,$package.Checkpoints*,$package.Announcements*,$package.AdoptedSource*"

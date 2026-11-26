@@ -377,8 +377,8 @@ public class ExecutionPhaseHintFutureTest {
         CountDownLatch claimEntered = new CountDownLatch(1);
         CountDownLatch claimRelease = new CountDownLatch(1);
         AtomicInteger userCodeCalls = new AtomicInteger();
-        TaskExecutionState slot = PreparedStates.trackedSlot("claim-race");
-        TaskExecutionState gated = spy(slot);
+        ExecutionRecord slot = PreparedStates.trackedSlot("claim-race");
+        ExecutionRecord gated = spy(slot);
         doAnswer(invocation -> {
                     claimEntered.countDown();
                     awaitUninterruptibly(claimRelease);

@@ -257,7 +257,7 @@ class TaskBatchResultExecutionExitTest {
         MultiTaskContext unit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(options("outstanding").spec(), 1));
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState taskCode = tracker.register(unit);
+        ExecutionRecord taskCode = tracker.register(unit);
 
         // Zero budget takes the single-check path; a real budget takes the timed wait. Both have to
         // answer false while the execution slot is still held.
@@ -278,8 +278,8 @@ class TaskBatchResultExecutionExitTest {
         MultiTaskContext unit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(options("claimed").spec(), 1));
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState executionState = spy(tracker.register(unit));
-        TaskExecutionContext context = new TaskExecutionContext(unit, 0, System.nanoTime(), executionState);
+        ExecutionRecord record = spy(tracker.register(unit));
+        TaskExecutionContext context = new TaskExecutionContext(unit, 0, System.nanoTime(), record);
         CountDownLatch claimEntered = new CountDownLatch(1);
         CountDownLatch releaseClaim = new CountDownLatch(1);
         AtomicInteger executions = new AtomicInteger();
@@ -288,7 +288,7 @@ class TaskBatchResultExecutionExitTest {
                     Uninterruptibles.awaitUninterruptibly(releaseClaim);
                     return invocation.callRealMethod();
                 })
-                .when(executionState)
+                .when(record)
                 .claim();
         ExecutionPhaseHintFuture<Integer> future = TaskSubmissions.prepare(context, executions::incrementAndGet);
 
@@ -774,7 +774,7 @@ class TaskBatchResultExecutionExitTest {
         MultiTaskContext unit = MultiTaskContext.resolve(
                 MultiTaskContext.resolution(options("settlement-window").spec(), 1));
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(unit);
+        ExecutionRecord slot = tracker.register(unit);
         SettableFuture<Integer> settle = SettableFuture.create();
         Task<Integer> element = Task.of("settlement-window", unit.cancellationToken(), settle);
         TaskBatch<Integer> batch = TaskBatch.of(
