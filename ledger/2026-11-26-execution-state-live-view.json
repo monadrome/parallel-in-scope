@@ -1,0 +1,335 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-26-execution-state-live-view",
+  "date": "2026-11-26",
+  "topic": "execution-state-live-view",
+  "routes": [
+    "concurrency",
+    "contract",
+    "docs"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "claude-opus-5.5"
+  },
+  "change": {
+    "commits": [
+      "refactor: name execution-record states after the claim vocabulary",
+      "refactor!: replace TaskState with an internal execution-state view",
+      "refactor!: remove ExecutionDisposition from the public API",
+      "test: pin only the cancelled element when a cancellation wins the claim",
+      "refactor: rename TaskExecutionState to ExecutionRecord",
+      "docs: select multi-review seats from the agents and models available now",
+      "docs: update stale claim vocabulary in two verification notes",
+      "docs: correct the visibility claim in the termination-model changelog entry"
+    ],
+    "files": 50,
+    "insertions": 705,
+    "deletions": 656
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "execution-state-live-view-e9f0a627-20261126-092830-6ede2a",
+        "status": "failed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "timed_out",
+            "attempts": 1,
+            "durationMs": 2735502,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          },
+          {
+            "agent": "kimi",
+            "status": "failed",
+            "attempts": 1,
+            "durationMs": 12009,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 2,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "execution-state-live-view-e9f0a627-20261126-094248-f308ef",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 1035987,
+            "findings": {
+              "total": 2,
+              "adjudicated": 2,
+              "confirmed": 2,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 213083,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 2,
+          "adjudicated": 2,
+          "confirmed": 2,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 213083,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "execution-state-live-view-232a48c7-20261126-124015-3874fa",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "kiro",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 501870,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": null
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": null,
+          "systemsWithUsage": 0,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "execution-state-live-view-232a48c7-20261126-124015-bf36e3",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 383722,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 119784,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 119784,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "execution-state-live-view-4b7573c6-20261126-125857-e52617",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 400990,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 79300,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 79300,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "test-compile": 1,
+      "check-verification-integrity": 2,
+      "pit": 1,
+      "check-race-claims": 1,
+      "hidden-contract-tests": 1,
+      "mvn test": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "tmp/pit/c0-p1-all/mutations.xml",
+      "statuses": {
+        "KILLED": 229,
+        "NO_COVERAGE": 3,
+        "SURVIVED": 6,
+        "TIMED_OUT": 4
+      },
+      "total": 242,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0165
+    },
+    {
+      "source": "tmp/pit/c0-p2-taskgroup/mutations.xml",
+      "statuses": {
+        "KILLED": 197,
+        "NO_COVERAGE": 7,
+        "SURVIVED": 13,
+        "TIMED_OUT": 1
+      },
+      "total": 218,
+      "inconclusive": 1,
+      "inconclusiveRate": 0.0046
+    },
+    {
+      "source": "tmp/pit/c0-p3-rename/mutations.xml",
+      "statuses": {
+        "KILLED": 287,
+        "NO_COVERAGE": 3,
+        "RUN_ERROR": 7,
+        "SURVIVED": 14,
+        "TIMED_OUT": 6
+      },
+      "total": 317,
+      "inconclusive": 13,
+      "inconclusiveRate": 0.041
+    },
+    {
+      "source": "tmp/pit/c0-p3-rename-retry/mutations.xml",
+      "statuses": {
+        "KILLED": 297,
+        "NO_COVERAGE": 3,
+        "SURVIVED": 13,
+        "TIMED_OUT": 4
+      },
+      "total": 317,
+      "inconclusive": 4,
+      "inconclusiveRate": 0.0126
+    }
+  ],
+  "interventions": {
+    "asks": 2,
+    "corrections": 2
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Phases 1-4 of the execution-state plan plus the multi-review seat-selection skill. assurance: RUN REQUIRED, not run (awaiting maintainer); refactoring-review not run (awaiting maintainer). Reviews: GLM-5.4 timed out and Kimi K3.1 Pro hung (both retained as failed evidence); DeepSeek-V4-Pro (2 doc findings confirmed, fixed) and Kiro gpt-5.6-terra (1 changelog finding confirmed in part, fixed); incremental DeepSeek rounds clean. PIT p3 first run had 7 RUN_ERROR minion exits, all KILLED on retry; every remaining non-killed mutant matches the 2026-11-04/11-24 audit dispositions. Runtime-consumer matrix not run locally."
+}
