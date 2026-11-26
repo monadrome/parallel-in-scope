@@ -147,7 +147,7 @@
       ],
       "tests": "ExecutionPhaseHintFutureTest#aCancellationLandingBetweenThePhaseClaimAndTheExecutionClaimSkipsUserCodeAndReleasesTheCallable",
       "expect": "failure",
-      "note": "The prepared-state test parks the runner inside the claim and lands the cancellation; dropping the skip makes the slot stay PENDING and keeps the callable, both asserted before the claim resumes. The final-tree PIT partition kills the same window's three surviving mutants (afterDone conditional negation, skipExecutionIfPending removal, releaseCallable removal) with this test. The claimExecution TRUE_RETURNS mutant forces the return only after the real claim CAS runs and is equivalent: a failed claim is reachable only when skipIfPending already won, which implies the callable was released and the future completed as cancelled, so the flipped local never reaches user code."
+      "note": "The prepared-state test parks the runner inside the claim and lands the cancellation; dropping the skip makes the slot stay UNCLAIMED and keeps the callable, both asserted before the claim resumes. The final-tree PIT partition kills the same window's three surviving mutants (afterDone conditional negation, skipExecutionIfPending removal, releaseCallable removal) with this test. The claimExecution TRUE_RETURNS mutant forces the return only after the real claim CAS runs and is equivalent: a failed claim is reachable only when skipIfPending already won, which implies the callable was released and the future completed as cancelled, so the flipped local never reaches user code."
     }
   ]
 }
