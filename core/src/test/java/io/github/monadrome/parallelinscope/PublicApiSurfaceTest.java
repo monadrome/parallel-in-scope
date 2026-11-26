@@ -50,7 +50,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".TaskId",
             BASE_PACKAGE + ".TaskKey",
             BASE_PACKAGE + ".TaskOptions",
-            BASE_PACKAGE + ".TaskState",
             BASE_PACKAGE + ".TaskTermination",
             BASE_PACKAGE + ".TaskTermination$Kind",
             // Nested types are named with the binary '$' separator; the visibility of a nested

@@ -209,41 +209,6 @@ public class ExecutionPhaseHintFutureTest {
     }
 
     @Test
-    public void stateReflectsUntrackedLifecyclePhases() throws Exception {
-        ExecutionPhaseHintFuture<Integer> submitted = ExecutionPhaseHintFuture.create(() -> 1);
-        assertThat(submitted.state()).isEqualTo(TaskState.PENDING);
-        submitted.run();
-        assertThat(submitted.get()).isEqualTo(1);
-        assertThat(submitted.state()).isEqualTo(TaskState.EXITED);
-
-        CountDownLatch entered = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        ExecutionPhaseHintFuture<Integer> running = ExecutionPhaseHintFuture.create(() -> {
-            entered.countDown();
-            release.await();
-            return 1;
-        });
-        Thread runner = new Thread(running);
-        runner.setDaemon(true);
-        try {
-            runner.start();
-            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(running.state()).isEqualTo(TaskState.CLAIMED);
-            assertThat(running.cancel(false)).isTrue();
-            assertThat(running.state()).isEqualTo(TaskState.RESULT_SETTLED);
-        } finally {
-            release.countDown();
-            runner.join(5000);
-        }
-        assertThat(runner.isAlive()).isFalse();
-        assertThat(running.state()).isEqualTo(TaskState.EXITED);
-
-        ExecutionPhaseHintFuture<Integer> cancelled = ExecutionPhaseHintFuture.create(() -> 1);
-        assertThat(cancelled.cancel(false)).isTrue();
-        assertThat(cancelled.state()).isEqualTo(TaskState.EXITED);
-    }
-
-    @Test
     public void queuedCancellationWithInterruptDoesNotEnterBodyWhenDequeuedLater() throws Exception {
         ThreadPoolExecutor executor =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());

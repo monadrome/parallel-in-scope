@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -493,12 +494,64 @@ class TaskFutureTest {
     }
 
     @Test
-    void stateReadsPendingAndExitedFromAPlainDelegate() {
+    void aPlainDelegateHasNoExecutionState() {
         SettableFuture<String> delegate = SettableFuture.create();
         Task<String> view = ordersTask(delegate);
-        assertThat(view.state()).isEqualTo(TaskState.PENDING);
+        assertThat(view.executionState()).isNull();
         delegate.set("ok");
-        assertThat(view.state()).isEqualTo(TaskState.EXITED);
+        assertThat(view.executionState()).isNull();
+    }
+
+    @Test
+    void executionStateReadsTheRecordWithoutConsultingTheFuture() {
+        SettableFuture<String> delegate = SettableFuture.create();
+        TaskExecutionState record = PreparedStates.trackedSlot("orders");
+        Task<String> view = recordedOrdersTask(delegate, record);
+
+        assertThat(view.executionState()).isEqualTo(ExecutionState.UNCLAIMED);
+        assertThat(record.claim()).isTrue();
+        assertThat(view.executionState()).isEqualTo(ExecutionState.CLAIMED);
+        // Settling the result does not move the execution line.
+        delegate.set("ok");
+        assertThat(view.termination()).isNotNull();
+        assertThat(view.executionState()).isEqualTo(ExecutionState.CLAIMED);
+        record.exited();
+        assertThat(view.executionState()).isEqualTo(ExecutionState.EXITED);
+
+        TaskExecutionState skipped = PreparedStates.trackedSlot("orders");
+        Task<String> skippedView = recordedOrdersTask(SettableFuture.<String>create(), skipped);
+        skipped.skipped();
+        assertThat(skippedView.executionState()).isEqualTo(ExecutionState.SKIPPED);
+    }
+
+    @Test
+    void viewsWithoutADirectExecutionHaveNoExecutionState() throws Exception {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        ParRuntime runtime = ParRuntime.builder().build();
+        try {
+            TaskExecutionState record = PreparedStates.trackedSlot("orders");
+            Task<String> prepared = recordedOrdersTask(SettableFuture.<String>create(), record);
+            assertThat(prepared.executionState()).isEqualTo(ExecutionState.UNCLAIMED);
+
+            assertThat(prepared.transform(value -> value, MoreExecutors.directExecutor())
+                            .executionState())
+                    .isNull();
+            assertThat(prepared.catching(RuntimeException.class, failure -> "x", MoreExecutors.directExecutor())
+                            .executionState())
+                    .isNull();
+            assertThat(prepared.withTimeout(Duration.ofSeconds(30), scheduler).executionState())
+                    .isNull();
+
+            TaskGroup<Void> group = runtime.groupDraft("summary", Duration.ofSeconds(5))
+                    .adopt(TaskKey.<String>named("first"), Futures.immediateFuture("first"))
+                    .submitAll();
+            TaskFuture<TaskGroupReport> summary = group.convergenceFuture();
+            summary.get(5, TimeUnit.SECONDS);
+            assertThat(summary.executionState()).isNull();
+        } finally {
+            runtime.close();
+            scheduler.shutdownNow();
+        }
     }
 
     @Test
@@ -746,10 +799,10 @@ class TaskFutureTest {
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(succeeded))
                         + "[status=SUCCESS, result=[String@"
                         + Integer.toHexString(System.identityHashCode("done")) + "], task='orders']");
-        // The pending branch carries the state hint but no clock-dependent remaining budget.
+        // A plain delegate has no execution line, and no branch renders the clock-dependent budget.
         assertThat(timed.toString())
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(timed))
-                        + "[status=PENDING, taskState=PENDING, task='orders']")
+                        + "[status=PENDING, task='orders']")
                 .doesNotContain("remaining");
         assertThat(failed.toString())
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(failed))
@@ -799,8 +852,36 @@ class TaskFutureTest {
     }
 
     @Test
+    void toStringRendersTheExecutionLineBesideEachStatusBranch() {
+        TaskExecutionState pendingRecord = PreparedStates.trackedSlot("orders");
+        Task<String> pending = recordedOrdersTask(SettableFuture.<String>create(), pendingRecord);
+        TaskExecutionState settledRecord = PreparedStates.trackedSlot("orders");
+        assertThat(settledRecord.claim()).isTrue();
+        Task<String> settled = recordedOrdersTask(Futures.immediateFuture("done"), settledRecord);
+        TaskExecutionState cancelledRecord = PreparedStates.trackedSlot("orders");
+        Task<String> cancelled = recordedOrdersTask(SettableFuture.<String>create(), cancelledRecord);
+        cancelled.cancel(false);
+        cancelledRecord.skipped();
+
+        assertThat(pending.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(pending))
+                        + "[status=PENDING, execution=UNCLAIMED, task='orders']");
+        // The result settled while the user code still holds the claim: both lines show it.
+        assertThat(settled.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(settled))
+                        + "[status=SUCCESS, result=[String@"
+                        + Integer.toHexString(System.identityHashCode("done"))
+                        + "], execution=CLAIMED, task='orders']");
+        assertThat(cancelled.toString())
+                .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(cancelled))
+                        + "[status=CANCELLED, execution=SKIPPED, task='orders']");
+    }
+
+    @Test
     void toStringRedoesTheTerminalBranchWhenCompletionLandsDuringRendering() {
         SettableFuture<String> sink = SettableFuture.create();
+        TaskExecutionState record = PreparedStates.trackedSlot("orders");
+        assertThat(record.claim()).isTrue();
         AtomicInteger isDoneReads = new AtomicInteger();
         ListenableFuture<String> settlingMidRender = new ForwardingListenableFuture<String>() {
             @Override
@@ -810,22 +891,24 @@ class TaskFutureTest {
 
             @Override
             public boolean isDone() {
-                // The second read is the pending branch's task-state hint: settle inside the
-                // window between the done check and the hint read. Without Guava's
-                // truncate-and-redo the envelope renders the contradictory status=PENDING,
-                // taskState=EXITED.
+                // The second read is the pending branch's recheck, taken after the execution state
+                // read CLAIMED: the execution exits and the result settles inside that window.
+                // Without Guava's truncate-and-redo the envelope renders the contradictory
+                // status=PENDING; without the re-read it renders the stale execution=CLAIMED.
                 if (isDoneReads.incrementAndGet() == 2) {
+                    record.exited();
                     sink.set("done");
                 }
                 return super.isDone();
             }
         };
-        Task<String> task = ordersTask(settlingMidRender);
+        Task<String> task = recordedOrdersTask(settlingMidRender, record);
 
         assertThat(task.toString())
                 .isEqualTo("Task@" + Integer.toHexString(System.identityHashCode(task))
                         + "[status=SUCCESS, result=[String@"
-                        + Integer.toHexString(System.identityHashCode("done")) + "], task='orders']");
+                        + Integer.toHexString(System.identityHashCode("done"))
+                        + "], execution=EXITED, task='orders']");
     }
 
     @Test
@@ -914,6 +997,16 @@ class TaskFutureTest {
 
     private static String boom() {
         throw new IllegalStateException("boom");
+    }
+
+    /**
+     * A task view named {@code orders} whose observation waits on {@code record}, as a prepared
+     * task's view does, over a delegate the test settles directly.
+     */
+    private static Task<String> recordedOrdersTask(ListenableFuture<String> delegate, TaskExecutionState record) {
+        TaskExecutionContext context =
+                new TaskExecutionContext(PreparedStates.windowUnit("orders", 1, 1), 0, System.nanoTime(), record);
+        return Task.of("orders", new CancellationToken(), delegate, TaskObservation.forTask(context, delegate));
     }
 
     /** A task view named {@code orders} with a fresh unbounded token over {@code delegate}. */

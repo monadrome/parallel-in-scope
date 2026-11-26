@@ -92,12 +92,18 @@ _TASK_TYPE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
         (_CONSUMER_TEST, "V4", "publishedArtifactCanBeResolvedAndUsed"),
     }
 )
-# Execution-state vocabulary (2026-11-25): the execution record's states follow the claim
-# vocabulary; claimRunningWinsExactlyOnce is renamed claimWinsExactlyOnce.
+# Execution-state vocabulary and TaskState removal (2026-11-25): the execution record's states
+# follow the claim vocabulary (claimRunningWinsExactlyOnce -> claimWinsExactlyOnce), and the live
+# view became termination() plus executionState(). Replacements:
+# stateAndOutstandingReflectEachLifecyclePhase, aPlainDelegateHasNoExecutionState, and
+# TaskFutureTest.executionStateReadsTheRecordWithoutConsultingTheFuture for the phase guess.
 _TASK_STATE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
     (f"{_CORE_TESTS}{name}.java", rule, case)
     for name, rule, case in (
+        ("ExecutionPhaseHintFutureTest", "V2", "stateReflectsUntrackedLifecyclePhases"),
         ("TaskExecutionStateTest", "V2", "claimRunningWinsExactlyOnce"),
+        ("TaskExecutionStateTest", "V2", "stateAndTaskStateReflectEachLifecyclePhase"),
+        ("TaskFutureTest", "V2", "stateReadsPendingAndExitedFromAPlainDelegate"),
     )
 )
 REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = (

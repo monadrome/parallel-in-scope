@@ -19,8 +19,8 @@ Two boundaries are independent:
 
 Logical termination is expressed by `TaskTermination`/`ImmediateResult.termination()`,
 comprising `kind`, `FailureCause`/`CancellationReason`, and the `ExecutionDisposition` decided
-by the execution-claim CAS. It does not wait for execution exit; the live `TaskState` and
-`executionExitConfirmed()` serve diagnosis and resource-release judgment.
+by the execution-claim CAS. It does not wait for execution exit; `executionExitConfirmed()`
+serves resource-release judgment.
 
 A cancellation may complete the result while the execution is still closing resources. Java
 cannot forcibly stop an arbitrary Callable/close, so there is no hard "resources are certainly
