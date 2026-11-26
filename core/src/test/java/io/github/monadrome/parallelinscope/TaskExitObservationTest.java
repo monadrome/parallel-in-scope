@@ -86,7 +86,7 @@ class TaskExitObservationTest {
                 -10_000_000L,
                 0L,
                 0L,
-                TaskTermination.failed(FailureCause.submissionRejected(rejected), ExecutionDisposition.NOT_CLAIMED),
+                TaskTermination.failed(FailureCause.submissionRejected(rejected)),
                 rejected);
 
         assertThat(completion.waitTime()).isEqualTo(Duration.ZERO);

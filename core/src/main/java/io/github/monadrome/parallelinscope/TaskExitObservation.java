@@ -150,24 +150,18 @@ public final class TaskExitObservation<T> {
                 report.recordedFailure());
     }
 
-    /**
-     * The group summary's projection of the scope termination: the scope itself is the unit that
-     * ran, so the summary always reads {@link ExecutionDisposition#CLAIMED}.
-     */
+    /** The group summary's projection of the scope termination, branch for branch. */
     private static TaskTermination<TaskGroupReport> summaryTermination(TaskGroupReport report) {
         ScopeTermination scope = report.termination();
         switch (scope.kind()) {
             case SUCCESS:
-                return TaskTermination.success(report, ExecutionDisposition.CLAIMED);
+                return TaskTermination.success(report);
             case FAILED:
                 return TaskTermination.failed(
-                        Verify.verifyNotNull(scope.failureCause(), "failed scope carries no failure cause"),
-                        ExecutionDisposition.CLAIMED);
+                        Verify.verifyNotNull(scope.failureCause(), "failed scope carries no failure cause"));
             case CANCELLED:
-                return TaskTermination.cancelled(
-                        Verify.verifyNotNull(
-                                scope.cancellationReason(), "cancelled scope carries no cancellation reason"),
-                        ExecutionDisposition.CLAIMED);
+                return TaskTermination.cancelled(Verify.verifyNotNull(
+                        scope.cancellationReason(), "cancelled scope carries no cancellation reason"));
             default:
                 throw new AssertionError("unknown scope termination kind: " + scope.kind());
         }
@@ -233,11 +227,6 @@ public final class TaskExitObservation<T> {
      */
     public TaskTermination<T> termination() {
         return termination;
-    }
-
-    /** Returns whether the execution claim was acquired. */
-    public ExecutionDisposition disposition() {
-        return termination.disposition();
     }
 
     /** Returns whether the task completed successfully, including with a null result. */

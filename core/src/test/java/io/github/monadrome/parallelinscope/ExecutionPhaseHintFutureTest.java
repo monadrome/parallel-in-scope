@@ -413,7 +413,7 @@ public class ExecutionPhaseHintFutureTest {
         assertThat(future.callableReleased()).isTrue();
         assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
         assertThat(slot.state()).isEqualTo(ExecutionState.SKIPPED);
-        assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+        assertThat(slot.isOutstanding()).isFalse();
     }
 
     // Delay the real cleanup method; no Future result or cancellation behavior is stubbed.

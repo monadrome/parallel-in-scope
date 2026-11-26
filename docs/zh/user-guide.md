@@ -301,7 +301,7 @@ TaskGroupResult<Page> result = global
 | 术语 | 含义 |
 |---|---|
 | Future 完成 | 传输 Future 已进入终态，可以读取；不表示执行已经退出。 |
-| 逻辑终止 | `ImmediateResult.termination()` 冻结成功、失败或取消原因以及 claim 归因。 |
+| 逻辑终止 | `ImmediateResult.termination()` 冻结成功、失败或取消原因。 |
 | 执行退出 | `executionExitConfirmed()` 表示直接任务代码已经退出，或已原子确定不会启动。 |
 | 退出观测 | `TaskExitObservation<T>` 在 Future 终态且确认执行退出后发布最终计时和 outcome 遥测。 |
 | runtime 静止 | `ParRuntime.awaitQuiescence(...)` 等待已关闭 runtime 的已准入执行和观测作用域排空。 |
@@ -311,8 +311,9 @@ TaskGroupResult<Page> result = global
 
 每个冻结结果还通过 `termination()` 暴露三分支 `TaskTermination<T>`：`SUCCESS`、`FAILED` 和
 `CANCELLED`。失败携带区分用户代码失败与提交拒绝的 `FailureCause`；取消携带
-`CancellationReason` 与 `ExecutionDisposition`。`CLAIMED` 表示取得 execution claim，
-`NOT_CLAIMED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。
+`CancellationReason`。终止值不说明任务代码是否运行过：没有成功的任务都按"可能已运行"处理。
+副作用要紧的代码自己追踪副作用（例如幂等键或对账），补偿前先确认执行已经退出：整个作用域看
+`executionExitConfirmed()`，单个任务看 `completions().get(i)` / `members().get(name)` 是否非 null。
 
 逻辑终止与执行退出分开。取消可以先落定结果，而用户代码仍在响应中断并展开 finally。释放与直接任务
 共享的资源前，检查 `executionExitConfirmed()` 和 `unexitedExecutions()`。
@@ -335,11 +336,11 @@ Price price = batch.results().get(i).fold(
             LOGGER.log(Level.WARNING, "price failed for " + sku, failure.cause());
             return Price.UNKNOWN;
         },
-        (reason, disposition) -> Price.UNKNOWN);
+        reason -> Price.UNKNOWN);
 ```
 
 第一个处理器接收可能为 null 的成功值；第二个接收 `FailureCause`，其 kind 区分用户代码失败与
-提交拒绝，并保留原异常；第三个接收 `CancellationReason` 与 `ExecutionDisposition`，存储的异常——
+提交拒绝，并保留原异常；第三个接收 `CancellationReason`，存储的异常——
 经 `failure()` 可读——不一定是 `CancellationException`。三个处理器都必须提供，`fold` 返回被选
 处理器的结果。`successful()` 只判断是否为 `SUCCESS`。
 两个 get 都立即读并保留中断标志；带 timeout 的 get 校验 TimeUnit，不会超时。

@@ -26,7 +26,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".CombinedGroupStep",
             BASE_PACKAGE + ".Combiner",
             BASE_PACKAGE + ".ContextExecutors",
-            BASE_PACKAGE + ".ExecutionDisposition",
             BASE_PACKAGE + ".ExecutorWaitReport",
             BASE_PACKAGE + ".FailureCause",
             BASE_PACKAGE + ".FailureCause$Kind",

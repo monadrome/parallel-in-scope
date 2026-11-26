@@ -225,19 +225,18 @@ Batch/Group results expose the same value through `ImmediateResult<T>`'s `termin
 projection:
 
 ```text
-Success(value, CLAIMED)
-Failed(FailureCause, CLAIMED | NOT_CLAIMED)
-Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
+Success(value)
+Failed(FailureCause)
+Cancelled(CancellationReason)
 ```
 
 `FailureCause` distinguishes `USER_CODE_FAILURE` from `SUBMISSION_REJECTED` and keeps the
 original exception; `CancellationReason` distinguishes caller, parent scope, deadline,
-fail-fast, and member, and carries a source identity. `ExecutionDisposition` is decided only by
-the execution claim's atomic CAS and cannot be inferred from
-`ExecutionPhaseHintFuture.phase()` alone.
+fail-fast, and member, and carries a source identity. A termination does not report whether
+user code ran; the execution claim stays internal.
 
 Frozen task results read `TaskTermination<T>`'s `kind()`, `failureCause()`,
-`cancellationReason()`, and `disposition()`; the kind is only `SUCCESS`, `FAILED`, or
+and `cancellationReason()`; the kind is only `SUCCESS`, `FAILED`, or
 `CANCELLED`. Scope aggregates read `ScopeTermination`.
 
 The full model is in the [task termination and scope reason contract](task-termination-and-scope.md).

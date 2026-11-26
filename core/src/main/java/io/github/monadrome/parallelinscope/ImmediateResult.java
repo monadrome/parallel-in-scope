@@ -9,7 +9,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
@@ -54,11 +53,6 @@ public final class ImmediateResult<T> {
         return termination;
     }
 
-    /** Returns whether the execution claim was acquired. */
-    public ExecutionDisposition disposition() {
-        return termination.disposition();
-    }
-
     /** Returns the closed failure cause, or null unless this result failed. */
     public @Nullable FailureCause failureCause() {
         return termination.failureCause();
@@ -88,7 +82,7 @@ public final class ImmediateResult<T> {
     public <R> R fold(
             Function<? super @Nullable T, ? extends R> onSuccess,
             Function<? super FailureCause, ? extends R> onFailure,
-            BiFunction<? super CancellationReason, ? super ExecutionDisposition, ? extends R> onCancelled) {
+            Function<? super CancellationReason, ? extends R> onCancelled) {
         return termination.fold(onSuccess, onFailure, onCancelled);
     }
 

@@ -128,28 +128,27 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
                 ? ((ExecutionPhaseHintFuture<?>) delegate).submissionFailure()
                 : null;
         if (recorded != null) {
-            return TaskTermination.failed(FailureCause.submissionRejected(recorded), ExecutionDisposition.NOT_CLAIMED);
+            return TaskTermination.failed(FailureCause.submissionRejected(recorded));
         }
-        ExecutionDisposition disposition = executionDispositionOf(delegate);
         if (delegate.isCancelled()) {
             CancellationReason reason =
                     TokenOutcomes.cancellationReason(token, taskName, CancellationReason.cancelledByCaller(taskName));
-            return TaskTermination.cancelled(Verify.verifyNotNull(reason), disposition);
+            return TaskTermination.cancelled(Verify.verifyNotNull(reason));
         }
         try {
-            return TaskTermination.success(Futures.getDone(delegate), disposition);
+            return TaskTermination.success(Futures.getDone(delegate));
         } catch (ExecutionException failure) {
             Throwable cause = Verify.verifyNotNull(failure.getCause());
             if (cause instanceof SubmissionException) {
-                return TaskTermination.failed(FailureCause.submissionRejected(cause), disposition);
+                return TaskTermination.failed(FailureCause.submissionRejected(cause));
             }
             if (TokenOutcomes.causedByCancellation(cause)) {
                 CancellationReason reason = TokenOutcomes.cancellationReason(token, taskName, null);
                 if (reason != null) {
-                    return TaskTermination.cancelled(reason, disposition);
+                    return TaskTermination.cancelled(reason);
                 }
             }
-            return TaskTermination.failed(FailureCause.userCodeFailure(cause), ExecutionDisposition.CLAIMED);
+            return TaskTermination.failed(FailureCause.userCodeFailure(cause));
         }
     }
 
@@ -235,13 +234,6 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
                     }
                 },
                 MoreExecutors.directExecutor());
-    }
-
-    private static ExecutionDisposition executionDispositionOf(ListenableFuture<?> delegate) {
-        if (delegate instanceof ExecutionPhaseHintFuture) {
-            return ((ExecutionPhaseHintFuture<?>) delegate).executionDisposition();
-        }
-        return delegate.isCancelled() ? ExecutionDisposition.NOT_CLAIMED : ExecutionDisposition.CLAIMED;
     }
 
     /**

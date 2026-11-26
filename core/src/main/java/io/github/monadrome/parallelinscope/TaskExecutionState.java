@@ -46,14 +46,6 @@ final class TaskExecutionState {
         return Verify.verifyNotNull(state.get());
     }
 
-    /** Returns the disposition fixed by the claim CAS when a terminal result is frozen. */
-    ExecutionDisposition disposition() {
-        ExecutionState current = Verify.verifyNotNull(state.get());
-        return current == ExecutionState.CLAIMED || current == ExecutionState.EXITED
-                ? ExecutionDisposition.CLAIMED
-                : ExecutionDisposition.NOT_CLAIMED;
-    }
-
     /** Whether the execution has neither exited nor been determined to never enter. */
     boolean isOutstanding() {
         ExecutionState current = state.get();

@@ -15,7 +15,7 @@
     can only advance to the next — no skipping, repeating, or reordering.
   - The success stage receives a nullable value; the two failure stages receive the original
     `Throwable`; the cancellation stage receives the `CancellationReason` with its source
-    identity and the `ExecutionDisposition`.
+    identity.
   - The cancellation stage MUST cover every `CancellationReason.Kind` (caller, parent scope,
     deadline, fail-fast, and member), but must not require the user to register a handler per
     reason.
@@ -33,7 +33,7 @@
 
 The task-termination semantics this proposal consumes are defined by the
 [task termination and scope reason contract](../task-termination-and-scope.md).
-`FuturePath`'s cancellation stage handles `CancellationReason` and `ExecutionDisposition`; it
+`FuturePath`'s cancellation stage handles `CancellationReason`; it
 must not re-expose `GROUP_CANCELLED`, `MEMBER_CANCELLED`, or `FAIL_FAST` as new stable reasons.
 
 ## 1. The failure mode and the best code before
@@ -67,7 +67,7 @@ ListenableFuture<Price> price = FuturePath.fromFuture(future)
         .onSuccess(value -> value)
         .onUserFailure(error -> fallback(error))
         .onSubmissionFailure(error -> Price.UNKNOWN)
-        .onCancelled((reason, disposition) -> Price.UNKNOWN)
+        .onCancelled(reason -> Price.UNKNOWN)
         .toFuture();
 ```
 
@@ -78,7 +78,7 @@ ImmediateResult<Price> price = FuturePath.fromResult(result)
         .onSuccess(value -> value)
         .onUserFailure(error -> fallback(error))
         .onSubmissionFailure(error -> Price.UNKNOWN)
-        .onCancelled((reason, disposition) -> Price.UNKNOWN)
+        .onCancelled(reason -> Price.UNKNOWN)
         .toResult();
 ```
 
@@ -122,7 +122,7 @@ interface FutureSubmissionFailureStage<R> {
 
 interface FutureCancelledStage<R> {
     FutureTerminalStage<R> onCancelled(
-            BiFunction<? super CancellationReason, ? super ExecutionDisposition, ? extends R> handler);
+            Function<? super CancellationReason, ? extends R> handler);
 }
 
 interface FutureTerminalStage<R> {
@@ -145,13 +145,13 @@ internal attribution category:
 | `onSuccess` | `SUCCESS` |
 | `onUserFailure` | `FAILED` with `FailureCause.Kind.USER_CODE_FAILURE` |
 | `onSubmissionFailure` | `FAILED` with `FailureCause.Kind.SUBMISSION_REJECTED` |
-| `onCancelled` | `CANCELLED`, with `CancellationReason` (and source identity) and `ExecutionDisposition` |
+| `onCancelled` | `CANCELLED`, with `CancellationReason` (and source identity) |
 
 No unfinished state is deliverable to a path. If the source proves not yet terminal inside the
 dispatch, the path implementation MUST report a library-internal error rather than invoke a
 user handler.
 
-The cancellation handler receives the stable `CancellationReason` and claim disposition;
+The cancellation handler receives the stable `CancellationReason`;
 business failures stay in `FailureCause` and scope member results and are not disguised as a
 second scope reason through the cancellation stage.
 
@@ -213,8 +213,7 @@ stages sharing the original `onFailure`.
    lifecycle.
 4. No implicit state: a path holds its source and handlers explicitly, using no ambient state.
 5. Consistent attribution: the public stages build on `TaskTermination`'s three branches, with
-   cancellation reason and claim disposition expressing the trigger source and the execution
-   fact separately.
+   the cancellation reason expressing the trigger source.
 6. Abstraction boundary: this capability only projects and dispatches results; it changes no
    Batch, Group, cancellation, or deadline contract.
 

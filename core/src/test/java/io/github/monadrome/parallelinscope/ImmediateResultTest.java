@@ -32,18 +32,18 @@ class ImmediateResultTest {
     }
 
     @Test
-    void cancelledAndSubmissionRejectedResultsExposeReasonAndDisposition() {
+    void cancelledAndSubmissionRejectedResultsExposeReasonAndCause() {
         RuntimeException cause = new RuntimeException("cancelled");
         ImmediateResult<Integer> cancelled =
                 ImmediateResult.cancelled(CancellationReason.cancelledByCaller("test"), cause);
         assertThat(cancelled.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
-        String cancelledBranch = cancelled.fold(
-                v -> "success", f -> "failure", (r, d) -> r.kind().name());
+        String cancelledBranch =
+                cancelled.fold(v -> "success", f -> "failure", r -> r.kind().name());
         assertThat(cancelledBranch).isEqualTo("CANCELLED_BY_CALLER");
 
         ImmediateResult<Integer> failed = ImmediateResult.failed(FailureCause.submissionRejected(cause));
-        assertThat(failed.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
-        String failedBranch = failed.fold(v -> "success", f -> f.kind().name(), (r, d) -> "cancelled");
+        assertThat(failed.termination().kind()).isEqualTo(TaskTermination.Kind.FAILED);
+        String failedBranch = failed.fold(v -> "success", f -> f.kind().name(), r -> "cancelled");
         assertThat(failedBranch).isEqualTo("SUBMISSION_REJECTED");
     }
 
@@ -84,9 +84,13 @@ class ImmediateResultTest {
                         ImmediateResult.failed(FailureCause.submissionRejected(cause));
                 ImmediateResult<String> cancelled =
                         ImmediateResult.cancelled(CancellationReason.deadlineExceeded(), cause);
-                assertThat(userFailure.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
-                assertThat(submissionFailure.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
-                assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
+                assertThat(Verify.verifyNotNull(userFailure.failureCause()).kind())
+                        .isEqualTo(FailureCause.Kind.USER_CODE_FAILURE);
+                assertThat(Verify.verifyNotNull(submissionFailure.failureCause())
+                                .kind())
+                        .isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
+                assertThat(Verify.verifyNotNull(cancelled.cancellationReason()).kind())
+                        .isEqualTo(CancellationReason.Kind.DEADLINE_EXCEEDED);
                 for (ImmediateResult<String> result :
                         new ImmediateResult[] {userFailure, submissionFailure, cancelled}) {
                     assertThat(result.failure()).isSameAs(cause);
@@ -164,7 +168,7 @@ class ImmediateResultTest {
     }
 
     @Test
-    void submissionFailureFreezingPreservesNotClaimedDisposition() {
+    void submissionFailureFreezingPreservesTheSubmissionCause() {
         SubmissionException cause = new SubmissionException(new IllegalStateException("rejected"));
         class SubmissionTask extends ForwardingListenableFuture.SimpleForwardingListenableFuture<Integer>
                 implements TaskFuture<Integer> {
@@ -209,9 +213,9 @@ class ImmediateResultTest {
         }
         TaskFuture<Integer> task = new SubmissionTask();
 
-        ImmediateResult<Integer> result = ImmediateResult.fromTask(
-                task, TaskTermination.failed(FailureCause.submissionRejected(cause), ExecutionDisposition.NOT_CLAIMED));
-        assertThat(result.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
+        ImmediateResult<Integer> result =
+                ImmediateResult.fromTask(task, TaskTermination.failed(FailureCause.submissionRejected(cause)));
+        assertThat(result.failure()).isSameAs(cause);
         assertThat(Verify.verifyNotNull(result.failureCause()).kind()).isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
     }
 
@@ -227,13 +231,11 @@ class ImmediateResultTest {
             // failure and failure() agrees with the pin rather than the later token state.
             assertThat(task.failure()).isSameAs(cause);
             ImmediateResult<Integer> cancelled = ImmediateResult.fromTask(
-                    task,
-                    TaskTermination.cancelled(
-                            CancellationReason.abortedByFailFast("cancel-race"), ExecutionDisposition.CLAIMED));
+                    task, TaskTermination.cancelled(CancellationReason.abortedByFailFast("cancel-race")));
             assertThat(cancelled.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
             assertThat(Verify.verifyNotNull(cancelled.cancellationReason()).kind())
                     .isEqualTo(CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
-            assertThat(cancelled.disposition()).isEqualTo(ExecutionDisposition.CLAIMED);
+            assertThat(cancelled.failureCause()).isNull();
             Throwable frozen = Verify.verifyNotNull(cancelled.failure());
             if (cause instanceof CancellationException) {
                 assertThat(frozen).isSameAs(cause);
@@ -243,8 +245,8 @@ class ImmediateResultTest {
             assertThatThrownBy(cancelled::valueOrThrow)
                     .isInstanceOf(ExecutionException.class)
                     .hasCauseReference(frozen);
-            ImmediateResult<Integer> recorded = ImmediateResult.fromTask(
-                    task, TaskTermination.failed(FailureCause.userCodeFailure(cause), ExecutionDisposition.CLAIMED));
+            ImmediateResult<Integer> recorded =
+                    ImmediateResult.fromTask(task, TaskTermination.failed(FailureCause.userCodeFailure(cause)));
             assertThat(recorded.failure()).isSameAs(cause);
         }
     }

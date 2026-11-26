@@ -11,8 +11,8 @@
 ## 8. Cancellation, deadlines, and fail-fast
 
 The current result contract separates the cancellation reason from execution facts: a task
-freezes as `Cancelled(CancellationReason, disposition)`, where the disposition comes only from
-the execution-claim CAS; a Batch/Group freezes as the three-state `ScopeTermination`, keeping
+freezes as `Cancelled(CancellationReason)`, and whether user code started stays on the internal
+execution record; a Batch/Group freezes as the three-state `ScopeTermination`, keeping
 only the primary cause committed by a single CAS. The legacy outcome mapping is removed along
 with the internal outcome enum: `GROUP_CANCELLED`, `MEMBER_CANCELLED`, and `FAIL_FAST` are no
 longer task reasons, and a task's cancellation reason is expressed only by `CancellationReason`. Reason objects carry the source identity of the parent, member,

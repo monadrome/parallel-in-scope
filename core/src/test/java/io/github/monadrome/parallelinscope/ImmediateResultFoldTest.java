@@ -18,8 +18,8 @@ class ImmediateResultFoldTest {
 
     @Test
     void successAppliesOnValueIncludingNull() {
-        String present = ImmediateResult.succeeded("v").fold(v -> "value:" + v, f -> "failure", (r, d) -> "cancelled");
-        String absent = ImmediateResult.<String>succeeded(null).fold(v -> "value:" + v, f -> "failure", (r, d) -> "x");
+        String present = ImmediateResult.succeeded("v").fold(v -> "value:" + v, f -> "failure", r -> "cancelled");
+        String absent = ImmediateResult.<String>succeeded(null).fold(v -> "value:" + v, f -> "failure", r -> "x");
 
         assertThat(present).isEqualTo("value:v");
         assertThat(absent).isEqualTo("value:null");
@@ -29,7 +29,7 @@ class ImmediateResultFoldTest {
     @Test
     void everyTerminalBranchReachesExactlyOneHandler() {
         Map<String, String> branches = new HashMap<>();
-        branches.put("SUCCESS", ImmediateResult.succeeded(1).fold(v -> "value", f -> "failure", (r, d) -> "x"));
+        branches.put("SUCCESS", ImmediateResult.succeeded(1).fold(v -> "value", f -> "failure", r -> "x"));
 
         for (FailureCause.Kind kind : FailureCause.Kind.values()) {
             IllegalStateException stored = new IllegalStateException(kind.name());
@@ -46,16 +46,16 @@ class ImmediateResultFoldTest {
                                 assertThat(failure.cause()).isSameAs(stored);
                                 return "failed";
                             },
-                            (reason, disposition) -> "cancelled"));
+                            reason -> "cancelled"));
         }
 
         IllegalStateException stored = new IllegalStateException("cancelled");
         CancellationReason reason = CancellationReason.deadlineExceeded("test");
         ImmediateResult<Integer> cancelled = ImmediateResult.cancelled(reason, stored);
         assertThat(cancelled.successful()).isFalse();
-        branches.put("CANCELLED", cancelled.fold(v -> "value", failure -> "failed", (cancelledReason, disposition) -> {
+        branches.put("CANCELLED", cancelled.fold(v -> "value", failure -> "failed", cancelledReason -> {
             assertThat(cancelledReason).isSameAs(reason);
-            assertThat(disposition).isEqualTo(ExecutionDisposition.CLAIMED);
+            assertThat(cancelledReason.kind()).isEqualTo(CancellationReason.Kind.DEADLINE_EXCEEDED);
             return "cancelled";
         }));
 
@@ -71,12 +71,12 @@ class ImmediateResultFoldTest {
     @SuppressWarnings("NullAway")
     void foldRejectsNullFunctions() {
         ImmediateResult<String> result = ImmediateResult.succeeded("v");
-        assertThatThrownBy(() -> result.fold(null, f -> "", (r, d) -> "")).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> result.fold(v -> "", null, (r, d) -> "")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(null, f -> "", r -> "")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> result.fold(v -> "", null, r -> "")).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> result.fold(v -> "", f -> "", null)).isInstanceOf(NullPointerException.class);
         ImmediateResult<String> failed =
                 ImmediateResult.failed(FailureCause.userCodeFailure(new IllegalStateException()));
-        assertThatThrownBy(() -> failed.fold(null, f -> "", (r, d) -> "")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> failed.fold(null, f -> "", r -> "")).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -100,7 +100,7 @@ class ImmediateResultFoldTest {
             int failures = 0;
             int cancellations = 0;
             for (ImmediateResult<Integer> result : batch.results()) {
-                String kind = result.fold(v -> "value", f -> "failed", (r, d) -> "cancelled");
+                String kind = result.fold(v -> "value", f -> "failed", r -> "cancelled");
                 if (kind.equals("failed")) {
                     failures++;
                 } else if (kind.equals("cancelled")) {

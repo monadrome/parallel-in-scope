@@ -59,7 +59,10 @@
   The enum-keyed `ImmediateResult.failed(outcome, failure)` factory and the four-handler
   `ImmediateResult.fold` are removed in favor of the typed `failed(FailureCause)` /
   `cancelled(CancellationReason, failure)` factories and the three-handler fold (`onSuccess`,
-  `onFailure(FailureCause)`, `onCancelled(CancellationReason, ExecutionDisposition)`);
+  `onFailure(FailureCause)`, `onCancelled(CancellationReason)`). A `TaskTermination` carries only
+  its branch payload and is built only through `success(value)`, `failed(cause)`, and
+  `cancelled(reason)`; it does not report whether user code ran, so code whose side effects
+  matter tracks them itself and confirms execution exit before compensating;
   `TaskBatch.report()` now counts termination branches (`terminationCounts()` plus `pending()`).
   All removed members were package-private. Diagnostic strings (`reportString()`, `toString()`)
   spell the same facts in the new vocabulary (`SUCCESS`/`FAILED`/`CANCELLED`, `termination=...`),
@@ -67,8 +70,7 @@
   `SUBMISSION_FAILURE`, and a member's exit observation now carries the same termination as its
   frozen result.
 - Rename the termination and exit-observation vocabulary without compatibility aliases: public
-  `TaskCompletion<T>` becomes `TaskExitObservation<T>`, and `ExecutionDisposition.ENTERED` /
-  `NOT_ENTERED` become `CLAIMED` / `NOT_CLAIMED`. The package-private group and batch aggregate futures are now
+  `TaskCompletion<T>` becomes `TaskExitObservation<T>`. The package-private group and batch aggregate futures are now
   `convergenceFuture()` and `observationsFuture()`. `ImmediateResult.asFuture()` keeps its name;
   the public `TaskOutcome` type is removed — read `TaskTermination` and `ScopeTermination` instead
   of `outcome()`. Use `executionExitConfirmed()` before releasing
