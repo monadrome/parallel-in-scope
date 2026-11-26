@@ -91,7 +91,7 @@ Every survivor and uncovered mutation is classified below, with independent revi
 | --- | ---: | --- |
 | Terminal phase OR condition | 4 survived, 2 uncovered | Observationally equivalent: terminal notification and observer release still happen; no reader distinguishes the remaining non-SUBMITTED states for admission. These are not coverage gaps. |
 | Cached/live cancellation OR condition | 2 survived, 2 uncovered | Existing phase-reporting test gaps, including spurious cancel phases on execution failure and exceptional delivery before afterDone; uncovered entries are duplicated exceptional-finally bytecode. No handshake mutation survived. |
-| claimExecution always returns true | 1 survived | Equivalent under production slot ownership: claimRunning still executes; a failed claim observes SKIPPED, published only after callable was cleared, so the subsequent callable read still prevents execution execution. |
+| claimExecution always returns true | 1 survived | Equivalent under production slot ownership: the record claim still executes; a failed claim observes SKIPPED, published only after callable was cleared, so the subsequent callable read still prevents execution execution. |
 | Failed submission claim reports success | 1 survived | Existing lost-claim return-value coverage gap. |
 | Error-log supplier returns empty text | 1 survived | Existing diagnostic content coverage gap, not equivalent logging. |
 | Error logging classification negated | 1 survived | Existing diagnostic severity/classification coverage gap. |
