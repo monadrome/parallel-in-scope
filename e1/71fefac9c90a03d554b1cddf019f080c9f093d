@@ -1,0 +1,23 @@
+core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+  s_036ebf19cbe7d7::t_94e72070cccf1a 345-368
+core/src/main/java/io/github/monadrome/parallelinscope/Task.java
+  s_036ebf19cbe7d7::t_eb0e41345f6489 345-347
+design/task-termination-and-scope.md
+  s_036ebf19cbe7d7::t_a143a4978576b2 76-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e171fefac9c90a03d554b1cddf019f080c9f093d",
+  "prompts": {},
+  "sessions": {
+    "s_036ebf19cbe7d7": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_f574bb16-6a74-491d-a010-fbf45a4c142d",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
