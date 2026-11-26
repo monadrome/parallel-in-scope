@@ -315,8 +315,7 @@ TaskGroupResult<Page> result = global
 `NOT_CLAIMED` 表示 claim 未成功，不表示框架没有发生准备或清理副作用。
 
 逻辑终止与执行退出分开。取消可以先落定结果，而用户代码仍在响应中断并展开 finally。释放与直接任务
-共享的资源前，检查 `executionExitConfirmed()` 和 `unexitedExecutions()`；实时诊断使用独立的
-`TaskState`，不会改写已经发布的终止值。
+共享的资源前，检查 `executionExitConfirmed()` 和 `unexitedExecutions()`。
 终止值由构造保证终态；SUCCESS 允许 null，其他分支保存非 null Throwable。
 failure 读异常，valueOrThrow 以 ExecutionException 包装原 cause，包括取消。
 读取不等待、不消费中断标志。

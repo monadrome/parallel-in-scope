@@ -16,8 +16,8 @@
 A member has two independent observable values: logical termination, frozen by
 `ImmediateResult.termination()` at future terminality; and post-exit observation, published by
 `TaskExitObservation` after the execution-exit signal. Logical termination may precede the user
-thread's exit; callers must use `executionExitConfirmed()` or `TaskState.EXITED` to determine
-whether a direct execution has exited.
+thread's exit; callers must use `executionExitConfirmed()` to determine whether a direct
+execution has exited.
 
 A unified `TaskExitObservation` terminal snapshot is published when a member completes (the
 confluence of two signals: member future terminality and execution exit), ultimately visible

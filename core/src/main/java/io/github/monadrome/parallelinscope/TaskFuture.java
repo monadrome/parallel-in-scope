@@ -21,8 +21,8 @@ import org.jspecify.annotations.Nullable;
  * TaskExitObservation}, a batch element's {@link ImmediateResult} — is the authority; it can carry
  * a finer cause than the token chain of a single future reveals at settle time.
  *
- * <p>The metadata queries {@link #taskName()}, {@link #termination()}, {@link #deadlineNanos()},
- * {@link #remaining()}, and {@link #failure()} are safe on any thread: they do not block, throw, or
+ * <p>The metadata queries {@link #taskName()}, {@link #termination()}, {@link #executionState()},
+ * {@link #deadlineNanos()}, {@link #remaining()}, and {@link #failure()} are safe on any thread: they do not block, throw, or
  * change the future. Inherited future operations retain their ordinary blocking and cancellation
  * semantics. {@link #termination()} and {@link #failure()} report a terminal value once the future
  * is done and never fall back to pending afterward. Reads taken once the enclosing scope has
@@ -59,8 +59,20 @@ interface TaskFuture<T> extends ListenableFuture<T> {
     @Nullable
     TaskTermination<T> termination();
 
-    /** Returns the live execution state without waiting or changing the future. */
-    TaskState state();
+    /**
+     * Returns a live read of this task's execution line, or {@code null} when the view has no
+     * direct execution (a derived view, the group completion summary, or a test-created task).
+     *
+     * <p>The value comes from the task's execution record alone and moves only along {@code
+     * UNCLAIMED -> CLAIMED -> EXITED} or {@code UNCLAIMED -> SKIPPED}; {@code EXITED} or {@code
+     * SKIPPED} means the execution is over, the same fact the enclosing scope's execution-exit
+     * wait counts. Pair it with {@link #termination()} for the result line: a non-null termination
+     * with {@code CLAIMED} means the result is settled while the user code still unwinds. The two
+     * reads are separate, so a pair taken without the scope converged may straddle a transition.
+     * The call never waits, throws, or changes the future.
+     */
+    @Nullable
+    ExecutionState executionState();
 
     /**
      * Returns the observation future of this task: a {@code ListenableFuture} of the task's final

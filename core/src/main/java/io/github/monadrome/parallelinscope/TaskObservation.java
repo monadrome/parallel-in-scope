@@ -41,6 +41,9 @@ final class TaskObservation<T> {
     private final Supplier<TaskExitObservation<T>> settledSnapshot;
     private final AtomicInteger pendingSignals;
 
+    /** The execution record this observation waits on; null on the shapes with no direct execution. */
+    private final @Nullable TaskExecutionState executionState;
+
     /** Identity for {@link #publishSkipped}; null on the shapes no unit backs. */
     private final @Nullable String taskName;
 
@@ -50,13 +53,14 @@ final class TaskObservation<T> {
 
     private TaskObservation(
             Supplier<TaskExitObservation<T>> settledSnapshot,
-            int pendingSignals,
+            @Nullable TaskExecutionState executionState,
             @Nullable String taskName,
             TaskId.@Nullable Unit unitId,
             int taskIndex,
             long submitTimeNanos) {
         this.settledSnapshot = settledSnapshot;
-        this.pendingSignals = new AtomicInteger(pendingSignals);
+        this.executionState = executionState;
+        this.pendingSignals = new AtomicInteger(executionState == null ? 1 : 2);
         this.taskName = taskName;
         this.unitId = unitId;
         this.taskIndex = taskIndex;
@@ -72,15 +76,15 @@ final class TaskObservation<T> {
     static <T> TaskObservation<T> forTask(TaskExecutionContext context, ListenableFuture<T> settle) {
         TaskObservation<T> observation = new TaskObservation<>(
                 () -> settledSnapshot(context, settle),
-                context.executionState() == null ? 1 : 2,
+                context.executionState(),
                 context.multiTaskContext().name(),
                 context.multiTaskContext().unitId(),
                 context.taskIndex(),
                 context.submitTimeNanos());
         settle.addListener(observation::signal, directExecutor());
-        TaskExecutionState taskCode = context.executionState();
-        if (taskCode != null) {
-            taskCode.terminal().addListener(observation::signal, directExecutor());
+        TaskExecutionState record = observation.executionState;
+        if (record != null) {
+            record.terminal().addListener(observation::signal, directExecutor());
         }
         return observation;
     }
@@ -92,7 +96,7 @@ final class TaskObservation<T> {
      */
     static <T> TaskObservation<T> unattributed(String taskName, CancellationToken token, ListenableFuture<T> settle) {
         TaskObservation<T> observation = new TaskObservation<>(
-                () -> settledSnapshot(taskName, null, 0, 0, 0, 0, token, settle), 1, taskName, null, 0, 0);
+                () -> settledSnapshot(taskName, null, 0, 0, 0, 0, token, settle), null, taskName, null, 0, 0);
         settle.addListener(observation::signal, directExecutor());
         return observation;
     }
@@ -103,7 +107,7 @@ final class TaskObservation<T> {
      * through {@link #publishSkipped}.
      */
     static <T> TaskObservation<T> of(Supplier<TaskExitObservation<T>> snapshot, ListenableFuture<?> settle) {
-        TaskObservation<T> observation = new TaskObservation<>(snapshot, 1, null, null, 0, 0);
+        TaskObservation<T> observation = new TaskObservation<>(snapshot, null, null, null, 0, 0);
         settle.addListener(observation::signal, directExecutor());
         return observation;
     }
@@ -116,6 +120,16 @@ final class TaskObservation<T> {
         Verify.verify(unitId != null, "an observation with no unit cannot publish a skipped snapshot");
         publish(TaskExitObservation.snapshot(
                 Verify.verifyNotNull(taskName), unitId, taskIndex, submitTimeNanos, 0, 0, termination, null, failure));
+    }
+
+    /**
+     * The execution record of the task this observation belongs to, or {@code null} when the view
+     * has no direct execution: a derived view, the group completion summary, or a test-created task
+     * outside any tracked submission. Prepared tasks and adopted members both carry one.
+     */
+    @Nullable
+    TaskExecutionState executionState() {
+        return executionState;
     }
 
     /** The read-only observation view handed to callers; {@code cancel(...)} returns {@code false}. */

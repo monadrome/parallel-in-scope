@@ -234,12 +234,11 @@ Cancelled(CancellationReason, CLAIMED | NOT_CLAIMED)
 original exception; `CancellationReason` distinguishes caller, parent scope, deadline,
 fail-fast, and member, and carries a source identity. `ExecutionDisposition` is decided only by
 the execution claim's atomic CAS and cannot be inferred from
-`ExecutionPhaseHintFuture.phase()` alone. `TaskState` separately expresses the live pending,
-claim, logical-termination, and exit states.
+`ExecutionPhaseHintFuture.phase()` alone.
 
 Frozen task results read `TaskTermination<T>`'s `kind()`, `failureCause()`,
 `cancellationReason()`, and `disposition()`; the kind is only `SUCCESS`, `FAILED`, or
-`CANCELLED`. Live execution state reads `TaskState`; scope aggregates read `ScopeTermination`.
+`CANCELLED`. Scope aggregates read `ScopeTermination`.
 
 The full model is in the [task termination and scope reason contract](task-termination-and-scope.md).
 

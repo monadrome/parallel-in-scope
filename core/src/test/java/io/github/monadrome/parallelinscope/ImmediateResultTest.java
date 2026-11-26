@@ -198,8 +198,8 @@ class ImmediateResultTest {
             }
 
             @Override
-            public TaskState state() {
-                return TaskState.RESULT_SETTLED;
+            public @Nullable ExecutionState executionState() {
+                return ExecutionState.CLAIMED;
             }
 
             @Override

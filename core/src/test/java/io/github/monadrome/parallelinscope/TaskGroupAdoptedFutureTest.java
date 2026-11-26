@@ -342,6 +342,31 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
+    void aCancelledAdoptedMemberReadsClaimedUntilItsSourceSettles() throws Exception {
+        ParRuntime runtime = runtime(pool(1));
+        StubbornFuture<String> stubborn = new StubbornFuture<>();
+
+        TaskGroup<Void> group =
+                runtime.groupDraft("stubborn", TIMEOUT).adopt(FIRST, stubborn).submitAll();
+        TaskFuture<?> member = group.futureOf("first");
+        assertThat(member.executionState()).isEqualTo(ExecutionState.CLAIMED);
+
+        group.cancel();
+
+        // The group cancelled the mirror, so the result line settled, but the source refused the
+        // cancellation and its work is still outstanding: the execution line must not read over.
+        assertThat(stubborn.cancelRequests).hasValue(1);
+        assertThat(member.isCancelled()).isTrue();
+        assertThat(member.termination()).isNotNull();
+        assertThat(member.executionState()).isEqualTo(ExecutionState.CLAIMED);
+        assertThat(member.toString()).contains("status=CANCELLED, execution=CLAIMED");
+
+        assertThat(stubborn.complete("late")).isTrue();
+        assertThat(member.executionState()).isEqualTo(ExecutionState.EXITED);
+        group.convergenceFuture().get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
     void theConvergedReportCarriesTheSettleTimeOfAnAdoptedMember() throws Exception {
         ParRuntime runtime = runtime(pool(1));
 

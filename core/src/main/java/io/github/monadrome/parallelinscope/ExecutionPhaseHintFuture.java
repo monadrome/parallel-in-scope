@@ -99,23 +99,6 @@ final class ExecutionPhaseHintFuture<V> extends AbstractFuture<V> implements Run
                 : ExecutionDisposition.CLAIMED;
     }
 
-    /** Returns a live state combining logical future completion with the execution claim state. */
-    TaskState state() {
-        TaskExecutionState taskCode = executionState;
-        if (!isDone()) {
-            if (taskCode != null) {
-                return taskCode.taskState();
-            }
-            return phase() == ExecutionPhase.RUNNING ? TaskState.CLAIMED : TaskState.PENDING;
-        }
-        if (taskCode != null) {
-            return taskCode.isOutstanding() ? TaskState.RESULT_SETTLED : TaskState.EXITED;
-        }
-        return phase() == ExecutionPhase.RUNNING || phase() == ExecutionPhase.CANCEL_REQUESTED_RUNNING
-                ? TaskState.RESULT_SETTLED
-                : TaskState.EXITED;
-    }
-
     private void releaseCallable() {
         callable = null;
     }

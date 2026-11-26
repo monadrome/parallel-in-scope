@@ -39,10 +39,9 @@ identity.
 `ImmediateResult<T>` is the frozen container for synchronous results and holds the task's
 `TaskTermination` directly: `termination()`, `disposition()`, `failureCause()`, and
 `cancellationReason()`. New code must rely on `TaskTermination`'s kind, cause, and disposition.
-A task's live state is expressed only by `TaskState`; `TaskTermination` has no in-progress
-branch.
+`TaskTermination` has no in-progress branch: a pending task has no termination yet.
 
-## 2. The execution claim and live state
+## 2. The execution claim and the live view
 
 `TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS is the only linearization point of the
 execution claim:
@@ -54,19 +53,42 @@ execution claim:
 - `ExecutionPhaseHintFuture.phase()` is only a non-blocking diagnostic hint: it cannot decide
   the disposition alone and cannot prove thread exit.
 
-A task's live state is queried through `TaskState`: `PENDING`, `CLAIMED`, `RESULT_SETTLED`,
-`EXITED`. `RESULT_SETTLED` permits the logical termination to be published while user code is
-still unwinding in finally; `EXITED` appears only after execution exit or an atomic
-determination that it will never enter. State queries do not rewrite an already-published
-`TaskTermination`.
+A task's live view is two independent package-private reads on its `TaskFuture`, one per line,
+for library-internal diagnostics only; the public surface stays frozen data:
 
-Naming follows the project's state/status principle: `State` names a stage in a process (a
-situation implying which stages may come next); `Status` names an operation's outcome (a final,
-conclusive condition). This type's four values are stages of the execution process, not
-operation outcomes, hence `TaskState`; the old name `TaskStatus` was rejected because status is
-reserved for operation outcomes (such as `ThreadPoolStarvationReport.Status`'s observation
-conclusion), and a stage query is not an outcome. A task's final result continues to be held by
-`TaskTermination`, which does not occupy the word status.
+| Line | Read | Values | Single writer |
+|---|---|---|---|
+| Result | `termination()` | `null` while pending, then `SUCCESS` / `FAILED` / `CANCELLED` | future settlement, pinned as `TaskTermination` |
+| Execution | `executionState()` | `UNCLAIMED -> CLAIMED -> EXITED`, `UNCLAIMED -> SKIPPED` | the execution record's CAS |
+
+- `executionState()` reads only the execution record, never `isDone()`, `phase()`, or the
+  delegate's type. It returns `null` for a view with no direct execution: a derived view, the
+  group completion summary, or a task created outside a tracked submission.
+- The execution state is `EXITED` or `SKIPPED` exactly when the record is no longer
+  outstanding, the fact `executionExitConfirmed()` and `unexitedExecutions()` count.
+- A non-null `termination()` with `CLAIMED` means the result is settled while user code still
+  unwinds. `EXITED` appears only after execution exit; `SKIPPED` only after an atomic
+  determination that the user code never enters.
+- Neither read rewrites the other or an already-published `TaskTermination`. The reads are
+  separate, so a pair taken before the scope converges may straddle a transition; no read
+  combines them into one value.
+
+The bridge between the lines is `ExecutionDisposition`. For a library-executed task it is sampled
+from the execution record into `TaskTermination` when the result freezes. An adopted member's
+disposition is currently derived from whether its member future was cancelled instead, so a
+group-cancelled adopted member freezes as `NOT_CLAIMED` while its live execution state reads
+`CLAIMED` until the source settles.
+
+Rejected alternatives (2026-11-25):
+
+- A single combined live enum (the earlier `TaskState`: `PENDING`, `CLAIMED`,
+  `RESULT_SETTLED`, `EXITED`). It merged `EXITED` with `SKIPPED`, had no stage for a task
+  cancelled before its claim, reported `EXITED` for a rejected submission before any result
+  existed, and was derived three different ways depending on the delegate; one derivation
+  reported an adopted member `EXITED` while its source was still running. Its two inputs are
+  separate atomic values, so no combined read is atomic either.
+- A public live view. The public surface is frozen data only; a public live channel (for
+  example in-flight tasks in a runtime snapshot) is a new mechanism and needs its own proposal.
 
 ## 3. The three completion layers
 

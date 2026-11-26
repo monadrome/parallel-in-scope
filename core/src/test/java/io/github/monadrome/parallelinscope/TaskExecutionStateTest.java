@@ -53,7 +53,7 @@ class TaskExecutionStateTest {
 
         assertThat(slot.skipIfPending()).isTrue();
         assertThat(slot.state()).isEqualTo(ExecutionState.SKIPPED);
-        assertThat(slot.taskState()).isEqualTo(TaskState.EXITED);
+        assertThat(slot.isOutstanding()).isFalse();
         assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
         assertThat(slot.terminal().isDone()).isTrue();
         assertThat(tracker.isDone()).isTrue();
@@ -96,24 +96,24 @@ class TaskExecutionStateTest {
     }
 
     @Test
-    void stateAndTaskStateReflectEachLifecyclePhase() {
+    void stateAndOutstandingReflectEachLifecyclePhase() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
         TaskExecutionState slot = tracker.register(context());
 
         assertThat(slot.state()).isEqualTo(ExecutionState.UNCLAIMED);
-        assertThat(slot.taskState()).isEqualTo(TaskState.PENDING);
+        assertThat(slot.isOutstanding()).isTrue();
         assertThat(slot.claim()).isTrue();
         assertThat(slot.state()).isEqualTo(ExecutionState.CLAIMED);
-        assertThat(slot.taskState()).isEqualTo(TaskState.CLAIMED);
+        assertThat(slot.isOutstanding()).isTrue();
         slot.exited();
         assertThat(slot.state()).isEqualTo(ExecutionState.EXITED);
-        assertThat(slot.taskState()).isEqualTo(TaskState.EXITED);
+        assertThat(slot.isOutstanding()).isFalse();
 
         ExecutionExitTracker skippedTracker = ExecutionExitTracker.create(1);
         TaskExecutionState skipped = skippedTracker.register(context());
         skipped.skipped();
         assertThat(skipped.state()).isEqualTo(ExecutionState.SKIPPED);
-        assertThat(skipped.taskState()).isEqualTo(TaskState.EXITED);
+        assertThat(skipped.isOutstanding()).isFalse();
     }
 
     @Test

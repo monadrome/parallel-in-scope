@@ -216,14 +216,9 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
     }
 
     @Override
-    public TaskState state() {
-        if (delegate instanceof ExecutionPhaseHintFuture) {
-            return ((ExecutionPhaseHintFuture<?>) delegate).state();
-        }
-        if (!delegate.isDone()) {
-            return TaskState.PENDING;
-        }
-        return TaskState.EXITED;
+    public @Nullable ExecutionState executionState() {
+        TaskExecutionState record = observation.executionState();
+        return record == null ? null : record.state();
     }
 
     private void pinTermination() {
@@ -310,11 +305,13 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
 
     /**
      * Returns a diagnostic string in Guava's future envelope: {@code Task@identityHash[status=...,
-     * task='name']}. The pending branch adds the task state hint. A successful result renders as
-     * {@code SimpleClassName@identityHash} and a failure as its type only, never through user
-     * rendering code or messages; a clock-dependent value such as the remaining budget is never
-     * rendered. The format is for logs and debuggers, not for parsing. Task identity stays
-     * reference identity, so this is the only non-forwarded {@link Object} method.
+     * execution=STATE, task='name']}. The status branch is the result line; {@code execution=} is
+     * the live {@link #executionState()} and is omitted when the view has no direct execution. A
+     * successful result renders as {@code SimpleClassName@identityHash} and a failure as its type
+     * only, never through user rendering code or messages; a clock-dependent value such as the
+     * remaining budget is never rendered. The format is for logs and debuggers, not for parsing.
+     * Task identity stays reference identity, so this is the only non-forwarded {@link Object}
+     * method.
      */
     @Override
     public String toString() {
@@ -322,34 +319,42 @@ final class Task<T> extends ForwardingListenableFuture<T> implements TaskFuture<
         builder.append("Task@")
                 .append(Integer.toHexString(System.identityHashCode(this)))
                 .append("[status=");
-        appendStatusBranch(builder);
+        ExecutionState execution = appendStatusBranch(builder);
+        if (execution != null) {
+            builder.append(", execution=").append(execution);
+        }
         return builder.append(", task='").append(taskName).append("']").toString();
     }
 
     /**
-     * The status branch of the envelope, mirroring Guava's {@code AbstractFuture}: {@code
-     * CANCELLED}, {@code PENDING} with the task state hint, {@code SUCCESS} with the value's
-     * identity, or {@code FAILURE} with the cause's type.
+     * Appends the status branch of the envelope, mirroring Guava's {@code AbstractFuture}: {@code
+     * CANCELLED}, {@code PENDING}, {@code SUCCESS} with the value's identity, or {@code FAILURE}
+     * with the cause's type. Returns the execution state read after the branch it rendered, or
+     * {@code null} when the view has no direct execution.
      */
-    private void appendStatusBranch(StringBuilder builder) {
+    private @Nullable ExecutionState appendStatusBranch(StringBuilder builder) {
         if (isCancelled()) {
             builder.append("CANCELLED");
-            return;
+            return executionState();
         }
         if (isDone()) {
             appendDoneBranch(builder);
-            return;
+            return executionState();
         }
-        /* The hint is read after the done check, so a completion landing in between could render a
-         * finished task as PENDING with an exited hint; like Guava, the branch rechecks completion
-         * after taking the hint, truncates the pending text, and redoes the terminal branch. A
+        /* The execution state is read after the done check, so a completion landing in between
+         * could render a finished task as PENDING next to an execution that already exited; like
+         * Guava, the branch rechecks completion after taking the execution state, truncates the
+         * pending text, redoes the terminal branch, and reads the execution state again. A
          * cancellation landing between the done check and the redo renders as CANCELLED. */
         int pendingStart = builder.length();
-        builder.append("PENDING, taskState=").append(state());
+        builder.append("PENDING");
+        ExecutionState execution = executionState();
         if (isDone()) {
             builder.delete(pendingStart, builder.length());
             appendDoneBranch(builder);
+            return executionState();
         }
+        return execution;
     }
 
     /**

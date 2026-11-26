@@ -66,16 +66,9 @@
   the DiscardPolicy registration diagnostic names `SUBMISSION_REJECTED` instead of
   `SUBMISSION_FAILURE`, and a member's exit observation now carries the same termination as its
   frozen result.
-- Rename the live execution view to match the state/status naming principle (`State` names a
-  stage in a process, `Status` names the outcome of an operation): public `TaskStatus` becomes
-  `TaskState`, and `TaskFuture.status()` / `Task.status()` become `state()`. The four values
-  (`PENDING`, `CLAIMED`, `RESULT_SETTLED`, `EXITED`) and the read semantics are unchanged;
-  rename type and method references at call sites. `ThreadPoolStarvationReport.Status` keeps
-  its name: it reports the outcome of an observation, not a stage.
 - Rename the termination and exit-observation vocabulary without compatibility aliases: public
-  `TaskCompletion<T>` becomes `TaskExitObservation<T>`, `TaskStatus.TERMINATED` becomes
-  `TaskStatus.RESULT_SETTLED`, and `ExecutionDisposition.ENTERED` / `NOT_ENTERED` become
-  `CLAIMED` / `NOT_CLAIMED`. The package-private group and batch aggregate futures are now
+  `TaskCompletion<T>` becomes `TaskExitObservation<T>`, and `ExecutionDisposition.ENTERED` /
+  `NOT_ENTERED` become `CLAIMED` / `NOT_CLAIMED`. The package-private group and batch aggregate futures are now
   `convergenceFuture()` and `observationsFuture()`. `ImmediateResult.asFuture()` keeps its name;
   the public `TaskOutcome` type is removed — read `TaskTermination` and `ScopeTermination` instead
   of `outcome()`. Use `executionExitConfirmed()` before releasing
@@ -92,7 +85,7 @@
 
 ### Changed
 
-- Align the library's diagnostic strings with Guava's `ListenableFuture` rendering philosophy. Future views now render Guava's identity-bearing envelope: the internal execution and adopted-member futures name their task or member and phase hint while pending (the race-safe `pendingToString()` hook), `ImmediateResult.asFuture()` renders `ImmediateResult.AsFuture@identityHash[status=...]` with the always-terminal success or failure branch instead of the Guava delegate's full value, a task future renders `Task@identityHash[status=..., task='name']` without the clock-dependent remaining budget and redoes the terminal branch when a completion lands mid-render, and the read-only completion, group-values, and starvation-report views render their own `ReadOnlyView@identityHash[status=...]` envelope instead of their sink's. A success value renders as `SimpleClassName@identityHash` ("null" when null, "this future" for self-reference) in `ImmediateResult` and `TaskTermination`; a failure renders as its type only in `ImmediateResult`, `FailureCause`, `Task`, and batch reports, so logging a result can neither run user rendering code nor copy a throwable message that may carry credentials. Aggregate diagnostics print counts instead of contents: `GroupValues` prints its member count, `ExecutorWaitReport` its component count (a wait cycle component its member, cycle, and witness counts), and `ThreadPoolStarvationReport` its evidence and unsupported-executor counts without the sampling failure message, with details still available through the existing accessors (`ThreadPoolStarvationReport.failureMessage()` keeps the message for explicit inspection). `ScopedCallable` renders the user task code by identity. These formats remain diagnostic and are not a parsing contract.
+- Align the library's diagnostic strings with Guava's `ListenableFuture` rendering philosophy. Future views now render Guava's identity-bearing envelope: the internal execution and adopted-member futures name their task or member and phase hint while pending (the race-safe `pendingToString()` hook), `ImmediateResult.asFuture()` renders `ImmediateResult.AsFuture@identityHash[status=...]` with the always-terminal success or failure branch instead of the Guava delegate's full value, a task future renders `Task@identityHash[status=..., execution=..., task='name']`, with the live execution state omitted for a view with no direct execution, without the clock-dependent remaining budget and redoes the terminal branch when a completion lands mid-render, and the read-only completion, group-values, and starvation-report views render their own `ReadOnlyView@identityHash[status=...]` envelope instead of their sink's. A success value renders as `SimpleClassName@identityHash` ("null" when null, "this future" for self-reference) in `ImmediateResult` and `TaskTermination`; a failure renders as its type only in `ImmediateResult`, `FailureCause`, `Task`, and batch reports, so logging a result can neither run user rendering code nor copy a throwable message that may carry credentials. Aggregate diagnostics print counts instead of contents: `GroupValues` prints its member count, `ExecutorWaitReport` its component count (a wait cycle component its member, cycle, and witness counts), and `ThreadPoolStarvationReport` its evidence and unsupported-executor counts without the sampling failure message, with details still available through the existing accessors (`ThreadPoolStarvationReport.failureMessage()` keeps the message for explicit inspection). `ScopedCallable` renders the user task code by identity. These formats remain diagnostic and are not a parsing contract.
 
 
 ## [0.4.1] - 2026-11-07
