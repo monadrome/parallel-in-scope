@@ -505,7 +505,7 @@ class TaskFutureTest {
     @Test
     void executionStateReadsTheRecordWithoutConsultingTheFuture() {
         SettableFuture<String> delegate = SettableFuture.create();
-        TaskExecutionState record = PreparedStates.trackedSlot("orders");
+        ExecutionRecord record = PreparedStates.trackedSlot("orders");
         Task<String> view = recordedOrdersTask(delegate, record);
 
         assertThat(view.executionState()).isEqualTo(ExecutionState.UNCLAIMED);
@@ -518,7 +518,7 @@ class TaskFutureTest {
         record.exited();
         assertThat(view.executionState()).isEqualTo(ExecutionState.EXITED);
 
-        TaskExecutionState skipped = PreparedStates.trackedSlot("orders");
+        ExecutionRecord skipped = PreparedStates.trackedSlot("orders");
         Task<String> skippedView = recordedOrdersTask(SettableFuture.<String>create(), skipped);
         skipped.skipped();
         assertThat(skippedView.executionState()).isEqualTo(ExecutionState.SKIPPED);
@@ -529,7 +529,7 @@ class TaskFutureTest {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ParRuntime runtime = ParRuntime.builder().build();
         try {
-            TaskExecutionState record = PreparedStates.trackedSlot("orders");
+            ExecutionRecord record = PreparedStates.trackedSlot("orders");
             Task<String> prepared = recordedOrdersTask(SettableFuture.<String>create(), record);
             assertThat(prepared.executionState()).isEqualTo(ExecutionState.UNCLAIMED);
 
@@ -853,12 +853,12 @@ class TaskFutureTest {
 
     @Test
     void toStringRendersTheExecutionLineBesideEachStatusBranch() {
-        TaskExecutionState pendingRecord = PreparedStates.trackedSlot("orders");
+        ExecutionRecord pendingRecord = PreparedStates.trackedSlot("orders");
         Task<String> pending = recordedOrdersTask(SettableFuture.<String>create(), pendingRecord);
-        TaskExecutionState settledRecord = PreparedStates.trackedSlot("orders");
+        ExecutionRecord settledRecord = PreparedStates.trackedSlot("orders");
         assertThat(settledRecord.claim()).isTrue();
         Task<String> settled = recordedOrdersTask(Futures.immediateFuture("done"), settledRecord);
-        TaskExecutionState cancelledRecord = PreparedStates.trackedSlot("orders");
+        ExecutionRecord cancelledRecord = PreparedStates.trackedSlot("orders");
         Task<String> cancelled = recordedOrdersTask(SettableFuture.<String>create(), cancelledRecord);
         cancelled.cancel(false);
         cancelledRecord.skipped();
@@ -880,7 +880,7 @@ class TaskFutureTest {
     @Test
     void toStringRedoesTheTerminalBranchWhenCompletionLandsDuringRendering() {
         SettableFuture<String> sink = SettableFuture.create();
-        TaskExecutionState record = PreparedStates.trackedSlot("orders");
+        ExecutionRecord record = PreparedStates.trackedSlot("orders");
         assertThat(record.claim()).isTrue();
         AtomicInteger isDoneReads = new AtomicInteger();
         ListenableFuture<String> settlingMidRender = new ForwardingListenableFuture<String>() {
@@ -1003,7 +1003,7 @@ class TaskFutureTest {
      * A task view named {@code orders} whose observation waits on {@code record}, as a prepared
      * task's view does, over a delegate the test settles directly.
      */
-    private static Task<String> recordedOrdersTask(ListenableFuture<String> delegate, TaskExecutionState record) {
+    private static Task<String> recordedOrdersTask(ListenableFuture<String> delegate, ExecutionRecord record) {
         TaskExecutionContext context =
                 new TaskExecutionContext(PreparedStates.windowUnit("orders", 1, 1), 0, System.nanoTime(), record);
         return Task.of("orders", new CancellationToken(), delegate, TaskObservation.forTask(context, delegate));

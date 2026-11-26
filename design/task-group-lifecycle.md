@@ -278,7 +278,7 @@ Rules:
 ### 6.1 The three terminal states and the execution-exit wait
 
 A task's logical termination is frozen separately by `TaskTermination`; the execution claim is
-linearized by `TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS. A cancellation happening after
+linearized by `ExecutionRecord`'s `UNCLAIMED -> CLAIMED` CAS. A cancellation happening after
 the claim leaves the record `CLAIMED` until execution exits; only a cancellation that wins
 `UNCLAIMED -> SKIPPED` prevents user code from starting.
 `ExecutionPhaseHintFuture.phase()` is diagnostic only and cannot substitute for this CAS.

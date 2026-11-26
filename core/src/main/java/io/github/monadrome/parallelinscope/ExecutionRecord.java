@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
  * once. A task marked {@code SKIPPED} must never enter the user task code, even when an executor invokes
  * it later.
  */
-final class TaskExecutionState {
+final class ExecutionRecord {
 
     private final AtomicReference<ExecutionState> state = new AtomicReference<>(ExecutionState.UNCLAIMED);
     private final ExecutionExitTracker tracker;
@@ -31,7 +31,7 @@ final class TaskExecutionState {
 
     private final SettableFuture<@Nullable Void> terminal = SettableFuture.create();
 
-    TaskExecutionState(ExecutionExitTracker tracker, String name) {
+    ExecutionRecord(ExecutionExitTracker tracker, String name) {
         this.tracker = tracker;
         this.name = name;
     }

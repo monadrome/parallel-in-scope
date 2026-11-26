@@ -91,7 +91,7 @@ interruptTask not yet returned — queryable, without adding notifications, poll
 copy of cancellation state.
 
 Keep AbstractFuture responsible for results and listeners; keep the
-TaskExecutionState/TaskObservation execution-completion barrier; keep the runner delivery
+ExecutionRecord/TaskObservation execution-completion barrier; keep the runner delivery
 handshake, inline isolation, the two-round submission-failure attribution, and capture
 release.
 
@@ -120,7 +120,7 @@ The verification scope includes cancellation timing × mayInterrupt, delayed/thr
 delivery, self-cancellation, duplicate run, cancellation between submission-failure claim and
 settlement, capture release, execution completion, inline isolation, the public API inventory,
 and application manual purge. The original phase-callback blocking test was changed to pause
-TaskExecutionState's claim inside the test, adding no production callback.
+ExecutionRecord's claim inside the test, adding no production callback.
 
 Spotless applied. Related tests passed before the change; the first round after implementation
 passed 89 related tests. The independent verification worktree applied only this change's

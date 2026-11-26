@@ -6,12 +6,12 @@ import com.google.common.util.concurrent.MoreExecutors;
 import org.junit.jupiter.api.Test;
 
 /** Direct contract test of the per-task execution lifecycle slot's state machine. */
-class TaskExecutionStateTest {
+class ExecutionRecordTest {
 
     @Test
     void claimWinsExactlyOnce() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.claim()).isTrue();
         assertThat(slot.claim()).isFalse();
@@ -23,7 +23,7 @@ class TaskExecutionStateTest {
     @Test
     void skippedBeforeClaimPreventsRunningAndReleasesTheSlot() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         slot.skipped();
         // The slot is terminal: a late executor invocation must not enter the execution.
@@ -38,7 +38,7 @@ class TaskExecutionStateTest {
     @Test
     void exitedIsIdempotentAndReleasesOnce() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.claim()).isTrue();
         slot.exited();
@@ -49,7 +49,7 @@ class TaskExecutionStateTest {
     @Test
     void skipIfPendingPublishesExitAndWinsOnlyOnce() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.skipIfPending()).isTrue();
         assertThat(slot.state()).isEqualTo(ExecutionState.SKIPPED);
@@ -64,7 +64,7 @@ class TaskExecutionStateTest {
     @Test
     void skipIfPendingDoesNotReleaseAClaimedSlot() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.claim()).isTrue();
         assertThat(slot.skipIfPending()).isFalse();
@@ -76,7 +76,7 @@ class TaskExecutionStateTest {
     @Test
     void terminalSignalCompletesWithTheWinningTransition() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.terminal().isDone()).isFalse();
         slot.claim();
@@ -87,7 +87,7 @@ class TaskExecutionStateTest {
     @Test
     void isOutstandingTracksPendingRunningAndTerminalStates() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.isOutstanding()).isTrue();
         slot.claim();
@@ -99,7 +99,7 @@ class TaskExecutionStateTest {
     @Test
     void stateAndOutstandingReflectEachLifecyclePhase() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         assertThat(slot.state()).isEqualTo(ExecutionState.UNCLAIMED);
         assertThat(slot.isOutstanding()).isTrue();
@@ -111,7 +111,7 @@ class TaskExecutionStateTest {
         assertThat(slot.isOutstanding()).isFalse();
 
         ExecutionExitTracker skippedTracker = ExecutionExitTracker.create(1);
-        TaskExecutionState skipped = skippedTracker.register(context());
+        ExecutionRecord skipped = skippedTracker.register(context());
         skipped.skipped();
         assertThat(skipped.state()).isEqualTo(ExecutionState.SKIPPED);
         assertThat(skipped.isOutstanding()).isFalse();
@@ -120,7 +120,7 @@ class TaskExecutionStateTest {
     @Test
     void skippedPublishesTerminalBeforeTrackerExitListenerRuns() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
 
         tracker.executionExit()
                 .addListener(() -> assertThat(slot.terminal().isDone()).isTrue(), MoreExecutors.directExecutor());
@@ -130,7 +130,7 @@ class TaskExecutionStateTest {
     @Test
     void exitedPublishesTerminalBeforeTrackerExitListenerRuns() {
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(context());
+        ExecutionRecord slot = tracker.register(context());
         assertThat(slot.claim()).isTrue();
 
         tracker.executionExit()

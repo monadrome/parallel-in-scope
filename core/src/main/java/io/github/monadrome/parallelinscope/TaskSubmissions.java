@@ -35,7 +35,7 @@ final class TaskSubmissions {
      */
     static <V> ExecutionPhaseHintFuture<V> prepare(TaskExecutionContext taskContext, Callable<V> callable) {
         ExecutionPhaseHintFuture<V> future =
-                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.executionState());
+                ExecutionPhaseHintFuture.create(wrapScoped(taskContext, callable), taskContext.executionRecord());
         future.observation(TaskObservation.forTask(taskContext, future));
         return future;
     }

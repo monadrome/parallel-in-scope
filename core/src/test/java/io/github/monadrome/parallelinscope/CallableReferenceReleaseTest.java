@@ -51,7 +51,7 @@ class CallableReferenceReleaseTest {
             // are happens-before visible here; the future-holder release sits in run()'s finally,
             // just after completion, and must arrive without any GC.
             assertThat(fixture.scoped.delegateReleased()).isTrue();
-            assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+            assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                     .isFalse();
             await().atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(
@@ -75,7 +75,7 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
         assertThat(fixture.scoped.delegateReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                 .isFalse();
     }
 
@@ -98,7 +98,7 @@ class CallableReferenceReleaseTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(SubmissionException.class);
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                 .isFalse();
     }
 
@@ -116,7 +116,7 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isFalse();
         assertThat(fixture.future.isCancelled()).isTrue();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                 .isFalse();
     }
 
@@ -131,7 +131,7 @@ class CallableReferenceReleaseTest {
         // reference are released.
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                 .isFalse();
     }
 
@@ -155,7 +155,7 @@ class CallableReferenceReleaseTest {
         assertThat(ran).isFalse();
         assertThat(fixture.future.isDone()).isFalse();
         assertThat(fixture.future.callableReleased()).isTrue();
-        assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+        assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                 .isFalse();
     }
 
@@ -184,7 +184,7 @@ class CallableReferenceReleaseTest {
             // early — the execution and its captures are still in use.
             assertThat(fixture.future.callableReleased()).isFalse();
             assertThat(fixture.scoped.delegateReleased()).isFalse();
-            assertThat(Objects.requireNonNull(fixture.context.executionState()).isOutstanding())
+            assertThat(Objects.requireNonNull(fixture.context.executionRecord()).isOutstanding())
                     .isTrue();
 
             release.countDown();
@@ -192,7 +192,7 @@ class CallableReferenceReleaseTest {
             // The holder release precedes the execution-exit publish, so observing the released slot
             // implies both references are gone.
             await().atMost(5, TimeUnit.SECONDS)
-                    .untilAsserted(() -> assertThat(Objects.requireNonNull(fixture.context.executionState())
+                    .untilAsserted(() -> assertThat(Objects.requireNonNull(fixture.context.executionRecord())
                                     .isOutstanding())
                             .isFalse());
             assertThat(fixture.future.callableReleased()).isTrue();
@@ -220,7 +220,7 @@ class CallableReferenceReleaseTest {
                 assertThat(result.results().get(i).get(5, TimeUnit.SECONDS)).isEqualTo("element-" + i);
             }
             for (Fixture fixture : fixtures) {
-                assertThat(Objects.requireNonNull(fixture.context.executionState())
+                assertThat(Objects.requireNonNull(fixture.context.executionRecord())
                                 .isOutstanding())
                         .isFalse();
                 await().atMost(5, TimeUnit.SECONDS)
@@ -285,7 +285,7 @@ class CallableReferenceReleaseTest {
                 new TaskExecutionContext(unit, index, Ticker.systemTicker().read(), tracker.register(unit));
         Callable<String> wrapped = TaskSubmissions.wrapScoped(context, taskCode);
         ScopedCallable<String> scoped = (ScopedCallable<String>) ((TtlCallable<String>) wrapped).unwrap();
-        ExecutionPhaseHintFuture<String> future = ExecutionPhaseHintFuture.create(wrapped, context.executionState());
+        ExecutionPhaseHintFuture<String> future = ExecutionPhaseHintFuture.create(wrapped, context.executionRecord());
         return new Fixture(context, scoped, future);
     }
 

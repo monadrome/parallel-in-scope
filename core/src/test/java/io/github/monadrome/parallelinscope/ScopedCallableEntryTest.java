@@ -75,7 +75,7 @@ class ScopedCallableEntryTest {
         MultiTaskContext unit = MultiTaskContext.resolve(MultiTaskContext.resolution(
                 BatchOptions.timeout("task", Duration.ofSeconds(30)).spec(), 1));
         ExecutionExitTracker tracker = ExecutionExitTracker.create(1);
-        TaskExecutionState slot = tracker.register(unit);
+        ExecutionRecord slot = tracker.register(unit);
         CountDownLatch settled = new CountDownLatch(1);
         AtomicBoolean exitPublishedAtSettlement = new AtomicBoolean(false);
 

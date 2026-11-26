@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  * <p>The sink is a {@link SettableFuture} that is set exactly once with the task's final immutable
  * {@link TaskExitObservation} snapshot. Publication waits out the window in which the task future is
  * already terminal but the user task code's {@code finally} has not run yet: an instrumented task
- * publishes only after its future has settled <em>and</em> its {@link TaskExecutionState} slot reached
+ * publishes only after its future has settled <em>and</em> its {@link ExecutionRecord} slot reached
  * {@code EXITED} or {@code SKIPPED}, so the recorded end time is always final. A submission-failure
  * snapshot may be published before the task future settles, so a cancellation cascade cannot
  * replace the recorded handoff failure with a cancellation.
@@ -42,7 +42,7 @@ final class TaskObservation<T> {
     private final AtomicInteger pendingSignals;
 
     /** The execution record this observation waits on; null on the shapes with no direct execution. */
-    private final @Nullable TaskExecutionState executionState;
+    private final @Nullable ExecutionRecord executionRecord;
 
     /** Identity for {@link #publishSkipped}; null on the shapes no unit backs. */
     private final @Nullable String taskName;
@@ -53,14 +53,14 @@ final class TaskObservation<T> {
 
     private TaskObservation(
             Supplier<TaskExitObservation<T>> settledSnapshot,
-            @Nullable TaskExecutionState executionState,
+            @Nullable ExecutionRecord executionRecord,
             @Nullable String taskName,
             TaskId.@Nullable Unit unitId,
             int taskIndex,
             long submitTimeNanos) {
         this.settledSnapshot = settledSnapshot;
-        this.executionState = executionState;
-        this.pendingSignals = new AtomicInteger(executionState == null ? 1 : 2);
+        this.executionRecord = executionRecord;
+        this.pendingSignals = new AtomicInteger(executionRecord == null ? 1 : 2);
         this.taskName = taskName;
         this.unitId = unitId;
         this.taskIndex = taskIndex;
@@ -76,13 +76,13 @@ final class TaskObservation<T> {
     static <T> TaskObservation<T> forTask(TaskExecutionContext context, ListenableFuture<T> settle) {
         TaskObservation<T> observation = new TaskObservation<>(
                 () -> settledSnapshot(context, settle),
-                context.executionState(),
+                context.executionRecord(),
                 context.multiTaskContext().name(),
                 context.multiTaskContext().unitId(),
                 context.taskIndex(),
                 context.submitTimeNanos());
         settle.addListener(observation::signal, directExecutor());
-        TaskExecutionState record = observation.executionState;
+        ExecutionRecord record = observation.executionRecord;
         if (record != null) {
             record.terminal().addListener(observation::signal, directExecutor());
         }
@@ -128,8 +128,8 @@ final class TaskObservation<T> {
      * outside any tracked submission. Prepared tasks and adopted members both carry one.
      */
     @Nullable
-    TaskExecutionState executionState() {
-        return executionState;
+    ExecutionRecord executionRecord() {
+        return executionRecord;
     }
 
     /** The read-only observation view handed to callers; {@code cancel(...)} returns {@code false}. */
