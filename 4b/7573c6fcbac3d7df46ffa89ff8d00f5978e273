@@ -1,0 +1,19 @@
+CHANGELOG.md
+  s_502c9f90a02f4d::t_3ef93c553481c8 67-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "4b7573c6fcbac3d7df46ffa89ff8d00f5978e273",
+  "prompts": {},
+  "sessions": {
+    "s_502c9f90a02f4d": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_2e05f8d6-2d46-43e2-891b-a5bba4883a56",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
