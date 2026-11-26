@@ -64,7 +64,11 @@
   `cancelled(reason)`; it does not report whether user code ran, so code whose side effects
   matter tracks them itself and confirms execution exit before compensating;
   `TaskBatch.report()` now counts termination branches (`terminationCounts()` plus `pending()`).
-  All removed members were package-private. Diagnostic strings (`reportString()`, `toString()`)
+  The legacy enum and the `outcome()` reads were package-private; the `failed(outcome, failure)`
+  factory and the four-handler `fold` were public in `0.4.1`. Migrate
+  `fold(onValue, onUserFailure, onSubmissionFailure, (outcome, failure) -> ...)` to
+  `fold(onValue, cause -> cause.submissionRejected() ? ... : ..., reason -> ...)`, reading the
+  stored throwable from `cause.cause()` or `failure()`. Diagnostic strings (`reportString()`, `toString()`)
   spell the same facts in the new vocabulary (`SUCCESS`/`FAILED`/`CANCELLED`, `termination=...`),
   the DiscardPolicy registration diagnostic names `SUBMISSION_REJECTED` instead of
   `SUBMISSION_FAILURE`, and a member's exit observation now carries the same termination as its
