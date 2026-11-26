@@ -49,52 +49,52 @@ By default, available real CLIs on `PATH` are auto-selected; fixtures are never 
 
 ### Reviewer selection
 
-Full reviews require three distinct model types across the implementer and two reviewers, as
-owned by [review procedure](../project-delivery/references/review.md). Codex plus a second
-Magpie-routed model is one valid combination. When both seats use the `codex` adapter, run them
-as separate cases with explicit models; restore the previous Magpie selection after any
-temporary override, and record the actual routed model in each run.
+Select seats from what runs on this machine today, not from a fixed model list. A full review
+needs two reviewer seats whose model families differ from the implementer's and from each
+other ([review procedure](../project-delivery/references/review.md)); a lightweight review needs
+one seat that differs from the implementer. Done when every seat has a concrete, pinned model
+whose family is known and whose smoke prompt answered.
 
-When `magpie` is on `PATH`, start with `magpie ls`: it is the default source of truth for the
-agents and models it manages. For each selected managed agent, query `magpie <agent> model` and
-`magpie <agent> effort`. These commands print labelled lines, not bare values:
+1. **Inventory seats.** A seat is a bench adapter (`ls tools/llm-review-bench/src/adapters/`)
+   whose CLI is on `PATH`, paired with a model that CLI can route:
+   - When `magpie` is on `PATH`, `magpie ls` lists the managed agents and their current
+     selection, and `magpie models <agent>` lists every model the agent can route. The
+     `magpie <agent> model` / `effort` commands print a labelled line; the value is its last
+     whitespace-delimited token, and `default` means `null`.
+   - For a CLI outside Magpie, read its own model list (for example
+     `kiro-cli chat --list-models`).
+2. **Resolve families.** Name each candidate's model family (Claude, GPT, GLM, Kimi, DeepSeek,
+   MiniMax, Qwen, ...) from the concrete model id. An aggregator alias whose target is hidden
+   (for example an `auto` route) has an unknown family: use it only after its routed model is
+   confirmed, and never count it as distinct. Include the implementer's own model.
+3. **Choose seats.** Prefer the current Magpie selection when its family qualifies; otherwise
+   pick another routable model of a qualifying family. Pin it per run in the systems file
+   (`model`, `provider` = the model id's prefix before the first `/`, `effort` from the
+   model's supported levels or `null`); adapters pass `--model`, so the shared Magpie selection
+   stays untouched. If a seat can only change through Magpie, restore the previous selection
+   afterwards.
+4. **Smoke-test each seat** with a one-line prompt through the same CLI and model, bounded by a
+   short timeout (macOS has no `timeout`; use
+   `perl -e 'alarm shift; exec @ARGV' 120 <command>`). The CLI's own probe only checks
+   `--version`, so a seat that hangs passes it.
+5. **Replace failing seats.** A seat that fails or hangs in the smoke test or in the run moves to
+   the next qualifying candidate; keep the failed attempt as evidence. When no qualifying
+   candidate is left, record the review as blocked.
 
-```console
-$ magpie codex model
-Codex model ctrip-ada/claude-auto[1M]
-$ magpie codex effort
-Codex effort default
-```
+Each systems file names an adapter at most once; two seats on one adapter (for example two
+`codex` seats on different Magpie models) run as separate cases on the same range. A CLI with
+no bench adapter (for example ZCode) gives an external review recorded separately, not a
+benchmark-counted seat. Record each run's routed model, provider and effort.
 
-Copy only the final whitespace-delimited token, never the label. Split the model token at its
-first `/` to obtain the provider prefix, and keep the complete token as `model`. Set `effort` to
-`null` when the final token is `default`. If Magpie reports no concrete model, use `model: null`
-so the agent inherits its configuration. This preserves per-run provenance without overriding
-Magpie with a stale hardcoded model.
-
-For agents outside Magpie, pin models and efforts by current CLI availability. The `claude`
-adapter is unavailable for now — do not put `claude` in a systems file.
-
-| adapter | model | effort | Notes |
-|---|---|---|---|
-| `codex` | Magpie's selected model, otherwise `gpt-6.1-terra` | Magpie's selected effort, otherwise `medium` | Codex's reasoning effort is passed to the CLI. |
-| `kiro` | `gpt-5.6-terra` or `kimi-k3` | `max` | Choose one Kiro model per run; pass the Kiro effort via `extraArgs: ["--effort", "max"]`. |
-| `zcode` | `glm-5.4` | `max` | The current `llm-review-bench` adapter registry does not yet include `zcode`; do not masquerade it as a benchmark-counted reviewer — add the adapter first or record the external review separately. |
-
-Example systems file for the Magpie-managed Codex above:
+Example: two `codex` seats routed by Magpie, one file per run:
 
 ```json
-{
-  "systems": [
-    {"agent": "codex", "provider": "ctrip-ada", "model": "ctrip-ada/claude-auto[1M]", "effort": null}
-  ]
-}
+{"systems": [{"agent": "codex", "provider": "deepseek", "model": "deepseek/deepseek-v4-pro", "effort": "high"}]}
 ```
 
-To compare Kiro's two models, start two separate runs; do not repeat `kiro` in one systems
-file, because the protocol requires each adapter name to be unique. Kimi K3 availability
-belongs to the Kiro model matrix and is not equivalent to the old `kimi` adapter; enable the
-`kimi` adapter only after independently confirming the Kimi CLI credentials work.
+```json
+{"systems": [{"agent": "codex", "provider": "zcode", "model": "zcode/GLM-5.4", "effort": "high"}]}
+```
 
 ## 2. Choose a case and run
 
