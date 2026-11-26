@@ -278,7 +278,7 @@ Rules:
 ### 6.1 The three terminal states and the execution-exit wait
 
 A task's logical termination is frozen separately by `TaskTermination`; the execution claim is
-linearized by `TaskExecutionState`'s `PENDING -> RUNNING` CAS. A cancellation happening after
+linearized by `TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS. A cancellation happening after
 the claim leaves the disposition `CLAIMED`; only an unsuccessful claim is `NOT_CLAIMED`.
 `ExecutionPhaseHintFuture.phase()` is diagnostic only and cannot substitute for this CAS.
 
@@ -289,7 +289,7 @@ Distinguish the three terminations (close semantics in
    `CLOSED`/convergence promises only up to this layer;
 2. **Execution exit**: the user Callable has returned or thrown and completed its finally;
    tracked by the per-task pre-registered atomic state machine
-   (`PENDING -> RUNNING -> EXITED` / `PENDING -> SKIPPED`) and the shared execution-exit future
+   (`UNCLAIMED -> CLAIMED -> EXITED` / `UNCLAIMED -> SKIPPED`) and the shared execution-exit future
    signal; slots are pre-registered before any task submission (including out-of-window tasks
    and the terminal combine); the normal path publishes `EXITED` after the user task code's
    finally completes, with the outer future's finally as backstop; entering `EXITED` or

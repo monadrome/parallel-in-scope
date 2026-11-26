@@ -92,7 +92,16 @@ _TASK_TYPE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
         (_CONSUMER_TEST, "V4", "publishedArtifactCanBeResolvedAndUsed"),
     }
 )
-REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = _TASK_TYPE_REMOVAL_EXCEPTIONS | frozenset(
+# Execution-state vocabulary (2026-11-25): the execution record's states follow the claim
+# vocabulary; claimRunningWinsExactlyOnce is renamed claimWinsExactlyOnce.
+_TASK_STATE_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+    (f"{_CORE_TESTS}{name}.java", rule, case)
+    for name, rule, case in (
+        ("TaskExecutionStateTest", "V2", "claimRunningWinsExactlyOnce"),
+    )
+)
+REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = (
+    _TASK_TYPE_REMOVAL_EXCEPTIONS | _TASK_STATE_REMOVAL_EXCEPTIONS | frozenset(
     ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
     for method in (
         "test_accepts_status_allowed_by_adapter",
@@ -111,6 +120,7 @@ REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = _TASK_TYPE_REMOVAL_EXCEPT
         "test_rejects_non_utf8_report",
         "test_rejects_empty_required_gates_and_checks",
         "test_rejects_adapter_required_gate_mismatch",
+    )
     )
 )
 NON_EXCEPTIBLE_RULES = frozenset({"V6"})

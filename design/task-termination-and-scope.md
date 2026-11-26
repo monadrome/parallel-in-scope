@@ -44,7 +44,7 @@ branch.
 
 ## 2. The execution claim and live state
 
-`TaskExecutionState`'s `PENDING -> RUNNING` CAS is the only linearization point of the
+`TaskExecutionState`'s `UNCLAIMED -> CLAIMED` CAS is the only linearization point of the
 execution claim:
 
 - cancelling after the claim CAS succeeds: the termination object must be `CLAIMED`, even if
@@ -244,8 +244,8 @@ issues, all now fixed:
   cancellation is now a provisional cause replaceable by a later triggering failure, with a
   regression test and reverse verification.
 - Cancellation while the future has entered the `RUNNING` phase but the execution claim has
-  not yet succeeded now races the `PENDING -> RUNNING` CAS; only a cancellation that truly wins
-  `PENDING -> SKIPPED` releases the callable early.
+  not yet succeeded now races the `UNCLAIMED -> CLAIMED` CAS; only a cancellation that truly wins
+  `UNCLAIMED -> SKIPPED` releases the callable early.
 - Caller-owned `cancelOn` and explicit group cancel record `CANCELLED_BY_CALLER`; a member
   adopting an already-cancelled source records `CANCELLED_BY_MEMBER`; parent propagation keeps
   `CANCELLED_BY_PARENT_SCOPE`.

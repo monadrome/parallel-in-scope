@@ -420,7 +420,7 @@ public class ExecutionPhaseHintFutureTest {
                     return invocation.callRealMethod();
                 })
                 .when(gated)
-                .claimRunning();
+                .claim();
         ExecutionPhaseHintFuture<Void> future = ExecutionPhaseHintFuture.create(
                 () -> {
                     userCodeCalls.incrementAndGet();
@@ -436,7 +436,7 @@ public class ExecutionPhaseHintFutureTest {
             assertThat(future.cancel(true)).isTrue();
             assertThat(future.phase()).isEqualTo(ExecutionPhase.CANCEL_REQUESTED_RUNNING);
             // The cancellation won the slot while the runner is still parked in the claim.
-            assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.SKIPPED);
+            assertThat(slot.state()).isEqualTo(ExecutionState.SKIPPED);
             assertThat(future.callableReleased()).isTrue();
         } finally {
             claimRelease.countDown();
@@ -447,7 +447,7 @@ public class ExecutionPhaseHintFutureTest {
         assertThat(future.isCancelled()).isTrue();
         assertThat(future.callableReleased()).isTrue();
         assertThat(future.phase()).isEqualTo(ExecutionPhase.TERMINAL);
-        assertThat(slot.stateValue()).isEqualTo(TaskExecutionState.State.SKIPPED);
+        assertThat(slot.state()).isEqualTo(ExecutionState.SKIPPED);
         assertThat(slot.disposition()).isEqualTo(ExecutionDisposition.NOT_CLAIMED);
     }
 
