@@ -20,9 +20,10 @@ per-batch counts, and implementer tooling. Every verification status and evidenc
 PRs carry library changes. With write access, harness changes (skills, agent instructions,
 workflows, review and verification tooling) go directly to the development line without a PR.
 Create a PR when the user asks for one or Delivery And CI in
-[workflow](../project-delivery/references/workflow.md) requires one: a contributor without write
-access (`CONTRIBUTING.md`) or the unattended issue runner. Update or comment on an existing PR only
-for the change it carries; merging always needs explicit maintainer authorization (root
+[workflow](../project-delivery/references/workflow.md) requires one for a contributor without
+write access (`CONTRIBUTING.md`). The unattended issue runner renders its own PR under
+`design/issue-automation.md`; this skill does not govern it. Update or comment on an existing PR
+only for the change it carries; merging always needs explicit maintainer authorization (root
 `AGENTS.md` Permissions). Writing the draft locally and reading PR state need no authorization.
 
 ## 1. Gather the record
@@ -40,9 +41,10 @@ Collect each fact from a source a reviewer can open:
   "Check public API changes" summary) whenever the public surface changes: a public type, its
   supertypes, or a public or protected member.
 - **Verification**: every check that ran, its actual status, and the reason for each non-pass;
-  PIT per the compact record in `verification/pit.md`; review seats with their models and
-  statuses, recorded in the delivery ledger. The PR states how many reviewers ran, that their
-  models differ from the implementer's and each other, and the outcome, and links the ledger.
+  PIT per the compact record in `verification/pit.md`; review seats and their outcome. The PR
+  names each completed seat's model family in one clause, states whether the families differ
+  from the implementer's and each other (with the review procedure's caveat when they do not),
+  and links the archived review runs on `llm-ledger` when they exist.
 - **Open asks**: approvals (protected-file exceptions, decisions), pending or unauthorized gates.
 - **Current body** (existing PR): `gh pr view <n> --json title,body,updatedAt,reviews,comments`. Keep
   content a maintainer added unless they asked for it to go, and note `updatedAt` for step 5.
@@ -112,10 +114,13 @@ once; if that also fails, post the draft and say in your report that the pass di
 
 - New PR: `gh pr create --base <development line> --head <branch> --title <title> --body-file <file>`,
   with `--draft` while a required gate (assurance, a required review, CI) is pending or blocked.
+  Without write access, omit `--head` so `gh` pushes to your fork and targets the upstream
+  development line.
 - Existing PR: just before posting, read `gh pr view <n> --json title,body,updatedAt` again. Post
   only when `updatedAt` still equals the step-1 value; otherwise merge the new title or body
-  into the draft and read again. `gh` has no conditional update, so a race in the last instant
-  remains possible; GitHub keeps the description's edit history for recovery. Then
+  into the draft and read again. This narrows the window but cannot exclude a race, because `gh`
+  has no conditional update: when others are actively editing the PR, ask before replacing the
+  body, and recover a lost edit from GitHub's description edit history. Then
   `gh pr edit <n> --title <title> --body-file <file>`. When reviews or
   comments already exist, also post `gh pr comment <n> --body-file <summary>` naming what changed since the
   last review: a body edit notifies no one.
