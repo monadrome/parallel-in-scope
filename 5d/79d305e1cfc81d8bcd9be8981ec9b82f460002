@@ -1,0 +1,17 @@
+.agents/skills/project-delivery/references/workflow.md
+  s_938f440de1e3a0::t_d8d68be3eb8257 78-79
+  s_29f90af3a2c4db::t_bc9376ab314bd2 13,17-18
+  s_29f90af3a2c4db::t_e2be8e45055881 16,19
+AGENTS.md
+  s_29f90af3a2c4db::t_5762f3ed2419e6 28,80-81
+  s_938f440de1e3a0::t_d8d68be3eb8257 52-55
+  s_29f90af3a2c4db::t_a2374a30de939c 29-30
+  s_afd4e372de42bd::t_ab3e18951e6342 79
+  s_29f90af3a2c4db::t_362b64123d51f3 89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "5d79d305e1cfc81d8bcd9be8981ec9b82f460002",
+  "prompts": {}
+}
