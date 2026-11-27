@@ -49,6 +49,10 @@ mandatory before a decision.
 Implementation and production-fixing agents keep `verification/contract-tests/` unread by default.
 Its scoped instructions define the assurance-promotion, independent-review, and maintenance routes
 that may load it.
+Committed-tree preflight may run the hidden-contract CI job and `scripts/check-contract-tests.py`
+without loading the suite. Use only each step's pass/fail status. On failure, do not read its
+failure output, reports, or sources, and do not change code to satisfy it; stop before pushing
+and report the failing step for the routes in `verification/contract-tests/AGENTS.md`.
 
 ## Task Routes
 

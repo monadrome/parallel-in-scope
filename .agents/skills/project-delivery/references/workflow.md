@@ -75,7 +75,8 @@ evidence, then remove the worktree and delete its branch:
 - **Committed-tree preflight:** after the initial commit, inspect the exact committed tree.
   For code changes, run every CI/CD job reproducible
   locally, regardless of the selected task route: documentation, Maven, runtime-consumer,
-  static-analysis, and packaging jobs. Documentation-only changes follow Local Verification
+  static-analysis, and packaging jobs. The hidden-contract job follows the root Context Loading
+  exception for `verification/contract-tests/`. Documentation-only changes follow Local Verification
   instead of running Java jobs. Fix a failure in a follow-up commit and rerun the affected
   job before pushing. Local preflight does not replace remote CI.
 - **Documentation lifecycle:** delivery includes maintained documentation and in-flight
