@@ -108,4 +108,6 @@ Costs and risks:
 - a signal for blocking inside a pool becomes available on the supported JVMs that is cheap enough
   to leave on and reliable without per-environment calibration;
 - users report blocking-in-compute-pool incidents that the executor wait graph, starvation
-  observation, application types, and blocking-call detectors all miss.
+  observation, application types, and blocking-call detectors all miss. (Note, 2026-11-27:
+  starvation observation has since been removed, so the remaining signals are the executor wait
+  graph, application types, blocking-call detectors, and executor metrics.)
