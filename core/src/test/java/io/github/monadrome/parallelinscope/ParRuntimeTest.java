@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
@@ -565,6 +566,36 @@ class ParRuntimeTest {
         } finally {
             global.close();
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void quiescenceRetiresTheTimeoutActionThreads() throws Exception {
+        // Quiescence includes the framework services having shut down: a thread that ran a timeout
+        // action exits with its pool instead of idling out the pool's keep-alive after the runtime
+        // reports quiescent, and the pool then refuses new actions.
+        ParRuntime global = ParRuntime.builder().build();
+        AtomicReference<Thread> actionThread = new AtomicReference<>();
+        CountDownLatch ran = new CountDownLatch(1);
+        try {
+            global.releases().execute(() -> {
+                actionThread.set(Thread.currentThread());
+                ran.countDown();
+            });
+            assertThat(ran.await(5, TimeUnit.SECONDS)).isTrue();
+
+            global.close();
+            assertThat(global.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
+
+            Thread thread = Objects.requireNonNull(actionThread.get());
+            thread.join(TimeUnit.SECONDS.toMillis(5));
+            assertThat(thread.isAlive())
+                    .as("the timeout-action thread outlived quiescence")
+                    .isFalse();
+            assertThatThrownBy(() -> global.releases().execute(() -> {}))
+                    .isInstanceOf(RejectedExecutionException.class);
+        } finally {
+            global.close();
         }
     }
 
