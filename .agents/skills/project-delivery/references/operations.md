@@ -39,6 +39,8 @@ Read only the section matching the operation. This is not authorization to relea
   the PR description must be self-contained. Before opening or updating an
   issue, read `CONTRIBUTING.md` section "Issue maintenance" for ownership,
   direction updates, and milestone rules.
+- Write, post, and refresh PR descriptions with the
+  [pull-request skill](../../pull-request/SKILL.md); it owns the description's sections.
 - Before a drafted PR description is posted for review, run it through a ZCode
   pass that optimizes it for a general reader and drops unnecessary detail:
   each verification states what was run and what it found, and run-by-run

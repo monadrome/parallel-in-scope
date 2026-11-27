@@ -14,6 +14,7 @@ required:
   - path: .agents/skills/isolated-test-generation
   - path: .agents/skills/multi-review
   - path: .agents/skills/project-delivery
+  - path: .agents/skills/pull-request
   - path: .agents/skills/refactoring-review
   - path: .agents/skills/reflect-agents-md
   - path: .agents/skills/writing-for-agents
