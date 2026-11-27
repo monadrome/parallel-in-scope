@@ -63,9 +63,12 @@ that the pool refuses new actions. Reverse verification: with the shutdown call 
 `KILLED`, and the test also covers `ParRuntime.releases()`, whose null-return mutant moved from
 `NO_COVERAGE` to `KILLED`.
 
-The base run with only the deleted test class killed five `ParRuntime` mutants; each is `KILLED` in
-the final run by a remaining test. The collaborator run kills every `ExecutorRuntime` and
-`ExecutorIdentity` mutant.
+The base run with only the deleted test class killed five `ParRuntime` mutants. Three were in code
+this change deleted (`openThreadPoolStarvationObservation`'s argument check, the sampling scheduler's
+`shutdown()` call, and `starvationObservationClosed`) and leave no mutation site at head. The other two
+are retained and `KILLED` in the final run by remaining tests: the `Monitor::enter` call in
+`shutdownServicesWhenAdmissionsComplete` and `whileOpen`'s `enterAdmission` call. The collaborator run
+kills every `ExecutorRuntime` and `ExecutorIdentity` mutant.
 
 ## Dispositions
 
