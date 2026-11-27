@@ -1,0 +1,19 @@
+adr/0016-remove-tasktype-and-workload-fit-screening.md
+  s_c7971fb45429b8::t_86a183c71c33ac 111-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "348753998bc8c954817e5b40556daecd7eb89fa9",
+  "prompts": {},
+  "sessions": {
+    "s_c7971fb45429b8": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_8c751024-ded5-4ebb-ad1c-2717b931220e",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
