@@ -29,6 +29,21 @@
 
 ### Breaking changes
 
+- Remove thread-pool starvation observation: `ParRuntime.openThreadPoolStarvationObservation(Duration)`,
+  `ThreadPoolStarvationObservationScope`, `ThreadPoolStarvationReport` with its `Status` and
+  `Evidence`, and `ParRuntimeSnapshot.activeObservations()` are deleted, and the runtime no longer
+  starts a `ParRuntime-starvation-*` sampling thread. The scope only sampled pool-wide
+  `ThreadPoolExecutor` counters for work submitted directly to a registered pool, which executor
+  metrics (Micrometer's `ExecutorServiceMetrics`, JMX, or an APM agent) already export continuously
+  and with alerting; its report appeared only at scope close, needed a separate control thread, and
+  an open scope kept the runtime's services alive after `close()` and held `inFlight()` and
+  `awaitQuiescence(Duration)` until it closed. Migration:
+  delete the observation try-with-resources block and its report handling, and watch the registered
+  pools' pool size, active count, queue depth, and completed task count in your metrics stack
+  instead; delete reads of `snapshot().activeObservations()`. `ParRuntime.inFlight()` and
+  `awaitQuiescence(Duration)` now cover only admissions, undrained runs, and execution exit.
+  `executorWaitReport()` is unchanged and still reports waits-for cycles among work admitted through
+  the library.
 - Remove `TaskType` and workload-fit screening (ADR 0016). The declaration never changed
   execution, so only compilation is affected: delete `.taskType(...)` calls on `BatchOptions` and
   `TaskOptions`, replace `ParRuntime.Builder.register(id, executor, TaskType.X)` with

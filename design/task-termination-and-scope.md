@@ -145,7 +145,7 @@ Batch/Groups' exits separately.
 | Logical termination | `ImmediateResult.termination()` / `TaskTermination` | The success, failure, or cancellation cause is frozen. |
 | Execution exit | `executionExitConfirmed()` | Direct user code has exited or was atomically prevented from starting. |
 | Exit observation | `TaskExitObservation` | Final timing and post-exit telemetry have been published. |
-| Runtime quiescence | `ParRuntime.awaitQuiescence(...)` | A closed runtime has drained admitted executions and observation scopes. |
+| Runtime quiescence | `ParRuntime.awaitQuiescence(...)` | A closed runtime has drained admitted executions and every execution has exited. |
 
 The intended order is `Future.isDone()` → logical termination → execution exit →
 `TaskExitObservation` publication; runtime quiescence is the enclosing scope's drain gate. The first

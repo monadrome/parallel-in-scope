@@ -26,7 +26,7 @@
 | [协作式取消](reference/cooperative-cancellation.md) | checkpoint、异常与取消传播 |
 | [Nullability Annotations](reference/nullability-annotations.md) | 空值注解规则和依赖约定 |
 | [执行器注册](reference/executor-registration.md) | Executor 契约、拒绝策略、可见性与饥饿易感池 |
-| [诊断与观测](reference/diagnostics.md) | 执行器等待报告、饥饿观测、完成观测 |
+| [诊断与观测](reference/diagnostics.md) | 执行器等待报告与完成观测 |
 
 ## 实现原理与设计决策
 

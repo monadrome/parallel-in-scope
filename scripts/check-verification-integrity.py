@@ -123,10 +123,36 @@ _DISPOSITION_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
         ("ImmediateResultTest", "V2", "submissionFailureFreezingPreservesNotClaimedDisposition"),
     )
 )
+# Thread-pool starvation observation removal (2026-11-27): the scope, its report, and
+# ParRuntimeSnapshot.activeObservations() left the public API, so their test file and the
+# snapshot assertions on that counter went with them. The adopted-future case keeps its deadline
+# and wait-graph assertions under the name
+# aSourceQueuedBehindItsOwnWaiterRecordsAWaitCycleAndEndsAtTheDeadline.
+_STARVATION_OBSERVATION_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+    (f"{_CORE_TESTS}{name}.java", rule, case)
+    for name, rule, case in (
+        ("ParRuntimeSnapshotTest", "V4", "freshRuntimeReportsAnEmptyOpenSnapshot"),
+        ("ParRuntimeSnapshotTest", "V4", "everySampledCounterIsReadableFromTheSnapshot"),
+        (
+            "TaskGroupAdoptedFutureTest",
+            "V2",
+            "aSourceQueuedBehindItsOwnWaiterIsSeenByBothStarvationSignalsAndEndsAtTheDeadline",
+        ),
+    )
+) | frozenset(
+    {
+        (
+            f"{_CORE_TESTS}ThreadPoolStarvationObservationScopeTest.java",
+            "V1",
+            f"{_CORE_TESTS}ThreadPoolStarvationObservationScopeTest.java",
+        )
+    }
+)
 REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = (
     _TASK_TYPE_REMOVAL_EXCEPTIONS
     | _TASK_STATE_REMOVAL_EXCEPTIONS
     | _DISPOSITION_REMOVAL_EXCEPTIONS
+    | _STARVATION_OBSERVATION_REMOVAL_EXCEPTIONS
     | frozenset(
     ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
     for method in (

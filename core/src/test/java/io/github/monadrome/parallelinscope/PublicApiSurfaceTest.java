@@ -43,8 +43,6 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".SubmissionAwareBlockingQueue",
             BASE_PACKAGE + ".TaskBatchResult",
             BASE_PACKAGE + ".TaskExitObservation",
-            BASE_PACKAGE + ".ThreadPoolStarvationObservationScope",
-            BASE_PACKAGE + ".ThreadPoolStarvationReport",
             BASE_PACKAGE + ".TaskGroupResult",
             BASE_PACKAGE + ".TaskId",
             BASE_PACKAGE + ".TaskKey",
@@ -56,9 +54,7 @@ class PublicApiSurfaceTest {
             BASE_PACKAGE + ".ExecutorWaitReport$Component",
             BASE_PACKAGE + ".ParRuntime$Builder",
             BASE_PACKAGE + ".TaskId$GroupRun",
-            BASE_PACKAGE + ".TaskId$Unit",
-            BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
-            BASE_PACKAGE + ".ThreadPoolStarvationReport$Status"));
+            BASE_PACKAGE + ".TaskId$Unit"));
 
     @Test
     void publicTypesMatchTheReviewedApi() throws Exception {

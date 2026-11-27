@@ -1036,39 +1036,30 @@ class TaskGroupAdoptedFutureTest {
     }
 
     @Test
-    void aSourceQueuedBehindItsOwnWaiterIsSeenByBothStarvationSignalsAndEndsAtTheDeadline() throws Exception {
+    void aSourceQueuedBehindItsOwnWaiterRecordsAWaitCycleAndEndsAtTheDeadline() {
         ExecutorService io = pool(1);
         ParRuntime runtime = runtime(io);
         ListeningExecutorService listening = MoreExecutors.listeningDecorator(io);
         AtomicReference<ListenableFuture<String>> queued = new AtomicReference<>();
         TaskKey<String> loaded = TaskKey.named("loaded");
-        Duration interval = Duration.ofMillis(20);
-        ThreadPoolStarvationReport report;
-        TaskBatchResult<ScopeTermination> outer;
 
-        try (ThreadPoolStarvationObservationScope observation = runtime.openThreadPoolStarvationObservation(interval)) {
-            ListenableFuture<ThreadPoolStarvationReport> reportFuture = observation.reportFuture();
-            outer = io(runtime)
-                    .map(
-                            Collections.singletonList("outer"),
-                            value -> {
-                                ListenableFuture<String> source = listening.submit(() -> value);
-                                queued.set(source);
-                                return runtime.group("inner", Duration.ofMillis(400))
-                                        .adopt(loaded, io(runtime), source)
-                                        .runAll()
-                                        .termination();
-                            },
-                            BatchOptions.timeout("outer", TIMEOUT));
-            observation.close();
-            report = Objects.requireNonNull(Futures.getDone(reportFuture));
-        }
+        TaskBatchResult<ScopeTermination> outer = io(runtime)
+                .map(
+                        Collections.singletonList("outer"),
+                        value -> {
+                            ListenableFuture<String> source = listening.submit(() -> value);
+                            queued.set(source);
+                            return runtime.group("inner", Duration.ofMillis(400))
+                                    .adopt(loaded, io(runtime), source)
+                                    .runAll()
+                                    .termination();
+                        },
+                        BatchOptions.timeout("outer", TIMEOUT));
 
         assertThat(outer.valuesOrThrow())
                 .allSatisfy(scope ->
                         TerminationAssertions.assertScopeCancelled(scope, CancellationReason.Kind.DEADLINE_EXCEEDED));
         assertThat(Objects.requireNonNull(queued.get()).isCancelled()).isTrue();
-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION);
         assertThat(runtime.executorWaitReport().cyclicComponents()).hasSize(1);
     }
 }

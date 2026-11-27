@@ -23,7 +23,7 @@ Par databasePar = global.par(ParId.of("database"));
 
 条目以 `ParId` 为键：`ParId` 是不可变值类型，构造时一次校验（非 null、非空白，按原样使用——不做 trim 或大小写规范化），可以声明为常量复用。id 是逻辑查找键，不是资源身份——物理线程池由 `ExecutorIdentity` 按对象引用判定，两个 id 可以有意共享同一个执行器。`Par.id()` 返回该条目的 id。
 
-id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定和构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 会在已准入运行排空、饥饿观测关闭后释放内部 timer、timeout-action 和采样服务，绝不会关闭已注册执行器。队列清理由执行器所有者负责。
+id 在构建期注册；`build()` 后其**拓扑**（id 到执行器的绑定和构建时的策略）不可变，未知 id 的 `par(id)` 会失败。注册的执行器属于调用方：关闭 `ParRuntime` 会在已准入运行排空后释放内部 timer 和 timeout-action 服务，绝不会关闭已注册执行器。队列清理由执行器所有者负责。
 
 注册时还会校验每个执行器的契约并读取其结构用于阻塞风险检测：请注册物理池而非装饰器，并避免会静默丢弃任务的拒绝策略。具体规则见[执行器注册](reference/executor-registration.md)。
 
@@ -284,9 +284,8 @@ TaskGroupResult<Page> result = global
   仅用 `ClosingFuture.from(future)` 不会关闭普通 future 的返回值。
 - `adopt(key, producerPar, future)` 声明完成该 future 的注册执行器。组由某个任务代码运行时，这次等待像 `par`
   成员一样进入[执行器等待报告](reference/diagnostics.md#nested-observation)：在 `io` 池上收养由 `io` 池完成的 future 是自环。只在该
-  执行器确实完成这个 future 时声明生产者；不声明则不记录等待。「观测直接提交的工作」照常对生产者池采样，
-  因此排在等待者自己身后的 future 会同时表现为等待环与 `POTENTIAL_STARVATION`，组则在 deadline 处以
-  `TIMEOUT` 结束。
+  执行器确实完成这个 future 时声明生产者；不声明则不记录等待。因此排在等待者自己身后的
+  future 会表现为等待环，组则在 deadline 处以 `TIMEOUT` 结束。
 
 收养成员不运行任何执行：不提交任务，也不回放 TTL 上下文。
 
@@ -304,7 +303,7 @@ TaskGroupResult<Page> result = global
 | 逻辑终止 | `ImmediateResult.termination()` 冻结成功、失败或取消原因。 |
 | 执行退出 | `executionExitConfirmed()` 表示直接任务代码已经退出，或已原子确定不会启动。 |
 | 退出观测 | `TaskExitObservation<T>` 在 Future 终态且确认执行退出后发布最终计时和 outcome 遥测。 |
-| runtime 静止 | `ParRuntime.awaitQuiescence(...)` 等待已关闭 runtime 的已准入执行和观测作用域排空。 |
+| runtime 静止 | `ParRuntime.awaitQuiescence(...)` 等待已关闭 runtime 的已准入执行排空并退出。 |
 
 因此 Future 完成本身不能授权释放与任务代码共享的资源；释放前使用
 `executionExitConfirmed()`，需要最终计时或队列遥测时读取 `TaskExitObservation`。
@@ -437,10 +436,8 @@ runtime 关闭且 awaitQuiescence 成功后，全部已接纳执行才确认退�
 停机时有三方各自收尾：runtime 停止接纳新工作并释放自身服务，runtime 等待已接纳执行退出，
 应用关闭自己注册的执行器。按这个顺序执行：
 
-等待静止前先关闭所有线程池饥饿观测 scope。
-
 ```java
-runtime.close();                                      // 拒绝新工作；观测关闭后释放服务
+runtime.close();                                      // 拒绝新工作；已准入运行排空后释放服务
 try {
     runtime.awaitQuiescence(Duration.ofSeconds(30));  // 等待全部已接纳 taskCode 退出
 } catch (InterruptedException interrupted) {
@@ -451,23 +448,20 @@ try {
 }
 ```
 
-`close()` 幂等，且绝不关闭已注册的执行器。只要有打开的线程池饥饿观测，框架的 timer、
-timeout-action 和采样 scheduler 会保留到报告发布；`snapshot().activeObservations()` 与
-`inFlight()` 提供打开数量；观测全部关闭后才
-释放服务，也不等待在途执行。`awaitQuiescence(Duration)` 会同时等待这些观测、future 排空和
-执行退出，但它必须先 `close()`：不先关闭就只是把超时等满，超时返回 false。非正的超时只做一次
+`close()` 幂等，且绝不关闭已注册的执行器，也不等待在途执行。`awaitQuiescence(Duration)` 会同时
+等待 future 排空和执行退出，但它必须先 `close()`：不先关闭就只是把超时等满，超时返回 false。非正的超时只做一次
 检查、不等待，直接报告当前状态。它可被中断，被中断时恢复标志并继续停机。中断检查先于状态答复，
 即使在已经静止的 runtime 上用非正超时调用也一样：已被中断的调用方看到的是 `InterruptedException`，
 而不是 `true`。已注册执行器仍归应用，应在静止之后由应用用 `shutdown()`、`shutdownNow()` 或容器
 自身的生命周期停止。
 
-不要把 `inFlight()` 当成执行计数。它统计正在装配批次的准入数、尚未排空的批次和打开的饥饿观测——
-future 级跟踪加诊断作用域，不是仍在用户代码里的执行。运行中被取消的任务会立即结束其 future，
+不要把 `inFlight()` 当成执行计数。它统计正在装配批次的准入数和尚未排空的批次——
+future 级跟踪，不是仍在用户代码里的执行。运行中被取消的任务会立即结束其 future，
 而执行可能仍在回卷，因此 `inFlight()` 可能已经归零而某个执行仍在运行。真正同时等待 future
-排空、执行退出和观测关闭的是 `awaitQuiescence`。
+排空和执行退出的是 `awaitQuiescence`。
 
 当 `awaitQuiescence` 返回 false 时，`ParRuntime.snapshot()` 可以解释原因：把 `closed`、进行中
-准入数、未排空批次数、打开的观测数和未退出执行信号数（五项）采样成一份诊断记录。各计数独立读取，快照不可线性化
+准入数、未排空批次数和未退出执行信号数（四项）采样成一份诊断记录。各计数独立读取，快照不可线性化
 ——用于日志诊断，不要据此分支。
 
 组失败时，`TaskGroupResult.failedTaskResult()` 直接返回被记录失败任务的 `ImmediateResult`
@@ -543,7 +537,6 @@ TaskBatchResult<Report> reports = cpuPar.map(customers, customer -> {
 运行时的诊断能力只观测、不改变行为；完整契约见[诊断与观测](reference/diagnostics.md)：
 
 - [执行器等待报告](reference/diagnostics.md#nested-observation)——记录注册池之间的同步等待，成环时告警。
-- [饥饿观测](reference/diagnostics.md#observe-direct-executor-work)——有界采样作用域，检测同时跑直接提交工作的池停滞。
 - [完成观测](reference/diagnostics.md#completion-snapshots)——冻结在批次与组结果中的每任务计时与结果遥测。
 
 ## 清理已取消的排队任务

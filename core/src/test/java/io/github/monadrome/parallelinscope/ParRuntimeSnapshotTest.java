@@ -37,7 +37,6 @@ class ParRuntimeSnapshotTest {
         assertThat(snapshot.closed()).isFalse();
         assertThat(snapshot.activeAdmissions()).isZero();
         assertThat(snapshot.undrainedBatches()).isZero();
-        assertThat(snapshot.activeObservations()).isZero();
         assertThat(snapshot.unexitedExecutionSignals()).isZero();
         assertThat(snapshot.toString()).contains("closed=false");
     }
@@ -46,11 +45,10 @@ class ParRuntimeSnapshotTest {
     void everySampledCounterIsReadableFromTheSnapshot() {
         // The snapshot is a value carrier: each field must survive the trip into the sample, so an
         // operator reading a non-zero counter during a stuck drain sees the real value.
-        ParRuntimeSnapshot snapshot = new ParRuntimeSnapshot(true, 3, 2, 1, 4);
+        ParRuntimeSnapshot snapshot = new ParRuntimeSnapshot(true, 3, 2, 4);
         assertThat(snapshot.closed()).isTrue();
         assertThat(snapshot.activeAdmissions()).isEqualTo(3);
         assertThat(snapshot.undrainedBatches()).isEqualTo(2);
-        assertThat(snapshot.activeObservations()).isEqualTo(1);
         assertThat(snapshot.unexitedExecutionSignals()).isEqualTo(4);
     }
 

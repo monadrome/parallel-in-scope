@@ -94,7 +94,7 @@ pit_timeout_factor="${PIT_TIMEOUT_FACTOR:-1.25}"
 batch_classes() {
   case "$1" in
     A)
-      printf '%s' "$package.TaskId*,$package.ParId*,$package.TaskKey*,$package.TaskOutcome*,$package.ExecutionPhase,$package.UnitSpec*,$package.Validation*,$package.BatchOptions*,$package.TaskOptions*,$package.ImmediateResult*,$package.TaskObservation*,$package.ExecutorWaitReport*,$package.ParRuntimeSnapshot*,$package.ThreadPoolStarvationReport*,$package.ExecutorIdentity*"
+      printf '%s' "$package.TaskId*,$package.ParId*,$package.TaskKey*,$package.TaskOutcome*,$package.ExecutionPhase,$package.UnitSpec*,$package.Validation*,$package.BatchOptions*,$package.TaskOptions*,$package.ImmediateResult*,$package.TaskObservation*,$package.ExecutorWaitReport*,$package.ParRuntimeSnapshot*,$package.ExecutorIdentity*"
       ;;
     B)
       printf '%s' "$package.CancellationToken*,$package.Deadlines*,$package.LeanCancellationException*,$package.TokenOutcomes*,$package.ExecutionRecord*,$package.ExecutionExitTracker*,$package.ExecutionPhaseHintFuture*,$package.TaskFuture,$package.TaskCompletion*"
@@ -106,7 +106,7 @@ batch_classes() {
       printf '%s' "$package.Par,$package.Par\$1,$package.ParRuntime*,$package.SlidingWindowSubmitter*,$package.TaskSubmissions*,$package.SubmissionScope*,$package.SubmissionException*"
       ;;
     E)
-      printf '%s' "$package.Task,$package.TaskUnit*,$package.TaskNode*,$package.TaskExecutionContext*,$package.ScopedCallable*,$package.SubmissionAwareBlockingQueue*,$package.FutureInspector*,$package.ExecutorRuntime*,$package.ExecutorWaitGraph*,$package.ThreadPoolStarvationObservationScope*"
+      printf '%s' "$package.Task,$package.TaskUnit*,$package.TaskNode*,$package.TaskExecutionContext*,$package.ScopedCallable*,$package.SubmissionAwareBlockingQueue*,$package.FutureInspector*,$package.ExecutorRuntime*,$package.ExecutorWaitGraph*"
       ;;
   esac
 }

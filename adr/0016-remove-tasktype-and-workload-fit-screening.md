@@ -98,6 +98,8 @@ Costs and risks:
 - A blocking task inside a compute pool again has no library signal. The executor wait graph still
   records synchronous waits between registered pools, and starvation observation still samples
   saturation without progress, but neither sees a blocking call that is not a library wait.
+  (Note, 2026-11-27: starvation observation was later removed; the executor wait graph remains.
+  See "Thread-pool starvation observation removed" in `design/decision-log.md`.)
 - Users who relied on the mismatch warnings lose them and must express pool purpose in their own
   types.
 

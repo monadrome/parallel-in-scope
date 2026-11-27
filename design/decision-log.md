@@ -442,8 +442,42 @@ workload-fit screening contract, which bind any reintroduced screen:
 - Sharing state or a status with starvation observation: the two signals share no field, and a
   merged status forced an invented priority between them.
 
-Starvation observation's rejected alternatives are in
-[thread-pool-starvation-observation.md](thread-pool-starvation-observation.md).
+### Thread-pool starvation observation removed (2026-11-27, maintainer decision)
+
+`ParRuntime.openThreadPoolStarvationObservation(Duration)`, `ThreadPoolStarvationObservationScope`,
+`ThreadPoolStarvationReport`, and `ParRuntimeSnapshot.activeObservations()` were removed after
+shipping in 0.4.0. The scope sampled registered `ThreadPoolExecutor` counters (pool size, active
+count, queue depth, completed tasks) and reported `POTENTIAL_STARVATION` when a pair of samples one
+interval apart showed every worker busy, queued work, and no completions. Reasons for removal:
+
+- It watched work the library does not run. Its target was direct `execute` submissions, which
+  record no wait; work admitted through `Par`, `TaskGroup`, and `TaskBatch` already has the exact
+  executor wait graph ([task-graph.md](task-graph.md)).
+- Executor metrics (Micrometer's `ExecutorServiceMetrics`, JMX, APM agents) export the same counters
+  continuously and with alerting. The scope published only at close, so it could not alert on a
+  request that never returned.
+- Correct use needed a control thread separate from request workers (and from submission under
+  `CallerRunsPolicy`), a window of several intervals, and handling of `SAMPLING_FAILED`, early-close
+  `NO_ISSUE`, and sampling `Error` after publication. Forgetting to close it kept the runtime's
+  services alive after `close()` and held `awaitQuiescence` false.
+- Its counter-only signal had pool-wide false positives (slow library tasks count) and false
+  negatives (empty queue with all workers blocked, zero-capacity handoff pools, partial worker
+  deadlocks), so `NO_ISSUE` never meant healthy.
+
+Rejected alternatives:
+
+- Keeping it as an opt-in scope: opt-in did not remove its cost to everyone. The runtime kept a
+  dedicated sampling scheduler, and `close()`, `inFlight()`, `snapshot()`, and `awaitQuiescence`
+  each carried an observation term.
+- Replacing it with a metrics binding (for example a Micrometer `MeterBinder`): it would add a
+  dependency for gauges that existing executor instrumentation already provides.
+- Harvested from the retired contract, binding any reintroduced pool sampler: thread-stack
+  inspection instead of counters (Java 8 exposes no stable worker-to-wait-object mapping, and stack
+  heuristics are version- and framework-specific); a general submit/wait wrapper, an executor
+  decorator, a future wrapper, or an explicit wait-edge API to cover direct work (each creates a
+  second execution pipeline against [extension-and-wrapping.md](extension-and-wrapping.md));
+  automatic timeout close (it hides scope lifetime ownership); and a bounded close while a sampler
+  still mutates evidence (it needs a separate publication protocol).
 
 ### Task progress reporting rejected (2026-11-15, user decision)
 
@@ -455,10 +489,10 @@ request) is harvested into this entry and the graveyard.
 - A synchronous scope has no outside observer: `map`/`runAll` return on the calling thread at
   settlement, so frozen terminal observations already answer "what happened", and a live stream
   only serves the asynchronous-watcher shape the library removes by design.
-- Existing observation layers cover the real needs: terminal snapshots, starvation observation as
-  a bounded no-progress risk signal, the executor wait graph, and checkpoint cancellation
-  acknowledgement. A progress stream would be a third mechanism needing subscription, replay,
-  overflow, and observer-executor contracts.
+- Existing observation layers cover the real needs: terminal snapshots, the executor wait graph,
+  and checkpoint cancellation acknowledgement, with pool-level no-progress left to executor
+  metrics. A progress stream would be another mechanism needing subscription, replay, overflow,
+  and observer-executor contracts.
 - Progress is business semantics (what the total means, whether skips or retries count); the task
   code is the only user extension point, and publishing counters from inside it is strictly more
   accurate.

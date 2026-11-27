@@ -147,11 +147,9 @@ TaskGroupResult<Page> result = runtime.group("page", Duration.ofSeconds(2))
   verify; without a declaration the node has no executor and MUST NOT form edges. The producer
   must belong to the same runtime.
 - A7 Adopted members undergo no admission diagnostics (there is no library-executed
-  execution). Thread-pool starvation observation samples
-  producer pools as usual: adoption MUST NOT wrap, submit, cancel (other than the source), or
-  reorder tasks on the pool; when the source is queued on the waiter's own pool, the two
-  signals complement each other — the wait graph shows the self-loop, sampling shows
-  `POTENTIAL_STARVATION`, and the group ends as `TIMEOUT` per its deadline and cancels the
+  execution). Adoption MUST NOT wrap, submit, cancel (other than the source), or reorder tasks
+  on the producer pool; when the source is queued on the waiter's own pool, the wait graph
+  shows the self-loop, and the group ends as `TIMEOUT` per its deadline and cancels the
   source.
 
 ## 3. Rejected alternatives
@@ -202,8 +200,8 @@ combines, failure and deadline cancellation, direct member cancellation, cancell
 admission, late sources ignoring cancellation, combine success gating, ordinary values not
 being closed by the group, settle times, admission failure and missing inherit deadline,
 declaration-phase validation, Guava's `ListenableFutureTask`/`FluentFuture`/`ClosingFuture`
-shapes, same-pool self-loops with a producer and no edges without one, and the wait graph plus
-starvation observation both being visible when the source is queued on the waiter's own pool.
+shapes, same-pool self-loops with a producer and no edges without one, and the wait-graph
+self-loop plus deadline cancellation when the source is queued on the waiter's own pool.
 `AdoptedSourceTest` covers abandoning a prepared source and abandonment after connection.
 `verification/maven-central-consumer` covers adopted members on the Java 8 runtime.
 

@@ -31,7 +31,7 @@ constants and reused. An id is a logical lookup key, not a resource identity —
 is identified by `ExecutorIdentity` through object reference, and two ids may deliberately share
 one executor. `Par.id()` returns the entry's id.
 
-Ids are registered at build time. The topology — the id-to-executor bindings and policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer, timeout-action, and starvation-sampling services after admitted runs drain and open starvation observations close, never a registered executor. Queue cleanup belongs to the executor owner.
+Ids are registered at build time. The topology — the id-to-executor bindings and policies as built — is immutable after `build()`, and `par(id)` fails for an unknown id. The supplied executors are borrowed: closing `ParRuntime` shuts down its internal timer and timeout-action services after admitted runs drain, never a registered executor. Queue cleanup belongs to the executor owner.
 
 Registration also checks each executor's contract and reads its structure for blocking-risk
 detection: register the physical pool rather than a decorator, and avoid rejection handlers that
@@ -325,10 +325,9 @@ TaskGroupResult<Page> result = global
 - `adopt(key, producerPar, future)` names the registered executor that completes the future. When a
   task execution runs the group, that wait enters the [executor wait report](reference/diagnostics.md#observe-nested-work) like a `par`
   member's: adopting, on pool `io`, a future that pool `io` completes is a self-loop. Name a producer
-  only when that executor really completes the future. Without a producer no wait is recorded. The
-  [direct-work observation](reference/diagnostics.md#observe-direct-executor-work) samples the producer pool as usual, so a
-  future queued behind its own waiter shows up as both a wait cycle and `POTENTIAL_STARVATION` while
-  the group ends at its deadline with a deadline-exceeded cancellation.
+  only when that executor really completes the future. Without a producer no wait is recorded. A
+  future queued behind its own waiter therefore shows up as a wait cycle while the group ends at its
+  deadline with a deadline-exceeded cancellation.
 
 No execution runs for an adopted member: nothing is submitted and no TTL context is replayed.
 
@@ -346,7 +345,7 @@ The lifecycle terms answer different questions:
 | Logical termination | `ImmediateResult.termination()` freezes the success, failure, or cancellation cause. |
 | Execution exit | `executionExitConfirmed()` says direct task code has exited or was atomically prevented from starting. |
 | Exit observation | `TaskExitObservation<T>` publishes final timing and outcome telemetry after the future is terminal and execution exit is known. |
-| Runtime quiescence | `ParRuntime.awaitQuiescence(...)` waits for a closed runtime's admitted executions and observation scopes. |
+| Runtime quiescence | `ParRuntime.awaitQuiescence(...)` waits for a closed runtime's admitted executions to drain and exit. |
 
 A completed Future therefore does not by itself authorize releasing resources shared with task code.
 Use `executionExitConfirmed()` for that gate, and use `TaskExitObservation` when you need final
@@ -504,10 +503,8 @@ Three separate owners stop at shutdown: the runtime stops accepting work and rel
 services, the runtime waits for admitted executions, and the application closes the executors it
 registered. Order them that way:
 
-Close all starvation observation scopes before waiting for quiescence.
-
 ```java
-runtime.close();                                      // reject new work; release services after observations close
+runtime.close();                                      // reject new work; release services after admitted runs drain
 try {
     runtime.awaitQuiescence(Duration.ofSeconds(30));  // wait for every admitted task execution to exit
 } catch (InterruptedException interrupted) {
@@ -518,26 +515,23 @@ try {
 }
 ```
 
-`close()` is idempotent and never shuts down a registered executor. Open starvation observations
-keep the timer, timeout-action, and starvation-sampling services alive until their reports publish;
-`snapshot().activeObservations()` and `inFlight()` expose the open count. `awaitQuiescence(Duration)` waits for those
-observations as well as admitted executions, but only after `close()`: without it the call simply waits
-out its timeout, and it returns false on timeout. A non-positive timeout performs a single check
+`close()` is idempotent and never shuts down a registered executor. `awaitQuiescence(Duration)` waits
+for admitted executions, but only after `close()`: without it the call simply waits out its timeout,
+and it returns false on timeout. A non-positive timeout performs a single check
 without waiting and reports the current state. It is interruptible, so restore the flag and continue shutdown. The
 interruption check comes before the state answer, including on an already-quiescent runtime with a
 non-positive timeout: a caller that was interrupted observes `InterruptedException`, not `true`.
 Registered executors remain the application's to stop, after quiescence, with `shutdown()`,
 `shutdownNow()`, or the container's own lifecycle.
 
-Do not read `inFlight()` as an execution count. It counts admissions setting up a batch, undrained
-batches, and open starvation observations — future-level tracking plus diagnostic scopes, not executions
-still inside user code. A task cancelled mid-run settles its future immediately while its execution may
+Do not read `inFlight()` as an execution count. It counts admissions setting up a batch and undrained
+batches — future-level tracking, not executions still inside user code. A task cancelled mid-run settles its future immediately while its execution may
 still be unwinding, so `inFlight()` can reach zero while an execution runs. `awaitQuiescence` is the one
-that waits for both the future drain and execution exit, and it also waits for every observation scope to close.
+that waits for both the future drain and execution exit.
 
 When `awaitQuiescence` returns false, `ParRuntime.snapshot()` explains why: it samples `closed`,
-active admissions, undrained batches, active starvation observations, and unexited execution signals into
-a five-field diagnostic record. The counters are read independently, so the snapshot is not
+active admissions, undrained batches, and unexited execution signals into
+a four-field diagnostic record. The counters are read independently, so the snapshot is not
 linearizable — log it, don't branch on it.
 
 For a failed group, `TaskGroupResult.failedTaskResult()` returns the recorded failure's
@@ -628,8 +622,6 @@ The runtime's diagnostics observe without changing behavior; their full contract
 
 - [Executor wait report](reference/diagnostics.md#observe-nested-work) — records which registered
   pools synchronously wait on which, warning on cycles.
-- [Starvation observation](reference/diagnostics.md#observe-direct-executor-work) — a bounded
-  sampling scope detecting stalled pools that also run direct submissions.
 - [Final observations](reference/diagnostics.md#completion-snapshots) — per-task timing and outcome
   telemetry frozen into batch and group results.
 
