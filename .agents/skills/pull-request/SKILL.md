@@ -15,13 +15,15 @@ the diff and CI cannot show: intent, decisions, risk, and where to look. A one-f
 sentences; a public API or contract change gets every section that applies, each a few lines.
 Process detail belongs in commit messages, the delivery ledger, and review runs: session-internal
 labels (option letters, decision codes), run ids, retry and timeout stories, model routing,
-per-batch counts, and implementer tooling.
+per-batch counts, and implementer tooling. Every verification status and evidence link stays.
 
-PRs carry library changes. Harness changes (skills, agent instructions, workflows, review and
-verification tooling) are delivered directly to the development line without a PR. Create a PR
-only when the user asks for one; update or comment on an existing PR only for the change it
-carries; merging always needs explicit maintainer authorization (root `AGENTS.md` Permissions).
-Writing the draft locally and reading PR state need no authorization.
+PRs carry library changes. With write access, harness changes (skills, agent instructions,
+workflows, review and verification tooling) go directly to the development line without a PR.
+Create a PR when the user asks for one or Delivery And CI in
+[workflow](../project-delivery/references/workflow.md) requires one: a contributor without write
+access (`CONTRIBUTING.md`) or the unattended issue runner. Update or comment on an existing PR only
+for the change it carries; merging always needs explicit maintainer authorization (root
+`AGENTS.md` Permissions). Writing the draft locally and reading PR state need no authorization.
 
 ## 1. Gather the record
 
@@ -38,8 +40,9 @@ Collect each fact from a source a reviewer can open:
   "Check public API changes" summary) whenever the public surface changes: a public type, its
   supertypes, or a public or protected member.
 - **Verification**: every check that ran, its actual status, and the reason for each non-pass;
-  PIT per the compact record in `verification/pit.md`; each review seat with its model and
-  status.
+  PIT per the compact record in `verification/pit.md`; review seats with their models and
+  statuses, recorded in the delivery ledger. The PR states how many reviewers ran, that their
+  models differ from the implementer's and each other, and the outcome, and links the ledger.
 - **Open asks**: approvals (protected-file exceptions, decisions), pending or unauthorized gates.
 - **Current body** (existing PR): `gh pr view <n> --json title,body,updatedAt,reviews,comments`. Keep
   content a maintainer added unless they asked for it to go, and note `updatedAt` for step 5.
@@ -86,11 +89,13 @@ Run the ZCode pass required by Issue Tracking in
 by a timeout that ends ZCode's whole process group (macOS has no `timeout`):
 
 ```bash
+case "$DRAFT_ABS" in /*) ;; *) exit 1 ;; esac
 test -f "$DRAFT_ABS" || exit 1
 ZDIR="$(mktemp -d)" && cd "$ZDIR"
-perl -e '$t=shift; $p=fork; if(!$p){setpgrp(0,0); exec @ARGV}
+perl -e '$t=shift; defined($p=fork) or die "fork: $!";
+  if($p==0){setpgrp(0,0) or die "setpgrp: $!"; exec @ARGV or die "exec: $!"}
   $SIG{ALRM}=sub{kill "TERM",-$p; sleep 5; kill "KILL",-$p; exit 124};
-  alarm $t; waitpid($p,0); exit($?>>8)' 900 \
+  alarm $t; waitpid($p,0); exit($? & 127 ? 128+($? & 127) : $?>>8)' 900 \
   zcode -p "<instructions>" --attach "$DRAFT_ABS" > out.md
 ```
 
@@ -99,18 +104,19 @@ short form above, keeping the headings, code blocks, statuses, paths, and identi
 
 Diff the result against the draft and read every changed sentence. Accept it only when it
 describes this PR (its branch identifiers and title terms are present), every section survives,
-code blocks are identical, each kept status, number, identifier, and link is unchanged, every
-dropped detail is process detail, and each rewritten sentence keeps its meaning. Otherwise retry
+code blocks are identical, every verification status and evidence link survives unchanged, each
+kept number and identifier is unchanged, every dropped detail is process detail, and each rewritten sentence keeps its meaning. Otherwise retry
 once; if that also fails, post the draft and say in your report that the pass did not complete.
 
 ## 5. Post and confirm
 
 - New PR: `gh pr create --base <development line> --head <branch> --title <title> --body-file <file>`,
   with `--draft` while a required gate (assurance, a required review, CI) is pending or blocked.
-- Existing PR: just before posting, read `gh pr view <n> --json title,body,updatedAt` again. If
-  the title or body changed since step 1, merge that change into the draft first. Then
-  `gh pr edit <n> --title <title> --body-file <file>`. `gh` has no conditional update, so read the
-  PR again right after posting and restore anything a concurrent edit lost. When reviews or
+- Existing PR: just before posting, read `gh pr view <n> --json title,body,updatedAt` again. Post
+  only when `updatedAt` still equals the step-1 value; otherwise merge the new title or body
+  into the draft and read again. `gh` has no conditional update, so a race in the last instant
+  remains possible; GitHub keeps the description's edit history for recovery. Then
+  `gh pr edit <n> --title <title> --body-file <file>`. When reviews or
   comments already exist, also post `gh pr comment <n> --body-file <summary>` naming what changed since the
   last review: a body edit notifies no one.
 - Read the posted body back with `gh pr view <n> --json title,body,isDraft` and compare it with

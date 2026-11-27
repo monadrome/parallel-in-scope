@@ -92,7 +92,8 @@ evidence, then remove the worktree and delete its branch:
   from the rebase. Root approvals still govern releases, deployment, and `main` integration.
 - **Named branch or existing PR:** push a separate branch only when the user names it or an
   open PR already carries the work. Update the PR description and verification for its final
-  commits with the [pull-request skill](../../pull-request/SKILL.md). Contributors without write access open a PR per `CONTRIBUTING.md`.
+  commits with the [pull-request skill](../../pull-request/SKILL.md). Contributors without write
+  access open a PR per `CONTRIBUTING.md`.
 - **Unattended issue runner:** in `scripts/issue-agent.py` sessions, commit locally only. The
   runner pushes `auto/issue-*`, opens a PR into the current development line, and merges only
   after its own gates. Read `design/issue-automation.md`; this branch overrides direct push.
