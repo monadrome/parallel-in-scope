@@ -1,8 +1,7 @@
 # Group Members Adopting External Futures Contract
 
 > This document is the live contract for `adopt` group members: the motivation, cancellation,
-> value handoff, exit confirmation, the executor wait graph, and thread-pool starvation
-> observation. Historical source: `proposal:P0033`. The general rules for group declaration,
+> value handoff, exit confirmation, and the executor wait graph. Historical source: `proposal:P0033`. The general rules for group declaration,
 > token topology, and the synchronous exit remain held by
 > [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md),
 > [task-group-cancellation.md](task-group-cancellation.md), and [synchronous-scope-exit.md](synchronous-scope-exit.md).

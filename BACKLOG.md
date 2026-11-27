@@ -21,8 +21,9 @@ Each entry is a verification or maintenance task, not an open design question;
 entries harvested from reclassified proposals cite the retired proposal id.
 
 - Re-verify the bare-vs-TTL-wrapper identity probe against the current
-  runtime-level executor wait graph: a same-pool NO_ISSUE report reflects
-  the identity contract, not the absence of starvation. Any change to the
+  runtime-level executor wait graph: one pool registered both bare and
+  TTL-wrapped is two executor identities, so a missing cycle between them
+  reflects the identity contract, not the absence of starvation. Any change to the
   resource-identity projection is a separate contract decision (was P0021).
 - Clarify borrowed-executor shutdown ordering (runtime close, awaitQuiescence,
   then pool shutdown) in user-facing docs before evaluating any fast

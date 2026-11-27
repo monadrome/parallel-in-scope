@@ -13,7 +13,7 @@
 
 parallel-in-scope builds on the thread pools and asynchronous tasks you already have. It gives those
 tasks a clearer, safer lifecycle: structured grouping, cooperative cancellation, fail-fast execution,
-context propagation, bounded scheduling, and thread-pool deadlock and starvation diagnostics.
+context propagation, bounded scheduling, and thread-pool deadlock diagnostics.
 
 ## Requirements
 
@@ -146,7 +146,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
 - Sliding-window submission with bounded concurrency
 - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
 - Frozen task observations: `completions()` / group `members()` and `terminal()` results
-- Thread-pool waiting-graph, deadlock, and starvation diagnostics
+- Thread-pool waiting-graph and deadlock diagnostics
 - Opt-in queue refusal with `rejectEnqueue` and `SubmissionAwareBlockingQueue`
 - Cycle detection across task and executor graphs
 - Queue extensions including `DrainingBlockingQueue` and `ResizableBlockingQueue`

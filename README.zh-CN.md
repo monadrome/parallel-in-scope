@@ -12,7 +12,7 @@
 > 从 `0.3.x` 升级请先阅读 [v0.4 迁移指南](docs/zh/migration-v0.4.md)。
 
 `parallel-in-scope` 建立在应用已有的线程池和异步任务之上，用来管理任务的提交、取消和结束。
-它提供结构化任务组、协作式取消、快速失败、上下文传播、有界调度，以及线程池死锁与饥饿诊断。
+它提供结构化任务组、协作式取消、快速失败、上下文传播、有界调度，以及线程池死锁诊断。
 
 ## 环境要求
 
@@ -125,7 +125,7 @@ Profile value = profile.terminalValueOrThrow();
 - 有界并发的滑动窗口提交
 - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
 - 冻结后的任务观测：`completions()`、组 `members()` 与 `terminal()` 结果
-- 线程池等待图、死锁和饥饿诊断
+- 线程池等待图与死锁诊断
 - 可选的入队拒绝：`rejectEnqueue` 配合 `SubmissionAwareBlockingQueue`
 - 任务图与执行器图的环路检测
 - 队列扩展：`DrainingBlockingQueue` 与 `ResizableBlockingQueue`
