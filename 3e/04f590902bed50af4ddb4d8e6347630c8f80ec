@@ -1,0 +1,24 @@
+CHANGELOG.md
+  s_c7971fb45429b8::t_e3582d8adecd8d 32-38,41-46
+  s_c7971fb45429b8::t_e10883dd242f7b 39-40
+core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+  s_c7971fb45429b8::t_de87f9e7a25319 393-394
+adr/0016-remove-tasktype-and-workload-fit-screening.md
+  s_c7971fb45429b8::t_5ddc886e3606d0 101-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+  "prompts": {},
+  "sessions": {
+    "s_c7971fb45429b8": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_8c751024-ded5-4ebb-ad1c-2717b931220e",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
