@@ -1,0 +1,23 @@
+batch: focused-par-runtime-final
+started: 2026-11-27T15:59:52Z
+commit: d9105962c299edb76b4b29c2a5a2ce4644ff46eb
+working-tree-status:
+?? .agents/skills/contract-first-assurance/scripts/__pycache__/
+?? .contract-first-assurance/
+java-home: /opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home
+openjdk version "25.0.4.1" 2026-08-18
+OpenJDK Runtime Environment Homebrew (build 25.0.4.1)
+OpenJDK 64-Bit Server VM Homebrew (build 25.0.4.1, mixed mode, sharing)
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/homebrew/Cellar/maven/3.9.11/libexec
+Java version: 25.0.4.1, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home
+scope: targetClasses=io.github.monadrome.parallelinscope.ParRuntime* targetTests=io.github.monadrome.parallelinscope.*
+mutators: CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS
+pit-threads: 8
+pit-timeout-constant: 60000
+pit-timeout-factor: 1.25
+no-history-input: true
+command: mvn -o -Ppitest -pl core clean test-compile org.pitest:pitest-maven:1.30.1:mutationCoverage -DtargetClasses=io.github.monadrome.parallelinscope.ParRuntime* -DtargetTests=io.github.monadrome.parallelinscope.* -Dmutators=CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,INCREMENTS,INVERT_NEGS,NULL_RETURNS,FALSE_RETURNS,TRUE_RETURNS,PRIMITIVE_RETURNS,EMPTY_RETURNS,VOID_METHOD_CALLS -Dpitest.threads=8 -Dpitest.timeoutConstant=60000 -Dpitest.timeoutFactor=1.25
+finished: 2026-11-27T16:08:31Z
+exit-status: 0
+mutations-xml-archived: true
