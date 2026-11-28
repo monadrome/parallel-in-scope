@@ -134,6 +134,7 @@ Related decisions and engineering entries:
 ## In-flight proposals
 | Proposal | Summary |
 |---|---|
+| [proposal/P0041-registration-enqueue-refusal.md](proposal/P0041-registration-enqueue-refusal.md) | Declare `rejectEnqueue` once per registered executor instead of per unit; fail registration on a queue that cannot honor it; removal rejected because only refusal makes a `ThreadPoolExecutor` grow before queueing |
 | [proposal/P0040-batch-race-k.md](proposal/P0040-batch-race-k.md) | `Par.raceK`: the first `k` successful batch elements win; interrupt unfinished work on decision without treating a won race as a cancelled scope |
 | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | Unify Future/Result result handling with `FuturePath`'s staged API, hiding state queries and guaranteeing exhaustive handling of the four terminal stages (success, user failure, submission rejection, cancellation) through compile-time chained stages |
 | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | Complexity attention-routing evidence in gray evaluation; no quality score and no CI gate |
