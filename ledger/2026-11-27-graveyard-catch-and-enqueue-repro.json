@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "process-ledger/v1",
+  "id": "2026-11-27-graveyard-catch-and-enqueue-repro",
+  "date": "2026-11-27",
+  "topic": "graveyard-catch-and-enqueue-repro",
+  "routes": [
+    "docs",
+    "other"
+  ],
+  "implementer": {
+    "agent": "kiro",
+    "model": "claude-opus-5.5"
+  },
+  "change": {
+    "commits": [
+      "docs: stop the failure-policy workaround from swallowing cancellation",
+      "test: record what rejectEnqueue does for a nested batch on the same pool",
+      "docs: propose declaring enqueue refusal once per registered executor",
+      "test: wait for the inner result after a deadline-ended outer element",
+      "docs: say the broad catch misleads logs, not the element attribution"
+    ],
+    "files": 6,
+    "insertions": 249,
+    "deletions": 10
+  },
+  "reviews": {
+    "adversarial": [
+      {
+        "runId": "graveyard-catch-and-enqueue-repro-122da91f-20261128-025834-0e7270",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 585014,
+            "findings": {
+              "total": 1,
+              "adjudicated": 1,
+              "confirmed": 1,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 129734,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 1,
+          "adjudicated": 1,
+          "confirmed": 1,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 129734,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      },
+      {
+        "runId": "graveyard-catch-and-enqueue-repro-a39cc53e-20261128-030938-715f55",
+        "status": "completed",
+        "systems": [
+          {
+            "agent": "codex",
+            "status": "completed",
+            "attempts": 1,
+            "durationMs": 211884,
+            "findings": {
+              "total": 0,
+              "adjudicated": 0,
+              "confirmed": 0,
+              "rejected": 0,
+              "neutral": 0,
+              "uncertain": 0,
+              "pending": 0
+            },
+            "usage": {
+              "inputTokens": null,
+              "outputTokens": null,
+              "totalTokens": 61922,
+              "cost": null,
+              "currency": null
+            }
+          }
+        ],
+        "clusters": {
+          "total": 0,
+          "adjudicated": 0,
+          "confirmed": 0,
+          "rejected": 0,
+          "neutral": 0,
+          "uncertain": 0,
+          "pending": 0
+        },
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "totalTokens": 61922,
+          "systemsWithUsage": 1,
+          "systemsTotal": 1,
+          "costsByCurrency": []
+        }
+      }
+    ],
+    "refactoring": []
+  },
+  "gates": {
+    "failures": {
+      "mvn clean install": 1,
+      "contract-tests": 1
+    }
+  },
+  "pit": [
+    {
+      "source": "pit-graveyard-catch-and-enqueue-repro/mutations.xml",
+      "statuses": {
+        "KILLED": 9,
+        "SURVIVED": 1
+      },
+      "total": 10,
+      "inconclusive": 0,
+      "inconclusiveRate": 0.0
+    }
+  ],
+  "interventions": {
+    "asks": 0,
+    "corrections": 0
+  },
+  "usage": {
+    "totalTokens": null,
+    "cost": null,
+    "currency": null
+  },
+  "notes": "Failure-policy workaround docs fix, rejectEnqueue nested same-pool characterization test, proposal P0041; refactoring-review planned no detectors (no production change); the one PIT survivor is the equivalent capacity<=0 boundary."
+}
