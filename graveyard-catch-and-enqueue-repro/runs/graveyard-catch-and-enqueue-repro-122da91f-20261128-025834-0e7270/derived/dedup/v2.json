@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-122da91f-20261128-025834-0e7270",
+  "version": 2,
+  "createdAt": "2026-11-28T03:13:33.821Z",
+  "method": "imported",
+  "note": "imported: single finding",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "English wording"
+    }
+  ]
+}

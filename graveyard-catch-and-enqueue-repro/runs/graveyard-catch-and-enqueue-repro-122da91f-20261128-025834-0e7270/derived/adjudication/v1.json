@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-122da91f-20261128-025834-0e7270",
+  "version": 1,
+  "dedupVersion": 3,
+  "createdAt": "2026-11-28T03:13:40.113Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "zh text already distinguishes attribution from logs; English line conflated them; verified against the probe (element CANCELLED with ABORTED_BY_FAIL_FAST/DEADLINE_EXCEEDED). Fixed in follow-up commit.",
+      "confidence": 0.9
+    }
+  ]
+}

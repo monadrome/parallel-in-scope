@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-a39cc53e-20261128-030938-715f55",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T03:09:39.188Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/graveyard-catch-and-enqueue-repro",
+    "name": "graveyard-catch-and-enqueue-repro",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "head": "a39cc53e87c761a30013ac7138c403d728234082",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "to": "a39cc53e87c761a30013ac7138c403d728234082",
+    "label": "122da91f..a39cc53e"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "130c31245b26cf57691a9678a36bf47e1d4189b51b4151ad28ebe7d164d892c4",
+    "bytes": 3770,
+    "files": [
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java",
+        "status": "M",
+        "additions": 7,
+        "deletions": 3
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "7f706a52ee07195b2eb1e97629685f6f242ea57cb4ac2cc89cf13ab2376a10e7",
+    "bytes": 2509,
+    "source": "generated"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "9dcdc98f0714163710eef12241220695877e275e1140bdfae65ad2b866d8470c",
+    "bytes": 2095
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "a39cc53e87c761a30013ac7138c403d728234082",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

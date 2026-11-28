@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-122da91f-20261128-025834-0e7270",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T02:58:35.781Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/graveyard-catch-and-enqueue-repro",
+    "name": "graveyard-catch-and-enqueue-repro",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "head": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "to": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "label": "9cae3d5f..122da91f"
+  },
+  "objective": {
+    "subject": "docs: propose declaring enqueue refusal once per registered executor",
+    "body": "P0041 keeps the capability and rejects removal: only a refused offer makes a ThreadPoolExecutor grow before queueing, which pool topology cannot express. It proposes moving the per-unit flag to executor registration, failing registration on a queue that cannot honor it, and leaves the registration API shape, per-unit demand, and nested-only scoping open."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "6db4537f904f47f739e4b76d6388554f56a2b7d2ec5dac091d8dba12e8da3f8c",
+    "bytes": 18843,
+    "files": [
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java",
+        "status": "A",
+        "additions": 140,
+        "deletions": 0
+      },
+      {
+        "path": "design/AGENTS.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "design/proposal/P0041-registration-enqueue-refusal.md",
+        "status": "A",
+        "additions": 90,
+        "deletions": 0
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/zh/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 5
+      },
+      {
+        "path": "docs/zh/design/philosophy.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "bb647819dbac1e9e6f7bfbca8f828eb7ca72c6fefef5315a99b910e0a15cad8d",
+    "bytes": 2815,
+    "source": "generated"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

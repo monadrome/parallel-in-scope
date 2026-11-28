@@ -1,0 +1,53 @@
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java
+index 6313bb9c..3c4a2ac2 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java
+@@ -1,11 +1,13 @@
+ package io.github.monadrome.parallelinscope;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
++import static org.awaitility.Awaitility.await;
+ 
+ import java.time.Duration;
+ import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.RejectedExecutionHandler;
+ import java.util.concurrent.ThreadPoolExecutor;
+@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test;
+ class NestedSamePoolEnqueueRefusalTest {
+ 
+     private static final Duration DEADLINE = Duration.ofSeconds(2);
++    private static final Duration EXIT_WAIT = Duration.ofSeconds(10);
+ 
+     private final List<ExecutorService> pools = new ArrayList<>();
+     private final List<ParRuntime> runtimes = new ArrayList<>();
+@@ -77,9 +80,10 @@ class NestedSamePoolEnqueueRefusalTest {
+                     return outer;
+                 },
+                 BatchOptions.timeout("outer", DEADLINE));
+-        ImmediateResult<String> result = inner.get();
+-        assertThat(result).as("the outer element ran its inner batch").isNotNull();
+-        return result;
++        // A deadline ends the outer element by its token before its execution returns from the nested
++        // map, so the inner result is published after the outer map may already have returned.
++        await().atMost(EXIT_WAIT).until(() -> inner.get() != null);
++        return Objects.requireNonNull(inner.get());
+     }
+ 
+     private void assertReportsSelfLoop() {
+diff --git a/docs/en/design/idea-graveyard.md b/docs/en/design/idea-graveyard.md
+index 49d50b98..d907759b 100644
+--- a/docs/en/design/idea-graveyard.md
++++ b/docs/en/design/idea-graveyard.md
+@@ -8,7 +8,7 @@ This page records features we seriously considered but ultimately decided not to
+ 
+ ## Configurable failure policies
+ 
+-The library uses fail-fast cancellation as its batch contract. Adding `IGNORE`, `COLLECT`, and other policies would multiply result states and make cancellation ownership unclear. Applications that need partial success can catch the business exceptions they can degrade inside the task function and return an explicit domain result. Call `Checkpoints.checkpoint()` before degrading: fail-fast, deadlines, and `cancelOn` interrupt siblings, and a broad `catch (Exception e)` would count that cancellation as a downstream failure and clear the interrupt flag. Degraded elements count as successes in the batch result, so the application keeps its own failure count.
++The library uses fail-fast cancellation as its batch contract. Adding `IGNORE`, `COLLECT`, and other policies would multiply result states and make cancellation ownership unclear. Applications that need partial success can catch the business exceptions they can degrade inside the task function and return an explicit domain result. Call `Checkpoints.checkpoint()` before degrading: fail-fast, deadlines, and `cancelOn` interrupt siblings, and a broad `catch (Exception e)` would log that cancellation as a downstream failure and clear the interrupt flag, so the task code keeps running; the element itself is still attributed to the scope's cancellation. Degraded elements count as successes in the batch result, so the application keeps its own failure count.
+ 
+ ## Fluent task orchestration
+ 

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-a39cc53e-20261128-030938-715f55",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T03:09:39.204Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/graveyard-catch-and-enqueue-repro",
+    "name": "graveyard-catch-and-enqueue-repro"
+  },
+  "commits": {
+    "base": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "head": "a39cc53e87c761a30013ac7138c403d728234082",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v4-pro",
+        "revision": null,
+        "effort": "high",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 1500,
+      "reviewSeconds": 1200,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "7f706a52ee07195b2eb1e97629685f6f242ea57cb4ac2cc89cf13ab2376a10e7",
+    "contextJsonSha256": "9dcdc98f0714163710eef12241220695877e275e1140bdfae65ad2b866d8470c",
+    "diffSha256": "130c31245b26cf57691a9678a36bf47e1d4189b51b4151ad28ebe7d164d892c4",
+    "caseManifestSha256": "0b608bc5a4c27ad1fcc2c715d51fd925f035a56d0178ceb0bf7fa05078729288",
+    "promptSha256": "0f13b36665d0e58a0d4979ba7b5640d0d4ae5402bfceb55dab4886b1bbe87567"
+  },
+  "promptPath": "inputs/prompt.md"
+}

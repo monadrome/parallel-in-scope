@@ -1,0 +1,327 @@
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java
+new file mode 100644
+index 00000000..6313bb9c
+--- /dev/null
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/NestedSamePoolEnqueueRefusalTest.java
+@@ -0,0 +1,140 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.RejectedExecutionHandler;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import org.jspecify.annotations.Nullable;
++import org.junit.jupiter.api.AfterEach;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Records what {@code rejectEnqueue} does for the case it exists for: a nested batch on the pool whose
++ * only core worker is running the outer element.
++ *
++ * <p>Every pool here uses a {@link SubmissionAwareBlockingQueue} with spare capacity, so the only
++ * variable is the flag on the inner batch and the pool's maximum size and rejection handler. Without
++ * the flag the inner element queues behind the blocked worker until the inherited deadline expires.
++ * With it the refused offer makes {@code ThreadPoolExecutor.execute} grow a worker below the maximum,
++ * and at the maximum invoke the rejection handler: an abort ends the inner element as a submission
++ * failure before the deadline, and {@code CallerRunsPolicy} runs it on the blocked outer worker.
++ *
++ * <p>The executor wait graph classifies a pool by its queue capacity alone, so every case reports the
++ * same self-loop whether or not the flag removes the starvation.
++ */
++class NestedSamePoolEnqueueRefusalTest {
++
++    private static final Duration DEADLINE = Duration.ofSeconds(2);
++
++    private final List<ExecutorService> pools = new ArrayList<>();
++    private final List<ParRuntime> runtimes = new ArrayList<>();
++
++    @AfterEach
++    void shutDown() {
++        for (ParRuntime runtime : runtimes) {
++            runtime.close();
++        }
++        for (ExecutorService pool : pools) {
++            pool.shutdownNow();
++        }
++    }
++
++    private Par oneCoreWorker(int maximumPoolSize, RejectedExecutionHandler handler) {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(
++                1, maximumPoolSize, 1L, TimeUnit.MINUTES, new SubmissionAwareBlockingQueue<>(4), handler);
++        pools.add(pool);
++        ParRuntime runtime =
++                ParRuntime.builder().register(ParId.of("shared"), pool).build();
++        runtimes.add(runtime);
++        return runtime.par(ParId.of("shared"));
++    }
++
++    /**
++     * Runs one outer element that runs one inner element on the same pool, records the outer worker's
++     * thread name, and returns the inner result, whose value is the thread that ran the inner element.
++     */
++    private static ImmediateResult<String> nestedOnSamePool(
++            Par par, boolean rejectEnqueue, AtomicReference<@Nullable String> outerThread) {
++        AtomicReference<@Nullable ImmediateResult<String>> inner = new AtomicReference<>();
++        par.map(
++                Collections.singletonList("outer"),
++                outer -> {
++                    outerThread.set(Thread.currentThread().getName());
++                    ImmediateResult<String> result = par.map(
++                                    Collections.singletonList("inner"),
++                                    value -> Thread.currentThread().getName(),
++                                    BatchOptions.inheritTimeout("inner").rejectEnqueue(rejectEnqueue))
++                            .results()
++                            .get(0);
++                    inner.set(result);
++                    return outer;
++                },
++                BatchOptions.timeout("outer", DEADLINE));
++        ImmediateResult<String> result = inner.get();
++        assertThat(result).as("the outer element ran its inner batch").isNotNull();
++        return result;
++    }
++
++    private void assertReportsSelfLoop() {
++        assertThat(runtimes.get(0).executorWaitReport().cyclicComponents()).hasSize(1);
++    }
++
++    @Test
++    void withoutRefusalTheInnerElementQueuesBehindTheBlockedWorkerUntilTheDeadline() {
++        Par par = oneCoreWorker(2, new ThreadPoolExecutor.AbortPolicy());
++
++        ImmediateResult<String> inner = nestedOnSamePool(par, false, new AtomicReference<>());
++
++        assertThat(inner.termination().kind()).isEqualTo(TaskTermination.Kind.CANCELLED);
++        CancellationReason reason = inner.termination().cancellationReason();
++        assertThat(reason).isNotNull();
++        assertThat(reason.kind()).isEqualTo(CancellationReason.Kind.DEADLINE_EXCEEDED);
++        assertReportsSelfLoop();
++    }
++
++    @Test
++    void refusalBelowTheMaximumGrowsAWorkerAndTheInnerElementSucceeds() {
++        Par par = oneCoreWorker(2, new ThreadPoolExecutor.AbortPolicy());
++
++        AtomicReference<@Nullable String> outerThread = new AtomicReference<>();
++
++        ImmediateResult<String> inner = nestedOnSamePool(par, true, outerThread);
++
++        assertThat(inner.termination().kind()).isEqualTo(TaskTermination.Kind.SUCCESS);
++        assertThat(inner.termination().value()).isNotEqualTo(outerThread.get());
++        assertReportsSelfLoop();
++    }
++
++    @Test
++    void refusalAtTheMaximumWithAbortEndsTheInnerElementAsASubmissionFailure() {
++        Par par = oneCoreWorker(1, new ThreadPoolExecutor.AbortPolicy());
++
++        ImmediateResult<String> inner = nestedOnSamePool(par, true, new AtomicReference<>());
++
++        assertThat(inner.termination().kind()).isEqualTo(TaskTermination.Kind.FAILED);
++        FailureCause cause = inner.termination().failureCause();
++        assertThat(cause).isNotNull();
++        assertThat(cause.kind()).isEqualTo(FailureCause.Kind.SUBMISSION_REJECTED);
++        assertReportsSelfLoop();
++    }
++
++    @Test
++    void refusalAtTheMaximumWithCallerRunsRunsTheInnerElementOnTheBlockedOuterWorker() {
++        Par par = oneCoreWorker(1, new ThreadPoolExecutor.CallerRunsPolicy());
++        AtomicReference<@Nullable String> outerThread = new AtomicReference<>();
++
++        ImmediateResult<String> inner = nestedOnSamePool(par, true, outerThread);
++
++        assertThat(inner.termination().kind()).isEqualTo(TaskTermination.Kind.SUCCESS);
++        assertThat(outerThread.get()).isNotNull();
++        assertThat(inner.termination().value()).isEqualTo(outerThread.get());
++        assertReportsSelfLoop();
++    }
++}
+diff --git a/design/AGENTS.md b/design/AGENTS.md
+index 85ca983c..7e0566d5 100644
+--- a/design/AGENTS.md
++++ b/design/AGENTS.md
+@@ -134,6 +134,7 @@ Related decisions and engineering entries:
+ ## In-flight proposals
+ | Proposal | Summary |
+ |---|---|
++| [proposal/P0041-registration-enqueue-refusal.md](proposal/P0041-registration-enqueue-refusal.md) | Declare `rejectEnqueue` once per registered executor instead of per unit; fail registration on a queue that cannot honor it; removal rejected because only refusal makes a `ThreadPoolExecutor` grow before queueing |
+ | [proposal/P0040-batch-race-k.md](proposal/P0040-batch-race-k.md) | `Par.raceK`: the first `k` successful batch elements win; interrupt unfinished work on decision without treating a won race as a cancelled scope |
+ | [proposal/P0037-future-path-staged-outcome-api.md](proposal/P0037-future-path-staged-outcome-api.md) | Unify Future/Result result handling with `FuturePath`'s staged API, hiding state queries and guaranteeing exhaustive handling of the four terminal stages (success, user failure, submission rejection, cancellation) through compile-time chained stages |
+ | [proposal/P0036-complexity-review-signals.md](proposal/P0036-complexity-review-signals.md) | Complexity attention-routing evidence in gray evaluation; no quality score and no CI gate |
+diff --git a/design/proposal/P0041-registration-enqueue-refusal.md b/design/proposal/P0041-registration-enqueue-refusal.md
+new file mode 100644
+index 00000000..444a1ca2
+--- /dev/null
++++ b/design/proposal/P0041-registration-enqueue-refusal.md
+@@ -0,0 +1,90 @@
++# Declare enqueue refusal once per registered executor
++
++## Abstract
++
++`rejectEnqueue` is a per-unit option on `BatchOptions` and `TaskOptions`. It only acts when the
++registered pool is a `ThreadPoolExecutor` whose work queue is a `SubmissionAwareBlockingQueue`;
++on any other queue it is inert and the first such submission through a `Par` logs one warning.
++A removal was proposed on the grounds that its job is now done by pool topology and the executor
++wait graph. `NestedSamePoolEnqueueRefusalTest` shows otherwise. For a nested batch on the pool
++whose only core worker runs the outer element, the inner element without the flag queues until
++the inherited deadline expires. With the flag, a pool below its maximum grows a worker and the
++inner element succeeds; a pool at its maximum invokes its rejection handler, which either ends the
++inner element as `SUBMISSION_REJECTED` before the deadline (abort) or runs it on the blocked outer
++worker (`CallerRunsPolicy`). Topology can keep nested work off the outer pool, but it cannot make
++a `ThreadPoolExecutor` grow before queueing: the pool adds a worker above its core size only when
++`offer` fails. Removal would lose that.
++
++The current shape still has three costs:
++
++1. Queue admission is decided twice: once when the user builds the pool (queue type and capacity)
++   and again on every submission (the flag). The `runOnCallerThread` graveyard entry rejected the
++   same split for rejection handling, which `RejectedExecutionHandler` declares once.
++2. A flag requested on the wrong pool only warns, once per `Par`. The decision log rejected
++   warn-only as the final state for the default starvation protection because users believe a
++   protection is active when it is not.
++3. The executor wait graph classifies a pool by its queue capacity alone, so it reports the same
++   self-loop whether or not refusal removes the starvation.
++
++Direction: declare refusal once, at registration of the executor in `ParRuntime.Builder`.
++Candidate items:
++
++- Enqueue refusal MUST be declared at most once per registered executor, not per unit.
++- Registration that declares refusal MUST fail when the executor, after TTL unwrapping, is not a
++  `ThreadPoolExecutor` whose work queue is a `SubmissionAwareBlockingQueue`.
++- The wait graph MUST NOT report a wait on a refusing executor as starvation-prone, because library
++  units never queue there.
++- Refusal MUST stay opt-in; the default registration enqueues.
++- The proposal MUST NOT change what a refused `offer` leads to: thread growth, then the pool's
++  rejection handler.
++
++Rejected directions:
++
++- **Remove `rejectEnqueue` and `SubmissionAwareBlockingQueue`.** The test above shows that the flag
++  turns a deadline-length starvation into thread growth, a fast submission failure, or inline
++  execution, and pool topology cannot express "grow before queueing".
++- **Keep the per-unit flag and turn the warning into an admission failure.** It removes cost 2 but
++  keeps the duplicated decision (cost 1) and the false self-loop (cost 3).
++- **Reject every buffering pool at `build()`.** Already rejected under Executor transparency in the
++  decision log: it refuses `ForkJoinPool`, virtual-thread executors, and framework-managed pools.
++
++## Caller before and after
++
++Before, every unit on the shared pool must remember the flag, and a pool without the queue only
++warns:
++
++```java
++ThreadPoolExecutor shared = new ThreadPoolExecutor(
++        4, 16, 1L, TimeUnit.MINUTES, new SubmissionAwareBlockingQueue<>(64));
++ParRuntime runtime = ParRuntime.builder().register(ParId.of("shared"), shared).build();
++
++runtime.par(ParId.of("shared")).map(ids, this::load,
++        BatchOptions.inheritTimeout("load").rejectEnqueue(true));
++```
++
++After, the pool declares it once and a wrong queue fails at registration. The registration method
++shape is an open point; the line below shows only where the declaration lives:
++
++```java
++ParRuntime runtime = ParRuntime.builder()
++        .register(ParId.of("shared"), shared, /* refuse enqueue for library units */)
++        .build();
++
++runtime.par(ParId.of("shared")).map(ids, this::load, BatchOptions.inheritTimeout("load"));
++```
++
++Failure mode removed: a unit that forgets the flag queues behind blocked workers, and a flag on a
++pool without the queue does nothing beyond one log line.
++
++Migration: delete `rejectEnqueue(...)` from `BatchOptions`/`TaskOptions` call sites and declare
++refusal on the registration of the pool those units used. Callers that need refusal for some units
++but not others on one pool register the pool twice under two `ParId`s with different declarations;
++whether the wait graph and the resource-identity projection still treat those as one executor is
++an open point.
++
++## Open points
++
++- The registration API shape (an overload, a registration options type, or a builder step).
++- Whether any real caller needs per-unit refusal on one pool; current usage is unknown.
++- Whether refusal should apply to every library unit on the executor or only to units submitted
++  from that executor's own workers, which is the nested case the test exercises.
+diff --git a/docs/en/design/idea-graveyard.md b/docs/en/design/idea-graveyard.md
+index 344250cf..49d50b98 100644
+--- a/docs/en/design/idea-graveyard.md
++++ b/docs/en/design/idea-graveyard.md
+@@ -8,7 +8,7 @@ This page records features we seriously considered but ultimately decided not to
+ 
+ ## Configurable failure policies
+ 
+-The library uses fail-fast cancellation as its batch contract. Adding `IGNORE`, `COLLECT`, and other policies would multiply result states and make cancellation ownership unclear. Applications that need partial success can catch errors inside the task function and return an explicit domain result.
++The library uses fail-fast cancellation as its batch contract. Adding `IGNORE`, `COLLECT`, and other policies would multiply result states and make cancellation ownership unclear. Applications that need partial success can catch the business exceptions they can degrade inside the task function and return an explicit domain result. Call `Checkpoints.checkpoint()` before degrading: fail-fast, deadlines, and `cancelOn` interrupt siblings, and a broad `catch (Exception e)` would count that cancellation as a downstream failure and clear the interrupt flag. Degraded elements count as successes in the batch result, so the application keeps its own failure count.
+ 
+ ## Fluent task orchestration
+ 
+diff --git a/docs/zh/design/idea-graveyard.md b/docs/zh/design/idea-graveyard.md
+index 0bd270aa..3e10e1e9 100644
+--- a/docs/zh/design/idea-graveyard.md
++++ b/docs/zh/design/idea-graveyard.md
+@@ -23,20 +23,23 @@ fail-fast 是结构化并发的核心语义：一个 scope 内的任务要么全
+ 2. **取消语义模糊。** 如果允许部分失败继续，那么 `CancellationToken` 的级联逻辑、`allAsList` 的语义都需要分裂成两条路径。
+ 3. **隐藏了真正的问题。** 如果一个批次中有任务失败，通常意味着整个批次的结果已经不完整，继续执行只是在浪费资源。
+ 
+-**替代方案：** 在你的任务函数内部 catch 异常，返回一个包装类型（如 `Either<Error, T>` 或 `Optional<T>`），这样每个任务永远不会"失败"——框架看到的全是成功：
++**替代方案：** 在你的任务函数内部只 catch 可以降级的业务异常，返回一个包装类型（如 `Either<Error, T>` 或 `Optional<T>`），这样业务失败不会触发 fail-fast：
+ 
+ ```java
+-par.map("io-pool", urls, url -> {
++par.map(urls, url -> {
+     try {
+         return Optional.of(httpClient.fetch(url));
+-    } catch (Exception e) {
++    } catch (IOException e) {
++        Checkpoints.checkpoint();   // 作用域已取消时抛出取消异常，不把取消当成下游失败
+         log.warn("fetch failed: {}", url, e);
+         return Optional.empty();
+     }
+-}, options);
++}, BatchOptions.timeout("fetch", Duration.ofSeconds(3)));
+ ```
+ 
+-这比框架内置失败策略更清晰，因为只有业务代码知道哪些异常可以忽略、怎样降级。
++不要写 `catch (Exception e)`。fail-fast、截止时间和 `cancelOn` 会中断兄弟任务，阻塞调用随之抛出 `InterruptedException` 或 `InterruptedIOException`（后者是 `IOException` 的子类）。笼统的 catch 会把这次取消记成一次下游失败、清掉中断标志，任务代码在取消之后继续运行。元素的结果仍按作用域的取消归因，但日志、熔断器之类的统计已经算错。降级前调用 `Checkpoints.checkpoint()`：作用域已取消时它抛出 `LeanCancellationException`，作为对这次取消的确认；作用域未取消时它什么也不做。
++
++代价是：降级的元素在批次结果里记为成功，失败计数要由业务代码自己维护。只有业务代码知道哪些异常可以忽略、怎样降级，所以这个决定留给它。
+ 
+ ---
+ 
+diff --git a/docs/zh/design/philosophy.md b/docs/zh/design/philosophy.md
+index 62223601..79fd2803 100644
+--- a/docs/zh/design/philosophy.md
++++ b/docs/zh/design/philosophy.md
+@@ -297,17 +297,18 @@ for (ExecutorWaitReport.Component cycle : global.executorWaitReport().cyclicComp
+ 
+ fail-fast 是结构化并发的核心语义。允许"忽略失败继续跑"会引入连锁问题：结果模型爆炸（调用方需要区分"成功的结果"和"失败的占位符"）、取消语义模糊（`CancellationToken` 的级联逻辑需要分裂成两条路径）、隐藏真正的问题（继续执行只是在浪费资源）。
+ 
+-**替代方案：** 在任务函数内部 catch 异常，返回 `Optional<T>`：
++**替代方案：** 在任务函数内部只 catch 可以降级的业务异常，返回 `Optional<T>`；降级前用 `Checkpoints.checkpoint()` 确认作用域没有取消，避免把 fail-fast 或截止时间造成的中断当成下游失败（完整说明见 [Idea Graveyard](idea-graveyard.md)）：
+ 
+ ```java
+-par.map("io-pool", urls, url -> {
++par.map(urls, url -> {
+     try {
+         return Optional.of(httpClient.fetch(url));
+-    } catch (Exception e) {
++    } catch (IOException e) {
++        Checkpoints.checkpoint();   // 作用域已取消时抛出取消异常
+         log.warn("fetch failed: {}", url, e);
+         return Optional.empty();
+     }
+-}, options);
++}, BatchOptions.timeout("fetch", Duration.ofSeconds(3)));
+ ```
+ 
+ 只有业务代码知道哪些异常可以忽略、怎样降级。框架不该替你做这个决定。

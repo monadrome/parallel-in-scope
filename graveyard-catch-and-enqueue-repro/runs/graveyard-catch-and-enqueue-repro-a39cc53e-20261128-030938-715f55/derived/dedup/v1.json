@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-a39cc53e-20261128-030938-715f55",
+  "version": 1,
+  "createdAt": "2026-11-28T03:13:11.371Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

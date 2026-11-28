@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-a39cc53e-20261128-030938-715f55",
+  "version": 1,
+  "createdAt": "2026-11-28T03:13:11.389Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "122da91f5b04041e04b23d8d2c2dce0937cb66e1",
+    "head": "a39cc53e87c761a30013ac7138c403d728234082"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

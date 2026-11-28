@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "graveyard-catch-and-enqueue-repro-122da91f-20261128-025834-0e7270",
+  "status": "completed",
+  "createdAt": "2026-11-28T02:58:35.832Z",
+  "updatedAt": "2026-11-28T03:13:40.175Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T02:58:35.923Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-28T02:58:35.941Z",
+            "endedAt": "2026-11-28T03:08:21.231Z",
+            "durationMs": 585014,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-28T03:08:21.245Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T03:08:21.317Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T03:08:21.364Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T03:08:21.416Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-28T02:58:35.832Z",
+      "error": null
+    }
+  },
+  "eventSeq": 58
+}
