@@ -91,6 +91,12 @@ evidence, then remove the worktree and delete its branch:
 - **Direct development delivery:** rebase onto the freshly fetched development tip, rerun
   checks whose inputs incoming commits changed, and fast-forward push. On rejection, repeat
   from the rebase. Root approvals still govern releases, deployment, and `main` integration.
+- **Protected paths:** a change to any path listed under Protected infrastructure in
+  [verification-integrity.md](../../../../verification/verification-integrity.md#protected-infrastructure)
+  goes through a pull request, so code-owner review applies. Adding a `REVIEWED_EXCEPTIONS`
+  entry also counts, since it edits a protected script. The integrity job runs only on pull
+  requests, so a direct push skips it. A direct push of such a change needs the maintainer's
+  approval in the current session, and its commit body quotes that approval.
 - **Named branch or existing PR:** push a separate branch only when the user names it or an
   open PR already carries the work. Update the PR description and verification for its final
   commits with the [pull-request skill](../../pull-request/SKILL.md). Contributors without write
