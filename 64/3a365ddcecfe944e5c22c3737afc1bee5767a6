@@ -1,0 +1,23 @@
+docs/zh/design/philosophy.md
+  s_19d03c62cc5530::t_3578802b2211bf 300,303,306-307,311
+docs/en/design/idea-graveyard.md
+  s_19d03c62cc5530::t_553dbd9bba693b 11
+docs/zh/design/idea-graveyard.md
+  s_19d03c62cc5530::t_8676cc65417869 26,29,32-33,37,40-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "643a365ddcecfe944e5c22c3737afc1bee5767a6",
+  "prompts": {},
+  "sessions": {
+    "s_19d03c62cc5530": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_f090e1e0-8702-429f-a746-20a4a3a06c07",
+        "model": "claude-opus-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
