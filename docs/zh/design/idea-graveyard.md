@@ -23,20 +23,23 @@ fail-fast 是结构化并发的核心语义：一个 scope 内的任务要么全
 2. **取消语义模糊。** 如果允许部分失败继续，那么 `CancellationToken` 的级联逻辑、`allAsList` 的语义都需要分裂成两条路径。
 3. **隐藏了真正的问题。** 如果一个批次中有任务失败，通常意味着整个批次的结果已经不完整，继续执行只是在浪费资源。
 
-**替代方案：** 在你的任务函数内部 catch 异常，返回一个包装类型（如 `Either<Error, T>` 或 `Optional<T>`），这样每个任务永远不会"失败"——框架看到的全是成功：
+**替代方案：** 在你的任务函数内部只 catch 可以降级的业务异常，返回一个包装类型（如 `Either<Error, T>` 或 `Optional<T>`），这样业务失败不会触发 fail-fast：
 
 ```java
-par.map("io-pool", urls, url -> {
+par.map(urls, url -> {
     try {
         return Optional.of(httpClient.fetch(url));
-    } catch (Exception e) {
+    } catch (IOException e) {
+        Checkpoints.checkpoint();   // 作用域已取消时抛出取消异常，不把取消当成下游失败
         log.warn("fetch failed: {}", url, e);
         return Optional.empty();
     }
-}, options);
+}, BatchOptions.timeout("fetch", Duration.ofSeconds(3)));
 ```
 
-这比框架内置失败策略更清晰，因为只有业务代码知道哪些异常可以忽略、怎样降级。
+不要写 `catch (Exception e)`。fail-fast、截止时间和 `cancelOn` 会中断兄弟任务，阻塞调用随之抛出 `InterruptedException` 或 `InterruptedIOException`（后者是 `IOException` 的子类）。笼统的 catch 会把这次取消记成一次下游失败、清掉中断标志，任务代码在取消之后继续运行。元素的结果仍按作用域的取消归因，但日志、熔断器之类的统计已经算错。降级前调用 `Checkpoints.checkpoint()`：作用域已取消时它抛出 `LeanCancellationException`，作为对这次取消的确认；作用域未取消时它什么也不做。
+
+代价是：降级的元素在批次结果里记为成功，失败计数要由业务代码自己维护。只有业务代码知道哪些异常可以忽略、怎样降级，所以这个决定留给它。
 
 ---
 

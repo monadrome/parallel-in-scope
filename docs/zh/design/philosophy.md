@@ -297,17 +297,18 @@ for (ExecutorWaitReport.Component cycle : global.executorWaitReport().cyclicComp
 
 fail-fast 是结构化并发的核心语义。允许"忽略失败继续跑"会引入连锁问题：结果模型爆炸（调用方需要区分"成功的结果"和"失败的占位符"）、取消语义模糊（`CancellationToken` 的级联逻辑需要分裂成两条路径）、隐藏真正的问题（继续执行只是在浪费资源）。
 
-**替代方案：** 在任务函数内部 catch 异常，返回 `Optional<T>`：
+**替代方案：** 在任务函数内部只 catch 可以降级的业务异常，返回 `Optional<T>`；降级前用 `Checkpoints.checkpoint()` 确认作用域没有取消，避免把 fail-fast 或截止时间造成的中断当成下游失败（完整说明见 [Idea Graveyard](idea-graveyard.md)）：
 
 ```java
-par.map("io-pool", urls, url -> {
+par.map(urls, url -> {
     try {
         return Optional.of(httpClient.fetch(url));
-    } catch (Exception e) {
+    } catch (IOException e) {
+        Checkpoints.checkpoint();   // 作用域已取消时抛出取消异常
         log.warn("fetch failed: {}", url, e);
         return Optional.empty();
     }
-}, options);
+}, BatchOptions.timeout("fetch", Duration.ofSeconds(3)));
 ```
 
 只有业务代码知道哪些异常可以忽略、怎样降级。框架不该替你做这个决定。
