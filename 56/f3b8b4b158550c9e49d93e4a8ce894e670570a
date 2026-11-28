@@ -1,0 +1,19 @@
+.agents/skills/project-delivery/references/workflow.md
+  s_c7971fb45429b8::t_00d43e651b6a67 94-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+  "prompts": {},
+  "sessions": {
+    "s_c7971fb45429b8": {
+      "agent_id": {
+        "tool": "kiro-desktop",
+        "id": "sess_8c751024-ded5-4ebb-ad1c-2717b931220e",
+        "model": "claude-haiku-5.5"
+      },
+      "human_author": "Eric Lin <linqinghua4@gmail.com>"
+    }
+  }
+}
