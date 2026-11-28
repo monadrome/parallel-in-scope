@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-starvation-observation-9cae3d5f-20261127-171207-488445",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-27T17:12:18.956Z",
+  "endedAt": "2026-11-27T17:43:38.138Z",
+  "durationMs": 1875019,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-9cae3d5f-20261127-171207-488445/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-9cae3d5f-20261127-171207-488445/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-9cae3d5f-20261127-171207-488445/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek/deepseek-v4-pro",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 348753998bc8c954817e5b40556daecd7eb89fa9 to 9cae3d5fe4ec9839098244594bea186b3e0ae6a2. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-9cae3d5f-20261127-171207-488445/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-9cae3d5f-20261127-171207-488445/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context, lightweight closing pass: remove thread-pool starvation observation\n\nRange: 34875399 .. 9cae3d5f, two commits:\n\n- `docs: correct the deleted-test kill attribution in the PIT record`: check the corrected paragraph in\n  `verification/pit-audit/2026-11-27-remove-starvation-observation.md` against\n  `reports/base-void-calls-ThreadPoolStarvationObservationScopeTest.xml` and\n  `reports/focused-par-runtime-final.xml` in its archive directory.\n- `chore: record delivery remove-starvation-observation`: check\n  `ledger/2026-11-27-remove-starvation-observation.json` against `verification/delivery-ledger.md`\n  (fields, routes, commit list, review runs, PIT sources, gate failures, note).\n\nAlso answer one classification question for the whole branch. The contract-first assurance run froze\nits scope at 3e04f590 (`feat!: remove thread-pool starvation observation`). Read\n`.agents/skills/project-delivery/references/assurance.md` (\"Run required\" and \"Skip eligible\"), then\nfor each commit in 3e04f590..9cae3d5f state whether it is skip-eligible (changes no library\nrequirement or production behavior, and does not weaken, remove, or replace behavioral evidence). Report\nany commit that is not skip-eligible as a finding.\n\nDo not edit files.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-9cae3d5f-20261127-171207-488445/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "deepseek",
+    "model": "deepseek/deepseek-v4-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 105179,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the two-commit closing pass: the PIT-record attribution correction and the delivery ledger. The corrected paragraph in verification/pit-audit/2026-11-27-remove-starvation-observation.md accurately matches the base-void-calls-ThreadPoolStarvationObservationScopeTest.xml (five KILLED mutants: openThreadPoolStarvationObservation's checkArgument, the sampling scheduler's shutdown() call, starvationObservationClosed, plus the retained Monitor::enter and whileOpen enterAdmission calls) and focused-par-runtime-final.xml (the two retained sites are KILLED by remaining ParRuntimeTest methods). The ledger JSON is valid, conforms to verification/delivery-ledger.md fields, and its commit list (7 subjects), diff counts (50 files, 1007 insertions, 1864 deletions), PIT statuses (103/2/4/4=113 and 25/25), inconclusive count/rate (4, 0.0354), and notes all reconcile with the repository and archived XML. For the assurance classification, every commit in 3e04f590..9cae3d5f (docs, test-only additions, PIT archive, ADR note, PIT-record correction, and the ledger chore) changes no library requirement or production behavior and does not weaken, remove, or replace behavioral evidence, so all are skip-eligible. No defects found.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}

@@ -1,0 +1,123 @@
+diff --git a/BACKLOG.md b/BACKLOG.md
+index a3303784..2193ffef 100644
+--- a/BACKLOG.md
++++ b/BACKLOG.md
+@@ -21,8 +21,9 @@ Each entry is a verification or maintenance task, not an open design question;
+ entries harvested from reclassified proposals cite the retired proposal id.
+ 
+ - Re-verify the bare-vs-TTL-wrapper identity probe against the current
+-  runtime-level executor wait graph: a same-pool NO_ISSUE report reflects
+-  the identity contract, not the absence of starvation. Any change to the
++  runtime-level executor wait graph: one pool registered both bare and
++  TTL-wrapped is two executor identities, so a missing cycle between them
++  reflects the identity contract, not the absence of starvation. Any change to the
+   resource-identity projection is a separate contract decision (was P0021).
+ - Clarify borrowed-executor shutdown ordering (runtime close, awaitQuiescence,
+   then pool shutdown) in user-facing docs before evaluating any fast
+diff --git a/README.md b/README.md
+index ff36506f..a38ba016 100644
+--- a/README.md
++++ b/README.md
+@@ -13,7 +13,7 @@
+ 
+ parallel-in-scope builds on the thread pools and asynchronous tasks you already have. It gives those
+ tasks a clearer, safer lifecycle: structured grouping, cooperative cancellation, fail-fast execution,
+-context propagation, bounded scheduling, and thread-pool deadlock and starvation diagnostics.
++context propagation, bounded scheduling, and thread-pool deadlock diagnostics.
+ 
+ ## Requirements
+ 
+@@ -146,7 +146,7 @@ Staying on the stable `0.2.0` line? Its API is different (`GlobalPar` / `ParName
+ - Sliding-window submission with bounded concurrency
+ - Cross-thread context propagation via Alibaba `TransmittableThreadLocal` (TTL)
+ - Frozen task observations: `completions()` / group `members()` and `terminal()` results
+-- Thread-pool waiting-graph, deadlock, and starvation diagnostics
++- Thread-pool waiting-graph and deadlock diagnostics
+ - Opt-in queue refusal with `rejectEnqueue` and `SubmissionAwareBlockingQueue`
+ - Cycle detection across task and executor graphs
+ - Queue extensions including `DrainingBlockingQueue` and `ResizableBlockingQueue`
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index 93463599..2efc6667 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -12,7 +12,7 @@
+ > 从 `0.3.x` 升级请先阅读 [v0.4 迁移指南](docs/zh/migration-v0.4.md)。
+ 
+ `parallel-in-scope` 建立在应用已有的线程池和异步任务之上，用来管理任务的提交、取消和结束。
+-它提供结构化任务组、协作式取消、快速失败、上下文传播、有界调度，以及线程池死锁与饥饿诊断。
++它提供结构化任务组、协作式取消、快速失败、上下文传播、有界调度，以及线程池死锁诊断。
+ 
+ ## 环境要求
+ 
+@@ -125,7 +125,7 @@ Profile value = profile.terminalValueOrThrow();
+ - 有界并发的滑动窗口提交
+ - 基于 Alibaba `TransmittableThreadLocal`（TTL）的跨线程上下文传播
+ - 冻结后的任务观测：`completions()`、组 `members()` 与 `terminal()` 结果
+-- 线程池等待图、死锁和饥饿诊断
++- 线程池等待图与死锁诊断
+ - 可选的入队拒绝：`rejectEnqueue` 配合 `SubmissionAwareBlockingQueue`
+ - 任务图与执行器图的环路检测
+ - 队列扩展：`DrainingBlockingQueue` 与 `ResizableBlockingQueue`
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java
+index 2978e6be..069ee753 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java
+@@ -11,6 +11,7 @@ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.concurrent.AbstractExecutorService;
+ import java.util.concurrent.CancellationException;
+ import java.util.concurrent.CountDownLatch;
+@@ -568,6 +569,36 @@ class ParRuntimeTest {
+         }
+     }
+ 
++    @Test
++    void quiescenceRetiresTheTimeoutActionThreads() throws Exception {
++        // Quiescence includes the framework services having shut down: a thread that ran a timeout
++        // action exits with its pool instead of idling out the pool's keep-alive after the runtime
++        // reports quiescent, and the pool then refuses new actions.
++        ParRuntime global = ParRuntime.builder().build();
++        AtomicReference<Thread> actionThread = new AtomicReference<>();
++        CountDownLatch ran = new CountDownLatch(1);
++        try {
++            global.releases().execute(() -> {
++                actionThread.set(Thread.currentThread());
++                ran.countDown();
++            });
++            assertThat(ran.await(5, TimeUnit.SECONDS)).isTrue();
++
++            global.close();
++            assertThat(global.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
++
++            Thread thread = Objects.requireNonNull(actionThread.get());
++            thread.join(TimeUnit.SECONDS.toMillis(5));
++            assertThat(thread.isAlive())
++                    .as("the timeout-action thread outlived quiescence")
++                    .isFalse();
++            assertThatThrownBy(() -> global.releases().execute(() -> {}))
++                    .isInstanceOf(RejectedExecutionException.class);
++        } finally {
++            global.close();
++        }
++    }
++
+     @Test
+     void awaitQuiescencePropagatesInterruptionWhileWaiting() throws Exception {
+         ExecutorService executor = Executors.newSingleThreadExecutor();
+diff --git a/design/task-group-adopted-futures.md b/design/task-group-adopted-futures.md
+index 651e55ac..3a355759 100644
+--- a/design/task-group-adopted-futures.md
++++ b/design/task-group-adopted-futures.md
+@@ -1,8 +1,7 @@
+ # Group Members Adopting External Futures Contract
+ 
+ > This document is the live contract for `adopt` group members: the motivation, cancellation,
+-> value handoff, exit confirmation, the executor wait graph, and thread-pool starvation
+-> observation. Historical source: `proposal:P0033`. The general rules for group declaration,
++> value handoff, exit confirmation, and the executor wait graph. Historical source: `proposal:P0033`. The general rules for group declaration,
+ > token topology, and the synchronous exit remain held by
+ > [group-one-shot-api-refactor-codex.md](group-one-shot-api-refactor-codex.md),
+ > [task-group-cancellation.md](task-group-cancellation.md), and [synchronous-scope-exit.md](synchronous-scope-exit.md).

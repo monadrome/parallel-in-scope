@@ -1,0 +1,143 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "C-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "V-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [],
+  "conflicts": [],
+  "uncovered": [
+    {
+      "lens": "C",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java"
+      ],
+      "codeLines": 296
+    },
+    {
+      "lens": "D",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java"
+      ],
+      "codeLines": 136
+    },
+    {
+      "lens": "S",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java"
+      ],
+      "codeLines": 136
+    },
+    {
+      "lens": "V",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java"
+      ],
+      "codeLines": 136
+    },
+    {
+      "lens": "C",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java"
+      ],
+      "codeLines": 136
+    },
+    {
+      "lens": "D",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 78
+    },
+    {
+      "lens": "S",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 78
+    },
+    {
+      "lens": "V",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java"
+      ],
+      "codeLines": 57
+    },
+    {
+      "lens": "C",
+      "shard": 4,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java"
+      ],
+      "codeLines": 57
+    }
+  ],
+  "totals": {
+    "findings": 0,
+    "byTier": {
+      "T0": 0,
+      "T1": 0,
+      "T2": 0
+    },
+    "incompleteAgents": 0
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-starvation-observation-3e04f590-20261127-153116-ebd45a",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-27T15:31:17.336Z",
+  "endedAt": "2026-11-27T15:51:00.560Z",
+  "durationMs": 1183062,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-3e04f590-20261127-153116-ebd45a/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-3e04f590-20261127-153116-ebd45a/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-3e04f590-20261127-153116-ebd45a/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "zcode/GLM-5.4",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 5d79d305e1cfc81d8bcd9be8981ec9b82f460002 to 3e04f590902bed50af4ddb4d8e6347630c8f80ec. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-3e04f590-20261127-153116-ebd45a/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-3e04f590-20261127-153116-ebd45a/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context: remove thread-pool starvation observation\n\nRange: 5d79d305 (origin/dev/v0.5.0) .. 3e04f590, one commit `feat!: remove thread-pool starvation observation`.\n\nThe maintainer decided to delete the public thread-pool starvation observation feature\n(`ParRuntime.openThreadPoolStarvationObservation(Duration)`, `ThreadPoolStarvationObservationScope`,\n`ThreadPoolStarvationReport`, `ParRuntimeSnapshot.activeObservations()`). The feature shipped in 0.4.0;\nthe project is `0.x` and allows breaking changes with a changelog migration entry. The removal decision\nitself is settled; review whether the removal is complete, correct, and consistent.\n\nRead every changed file in the diff, including documentation, scripts, ADR, skill reference, and tests.\n\nAttack surfaces:\n\n- Interleavings: `ParRuntime` service shutdown (`shutdownServicesWhenAdmissionsComplete`), admission\n  (`whileOpen`/`enterAdmission`), `close()`, `awaitQuiescence(Duration)`, `inFlight()`, and `snapshot()`\n  after the observation counter and sampling scheduler are removed. Check that no remaining path still\n  depends on the removed counter or scheduler and that shutdown and quiescence remain correct.\n- Contract versus implementation: diff each MUST/MUST NOT named in the commit message (the deleted\n  `design/thread-pool-starvation-observation.md`, `design/task-group-adopted-futures.md` A7, and the\n  `ParRuntime` Javadoc for `close()`, `closed()`, `awaitQuiescence()`, `inFlight()`, `snapshot()`)\n  against the code, and look for live documents (user guides in `docs/en` and `docs/zh`, design\n  contracts, ADRs, decision log, idea graveyard, changelog, README, demo, integrations,\n  `verification/maven-central-consumer`) that still describe the removed API or its lifecycle effects.\n- Test quality: the deleted test class, the rewritten\n  `TaskGroupAdoptedFutureTest.aSourceQueuedBehindItsOwnWaiterRecordsAWaitCycleAndEndsAtTheDeadline`, the\n  reduced `ParRuntimeSnapshotTest` cases, `PublicApiSurfaceTest`, and the new\n  `REVIEWED_EXCEPTIONS` entries in `scripts/check-verification-integrity.py`. Check whether any\n  remaining behavior lost its only evidence.\n- Java 8 and generics: core targets Java 8 bytecode; check imports and any API use left behind.\n- Changelog: the breaking-change entry must be self-contained with a migration action.\n\nDo not edit files.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-3e04f590-20261127-153116-ebd45a/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "zcode",
+    "model": "zcode/GLM-5.4",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 330735,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The removal is functionally clean: the sampling scheduler, observation counter, and observation term in shutdown/quiescence/snapshot are gone, tests and the public API surface list match, and the changelog carries a migration action. The remaining defects are documentation consistency: the live `adopt` contract header still names the removed starvation observation, the READMEs still advertise starvation diagnostics, and a backlog maintenance entry still cites the removed report's `NO_ISSUE` status.",
+  "findings": [
+    {
+      "file": "design/task-group-adopted-futures.md",
+      "lineStart": 4,
+      "lineEnd": 5,
+      "title": "Live adopt contract header still names the removed starvation observation",
+      "trigger": "A reader opens the live `adopt` contract after this change; its scope blockquote still lists thread-pool starvation observation beside the executor wait graph, while the body no longer defines any starvation-observation behavior.",
+      "consequence": "The contract's stated scope contradicts the current API and the rest of the document, so a maintainer or reviewer can wrongly treat the removed observation as still governed by the `adopt` contract.",
+      "evidence": "`design/task-group-adopted-futures.md:4-5` lists 'thread-pool starvation observation' in the live-contract scope; the same commit removed the starvation clauses from A7 (`design/task-group-adopted-futures.md:147-151`) and from the verification baseline (`design/task-group-adopted-futures.md:200-204`), and `design/AGENTS.md:36` no longer mentions it.",
+      "severity": "P3",
+      "confidence": 0.9,
+      "suggestedFix": "Drop 'and thread-pool starvation observation' from the header, leaving 'the executor wait graph'.",
+      "id": "codex:0",
+      "reviewer": "codex",
+      "attempt": 1
+    },
+    {
+      "file": "README.md",
+      "lineStart": 149,
+      "lineEnd": 149,
+      "title": "README capability list still advertises starvation diagnostics",
+      "trigger": "A user reads the Core Capabilities list on the 0.5.0 development line and looks for the advertised thread-pool starvation diagnostic.",
+      "consequence": "The README promises a diagnostic that no longer exists; users search for a removed API and miss the executor-metrics migration path.",
+      "evidence": "`README.md:149` lists 'Thread-pool waiting-graph, deadlock, and starvation diagnostics'; `README.md:16` says 'thread-pool deadlock and starvation diagnostics'; `README.zh-CN.md:15` and `README.zh-CN.md:128` carry the same claims. The commit deleted `ParRuntime.openThreadPoolStarvationObservation(Duration)` and the report (`CHANGELOG.md:32-46`).",
+      "severity": "P3",
+      "confidence": 0.55,
+      "suggestedFix": "Remove 'starvation' from the capability claims in both READMEs (for example, 'Thread-pool waiting-graph and deadlock diagnostics').",
+      "id": "codex:1",
+      "reviewer": "codex",
+      "attempt": 1
+    },
+    {
+      "file": "BACKLOG.md",
+      "lineStart": 23,
+      "lineEnd": 26,
+      "title": "Backlog entry still cites the removed report's NO_ISSUE status",
+      "trigger": "A maintainer picks up the bare-vs-TTL-wrapper identity-probe verification task and follows its example of reading a same-pool `NO_ISSUE` report.",
+      "consequence": "The task points at a report type that no longer exists, so the verification cannot be performed as written and the backlog misdescribes the current diagnostics surface.",
+      "evidence": "`BACKLOG.md:24-25` says 'a same-pool NO_ISSUE report reflects the identity contract, not the absence of starvation'; `NO_ISSUE` was a `ThreadPoolStarvationReport.Status` value, and the report was deleted (`CHANGELOG.md:32-34`).",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Reword the entry to use the executor wait report (for example, a same-pool self-loop component) instead of the removed `NO_ISSUE` report.",
+      "id": "codex:2",
+      "reviewer": "codex",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "design/task-group-adopted-futures.md",
+      "lineStart": 4,
+      "lineEnd": 5,
+      "title": "Live adopt contract header still names the removed starvation observation",
+      "trigger": "A reader opens the live `adopt` contract after this change; its scope blockquote still lists thread-pool starvation observation beside the executor wait graph, while the body no longer defines any starvation-observation behavior.",
+      "consequence": "The contract's stated scope contradicts the current API and the rest of the document, so a maintainer or reviewer can wrongly treat the removed observation as still governed by the `adopt` contract.",
+      "evidence": "`design/task-group-adopted-futures.md:4-5` lists 'thread-pool starvation observation' in the live-contract scope; the same commit removed the starvation clauses from A7 (`design/task-group-adopted-futures.md:147-151`) and from the verification baseline (`design/task-group-adopted-futures.md:200-204`), and `design/AGENTS.md:36` no longer mentions it.",
+      "severity": "P3",
+      "confidence": 0.9,
+      "suggestedFix": "Drop 'and thread-pool starvation observation' from the header, leaving 'the executor wait graph'."
+    },
+    {
+      "file": "README.md",
+      "lineStart": 149,
+      "lineEnd": 149,
+      "title": "README capability list still advertises starvation diagnostics",
+      "trigger": "A user reads the Core Capabilities list on the 0.5.0 development line and looks for the advertised thread-pool starvation diagnostic.",
+      "consequence": "The README promises a diagnostic that no longer exists; users search for a removed API and miss the executor-metrics migration path.",
+      "evidence": "`README.md:149` lists 'Thread-pool waiting-graph, deadlock, and starvation diagnostics'; `README.md:16` says 'thread-pool deadlock and starvation diagnostics'; `README.zh-CN.md:15` and `README.zh-CN.md:128` carry the same claims. The commit deleted `ParRuntime.openThreadPoolStarvationObservation(Duration)` and the report (`CHANGELOG.md:32-46`).",
+      "severity": "P3",
+      "confidence": 0.55,
+      "suggestedFix": "Remove 'starvation' from the capability claims in both READMEs (for example, 'Thread-pool waiting-graph and deadlock diagnostics')."
+    },
+    {
+      "file": "BACKLOG.md",
+      "lineStart": 23,
+      "lineEnd": 26,
+      "title": "Backlog entry still cites the removed report's NO_ISSUE status",
+      "trigger": "A maintainer picks up the bare-vs-TTL-wrapper identity-probe verification task and follows its example of reading a same-pool `NO_ISSUE` report.",
+      "consequence": "The task points at a report type that no longer exists, so the verification cannot be performed as written and the backlog misdescribes the current diagnostics surface.",
+      "evidence": "`BACKLOG.md:24-25` says 'a same-pool NO_ISSUE report reflects the identity contract, not the absence of starvation'; `NO_ISSUE` was a `ThreadPoolStarvationReport.Status` value, and the report was deleted (`CHANGELOG.md:32-34`).",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Reword the entry to use the executor wait report (for example, a same-pool self-loop component) instead of the removed `NO_ISSUE` report."
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,21 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] --------< io.github.monadrome:parallel-in-scope-contract-tests >--------
+[INFO] Building parallel-in-scope hidden contract regression tests 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.4:apply (default-cli) @ parallel-in-scope-contract-tests ---
+[INFO] Index file does not exist. Fallback to an empty index
+[INFO] clean file: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+[INFO] clean file: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+[INFO] clean file: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+[INFO] Spotless.Java is keeping 7 files clean - 3 were changed to be clean, 4 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.899 s
+[INFO] Finished at: 2026-11-27T08:06:34-08:00
+[INFO] ------------------------------------------------------------------------

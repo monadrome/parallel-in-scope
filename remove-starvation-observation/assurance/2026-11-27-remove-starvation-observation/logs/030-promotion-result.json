@@ -1,0 +1,53 @@
+{
+  "promotions": [
+    {
+      "candidate_id": "CONTRACT-TDD-004",
+      "source_contract_id": "C-3",
+      "contract_id": "C-0005",
+      "target_path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java",
+      "adapted_file": "/tmp/rso-promote/adapted/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java",
+      "status": "promoted",
+      "reason": "Promoted as C-0005 with only package, imports, class name, visibility, and @Tag adapted; its 1 testcase passed in the explicit suite run and the execution-evidence check passed (spotless reflowed whitespace only, adapted copy resynced to the final bytes)."
+    },
+    {
+      "candidate_id": "CONTRACT-TDD-008",
+      "source_contract_id": "C-4",
+      "contract_id": "C-0006",
+      "target_path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java",
+      "adapted_file": "/tmp/rso-promote/adapted/C0006InFlightZeroWhileExecutionStillRunningContractTest.java",
+      "status": "promoted",
+      "reason": "Promoted as C-0006 with only package, imports, class name, visibility, and @Tag adapted; its 1 testcase passed in the explicit suite run and the execution-evidence check passed (spotless reflowed whitespace only, adapted copy resynced to the final bytes)."
+    },
+    {
+      "candidate_id": "CONTRACT-TDD-010",
+      "source_contract_id": "C-5",
+      "contract_id": "C-0007",
+      "target_path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java",
+      "adapted_file": "/tmp/rso-promote/adapted/C0007SnapshotUnexitedSignalContractTest.java",
+      "status": "promoted",
+      "reason": "Promoted as C-0007 with only package, imports, class name, visibility, and @Tag adapted; its 1 testcase passed in the explicit suite run and the execution-evidence check passed (spotless reflowed whitespace only, adapted copy resynced to the final bytes)."
+    }
+  ],
+  "commands": [
+    {
+      "name": "regression-metadata",
+      "argv": ["python3", "scripts/check-contract-tests.py"],
+      "exit": 0
+    },
+    {
+      "name": "regression-format",
+      "argv": ["mvn", "-o", "-Pcontract-tests", "-pl", "verification/contract-tests", "spotless:apply"],
+      "exit": 0
+    },
+    {
+      "name": "regression-tests",
+      "argv": ["mvn", "-o", "-Pcontract-tests", "-pl", "verification/contract-tests", "-am", "clean", "test"],
+      "exit": 0
+    },
+    {
+      "name": "regression-execution",
+      "argv": ["python3", "scripts/check-contract-tests.py", "--reports", "verification/contract-tests/target/surefire-reports"],
+      "exit": 0
+    }
+  ]
+}

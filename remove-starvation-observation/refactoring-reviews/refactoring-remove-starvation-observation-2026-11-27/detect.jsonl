@@ -1,0 +1,6 @@
+{"agent": "M", "reviewer": "codex-deepseek", "attempt": 1, "status": "completed", "seconds": 112, "findings": 0, "progress": "agents/M/attempt-1.progress.jsonl"}
+{"agent": "C-1", "reviewer": "codex-deepseek", "attempt": 1, "status": "completed", "seconds": 38, "findings": 0, "progress": "agents/C-1/attempt-1.progress.jsonl"}
+{"agent": "D-1", "reviewer": "codex-deepseek", "attempt": 1, "status": "completed", "seconds": 38, "findings": 0, "progress": "agents/D-1/attempt-1.progress.jsonl"}
+{"agent": "S-1", "reviewer": "codex-deepseek", "attempt": 1, "status": "completed", "seconds": 39, "findings": 0, "progress": "agents/S-1/attempt-1.progress.jsonl"}
+{"agent": "V-1", "reviewer": "codex-deepseek", "attempt": 1, "status": "completed", "seconds": 36, "findings": 0, "progress": "agents/V-1/attempt-1.progress.jsonl"}
+{"agent": "T-1", "reviewer": "codex-deepseek", "attempt": 1, "status": "completed", "seconds": 64, "findings": 0, "progress": "agents/T-1/attempt-1.progress.jsonl"}

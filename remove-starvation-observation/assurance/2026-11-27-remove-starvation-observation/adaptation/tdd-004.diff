@@ -1,0 +1,43 @@
+--- .contract-first-assurance/2026-11-27-remove-starvation-observation/candidates/ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest.java	2026-11-27 07:48:40
++++ .contract-first-assurance/2026-11-27-remove-starvation-observation/promotions/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java	2026-11-27 08:11:44
+@@ -1,14 +1,13 @@
+-package io.github.monadrome.parallelinscope.assurance;
++package io.github.monadrome.parallelinscope;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.assertj.core.api.Assertions.assertThatThrownBy;
+ 
+-import io.github.monadrome.parallelinscope.ParId;
+-import io.github.monadrome.parallelinscope.ParRuntime;
+ import java.time.Duration;
+ import java.util.concurrent.LinkedBlockingQueue;
+ import java.util.concurrent.ThreadPoolExecutor;
+ import java.util.concurrent.TimeUnit;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+ /**
+@@ -29,17 +28,17 @@
+  *
+  * <p>Uncertainty: none material; validation order is stated by the contract.
+  */
+-public class ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest {
++@Tag("C-0005")
++class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
+ 
+     @Test
+     void awaitQuiescenceValidatesNullAndHonorsInterruptBeforeState() throws Exception {
+-        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+-                new LinkedBlockingQueue<>());
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+         ParId id = ParId.of("io");
+-        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        ParRuntime runtime =
++                ParRuntime.builder().register(id, pool).defaultPar(id).build();
+         try {
+-            assertThatThrownBy(() -> runtime.awaitQuiescence(null))
+-                    .isInstanceOf(NullPointerException.class);
++            assertThatThrownBy(() -> runtime.awaitQuiescence(null)).isInstanceOf(NullPointerException.class);
+ 
+             runtime.close();
+ 

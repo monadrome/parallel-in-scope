@@ -1,0 +1,163 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --< io.github.monadrome.verification:parallel-in-scope-maven-central-consumer >--
+[INFO] Building parallel-in-scope-maven-central-consumer 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Deleting /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope-maven-central-consumer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope-maven-central-consumer ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope-maven-central-consumer ---
+[WARNING] I/O error reading dependency state: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer/target/classes: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 1 source file with javac [debug target 8] to target/test-classes
+[WARNING] bootstrap class path is not set in conjunction with -source 8
+  not setting the bootstrap class path may lead to class files that cannot run on JDK 8
+    --release 8 is recommended instead of -source 8 -target 8 because it sets the bootstrap class path automatically
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[WARNING] target value 8 is obsolete and will be removed in a future release
+[WARNING] To suppress warnings about obsolete options, use -Xlint:-options.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope-maven-central-consumer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running verification.MavenCentralConsumerTest
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'fail-fast-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$failureCancelsSiblingTasks$0(MavenCentralConsumerTest.java:345)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:367)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'fail-fast-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$failureCancelsSiblingTasks$0(MavenCentralConsumerTest.java:345)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:367)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'timeout-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$timeoutCancelsRunningTasks$0(MavenCentralConsumerTest.java:313)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:367)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'timeout-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$timeoutCancelsRunningTasks$0(MavenCentralConsumerTest.java:313)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:367)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutorWaitGraph lambda$announceNewComponents$0
+WARNING: Potential executor deadlock: Component[members=1, cycle=1, witnesses=1]. A task execution on each of these starvation-prone pools synchronously waits for work queued on the next, so under load every worker of the cycle can wait for work queued behind itself. This is a wait structure the ParRuntime has observed at some point, not proof that the waits overlap or that threads are deadlocked now; see ParRuntime.executorWaitReport().
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$outerTimeoutPropagatesToNestedTasks$1(MavenCentralConsumerTest.java:377)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:367)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+Nov 27, 2026 8:24:22 AM io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture run
+WARNING: task 'inner-contract' failed after cancellation
+java.lang.RuntimeException: task interrupted
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:413)
+	at verification.MavenCentralConsumerTest.lambda$outerTimeoutPropagatesToNestedTasks$1(MavenCentralConsumerTest.java:377)
+	at io.github.monadrome.parallelinscope.Par.lambda$mapWhileOpen$1(Par.java:367)
+	at io.github.monadrome.parallelinscope.ScopedCallable.call(ScopedCallable.java:41)
+	at com.alibaba.ttl.TtlCallable.call(TtlCallable.java:65)
+	at io.github.monadrome.parallelinscope.ExecutionPhaseHintFuture.run(ExecutionPhaseHintFuture.java:225)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1173)
+	at java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+	at verification.MavenCentralConsumerTest.awaitInterruption(MavenCentralConsumerTest.java:408)
+	... 8 more
+
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.604 s -- in verification.MavenCentralConsumerTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.781 s
+[INFO] Finished at: 2026-11-27T08:24:22-08:00
+[INFO] ------------------------------------------------------------------------

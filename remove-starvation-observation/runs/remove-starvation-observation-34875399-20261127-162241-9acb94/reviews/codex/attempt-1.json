@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-162241-9acb94",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-27T16:22:41.865Z",
+  "endedAt": "2026-11-27T17:07:56.930Z",
+  "durationMs": 2714858,
+  "exitCode": null,
+  "timedOut": true,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-34875399-20261127-162241-9acb94/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-34875399-20261127-162241-9acb94/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-34875399-20261127-162241-9acb94/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "zcode/GLM-5.4",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 2684bd143909d9b6bfa660202e7079a010d529bd to 348753998bc8c954817e5b40556daecd7eb89fa9. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-34875399-20261127-162241-9acb94/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-34875399-20261127-162241-9acb94/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context, lightweight final pass: remove thread-pool starvation observation\n\nRange: 2684bd14 .. 34875399, three commits after round 2 of the adversarial review:\n\n- `test: promote starvation-removal lifecycle regressions`: three hidden contract tests\n  (C-0005, C-0006, C-0007) under `verification/contract-tests/`, adapted by a fresh context from sealed\n  assurance candidates. You may read the hidden suite. The sealed source candidates are\n  `/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.contract-first-assurance/2026-11-27-remove-starvation-observation/candidates/ContractTdd004*.java`,\n  `ContractTdd008*.java`, and `ContractTdd010*.java`; the adaptation diffs are in the sibling\n  `adaptation/` directory. Check that each promoted class keeps its candidate's preconditions,\n  operation sequence, observation window, and every assertion; that it follows\n  `verification/contract-tests/AGENTS.md` (class name, `@Tag`, unique IDs); and that it is bounded and\n  deterministic.\n- `docs: archive starvation-observation removal PIT evidence`: check every count and claim in\n  `verification/pit-audit/2026-11-27-remove-starvation-observation.md` against the archived XML in its\n  directory, and that the dispositions follow `verification/pit.md`.\n- `docs: note the removed observation in ADR 0016's reconsideration criterion`: check the note\n  against `adr/AGENTS.md` condensation rules.\n\nDo not edit files.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-34875399-20261127-162241-9acb94/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "zcode",
+    "model": "zcode/GLM-5.4",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": null,
+  "usage": null,
+  "parseWarnings": [],
+  "status": "timed_out",
+  "summary": null,
+  "findings": null,
+  "rawFindings": null,
+  "error": "review exceeded the hard timeout of 2700s; process group was terminated"
+}

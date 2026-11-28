@@ -1,0 +1,24 @@
+PROVEN               cancel-commit-before-cancel                   the mutation caused a cited test to fail; inspect the log
+PROVEN_BY_TEST       first-wins-cancellation                       The bind race test uses one start latch for cancel vs bind, not two cancellation transitions; it does not prove first-wins. This test directly asserts the losing transition.
+PROVEN               group-barrier-increment-last                  the mutation caused a cited test to fail; inspect the log
+PROVEN_BY_REASONING  sliding-window-phantom-index                  The single drain holder reads nextIndex == size-1, so the loop condition passes. Cancellation wins settled and executes nextIndex.getAndSet(size). The holder's getAndIncrement() returns size and stores size+1. Without handoff's index >= size guard, tasks.get(size) is out of bounds. draining admits one claimant, normal claims stop at size, and only the winning cancellation performs getAndSet, so the phantom index is exactly size.
+PROVEN               runtime-admission-vs-close                    the mutation caused a cited test to fail; inspect the log
+PROVEN               taskbatch-observation-publication             the mutation caused a cited test to fail; inspect the log
+PROVEN_BY_REASONING  taskgroup-observation-publication             TaskGroup.awaitExecutionExit waits for each member and terminal observation view after execution exit settlement. The observation listener publishes the frozen snapshot only after the execution exit barrier, and the await loop returns false on timeout before claiming confirmation; the per-member wait is the ordering guard even though no deterministic test currently covers its publication window.
+PROVEN               adopted-end-time-before-mirror-settle         the mutation caused a cited test to fail; inspect the log
+PROVEN_BY_REASONING  kernel-delivery-flag-before-interrupt         The flag write is a volatile write that precedes executing.interrupt() in program order. JLS 17.4.4: a call to interrupt() synchronizes-with any point where another thread determines it was interrupted, which includes the JDK blocking call that throws InterruptedException; the runner's later volatile read in lateFailureLevel therefore sees true. The write is guarded by the same non-null runner read as the delivery, so a cancellation before runner publication or after run()'s finally withdraws the runner leaves the flag false; AbstractFuture calls interruptTask only for the single winning cancel(true), so there is one writer. The field belongs to the future, which runs at most once (phase CAS SUBMITTED to RUNNING), so a later task reusing the thread reads its own false flag. Writing after interrupt() would let a fast runner read false and log a kernel-caused InterruptedException at WARNING; the window is too narrow for a deterministic mutation test.
+PROVEN               accumulator-fail-fast-replacement             the mutation caused a cited test to fail; inspect the log
+PROVEN               cancel-during-execution-claim                 the mutation caused a cited test to fail; inspect the log
+
+Summary
+  PROVEN               cancel-commit-before-cancel
+  PROVEN_BY_TEST       first-wins-cancellation
+  PROVEN               group-barrier-increment-last
+  PROVEN_BY_REASONING  sliding-window-phantom-index
+  PROVEN               runtime-admission-vs-close
+  PROVEN               taskbatch-observation-publication
+  PROVEN_BY_REASONING  taskgroup-observation-publication
+  PROVEN               adopted-end-time-before-mirror-settle
+  PROVEN_BY_REASONING  kernel-delivery-flag-before-interrupt
+  PROVEN               accumulator-fail-fast-replacement
+  PROVEN               cancel-during-execution-claim

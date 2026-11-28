@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-162241-9acb94",
+  "version": 1,
+  "createdAt": "2026-11-27T17:07:56.973Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

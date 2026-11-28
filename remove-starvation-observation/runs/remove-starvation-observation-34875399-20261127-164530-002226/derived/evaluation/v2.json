@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-164530-002226",
+  "version": 2,
+  "createdAt": "2026-11-27T16:55:56.243Z",
+  "inputs": {
+    "dedupVersion": 2,
+    "adjudicationVersion": 1,
+    "goldVersion": 1,
+    "reviews": [
+      {
+        "agent": "codex",
+        "attempt": 1,
+        "sha256": "f4853dbc5347fa1820acb59149fd80b460ab2cf13c9a8f66944e88d414e35d36"
+      }
+    ]
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "head": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 131879,
+    "systemsWithUsage": 1,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "codex": {
+      "identity": {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v4-pro",
+        "revision": null,
+        "effort": "high"
+      },
+      "status": "completed",
+      "durationMs": 525860,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 1,
+        "adjudicated": 1,
+        "confirmed": 1,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 0
+      },
+      "rates": {
+        "confirmed": 1,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": 131879,
+        "cost": null,
+        "currency": null
+      },
+      "error": null
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 1,
+      "adjudicated": 1,
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "findings": {
+      "total": 1,
+      "adjudicated": 1,
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 0
+    },
+    "rates": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "findingRates": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "macro": {
+      "confirmed": 1,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0
+    },
+    "systemsAdjudicated": 1
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values"
+  ]
+}

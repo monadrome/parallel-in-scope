@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "remove-starvation-observation-2684bd14-20261127-160304-dfbe14",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-27T16:03:05.393Z",
+  "endedAt": "2026-11-27T16:20:50.852Z",
+  "durationMs": 1065301,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-2684bd14-20261127-160304-dfbe14/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-2684bd14-20261127-160304-dfbe14/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-2684bd14-20261127-160304-dfbe14/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "zcode/GLM-5.4",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 3e04f590902bed50af4ddb4d8e6347630c8f80ec to 2684bd143909d9b6bfa660202e7079a010d529bd. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-2684bd14-20261127-160304-dfbe14/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-2684bd14-20261127-160304-dfbe14/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context, round 2: remove thread-pool starvation observation\n\nRange: 3e04f590 .. 2684bd14 (two follow-up commits on top of `feat!: remove thread-pool starvation\nobservation`, which removed `ParRuntime.openThreadPoolStarvationObservation(Duration)`,\n`ThreadPoolStarvationObservationScope`, `ThreadPoolStarvationReport`, and\n`ParRuntimeSnapshot.activeObservations()`).\n\nSettled round-1 findings (confirmed and fixed in this range; do not re-raise unless the fix is wrong):\n\n- `design/task-group-adopted-futures.md` header listed the removed observation.\n- `README.md` / `README.zh-CN.md` capability claims listed starvation diagnostics.\n- `BACKLOG.md` identity-probe entry cited the removed `NO_ISSUE` status.\n\nCommits in range:\n\n- `docs: drop stale starvation-observation references found in review` (the three fixes above).\n- `test: pin timeout-action thread retirement at quiescence`: adds\n  `ParRuntimeTest.quiescenceRetiresTheTimeoutActionThreads`, written after focused PIT showed that\n  deleting `timeoutActionPool.shutdown()` in `ParRuntime.shutdownServicesWhenAdmissionsComplete`\n  survived.\n\nRead every changed file in the range. Attack surfaces: whether each documentation fix is accurate\nagainst the code and the remaining contracts; whether the new test is deterministic, bounded, releases\nwhat it creates, and actually detects the missing pool shutdown (and only that) through documented\nbehavior (`awaitQuiescence` and `releases()` Javadoc); Java 8/11 test-source compatibility; and any\nstale reference to the removed API the first round missed anywhere in the repository's live documents.\n\nDo not edit files.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.review-benchmark/runs/remove-starvation-observation-2684bd14-20261127-160304-dfbe14/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "zcode",
+    "model": "zcode/GLM-5.4",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 275134,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the two follow-up commits (three documentation fixes and the new ParRuntimeTest.quiescenceRetiresTheTimeoutActionThreads test). The documentation fixes to README.md, README.zh-CN.md, BACKLOG.md, and the adopted-futures contract header are accurate against the current executor wait graph and ExecutorIdentity reference-equality contract, and the new test is deterministic, bounded, closes its runtime, and kills the deleted timeoutActionPool.shutdown() mutation through the documented awaitQuiescence()/releases() behavior. One stale starvation-observation reference remains in an Accepted ADR that the first-round documentation fix did not rewrite.",
+  "findings": [
+    {
+      "file": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+      "lineStart": 110,
+      "lineEnd": 111,
+      "title": "Accepted ADR still lists the removed starvation observation as a live reconsideration signal",
+      "trigger": "A maintainer reads the Accepted ADR's 'Reconsider When' section to decide whether the TaskType removal should be revisited; the condition requires blocking-in-compute-pool incidents that the executor wait graph, starvation observation, application types, and blocking-call detectors all miss.",
+      "consequence": "The live ADR's reconsideration condition names a feature deleted in 0.5.0, so the condition cannot be evaluated as written and the document contradicts the removal note it carries in the same file.",
+      "evidence": "adr/0016-remove-tasktype-and-workload-fit-screening.md:110-111 still lists 'starvation observation' beside the executor wait graph; the 2026-11-27 note at lines 101-102 states that starvation observation was later removed and only the executor wait graph remains.",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Remove 'starvation observation' from the Reconsider When bullet, and rewrite the costs bullet at lines 98-102 to state the post-removal signal set directly instead of relying on a parenthetical note.",
+      "id": "codex:0",
+      "reviewer": "codex",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+      "lineStart": 110,
+      "lineEnd": 111,
+      "title": "Accepted ADR still lists the removed starvation observation as a live reconsideration signal",
+      "trigger": "A maintainer reads the Accepted ADR's 'Reconsider When' section to decide whether the TaskType removal should be revisited; the condition requires blocking-in-compute-pool incidents that the executor wait graph, starvation observation, application types, and blocking-call detectors all miss.",
+      "consequence": "The live ADR's reconsideration condition names a feature deleted in 0.5.0, so the condition cannot be evaluated as written and the document contradicts the removal note it carries in the same file.",
+      "evidence": "adr/0016-remove-tasktype-and-workload-fit-screening.md:110-111 still lists 'starvation observation' beside the executor wait graph; the 2026-11-27 note at lines 101-102 states that starvation observation was later removed and only the executor wait graph remains.",
+      "severity": "P3",
+      "confidence": 0.6,
+      "suggestedFix": "Remove 'starvation observation' from the Reconsider When bullet, and rewrite the costs bullet at lines 98-102 to state the post-removal signal set directly instead of relying on a parenthetical note."
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,13 @@
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+index d5fbc7a7..e3f93a37 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+@@ -433,7 +433,7 @@ public final class ParRuntime implements AutoCloseable {
+      * undrained runs.
+      */
+     public int inFlight() {
+-        return activeAdmissions.get() + activeBatches.get();
++        return activeAdmissions.get() + activeBatches.get() + liveExecutionSignals.size();
+     }
+ 
+     /**

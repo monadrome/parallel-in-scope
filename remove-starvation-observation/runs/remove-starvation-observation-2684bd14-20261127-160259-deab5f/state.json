@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "remove-starvation-observation-2684bd14-20261127-160259-deab5f",
+  "status": "completed",
+  "createdAt": "2026-11-27T16:03:00.530Z",
+  "updatedAt": "2026-11-27T16:22:20.497Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-27T16:03:00.556Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "completed",
+            "startedAt": "2026-11-27T16:03:00.562Z",
+            "endedAt": "2026-11-27T16:08:13.681Z",
+            "durationMs": 312942,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          }
+        ],
+        "updatedAt": "2026-11-27T16:08:13.694Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-27T16:08:13.772Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-27T16:08:13.823Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-27T16:08:13.881Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "pending",
+      "updatedAt": "2026-11-27T16:03:00.530Z",
+      "error": null
+    }
+  },
+  "eventSeq": 39
+}

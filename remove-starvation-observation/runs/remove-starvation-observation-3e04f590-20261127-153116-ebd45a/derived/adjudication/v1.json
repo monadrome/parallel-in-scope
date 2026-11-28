@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "remove-starvation-observation-3e04f590-20261127-153116-ebd45a",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-27T16:02:42.304Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro-main",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "design/task-group-adopted-futures.md header at 3e04f590 still listed thread-pool starvation observation; fixed in 373000b1",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "README.md and README.zh-CN.md listed starvation diagnostics separately from the waiting graph and deadlock; the only remaining signal is the wait graph's deadlock-cycle warning; reworded in 373000b1",
+      "confidence": 0.9
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "BACKLOG.md cited the removed NO_ISSUE status; reworded in 373000b1",
+      "confidence": 1
+    }
+  ]
+}

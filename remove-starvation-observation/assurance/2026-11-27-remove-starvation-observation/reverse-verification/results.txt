@@ -1,0 +1,10 @@
+tdd-004 contrary-run exit=1
+tdd-004 restored=exact
+tdd-008 contrary-run exit=1
+tdd-008 restored=exact
+tdd-010 contrary-run exit=0
+tdd-010 restored=exact
+recompile exit=0
+tdd-010 contrary-run (retry, patch applied) exit=1
+tdd-010 restored=exact
+note: the first tdd-010 attempt did not apply its patch (the pattern assumed a pre-format line split), so its exit=0 run was against unmodified code and is not reverse evidence; the retry above applied the patch

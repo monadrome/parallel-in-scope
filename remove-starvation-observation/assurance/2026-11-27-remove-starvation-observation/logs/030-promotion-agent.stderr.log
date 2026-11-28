@@ -1,0 +1,2863 @@
+Reading additional input from stdin...
+2026-11-27T16:04:13.980008Z ERROR codex_core::session::session: failed to load skill /Users/linqh/.codex/plugins/cache/team-claude-workflow/team-claude-workflow/3.1.2/skills/local-startup/SKILL.md: missing YAML frontmatter delimited by ---
+2026-11-27T16:04:13.990302Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (http://127.0.0.1:12306/mcp)")))
+OpenAI Codex v0.169.0
+--------
+workdir: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+model: zcode/GLM-5.4
+provider: magpie
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 01a21dc0-0789-7e53-9312-cea1d06b5ce0
+--------
+user
+You are a fresh assurance-promotion agent. Read /tmp/rso-promote/BRIEF.md and perform exactly the task it describes. Keep each reply short and write one file per tool call.
+2026-11-27T16:04:14.019445Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("MCP HTTP redirects for non-loopback hostnames require HTTPS")))
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: failed to parse plugin hooks config /Users/linqh/.codex/plugins/cache/cache-countdown/cache-countdown/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 3 column 11
+warning: loading hooks from both /Users/linqh/.codex/hooks.json and /Users/linqh/.codex/config.toml; prefer a single representation for this layer
+[redacted before archiving: Codex harness MCP authentication error naming an internal host]
+2026-11-27T16:04:14.068886Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("MCP HTTP redirects for non-loopback hostnames require HTTPS")))
+[redacted before archiving: Codex harness MCP authentication error naming an internal host]
+2026-11-27T16:04:14.244360Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (http://127.0.0.1:12306/mcp)")))
+2026-11-27T16:04:14.291015Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("MCP HTTP redirects for non-loopback hostnames require HTTPS")))
+2026-11-27T16:04:14.338671Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("MCP HTTP redirects for non-loopback hostnames require HTTPS")))
+hook: SessionStart
+hook: SessionStart
+hook: SessionStart
+hook: SessionStart
+2026-11-27T16:04:15.247148Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (http://127.0.0.1:12306/mcp)")))
+2026-11-27T16:04:15.312859Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("MCP HTTP redirects for non-loopback hostnames require HTTPS")))
+2026-11-27T16:04:15.382053Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("MCP HTTP redirects for non-loopback hostnames require HTTPS")))
+hook: SessionStart Completed
+hook: SessionStart Completed
+hook: SessionStart Completed
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit
+hook: UserPromptSubmit
+hook: UserPromptSubmit
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+hook: UserPromptSubmit Completed
+hook: UserPromptSubmit Completed
+hook: UserPromptSubmit Completed
+hook: UserPromptSubmit Completed
+The user wants me to read /tmp/rso-promote/BRIEF.md and perform exactly the task it describes. Let me start by reading the brief.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'cat /tmp/rso-promote/BRIEF.md' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+# Assurance promotion (fresh context)
+
+You own the promotion phase of a contract-first assurance run. The implementer of the change does not
+read the hidden suite, so you do this work and report back only paths, IDs, and command results.
+
+Repository checkout (detached, yours to edit): /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+Hidden regression suite root: verification/contract-tests/ in that checkout. Read
+verification/contract-tests/AGENTS.md first and follow its module conventions exactly.
+
+Eligible sealed candidates (in /tmp/rso-promote/candidates/), each already classified `new coverage`,
+passed twice on the real implementation, and reverse-verified:
+
+| candidate_id | source_contract_id | file |
+|---|---|---|
+| CONTRACT-TDD-004 | C-3 | ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest.java |
+| CONTRACT-TDD-008 | C-4 | ContractTdd008InFlightZeroWhileExecutionStillRunningTest.java |
+| CONTRACT-TDD-010 | C-5 | ContractTdd010SnapshotUnexitedSignalTest.java |
+
+For each candidate, in order:
+
+1. Allocate the next unused four-digit contract ID in the suite (`C-nnnn`), unique across all
+   existing classes and across the three you add.
+2. Adapt only package, class name (`Cnnnn<Subject>ContractTest`), the `@Tag("C-nnnn")` placement, and
+   build integration. Preserve the precondition state, operation sequence, observation window, and
+   every assertion. Do not add, remove, weaken, or strengthen assertions.
+3. Write the adapted class into the suite, and also copy the exact adapted file to
+   /tmp/rso-promote/adapted/<same file name>.
+
+Then run, from the checkout root, with JAVA_HOME set to the JDK 25 home
+(`/usr/libexec/java_home -v 25`) and Maven offline (`mvn -o`):
+
+```bash
+python3 scripts/check-contract-tests.py
+mvn -o -Pcontract-tests -pl verification/contract-tests spotless:apply
+mvn -o -Pcontract-tests -pl verification/contract-tests -am clean test
+python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
+```
+
+If `spotless:apply` reformats an adapted file, recopy the final bytes to /tmp/rso-promote/adapted/.
+Save each command's stdout and stderr under /tmp/rso-promote/logs/ as NN-<name>.stdout.log and
+NN-<name>.stderr.log, and its exit code in NN-<name>.exit.
+
+If a candidate cannot be promoted (its tests fail in the suite, or an ID or convention cannot be
+satisfied), remove its new file from the suite so the checkout holds no partial promotion, and mark it
+blocked with the reason.
+
+Finally write /tmp/rso-promote/result.json:
+
+```json
+{"promotions": [{"candidate_id": "CONTRACT-TDD-004", "source_contract_id": "C-3", "contract_id": "C-nnnn",
+  "target_path": "verification/contract-tests/src/test/java/.../Cnnnn...ContractTest.java",
+  "adapted_file": "/tmp/rso-promote/adapted/Cnnnn...ContractTest.java", "status": "promoted|blocked",
+  "reason": "one sentence"}],
+ "commands": [{"name": "regression-metadata", "argv": ["python3", "scripts/check-contract-tests.py"], "exit": 0}, ...]}
+```
+
+Use the names regression-metadata, regression-format, regression-tests, regression-execution for the
+four commands. Do not commit, do not touch files outside the suite root and /tmp/rso-promote/, and do
+not edit production code or other tests. Stop after writing result.json.
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Let me read verification/contract-tests/AGENTS.md first.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'cat verification/contract-tests/AGENTS.md' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+# Hidden Contract Regression Tests
+
+Applies to `verification/contract-tests/`. Follow the root delivery and review routes for changes.
+
+## Visibility
+
+Implementation and production-fixing agents keep this suite unread by default. Assurance promotion,
+independent review, and hidden-suite maintenance may read it. This is a context-isolation boundary,
+not access control: the suite is tracked so CI and independent verifiers can reproduce it.
+
+When this suite fails, a hidden-suite maintainer gives the implementation agent a contract-level
+report containing the `C-<id>`, public preconditions, and observable expected and actual results.
+The implementation agent works from that report and the owning contract rather than the test source.
+
+## Module conventions
+
+The `contract-first-assurance` promotion phase owns eligibility and audit artifacts for additions.
+Assign the next unused four-digit contract ID. Name the class `Cnnnn<Subject>ContractTest`, put
+`@Tag("C-nnnn")` immediately above it, and keep the two IDs equal. Contract IDs are unique across
+classes; one class may contain several tests for its contract. Every class must have at least one
+passing, non-skipped testcase in the canonical `TEST-<FQCN>.xml` Surefire report produced by the
+explicit suite run. The testcase `classname` must equal the source file's fully qualified class name
+and its method name must be non-empty. Tests exercise public behavior only.
+
+Keep this module out of the default reactor and core test sources. Run its checks explicitly:
+
+```bash
+python3 scripts/check-contract-tests.py
+mvn -Pcontract-tests -pl verification/contract-tests spotless:apply
+mvn -Pcontract-tests -pl verification/contract-tests -am clean test
+python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports
+```
+
+Promoting every candidate was rejected because duplicate, unstable, and wrong-assumption candidates
+would turn assurance output into noise. Hiding through untracked or encrypted files was rejected
+because independent verification and CI could not reproduce the suite from the development line.
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'ls -la /tmp/rso-promote/ /tmp/rso-promote/candidates/ 2>&1; echo "---"; git -C . status --short | head -20; echo "--- branch ---"; git branch --show-current; git log --oneline -3; echo "--- suite tree ---"; find verification/contract-tests -type f | grep -v target | sort' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+/tmp/rso-promote/:
+total 8
+drwxr-xr-x@   6 linqh  wheel    192 Nov 27 08:04 .
+drwxrwxrwt  515 root   wheel  16480 Nov 27 08:04 ..
+-rw-r--r--@   1 linqh  wheel   3307 Nov 27 08:04 BRIEF.md
+drwxr-xr-x@   2 linqh  wheel     64 Nov 27 08:04 adapted
+drwxr-xr-x@   5 linqh  wheel    160 Nov 27 08:04 candidates
+drwxr-xr-x@   2 linqh  wheel     64 Nov 27 08:04 logs
+
+/tmp/rso-promote/candidates/:
+total 24
+drwxr-xr-x@ 5 linqh  wheel   160 Nov 27 08:04 .
+drwxr-xr-x@ 6 linqh  wheel   192 Nov 27 08:04 ..
+-rw-r--r--@ 1 linqh  wheel  2551 Nov 27 08:04 ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest.java
+-rw-r--r--@ 1 linqh  wheel  3567 Nov 27 08:04 ContractTdd008InFlightZeroWhileExecutionStillRunningTest.java
+-rw-r--r--@ 1 linqh  wheel  3806 Nov 27 08:04 ContractTdd010SnapshotUnexitedSignalTest.java
+---
+--- branch ---
+2684bd14 test: pin timeout-action thread retirement at quiescence
+373000b1 docs: drop stale starvation-observation references found in review
+3e04f590 feat!: remove thread-pool starvation observation
+--- suite tree ---
+verification/contract-tests/AGENTS.md
+verification/contract-tests/pom.xml
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java
+verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+The checkout is clean (no status output). Detached HEAD? `git branch --show-current` returned nothing, so detached. Let me look at the existing suite classes and the candidates.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'echo "=== C0001 ==="; cat verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0001TaskIdContractTest.java; echo; echo "=== C0003 ==="; cat verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0003ConcurrentFirstAdmissionsOnceContractTest.java' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+=== C0001 ===
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/** Contract: design/task-identity.md, "Equality as reconciliation". */
+@Tag("C-0001")
+class C0001TaskIdContractTest {
+
+    @Test
+    void reconciliationUsesTheExactLabelWithoutTrimming() {
+        assertThat(TaskId.unit(" 7 ")).isNotEqualTo(TaskId.unit("7"));
+        assertThat(TaskId.group(" 7 ")).isNotEqualTo(TaskId.group("7"));
+        assertThat(TaskId.unit(" 7 ")).hasToString("unit- 7 ");
+        assertThat(TaskId.group(" 7 ")).hasToString("group- 7 ");
+    }
+}
+
+=== C0003 ===
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/**
+ * CONTRACT-TDD-012 (contract C-3 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+ *
+ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 2;
+ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; docs/en/user-guide.md,
+ * "Execute a batch"; design/task-group-adopted-futures.md, "2. Contract" item A7.
+ *
+ * <p>Precondition: one entry on a plain executor with several idle workers.
+ *
+ * <p>Operation sequence: eight threads admit a refusing single-element batch through the same
+ * entry simultaneously, released together by a start latch.
+ *
+ * <p>Observation points: JUL records naming the entry id.
+ *
+ * <p>Assertions: the entry still causes exactly one {@code WARNING}, even under concurrent first
+ * admissions; the count stays one after a 1000 millisecond window.
+ *
+ * <p>Uncertainty: the once-only guarantee is asserted after all admissions return; a record that
+ * arrived late would still be within the stated window.
+ */
+@Tag("C-0003")
+class C0003ConcurrentFirstAdmissionsOnceContractTest {
+
+    @Test
+    void concurrentFirstAdmissionsStillWarnOnce() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        ParId id = ParId.of("ct012-entry");
+        Logger logger = Logger.getLogger("io.github.monadrome.parallelinscope");
+        CaptureHandler handler = new CaptureHandler();
+        logger.addHandler(handler);
+
+        try (ParRuntime runtime = ParRuntime.builder().register(id, pool).build()) {
+            Par par = runtime.par(id);
+            BatchOptions refusing =
+                    BatchOptions.timeout("ct012-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
+            List<Integer> one = Arrays.asList(1);
+
+            int threads = 8;
+            CountDownLatch ready = new CountDownLatch(threads);
+            CountDownLatch start = new CountDownLatch(1);
+            Thread[] workers = new Thread[threads];
+            for (int i = 0; i < threads; i++) {
+                workers[i] = new Thread(() -> {
+                    ready.countDown();
+                    try {
+                        start.await(10, TimeUnit.SECONDS);
+                        par.map(one, el -> el, refusing);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+                workers[i].start();
+            }
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            for (Thread worker : workers) {
+                worker.join(TimeUnit.SECONDS.toMillis(20));
+            }
+
+            handler.awaitCountContaining("ct012-entry", 1, 10);
+            assertThat(handler.countContaining("ct012-entry")).isEqualTo(1);
+            assertThat(handler.firstContaining("ct012-entry").getLevel()).isEqualTo(Level.WARNING);
+            Thread.sleep(1000);
+            assertThat(handler.countContaining("ct012-entry")).isEqualTo(1);
+        } finally {
+            logger.removeHandler(handler);
+            pool.shutdownNow();
+        }
+    }
+
+    private static final class CaptureHandler extends Handler {
+        final List<LogRecord> records = Collections.synchronizedList(new java.util.ArrayList<>());
+
+        @Override
+        public void publish(LogRecord record) {
+            if (record.getLevel().intValue() == Level.WARNING.intValue()) {
+                records.add(record);
+            }
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void close() {}
+
+        int countContaining(String fragment) {
+            int count = 0;
+            for (LogRecord record : records) {
+                if (record.getMessage() != null && record.getMessage().contains(fragment)) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        LogRecord firstContaining(String fragment) {
+            for (LogRecord record : records) {
+                if (record.getMessage() != null && record.getMessage().contains(fragment)) {
+                    return record;
+                }
+            }
+            return null;
+        }
+
+        void awaitCountContaining(String fragment, int expected, long seconds) throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
+            while (countContaining(fragment) < expected && System.nanoTime() < deadline) {
+                Thread.sleep(50);
+            }
+        }
+    }
+}
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Now let me look at the candidates.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'cd /tmp/rso-promote/candidates && for f in *.java; do echo "=================== $f ==================="; cat "$f"; echo; done' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+=================== ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest.java ===================
+package io.github.monadrome.parallelinscope.assurance;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import io.github.monadrome.parallelinscope.ParId;
+import io.github.monadrome.parallelinscope.ParRuntime;
+import java.time.Duration;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Candidate CONTRACT-TDD-004, contract C-3.
+ *
+ * <p>Precondition: a built, idle {@link ParRuntime}; the test closes it before the interrupt probe
+ * so the runtime is quiescent and the timeout is non-positive.
+ *
+ * <p>Operation sequence: call {@code awaitQuiescence(null)}; close; interrupt the calling thread;
+ * call {@code awaitQuiescence(Duration.ZERO)}; clear the interrupt; call it again.
+ *
+ * <p>Observation points: the null-argument call, the interrupted call's exception and flag state,
+ * and the final non-positive single check.
+ *
+ * <p>Assertions: null throws {@code NullPointerException}; the interrupted call throws
+ * {@code InterruptedException} with the flag cleared even though the runtime is quiescent and the
+ * timeout is non-positive; the subsequent non-positive check returns {@code true}.
+ *
+ * <p>Uncertainty: none material; validation order is stated by the contract.
+ */
+public class ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest {
+
+    @Test
+    void awaitQuiescenceValidatesNullAndHonorsInterruptBeforeState() throws Exception {
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>());
+        ParId id = ParId.of("io");
+        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
+        try {
+            assertThatThrownBy(() -> runtime.awaitQuiescence(null))
+                    .isInstanceOf(NullPointerException.class);
+
+            runtime.close();
+
+            Thread.currentThread().interrupt();
+            try {
+                assertThatThrownBy(() -> runtime.awaitQuiescence(Duration.ZERO))
+                        .isInstanceOf(InterruptedException.class);
+                assertThat(Thread.currentThread().isInterrupted()).isFalse();
+            } finally {
+                Thread.interrupted();
+            }
+
+            assertThat(runtime.awaitQuiescence(Duration.ZERO)).isTrue();
+        } finally {
+            runtime.close();
+            pool.shutdownNow();
+        }
+    }
+}
+
+=================== ContractTdd008InFlightZeroWhileExecutionStillRunningTest.java ===================
+package io.github.monadrome.parallelinscope.assurance;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
+import io.github.monadrome.parallelinscope.ParRuntime;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Candidate CONTRACT-TDD-008, contract C-4.
+ *
+ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
+ * future has settled cancelled while its execution keeps running user code that ignores
+ * interruption.
+ *
+ * <p>Operation sequence: run the short-deadline batch, wait for its result, read {@code inFlight()}
+ * while the execution is still unwinding, then close and release the execution.
+ *
+ * <p>Observation points: {@code executionExitConfirmed()}, {@code inFlight()} before release, and
+ * the quiescence confirmation after release.
+ *
+ * <p>Assertions: the result reports an unconfirmed execution exit while {@code inFlight()} is zero;
+ * quiescence follows once the execution exits.
+ *
+ * <p>Uncertainty: none material; the bounded ignoring loop caps the execution at ten seconds.
+ */
+public class ContractTdd008InFlightZeroWhileExecutionStillRunningTest {
+
+    @Test
+    void inFlightIsZeroWhileCancelledExecutionStillRunsUserCode() throws Exception {
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>());
+        ParId id = ParId.of("io");
+        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
+        Par par = runtime.defaultPar();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch exit = new CountDownLatch(1);
+        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
+        try {
+            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
+                entered.countDown();
+                ignoreInterruptionUntil(exit);
+                return x;
+            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
+            runner.start();
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+            runner.join(10_000);
+            assertThat(runner.isAlive()).isFalse();
+            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
+
+            assertThat(runtime.inFlight()).isZero();
+
+            runtime.close();
+            exit.countDown();
+            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
+        } finally {
+            exit.countDown();
+            runtime.close();
+            pool.shutdownNow();
+        }
+    }
+
+    private static void ignoreInterruptionUntil(CountDownLatch release) {
+        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadlineNanos) {
+            try {
+                if (release.await(1, TimeUnit.SECONDS)) {
+                    return;
+                }
+            } catch (InterruptedException ignored) {
+                // deliberately keep running: this execution ignores interruption
+            }
+        }
+    }
+}
+
+=================== ContractTdd010SnapshotUnexitedSignalTest.java ===================
+package io.github.monadrome.parallelinscope.assurance;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.monadrome.parallelinscope.BatchOptions;
+import io.github.monadrome.parallelinscope.Par;
+import io.github.monadrome.parallelinscope.ParId;
+import io.github.monadrome.parallelinscope.ParRuntime;
+import io.github.monadrome.parallelinscope.ParRuntimeSnapshot;
+import io.github.monadrome.parallelinscope.TaskBatchResult;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Candidate CONTRACT-TDD-010, contract C-5.
+ *
+ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
+ * future settled cancelled while its execution keeps running user code that ignores interruption.
+ *
+ * <p>Operation sequence: run the short-deadline batch, wait for its result, sample a snapshot while
+ * the execution is still unwinding, then close and release the execution.
+ *
+ * <p>Observation points: {@code executionExitConfirmed()}, {@code undrainedBatches()},
+ * {@code unexitedExecutionSignals()}, and the quiescence confirmation after release.
+ *
+ * <p>Assertions: the run reports an unconfirmed exit; {@code undrainedBatches()} is zero while
+ * {@code unexitedExecutionSignals()} is greater than zero.
+ *
+ * <p>Uncertainty: the exact positive signal count is not pinned, only that it is non-zero as the
+ * contract requires.
+ */
+public class ContractTdd010SnapshotUnexitedSignalTest {
+
+    @Test
+    void snapshotReportsUnexitedSignalWhileUndrainedIsZero() throws Exception {
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>());
+        ParId id = ParId.of("io");
+        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
+        Par par = runtime.defaultPar();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch exit = new CountDownLatch(1);
+        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
+        try {
+            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
+                entered.countDown();
+                ignoreInterruptionUntil(exit);
+                return x;
+            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
+            runner.start();
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+            runner.join(10_000);
+            assertThat(runner.isAlive()).isFalse();
+            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
+
+            ParRuntimeSnapshot snapshot = runtime.snapshot();
+            assertThat(snapshot.undrainedBatches()).isZero();
+            assertThat(snapshot.unexitedExecutionSignals()).isGreaterThan(0);
+
+            runtime.close();
+            exit.countDown();
+            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
+        } finally {
+            exit.countDown();
+            runtime.close();
+            pool.shutdownNow();
+        }
+    }
+
+    private static void ignoreInterruptionUntil(CountDownLatch release) {
+        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadlineNanos) {
+            try {
+                if (release.await(1, TimeUnit.SECONDS)) {
+                    return;
+                }
+            } catch (InterruptedException ignored) {
+                // deliberately keep running: this execution ignores interruption
+            }
+        }
+    }
+}
+
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Now let me look at the other existing suite files (C0002, C0004), the pom.xml of the suite, and the check-contract-tests.py script to understand the metadata check.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'echo "=== C0002 ==="; cat verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0002MapAndCombineCombineNoRefusalQueuedContractTest.java; echo; echo "=== C0004 ==="; cat verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0004OffThreadBlockingHandlerContractTest.java; echo; echo "=== pom.xml ==="; cat verification/contract-tests/pom.xml' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+=== C0002 ===
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/**
+ * CONTRACT-TDD-005 (contract C-2 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+ *
+ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 2;
+ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
+ * {@code SubmissionAwareBlockingQueue}, {@code BatchOptions.rejectEnqueue}, and
+ * {@code TaskOptions.rejectEnqueue}; docs/en/user-guide.md, "Execute a batch".
+ *
+ * <p>Precondition: a batch entry on a refusal-capable pool with headroom, and a combine entry on a
+ * refusal-capable pool (core=1, max=1, queue capacity 1) whose only worker is busy blocked on a
+ * latch.
+ *
+ * <p>Operation sequence: run {@code mapAndCombine} with a refusing batch
+ * ({@code rejectEnqueue(true)}) whose elements succeed immediately, and a terminal combine
+ * submitted to the busy combine entry. The test observes the combine pool's queue reach size one,
+ * releases the blocker, then joins.
+ *
+ * <p>Observation points: the combine pool's queue size before release and the terminal combine's
+ * frozen result and run counter.
+ *
+ * <p>Assertions: the combine is queued while the worker is busy and is not rejected — its
+ * {@code terminalResult()} succeeds and its combiner ran exactly once.
+ *
+ * <p>Uncertainty: the exact submission moment is not observable; queued-before-release is asserted
+ * by watching the pool queue, which is application code reading its own executor.
+ */
+@Tag("C-0002")
+class C0002MapAndCombineCombineNoRefusalQueuedContractTest {
+
+    @Test
+    void mapAndCombineTerminalCombineIsQueuedNotRejected() throws Exception {
+        ThreadPoolExecutor batchPool =
+                new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(2));
+        ThreadPoolExecutor combinePool =
+                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new SubmissionAwareBlockingQueue<Runnable>(1));
+        ParId batchId = ParId.of("ct005-batch");
+        ParId combineId = ParId.of("ct005-combine");
+
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger combineRan = new AtomicInteger();
+
+        AtomicReference<BatchCombinedResult<Integer, Integer>> resultRef = new AtomicReference<>();
+        AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+        try (ParRuntime runtime = ParRuntime.builder()
+                .register(batchId, batchPool)
+                .register(combineId, combinePool)
+                .build()) {
+            Par batchPar = runtime.par(batchId);
+            Par combinePar = runtime.par(combineId);
+
+            combinePool.execute(() -> {
+                started.countDown();
+                try {
+                    release.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+
+            List<Integer> elements = Arrays.asList(1, 2);
+            BatchOptions options =
+                    BatchOptions.timeout("ct005-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
+
+            Thread submitter = new Thread(() -> {
+                try {
+                    resultRef.set(batchPar.mapAndCombine(
+                            elements, el -> el, options, combinePar, (Combiner<List<Integer>, Integer>) values -> {
+                                combineRan.incrementAndGet();
+                                return values.size();
+                            }));
+                } catch (Throwable t) {
+                    errorRef.set(t);
+                }
+            });
+            submitter.start();
+
+            awaitQueueSize(combinePool, 1, Duration.ofSeconds(10));
+            release.countDown();
+            submitter.join(TimeUnit.SECONDS.toMillis(20));
+            assertThat(errorRef.get()).isNull();
+
+            BatchCombinedResult<Integer, Integer> result = resultRef.get();
+            assertThat(result.terminalResult().successful()).isTrue();
+            assertThat(result.terminalResult().termination().failureCause()).isNull();
+            assertThat(combineRan.get()).isEqualTo(1);
+        } finally {
+            batchPool.shutdownNow();
+            combinePool.shutdownNow();
+        }
+    }
+
+    private static void awaitQueueSize(ThreadPoolExecutor pool, int expected, Duration timeout)
+            throws InterruptedException {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (System.nanoTime() < deadline) {
+            if (pool.getQueue().size() == expected) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("queue did not reach size " + expected + " within " + timeout);
+    }
+}
+
+=== C0004 ===
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/**
+ * CONTRACT-TDD-013 (contract C-4 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+ *
+ * <p>Contract: adr/0016-remove-tasktype-and-workload-fit-screening.md, "Decision" item 3;
+ * design/task-group-api-and-options.md, "3.2.1 Admission diagnostics"; the Javadoc of
+ * {@code ParRuntime.executorWaitReport}; docs/en/reference/executor-registration.md,
+ * "Visibility: register the physical pool"; docs/en/reference/diagnostics.md,
+ * "Observe nested work".
+ *
+ * <p>Precondition: one entry on a plain executor; a handler under O-1 that records the publishing
+ * thread and blocks on a latch when a matching record is published.
+ *
+ * <p>Operation sequence: a dedicated thread admits a refusing batch; the test waits for the
+ * handler to start, joins the admitting thread while the handler is still blocked, then releases
+ * the handler.
+ *
+ * <p>Observation points: the publishing thread, whether the record is delivered before release,
+ * and the admitting thread's return.
+ *
+ * <p>Assertions: the admitting thread returns while the handler is still blocked (a blocking
+ * handler never delays the caller); the publishing thread is not the admitting thread; the record
+ * is published only after the handler is released.
+ *
+ * <p>Uncertainty: the runtime-owned thread's identity is not fixed; only "not the admitting
+ * thread" is asserted.
+ */
+@Tag("C-0004")
+class C0004OffThreadBlockingHandlerContractTest {
+
+    @Test
+    void diagnosticIsDeliveredOffThreadAndNeverBlocksCaller() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        ParId id = ParId.of("ct013-entry");
+        Logger logger = Logger.getLogger("io.github.monadrome.parallelinscope");
+        BlockingHandler handler = new BlockingHandler("ct013-entry");
+        logger.addHandler(handler);
+
+        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
+        AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+        try (ParRuntime runtime = ParRuntime.builder().register(id, pool).build()) {
+            Par par = runtime.par(id);
+            BatchOptions refusing =
+                    BatchOptions.timeout("ct013-batch", Duration.ofSeconds(30)).rejectEnqueue(true);
+            List<Integer> one = Arrays.asList(1);
+
+            Thread admitThread = new Thread(() -> {
+                try {
+                    resultRef.set(par.map(one, el -> el, refusing));
+                } catch (Throwable t) {
+                    errorRef.set(t);
+                }
+            });
+            admitThread.start();
+
+            assertThat(handler.started.await(10, TimeUnit.SECONDS)).isTrue();
+            admitThread.join(TimeUnit.SECONDS.toMillis(10));
+            assertThat(admitThread.isAlive()).isFalse();
+            assertThat(errorRef.get()).isNull();
+            assertThat(handler.records).isEmpty();
+            assertThat(handler.publishThread.get()).isNotNull();
+            assertThat(handler.publishThread.get()).isNotSameAs(admitThread);
+
+            handler.release.countDown();
+            assertThat(handler.delivered.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(handler.records).hasSize(1);
+            assertThat(handler.records.get(0).getLevel()).isEqualTo(Level.WARNING);
+            assertThat(handler.records.get(0).getMessage()).startsWith("Par 'ct013-entry' requested rejectEnqueue");
+            assertThat(resultRef.get().termination().successful()).isTrue();
+        } finally {
+            handler.release.countDown();
+            logger.removeHandler(handler);
+            pool.shutdownNow();
+        }
+    }
+
+    private static final class BlockingHandler extends Handler {
+        final String fragment;
+        final CountDownLatch started = new CountDownLatch(1);
+        final CountDownLatch release = new CountDownLatch(1);
+        final CountDownLatch delivered = new CountDownLatch(1);
+        final AtomicReference<Thread> publishThread = new AtomicReference<>();
+        final List<LogRecord> records = Collections.synchronizedList(new java.util.ArrayList<>());
+
+        BlockingHandler(String fragment) {
+            this.fragment = fragment;
+        }
+
+        @Override
+        public void publish(LogRecord record) {
+            if (record.getMessage() != null && record.getMessage().contains(fragment)) {
+                publishThread.set(Thread.currentThread());
+                started.countDown();
+                try {
+                    release.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                records.add(record);
+                delivered.countDown();
+            }
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void close() {}
+    }
+}
+
+=== pom.xml ===
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.monadrome</groupId>
+        <artifactId>parallel-in-scope-parent</artifactId>
+        <version>0.5.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>parallel-in-scope-contract-tests</artifactId>
+    <name>parallel-in-scope hidden contract regression tests</name>
+
+    <properties>
+        <maven.install.skip>true</maven.install.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.monadrome</groupId>
+            <artifactId>parallel-in-scope</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.16.0</version>
+                <configuration>
+                    <release>${java.release}</release>
+                    <testRelease>${maven.compiler.testRelease}</testRelease>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.6.1</version>
+                <configuration>
+                    <failIfNoTests>true</failIfNoTests>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Now let me look at the check-contract-tests.py script to understand what it checks, especially about IDs, tags, naming, and report structure.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'cat scripts/check-contract-tests.py' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+#!/usr/bin/env python3
+"""Check traceability metadata for hidden contract regression tests."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+CLASS_RE = re.compile(r"^class (C(?P<contract_id>\d{4})[A-Za-z0-9]+ContractTest)\b", re.MULTILINE)
+PACKAGE_RE = re.compile(r"^package\s+([A-Za-z0-9_.]+)\s*;", re.MULTILINE)
+CONTRACT_TAG_RE = re.compile(r'@Tag\("C-(\d{4})"\)')
+
+
+def verify_execution(reports: Path, classes: dict[str, Path]) -> list[str]:
+    errors = []
+    report_paths = sorted(reports.rglob("TEST-*.xml"))
+    if not report_paths:
+        return [f"no Surefire XML reports found under {reports}"]
+
+    for class_name, relative in classes.items():
+        report_path = reports / f"TEST-{class_name}.xml"
+        if not report_path.is_file():
+            errors.append(f"{relative}: no executed testcase for {class_name}")
+            continue
+        try:
+            root = ET.parse(report_path).getroot()
+        except (OSError, ET.ParseError) as error:
+            errors.append(f"cannot parse Surefire report {report_path}: {error}")
+            continue
+        matches = [
+            testcase for testcase in root.iter("testcase") if testcase.get("classname") == class_name
+        ]
+        if not matches:
+            errors.append(f"{relative}: no executed testcase for {class_name}")
+        for testcase in matches:
+            method_name = testcase.get("name", "")
+            if not method_name:
+                errors.append(f"{relative}: testcase method name must be non-empty")
+            for outcome in ("skipped", "failure", "error"):
+                if testcase.find(outcome) is not None:
+                    errors.append(f"{relative}: testcase {method_name} has {outcome}")
+    return errors
+
+
+def verify(test_root: Path, reports: Path | None = None) -> list[str]:
+    errors = []
+    paths = sorted(test_root.rglob("*.java"))
+    if not paths:
+        return [f"no contract regression tests found under {test_root}"]
+
+    owners = {}
+    classes = {}
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        matches = list(CLASS_RE.finditer(text))
+        relative = path.relative_to(test_root)
+        if len(matches) != 1:
+            errors.append(f"{relative}: expected one Cnnnn<Subject>ContractTest class")
+            continue
+        match = matches[0]
+        class_name = match.group(1)
+        package_match = PACKAGE_RE.search(text)
+        qualified_name = f"{package_match.group(1)}.{class_name}" if package_match else class_name
+        classes[qualified_name] = relative
+        if path.name != f"{class_name}.java":
+            errors.append(f"{relative}: file name must match {class_name}")
+        contract_id = match.group("contract_id")
+        expected_tag = f'@Tag("C-{contract_id}")'
+        lines = text.splitlines()
+        class_line = text[: match.start()].count("\n")
+        previous = class_line - 1
+        while previous >= 0 and not lines[previous].strip():
+            previous -= 1
+        if previous < 0 or lines[previous].strip() != expected_tag:
+            errors.append(f"{relative}: expected {expected_tag} immediately above the class")
+        tags = CONTRACT_TAG_RE.findall(text)
+        if tags != [contract_id]:
+            errors.append(f"{relative}: expected exactly one contract tag C-{contract_id}")
+        if contract_id in owners:
+            errors.append(f"{relative}: C-{contract_id} is already used by {owners[contract_id]}")
+        else:
+            owners[contract_id] = relative
+    if reports is not None:
+        errors.extend(verify_execution(reports, classes))
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test-root", type=Path)
+    parser.add_argument("--reports", type=Path)
+    args = parser.parse_args()
+    test_root = args.test_root
+    if test_root is None:
+        test_root = Path(__file__).resolve().parents[1] / "verification/contract-tests/src/test/java"
+    reports = args.reports.resolve() if args.reports is not None else None
+    errors = verify(test_root.resolve(), reports)
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}")
+        return 1
+    scope = "metadata and execution evidence" if reports is not None else "metadata"
+    print(f"OK: hidden contract regression {scope} under {test_root.resolve()}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Key constraints from the check script:
+- Class regex: `^class (C(?P<contract_id>\d{4})[A-Za-z0-9]+ContractTest)\b` — so the class must be declared as `class Cnnnn...ContractTest` (package-private `class`, not `public class`). The regex requires the line to start with `class ` — so `public class` wouldn't match! So I must drop `public`.
+- File name must match class name.
+- `@Tag("C-nnnn")` immediately above the class (allowing blank lines skipped backwards, but the AGENTS.md says "immediately above it" — the existing convention puts it immediately above without blank line).
+- Exactly one contract tag in the file.
+- Unique contract IDs.
+
+Next unused four-digit ID: existing are 0001, 0002, 0003, 0004. So next is 0005, 0006, 0007.
+
+Now, the candidates' Javadoc headers: the existing suite files have a Javadoc with "CONTRACT-TDD-012 (contract C-3 of assurance run ...)" as the first line, followed by "Contract: ..." paragraph. The candidates have "Candidate CONTRACT-TDD-004, contract C-3." as first line. The brief says "Adapt only package, class name (`Cnnnn<Subject>ContractTest`), the `@Tag("C-nnnn")` placement, and build integration. Preserve the precondition state, operation sequence, observation window, and every assertion. Do not add, remove, weaken, or strengthen assertions."
+
+So I should adapt:
+1. Package: `io.github.monadrome.parallelinscope.assurance` → `io.github.monadrome.parallelinscope` (since the suite places tests in `io.github.monadrome.parallelinscope` package directly — this is "build integration": the existing suite is in that package so it can access package-private things? Actually the candidates import `io.github.monadrome.parallelinscope.ParId` etc. explicitly. If I change the package to `io.github.monadrome.parallelinscope`, those imports become same-package imports which are redundant — spotless (google-java-format with remove-unused-imports) might flag or remove them. Let me check the spotless config in the root pom to see if it uses google-java-format and whether it removes unused imports.
+
+Also, Javadoc references like `{@link ParRuntime}` in a different package would need import — the candidates have `import io.github.monadrome.parallelinscope.ParRuntime;` so that's fine either way. If I change the package to `io.github.monadrome.parallelinscope`, the import of `ParRuntime` becomes same-package. Java allows importing a class from the same package? Actually, no — `import io.github.monadrome.parallelinscope.ParRuntime;` when you are in that same package: it is legal per JLS? Let me recall: JLS §7.5.1 — "A single-type-import declaration d in a compilation unit c of package p that imports a type named n shadows the declarations of: any top level type named n declared in another compilation unit of p..." and "If a compilation unit contains a single-type-import declaration that imports a type named n, and a top level type named n is declared in the compilation unit, that's a compile-time error". Importing a type from the same package is allowed (it's redundant but legal). Hmm, actually I recall that importing from the same package is permitted; javac doesn't complain. Yes, `import java.util.List;` in a file in package `java.util` is legal. It's allowed.
+
+But google-java-format / spotless may remove redundant same-package imports? google-java-format itself doesn't remove unused imports; spotless's `google-java-format` step with `removeUnusedImports()` does remove unused imports, but a same-package import is technically "used" in the sense the name is referenced... Actually, Eclipse JDT's unused import detection would flag same-package imports as unnecessary. Spotless with google-java-format's `removeUnusedImports` uses a simple tokenizer-based approach — it only removes imports whose simple name doesn't appear elsewhere in the file. So same-package imports that are referenced would be retained.
+
+Hmm, but to follow "module conventions exactly," let me check how the existing classes look. They're all in `io.github.monadrome.parallelinscope` package with no imports of the library classes. The cleanest adaptation: package → `io.github.monadrome.parallelinscope`, and drop the now-same-package imports (that's part of "package" adaptation). But the brief says adapt "only package, class name, @Tag placement, and build integration." Dropping same-package imports is part of adapting the package — leaving them in would be odd but harmless. Spotless:apply will reformat anyway. I think the right call: change the package and remove the imports that become same-package (they're redundant and the existing suite files don't have them). Hmm, but wait. Let me think about whether that's "preserve everything else". The instruction is to preserve precondition state, operation sequence, observation window, and every assertion. Imports are neither. Removing redundant imports is consistent with package adaptation. However, to be minimal and safe, I could keep them... Let me check the spotless configuration first to see what it does with imports.
+
+Also "build integration": what does that mean? The suite's pom.xml already has the dependencies (parallel-in-scope, junit-jupiter, assertj). The candidates use `List.of(1)` — that's Java 9+. The suite's compiler is configured with `<testRelease>${maven.compiler.testRelease}</testRelease>`. Let me check the root pom for `maven.compiler.testRelease` value and the `contract-tests` profile. The candidates were "passed twice on the real implementation" presumably in a sandbox with some JDK. Since we're told to use JDK 25, `List.of` is fine if testRelease allows it. Let me check the root pom.
+
+"Build integration" might also mean: the Javadoc header convention — e.g., the existing files document "CONTRACT-TDD-012 (contract C-3 of assurance run 2026-11-24-remove-tasktype-workload-fit)." as traceability metadata. But the brief says to adapt "only package, class name, @Tag placement, and build integration". The Javadoc says "Candidate CONTRACT-TDD-004, contract C-3." — that's fine to leave; it's not an assertion. Though maybe I'd want to leave it exactly as-is to minimize changes. The brief is explicit: adapt only those four things. So I'll leave the Javadoc untouched. Hmm, but the word "Candidate" in a promoted test... The brief says preserve; the audit artifacts (result.json) record the mapping. I'll leave the Javadoc as is. Actually, wait. Let me think about whether the Javadoc could be considered "build integration". No. Build integration = making it compile and run in the suite module: package, class visibility (the regex requires non-public `class`), imports, dependencies in pom. I'll treat class visibility change (`public class` → `class`) as part of class name/Tag placement adaptation, since the regex `^class (C\d{4}...)` requires the line to start with `class`. That's required by the convention.
+
+Let me check the root pom for spotless config, the contract-tests profile, and `maven.compiler.testRelease`.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'rg -n "contract-tests|maven.compiler.testRelease|java.release|<release>|spotless|googleJavaFormat|removeUnusedImports|importOrder|<junit-jupiter.version>|<assertj.version>|junit-jupiter|assertj" pom.xml | head -60' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+22:        <java.release>8</java.release>
+23:        <maven.compiler.testRelease>11</maven.compiler.testRelease>
+27:        <junit-jupiter.version>6.1.3</junit-jupiter.version>
+28:        <assertj.version>3.27.7</assertj.version>
+56:                <groupId>com.diffplug.spotless</groupId>
+57:                <artifactId>spotless-maven-plugin</artifactId>
+102:            <id>contract-tests</id>
+104:                <module>verification/contract-tests</module>
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'sed -n 15,35p pom.xml; echo "....."; sed -n 50,115p pom.xml' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+
+    <modules>
+        <module>core</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.release>8</java.release>
+        <maven.compiler.testRelease>11</maven.compiler.testRelease>
+        <guava.version>33.7.2-jre</guava.version>
+        <ttl.version>2.14.5</ttl.version>
+        <blocking-queues.version>0.1.0</blocking-queues.version>
+        <junit-jupiter.version>6.1.3</junit-jupiter.version>
+        <assertj.version>3.27.7</assertj.version>
+        <awaitility.version>4.3.0</awaitility.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <errorprone.version>2.50.0</errorprone.version>
+        <nullaway.version>0.14.2</nullaway.version>
+        <byte-buddy.version>1.17.7</byte-buddy.version>
+        <spotbugs.version>4.10.5.0</spotbugs.version>
+        <spotbugs.threshold>High</spotbugs.threshold>
+.....
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>3.10.4</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat><version>2.97.0</version></palantirJavaFormat>
+                    </java>
+                </configuration>
+            </plugin>
+            <!-- The Central Publishing extension must be present on the reactor parent.
+                 Maven executes the parent module before its children; declaring the
+                 extension only in the child modules lets the parent's default
+                 deploy goal fail before Central Publishing can intercept the reactor. -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.12.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                </configuration>
+            </plugin>
+        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.7.0</version>
+                    <configuration>
+                        <rules>
+                            <requireJavaVersion>
+                                <version>[25,)</version>
+                                <message>Error Prone/NullAway requires building on JDK 25 (LTS); artifacts still target release 8.</message>
+                            </requireJavaVersion>
+                        </rules>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>contract-tests</id>
+            <modules>
+                <module>verification/contract-tests</module>
+            </modules>
+        </profile>
+    </profiles>
+</project>
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Spotless uses palantir-java-format 2.97.0 — palantir-java-format does remove unused imports? Actually palantir-java-format spotless step: "PalantirJavaFormatStep" — I believe it does not remove unused imports by default; Spotless has a separate `removeUnusedImports()` step. Palantir's formatter removes unused imports as part of its formatting? Let me recall: google-java-format's `RemoveUnusedImports` is used when the step is configured with `googleJavaFormat().removeUnusedImports()`. For palantirJavaFormat, the spotless palantir step uses `com.palantir.javaformat.java.JavaFormatter` and I don't think it removes imports... Actually I recall that palantir-java-format's spotless step does remove unused imports: In spotless `P alantirJavaFormatStep`, the `format` method calls `RemoveUnusedImports.removeUnusedImports`? Hmm. Let me check: spotless-plugin-htmx... not relevant. I recall `PalantirJavaFormatStep` has `format(PsiFile file, ...)` and inside: `String formatted = formatter.formatSource(...)` and there's also `RemoveUnusedImports` from `com.palantir.javaformat.java.RemoveUnusedImports`? There is indeed a class `com.palantir.javaformat.java.RemoveUnusedImports` in palantir-java-format. And spotless's PalantirJavaFormatStep... I'm not 100% sure. Doesn't matter — I'll write clean code with no redundant imports, then let spotless:apply run and compare.
+
+testRelease is 11, so `List.of` (Java 9) compiles. Good. Test compile uses `--release 11` on JDK 25. Fine.
+
+Note on the regex `CLASS_RE`: `^class (C(\d{4})[A-Za-z0-9]+ContractTest)\b` with MULTILINE. The class name must start with `C` + 4 digits followed by `[A-Za-z0-9]+` then `ContractTest`. E.g., `C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest` — `C0005` + `AwaitQuiescenceValidatesArgsAndHonorsInterrupt` + `ContractTest`. Good.
+
+Subjects for the names — derive from the candidate class names:
+- `ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest` → `C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest`
+- `ContractTdd008InFlightZeroWhileExecutionStillRunningTest` → `C0006InFlightZeroWhileExecutionStillRunningContractTest`
+- `ContractTdd010SnapshotUnexitedSignalTest` → `C0007SnapshotUnexitedSignalContractTest`
+
+Now, about the Javadoc `{@link ParRuntime}` — in package `io.github.monadrome.parallelinscope`, `ParRuntime` is same-package so the link resolves without import. Javadoc isn't run in the test build anyway (only compile; and javadoc isn't run on test sources). But the import — I'll remove the now-same-package imports to match the existing suite style (C0001–C0004 have no library imports). Hmm, wait. Let me reconsider: "Adapt only package, class name, @Tag placement, and build integration." Removing same-package imports is a direct consequence of the package change — they'd be redundant. I think that's within "package" adaptation. But is there any risk? If I keep them, javac accepts them (importing same-package type is legal). If spotless/palantir removes them, then the "adapted file" copied to /tmp/rso-promote/adapted/ must be recopied after formatting anyway. Either way the final bytes are what matter. I'll remove them for cleanliness, matching the suite's existing convention. Hmm, but minimal-diff purists might say keep. The brief's "module conventions exactly" — the existing convention: package `io.github.monadrome.parallelinscope`, no library imports, Javadoc header naming the CONTRACT-TDD id, `@Tag` immediately above the class, package-private class.
+
+Let me think about the Javadoc header. Existing: 
+```
+/**
+ * CONTRACT-TDD-012 (contract C-3 of assurance run 2026-11-24-remove-tasktype-workload-fit).
+ *
+ * <p>Contract: ...
+```
+Candidates:
+```
+/**
+ * Candidate CONTRACT-TDD-004, contract C-3.
+ *
+ * <p>Precondition: ...
+```
+The brief says don't adapt beyond the four items. I'll keep the Javadoc text exactly. Fine.
+
+Now about `@Tag("C-nnnn")` placement: "immediately above it" — existing convention: the Javadoc, then `@Tag`, then `class`. I'll insert `@Tag("C-0005")` between the Javadoc and the class declaration, and add `import org.junit.jupiter.api.Tag;` in the import block (build integration: the candidate didn't import Tag because it had none). The import order: existing files place `import org.junit.jupiter.api.Tag;` before `import org.junit.jupiter.api.Test;` in the non-static import block, sorted. Spotless will handle ordering anyway.
+
+Also, `public class` → `class`. Required by the regex.
+
+Now, the test in C0005 (TDD-004): `Thread.currentThread().interrupt(); try { assertThatThrownBy(() -> runtime.awaitQuiescence(Duration.ZERO)).isInstanceOf(InterruptedException.class); assertThat(Thread.currentThread().isInterrupted()).isFalse(); } finally { Thread.interrupted(); }`. OK — that's the candidate; I preserve it.
+
+Wait, there's a subtlety: the first `runtime.close()` then `runtime.close()` again in finally — fine, presumably idempotent. The candidate passed twice.
+
+Next, I need to check the JDK 25 availability and Maven offline works for the contract-tests module (`-am` builds core too). Let me check `JAVA_HOME` via `/usr/libexec/java_home -v 25`.
+
+Also, I need to think about whether the pre-existing suite state is green. The brief says run the 4 commands after adding all three. If a candidate fails, remove it and mark blocked — then I'd need to re-run to make sure the suite is green without it? "If a candidate cannot be promoted (its tests fail in the suite...), remove its new file from the suite so the checkout holds no partial promotion, and mark it blocked with the reason." The result.json `commands` list would then have the final command results. I'd re-run the four commands after removing the failing candidate so the final state is verified. Let's see what happens first.
+
+Let me check git status is clean (it was — nothing printed before `--- branch ---`). Yes, `git status --short` printed nothing. Good.
+
+Let me check JDK 25 and maven.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c '/usr/libexec/java_home -v 25; echo "exit=$?"; mvn -v 2>&1 | head -5; echo "---"; ls verification/contract-tests/; ls verification/contract-tests/target 2>/dev/null | head; echo "--- worktree skills check (read-only) ---"; ls .agents/skills/ | head -20' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 443ms:
+/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home
+exit=0
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/homebrew/Cellar/maven/3.9.11/libexec
+Java version: 26.0.1, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk/26.0.1/libexec/openjdk.jdk/Contents/Home
+Default locale: en_US, platform encoding: UTF-8
+OS name: "mac os x", version: "15.7.7", arch: "aarch64", family: "mac"
+---
+AGENTS.md
+pom.xml
+src
+--- worktree skills check (read-only) ---
+assurance-report
+complexity-review-eval
+contract-diff
+contract-extract
+contract-first-assurance
+dependency-audit
+isolated-test-generation
+multi-review
+project-delivery
+pull-request
+refactoring-review
+reflect-agents-md
+writing-for-agents
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+JDK 25 found. No target dir yet. Let me now write the three adapted files. I'll write them one file per tool call, as instructed ("write one file per tool call").
+
+Let me carefully write C0005 first.
+
+Original (TDD-004):
+```java
+package io.github.monadrome.parallelinscope.assurance;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import io.github.monadrome.parallelinscope.ParId;
+import io.github.monadrome.parallelinscope.ParRuntime;
+import java.time.Duration;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Candidate CONTRACT-TDD-004, contract C-3.
+ * ...
+ */
+public class ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest {
+```
+
+Adapted:
+```java
+package io.github.monadrome.parallelinscope;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.Duration;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Candidate CONTRACT-TDD-004, contract C-3.
+ * ... (unchanged)
+ */
+@Tag("C-0005")
+class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
+```
+
+I'll use apply_patch with Add File for the suite file, then `cp` to the adapted dir. Hmm, "write one file per tool call" — I'll do apply_patch Add File (suite), then separately cp. Actually I could write directly into the suite with apply_patch, and then cp in a later command (a copy isn't "writing a file" in the authoring sense, but to be safe, one tool call per file write). Fine — I'll do apply_patch for the suite file, and then a cp command per file (or batch the cps later after spotless). Actually, since spotless:apply may reformat, the brief says: "Write the adapted class into the suite, and also copy the exact adapted file to /tmp/rso-promote/adapted/<same file name>." and "If spotless:apply reformats an adapted file, recopy the final bytes". So: write → cp → run spotless → check if changed → recopy if needed.
+
+Let me write the first file now. I need to be careful to preserve the Javadoc and body byte-for-byte except for the adaptations.
+
+Note on palantir format: the existing files have 4-space indentation and lines up to 120 — the candidates were presumably already formatted in palantir style (they look like it). The `ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,\n new LinkedBlockingQueue<>());` — palantir might reflow. We'll see.
+
+Let me write the file.
+codex
+IDs 0001–0004 are taken, so the new ones are C-0005..0007. Writing the first adapted class.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+apply patch
+patch: completed
+/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e94bd5c8e2c61911eb0cc63ca2528b3859391be2
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+@@ -0,0 +1,61 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import java.time.Duration;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-004, contract C-3.
++ *
++ * <p>Precondition: a built, idle {@link ParRuntime}; the test closes it before the interrupt probe
++ * so the runtime is quiescent and the timeout is non-positive.
++ *
++ * <p>Operation sequence: call {@code awaitQuiescence(null)}; close; interrupt the calling thread;
++ * call {@code awaitQuiescence(Duration.ZERO)}; clear the interrupt; call it again.
++ *
++ * <p>Observation points: the null-argument call, the interrupted call's exception and flag state,
++ * and the final non-positive single check.
++ *
++ * <p>Assertions: null throws {@code NullPointerException}; the interrupted call throws
++ * {@code InterruptedException} with the flag cleared even though the runtime is quiescent and the
++ * timeout is non-positive; the subsequent non-positive check returns {@code true}.
++ *
++ * <p>Uncertainty: none material; validation order is stated by the contract.
++ */
++@Tag("C-0005")
++class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
++
++    @Test
++    void awaitQuiescenceValidatesNullAndHonorsInterruptBeforeState() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        try {
++            assertThatThrownBy(() -> runtime.awaitQuiescence(null))
++                    .isInstanceOf(NullPointerException.class);
++
++            runtime.close();
++
++            Thread.currentThread().interrupt();
++            try {
++                assertThatThrownBy(() -> runtime.awaitQuiescence(Duration.ZERO))
++                        .isInstanceOf(InterruptedException.class);
++                assertThat(Thread.currentThread().isInterrupted()).isFalse();
++            } finally {
++                Thread.interrupted();
++            }
++
++            assertThat(runtime.awaitQuiescence(Duration.ZERO)).isTrue();
++        } finally {
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++}
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Now the second file, C0006.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+apply patch
+patch: completed
+/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e94bd5c8e2c61911eb0cc63ca2528b3859391be2
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+@@ -0,0 +1,61 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import java.time.Duration;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-004, contract C-3.
++ *
++ * <p>Precondition: a built, idle {@link ParRuntime}; the test closes it before the interrupt probe
++ * so the runtime is quiescent and the timeout is non-positive.
++ *
++ * <p>Operation sequence: call {@code awaitQuiescence(null)}; close; interrupt the calling thread;
++ * call {@code awaitQuiescence(Duration.ZERO)}; clear the interrupt; call it again.
++ *
++ * <p>Observation points: the null-argument call, the interrupted call's exception and flag state,
++ * and the final non-positive single check.
++ *
++ * <p>Assertions: null throws {@code NullPointerException}; the interrupted call throws
++ * {@code InterruptedException} with the flag cleared even though the runtime is quiescent and the
++ * timeout is non-positive; the subsequent non-positive check returns {@code true}.
++ *
++ * <p>Uncertainty: none material; validation order is stated by the contract.
++ */
++@Tag("C-0005")
++class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
++
++    @Test
++    void awaitQuiescenceValidatesNullAndHonorsInterruptBeforeState() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        try {
++            assertThatThrownBy(() -> runtime.awaitQuiescence(null))
++                    .isInstanceOf(NullPointerException.class);
++
++            runtime.close();
++
++            Thread.currentThread().interrupt();
++            try {
++                assertThatThrownBy(() -> runtime.awaitQuiescence(Duration.ZERO))
++                        .isInstanceOf(InterruptedException.class);
++                assertThat(Thread.currentThread().isInterrupted()).isFalse();
++            } finally {
++                Thread.interrupted();
++            }
++
++            assertThat(runtime.awaitQuiescence(Duration.ZERO)).isTrue();
++        } finally {
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..afbba188a4e48b6e923bf5d39d4333097acadd2e
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+@@ -0,0 +1,82 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-008, contract C-4.
++ *
++ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
++ * future has settled cancelled while its execution keeps running user code that ignores
++ * interruption.
++ *
++ * <p>Operation sequence: run the short-deadline batch, wait for its result, read {@code inFlight()}
++ * while the execution is still unwinding, then close and release the execution.
++ *
++ * <p>Observation points: {@code executionExitConfirmed()}, {@code inFlight()} before release, and
++ * the quiescence confirmation after release.
++ *
++ * <p>Assertions: the result reports an unconfirmed execution exit while {@code inFlight()} is zero;
++ * quiescence follows once the execution exits.
++ *
++ * <p>Uncertainty: none material; the bounded ignoring loop caps the execution at ten seconds.
++ */
++@Tag("C-0006")
++class C0006InFlightZeroWhileExecutionStillRunningContractTest {
++
++    @Test
++    void inFlightIsZeroWhileCancelledExecutionStillRunsUserCode() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        Par par = runtime.defaultPar();
++        CountDownLatch entered = new CountDownLatch(1);
++        CountDownLatch exit = new CountDownLatch(1);
++        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
++        try {
++            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
++                entered.countDown();
++                ignoreInterruptionUntil(exit);
++                return x;
++            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
++            runner.start();
++            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
++            runner.join(10_000);
++            assertThat(runner.isAlive()).isFalse();
++            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
++
++            assertThat(runtime.inFlight()).isZero();
++
++            runtime.close();
++            exit.countDown();
++            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
++        } finally {
++            exit.countDown();
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++
++    private static void ignoreInterruptionUntil(CountDownLatch release) {
++        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
++        while (System.nanoTime() < deadlineNanos) {
++            try {
++                if (release.await(1, TimeUnit.SECONDS)) {
++                    return;
++                }
++            } catch (InterruptedException ignored) {
++                // deliberately keep running: this execution ignores interruption
++            }
++        }
++    }
++}
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Third file, C0007.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+apply patch
+patch: completed
+/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e94bd5c8e2c61911eb0cc63ca2528b3859391be2
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+@@ -0,0 +1,61 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import java.time.Duration;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-004, contract C-3.
++ *
++ * <p>Precondition: a built, idle {@link ParRuntime}; the test closes it before the interrupt probe
++ * so the runtime is quiescent and the timeout is non-positive.
++ *
++ * <p>Operation sequence: call {@code awaitQuiescence(null)}; close; interrupt the calling thread;
++ * call {@code awaitQuiescence(Duration.ZERO)}; clear the interrupt; call it again.
++ *
++ * <p>Observation points: the null-argument call, the interrupted call's exception and flag state,
++ * and the final non-positive single check.
++ *
++ * <p>Assertions: null throws {@code NullPointerException}; the interrupted call throws
++ * {@code InterruptedException} with the flag cleared even though the runtime is quiescent and the
++ * timeout is non-positive; the subsequent non-positive check returns {@code true}.
++ *
++ * <p>Uncertainty: none material; validation order is stated by the contract.
++ */
++@Tag("C-0005")
++class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
++
++    @Test
++    void awaitQuiescenceValidatesNullAndHonorsInterruptBeforeState() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        try {
++            assertThatThrownBy(() -> runtime.awaitQuiescence(null))
++                    .isInstanceOf(NullPointerException.class);
++
++            runtime.close();
++
++            Thread.currentThread().interrupt();
++            try {
++                assertThatThrownBy(() -> runtime.awaitQuiescence(Duration.ZERO))
++                        .isInstanceOf(InterruptedException.class);
++                assertThat(Thread.currentThread().isInterrupted()).isFalse();
++            } finally {
++                Thread.interrupted();
++            }
++
++            assertThat(runtime.awaitQuiescence(Duration.ZERO)).isTrue();
++        } finally {
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..afbba188a4e48b6e923bf5d39d4333097acadd2e
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+@@ -0,0 +1,82 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-008, contract C-4.
++ *
++ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
++ * future has settled cancelled while its execution keeps running user code that ignores
++ * interruption.
++ *
++ * <p>Operation sequence: run the short-deadline batch, wait for its result, read {@code inFlight()}
++ * while the execution is still unwinding, then close and release the execution.
++ *
++ * <p>Observation points: {@code executionExitConfirmed()}, {@code inFlight()} before release, and
++ * the quiescence confirmation after release.
++ *
++ * <p>Assertions: the result reports an unconfirmed execution exit while {@code inFlight()} is zero;
++ * quiescence follows once the execution exits.
++ *
++ * <p>Uncertainty: none material; the bounded ignoring loop caps the execution at ten seconds.
++ */
++@Tag("C-0006")
++class C0006InFlightZeroWhileExecutionStillRunningContractTest {
++
++    @Test
++    void inFlightIsZeroWhileCancelledExecutionStillRunsUserCode() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        Par par = runtime.defaultPar();
++        CountDownLatch entered = new CountDownLatch(1);
++        CountDownLatch exit = new CountDownLatch(1);
++        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
++        try {
++            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
++                entered.countDown();
++                ignoreInterruptionUntil(exit);
++                return x;
++            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
++            runner.start();
++            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
++            runner.join(10_000);
++            assertThat(runner.isAlive()).isFalse();
++            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
++
++            assertThat(runtime.inFlight()).isZero();
++
++            runtime.close();
++            exit.countDown();
++            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
++        } finally {
++            exit.countDown();
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++
++    private static void ignoreInterruptionUntil(CountDownLatch release) {
++        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
++        while (System.nanoTime() < deadlineNanos) {
++            try {
++                if (release.await(1, TimeUnit.SECONDS)) {
++                    return;
++                }
++            } catch (InterruptedException ignored) {
++                // deliberately keep running: this execution ignores interruption
++            }
++        }
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c9dbe7aab4900dedf814ac71dda4c66dc3e9cd0
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+@@ -0,0 +1,84 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-010, contract C-5.
++ *
++ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
++ * future settled cancelled while its execution keeps running user code that ignores interruption.
++ *
++ * <p>Operation sequence: run the short-deadline batch, wait for its result, sample a snapshot while
++ * the execution is still unwinding, then close and release the execution.
++ *
++ * <p>Observation points: {@code executionExitConfirmed()}, {@code undrainedBatches()},
++ * {@code unexitedExecutionSignals()}, and the quiescence confirmation after release.
++ *
++ * <p>Assertions: the run reports an unconfirmed exit; {@code undrainedBatches()} is zero while
++ * {@code unexitedExecutionSignals()} is greater than zero.
++ *
++ * <p>Uncertainty: the exact positive signal count is not pinned, only that it is non-zero as the
++ * contract requires.
++ */
++@Tag("C-0007")
++class C0007SnapshotUnexitedSignalContractTest {
++
++    @Test
++    void snapshotReportsUnexitedSignalWhileUndrainedIsZero() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        Par par = runtime.defaultPar();
++        CountDownLatch entered = new CountDownLatch(1);
++        CountDownLatch exit = new CountDownLatch(1);
++        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
++        try {
++            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
++                entered.countDown();
++                ignoreInterruptionUntil(exit);
++                return x;
++            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
++            runner.start();
++            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
++            runner.join(10_000);
++            assertThat(runner.isAlive()).isFalse();
++            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
++
++            ParRuntimeSnapshot snapshot = runtime.snapshot();
++            assertThat(snapshot.undrainedBatches()).isZero();
++            assertThat(snapshot.unexitedExecutionSignals()).isGreaterThan(0);
++
++            runtime.close();
++            exit.countDown();
++            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
++        } finally {
++            exit.countDown();
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++
++    private static void ignoreInterruptionUntil(CountDownLatch release) {
++        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
++        while (System.nanoTime() < deadlineNanos) {
++            try {
++                if (release.await(1, TimeUnit.SECONDS)) {
++                    return;
++                }
++            } catch (InterruptedException ignored) {
++                // deliberately keep running: this execution ignores interruption
++            }
++        }
++    }
++}
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Now copy the adapted files to /tmp/rso-promote/adapted/, then verify the diff vs candidates shows only the intended changes. Let me do a diff between candidate and adapted for each to confirm only package/class/tag/import changes.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'cd verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope && cp C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java C0006InFlightZeroWhileExecutionStillRunningContractTest.java C0007SnapshotUnexitedSignalContractTest.java /tmp/rso-promote/adapted/ && ls -la /tmp/rso-promote/adapted/ && echo "=== diffs (candidate -> adapted) ===" && diff /tmp/rso-promote/candidates/ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest.java C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java; diff /tmp/rso-promote/candidates/ContractTdd008InFlightZeroWhileExecutionStillRunningTest.java C0006InFlightZeroWhileExecutionStillRunningContractTest.java; diff /tmp/rso-promote/candidates/ContractTdd010SnapshotUnexitedSignalTest.java C0007SnapshotUnexitedSignalContractTest.java; echo "=== git status ==="; git -C /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote status --short' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+total 24
+drwxr-xr-x@ 5 linqh  wheel   160 Nov 27 08:06 .
+drwxr-xr-x@ 6 linqh  wheel   192 Nov 27 08:04 ..
+-rw-r--r--@ 1 linqh  wheel  2477 Nov 27 08:06 C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+-rw-r--r--@ 1 linqh  wheel  3328 Nov 27 08:06 C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+-rw-r--r--@ 1 linqh  wheel  3504 Nov 27 08:06 C0007SnapshotUnexitedSignalContractTest.java
+=== diffs (candidate -> adapted) ===
+1c1
+< package io.github.monadrome.parallelinscope.assurance;
+---
+> package io.github.monadrome.parallelinscope;
+6,7d5
+< import io.github.monadrome.parallelinscope.ParId;
+< import io.github.monadrome.parallelinscope.ParRuntime;
+11a10
+> import org.junit.jupiter.api.Tag;
+32c31,32
+< public class ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest {
+---
+> @Tag("C-0005")
+> class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
+1c1
+< package io.github.monadrome.parallelinscope.assurance;
+---
+> package io.github.monadrome.parallelinscope;
+5,9d4
+< import io.github.monadrome.parallelinscope.BatchOptions;
+< import io.github.monadrome.parallelinscope.Par;
+< import io.github.monadrome.parallelinscope.ParId;
+< import io.github.monadrome.parallelinscope.ParRuntime;
+< import io.github.monadrome.parallelinscope.TaskBatchResult;
+16a12
+> import org.junit.jupiter.api.Tag;
+37c33,34
+< public class ContractTdd008InFlightZeroWhileExecutionStillRunningTest {
+---
+> @Tag("C-0006")
+> class C0006InFlightZeroWhileExecutionStillRunningContractTest {
+1c1
+< package io.github.monadrome.parallelinscope.assurance;
+---
+> package io.github.monadrome.parallelinscope;
+5,10d4
+< import io.github.monadrome.parallelinscope.BatchOptions;
+< import io.github.monadrome.parallelinscope.Par;
+< import io.github.monadrome.parallelinscope.ParId;
+< import io.github.monadrome.parallelinscope.ParRuntime;
+< import io.github.monadrome.parallelinscope.ParRuntimeSnapshot;
+< import io.github.monadrome.parallelinscope.TaskBatchResult;
+17a12
+> import org.junit.jupiter.api.Tag;
+38c33,34
+< public class ContractTdd010SnapshotUnexitedSignalTest {
+---
+> @Tag("C-0007")
+> class C0007SnapshotUnexitedSignalContractTest {
+=== git status ===
+?? verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+?? verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+?? verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+The diffs show only the intended adaptations: package, removal of now-same-package imports, addition of Tag import, class name + tag + visibility. Bodies untouched.
+
+Now run the four commands with JAVA_HOME set to JDK 25 and `mvn -o`, saving logs and exit codes. Let me write a small runner. I'll run each command from the checkout root:
+
+1. `python3 scripts/check-contract-tests.py` → 01-regression-metadata.{stdout,stderr}.log / .exit
+2. `mvn -o -Pcontract-tests -pl verification/contract-tests spotless:apply` → 02-regression-format
+3. `mvn -o -Pcontract-tests -pl verification/contract-tests -am clean test` → 03-regression-tests
+4. `python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports` → 04-regression-execution
+
+The names: "Save each command's stdout and stderr under /tmp/rso-promote/logs/ as NN-<name>.stdout.log and NN-<name>.stderr.log, and its exit code in NN-<name>.exit." So NN = 01..04 presumably. I'll use 01, 02, 03, 04.
+
+Let me run step 1 and 2 first. I'll use a helper shell function inline. Let me be careful to export JAVA_HOME in each command.
+
+Step 1: metadata check — should pass with the three new files.
+codex
+Diffs confirm only package/imports/tag/class-name changes. Running the four suite commands with logs.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'export JAVA_HOME="$(/usr/libexec/java_home -v 25)"; export PATH="$JAVA_HOME/bin:$PATH"; L=/tmp/rso-promote/logs
+python3 scripts/check-contract-tests.py >$L/01-regression-metadata.stdout.log 2>$L/01-regression-metadata.stderr.log; echo $? > $L/01-regression-metadata.exit
+echo "metadata exit=$(cat $L/01-regression-metadata.exit)"; cat $L/01-regression-metadata.stdout.log; cat $L/01-regression-metadata.stderr.log
+mvn -o -Pcontract-tests -pl verification/contract-tests spotless:apply >$L/02-regression-format.stdout.log 2>$L/02-regression-format.stderr.log; echo $? > $L/02-regression-format.exit
+echo "format exit=$(cat $L/02-regression-format.exit)"; tail -15 $L/02-regression-format.stdout.log; cat $L/02-regression-format.stderr.log | tail -5
+echo "=== adapted files changed by spotless? ==="; cd verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope && for f in C0005*.java C0006*.java C0007*.java; do if cmp -s "$f" "/tmp/rso-promote/adapted/$f"; then echo "unchanged: $f"; else echo "REFORMATTED: $f"; diff "/tmp/rso-promote/adapted/$f" "$f"; fi; done' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ exited 1 in 1709ms:
+metadata exit=0
+OK: hidden contract regression metadata under /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java
+format exit=0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.4:apply (default-cli) @ parallel-in-scope-contract-tests ---
+[INFO] Index file does not exist. Fallback to an empty index
+[INFO] clean file: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+[INFO] clean file: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+[INFO] clean file: /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+[INFO] Spotless.Java is keeping 7 files clean - 3 were changed to be clean, 4 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.899 s
+[INFO] Finished at: 2026-11-27T08:06:34-08:00
+[INFO] ------------------------------------------------------------------------
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/opt/homebrew/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+=== adapted files changed by spotless? ===
+REFORMATTED: C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+36,37c36
+<         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+<                 new LinkedBlockingQueue<>());
+---
+>         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+39c38,39
+<         ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
+---
+>         ParRuntime runtime =
+>                 ParRuntime.builder().register(id, pool).defaultPar(id).build();
+41,42c41
+<             assertThatThrownBy(() -> runtime.awaitQuiescence(null))
+<                     .isInstanceOf(NullPointerException.class);
+---
+>             assertThatThrownBy(() -> runtime.awaitQuiescence(null)).isInstanceOf(NullPointerException.class);
+REFORMATTED: C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+38,39c38
+<         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+<                 new LinkedBlockingQueue<>());
+---
+>         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+41c40,41
+<         ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
+---
+>         ParRuntime runtime =
+>                 ParRuntime.builder().register(id, pool).defaultPar(id).build();
+47,51c47,54
+<             Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
+<                 entered.countDown();
+<                 ignoreInterruptionUntil(exit);
+<                 return x;
+<             }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
+---
+>             Thread runner = new Thread(() -> resultRef.set(par.map(
+>                     List.of(1),
+>                     x -> {
+>                         entered.countDown();
+>                         ignoreInterruptionUntil(exit);
+>                         return x;
+>                     },
+>                     BatchOptions.timeout("b", Duration.ofMillis(200)))));
+REFORMATTED: C0007SnapshotUnexitedSignalContractTest.java
+38,39c38
+<         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+<                 new LinkedBlockingQueue<>());
+---
+>         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+41c40,41
+<         ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
+---
+>         ParRuntime runtime =
+>                 ParRuntime.builder().register(id, pool).defaultPar(id).build();
+47,51c47,54
+<             Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
+<                 entered.countDown();
+<                 ignoreInterruptionUntil(exit);
+<                 return x;
+<             }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
+---
+>             Thread runner = new Thread(() -> resultRef.set(par.map(
+>                     List.of(1),
+>                     x -> {
+>                         entered.countDown();
+>                         ignoreInterruptionUntil(exit);
+>                         return x;
+>                     },
+>                     BatchOptions.timeout("b", Duration.ofMillis(200)))));
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Both commands passed (exit 0; the shell's overall exit code 1 is just from the last `diff` returning 1). Spotless reformatted all three adapted files (whitespace only). Per the brief, recopy the final bytes to /tmp/rso-promote/adapted/. Then run the test command (03) and the execution check (04).
+
+Let me recopy and run the tests. The test build might take a while (builds core + contract-tests with `clean test`). I'll set a long yield time.
+codex
+Metadata and format both exit 0; spotless reflowed whitespace, so I'm recopying final bytes and running the suite.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'export JAVA_HOME="$(/usr/libexec/java_home -v 25)"; export PATH="$JAVA_HOME/bin:$PATH"; L=/tmp/rso-promote/logs
+cd verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope && cp C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java C0006InFlightZeroWhileExecutionStillRunningContractTest.java C0007SnapshotUnexitedSignalContractTest.java /tmp/rso-promote/adapted/ && for f in C0005*.java C0006*.java C0007*.java; do cmp -s "$f" "/tmp/rso-promote/adapted/$f" && echo "synced: $f"; done
+cd /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+mvn -o -Pcontract-tests -pl verification/contract-tests -am clean test >$L/03-regression-tests.stdout.log 2>$L/03-regression-tests.stderr.log; echo $? > $L/03-regression-tests.exit
+echo "tests exit=$(cat $L/03-regression-tests.exit)"
+grep -E "Tests run:|BUILD|ERROR|FAIL" $L/03-regression-tests.stdout.log | head -30; echo "--- stderr tail ---"; grep -v "''^WARNING" $L/03-regression-tests.stderr.log | tail -10' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+The Maven build is running in the background. Let me wait for it.
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+ succeeded in 116883ms:
+synced: C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+synced: C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+synced: C0007SnapshotUnexitedSignalContractTest.java
+tests exit=0
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.153 s -- in io.github.monadrome.parallelinscope.PublicApiSurfaceTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.544 s -- in io.github.monadrome.parallelinscope.CancellationTriggerCartesianTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.390 s -- in io.github.monadrome.parallelinscope.TaskTerminationTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in io.github.monadrome.parallelinscope.TaskIdTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.097 s -- in io.github.monadrome.parallelinscope.CancellationTokenBindRaceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.github.monadrome.parallelinscope.TaskExecutionContextTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.098 s -- in io.github.monadrome.parallelinscope.TaskGroupConvergenceTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in io.github.monadrome.parallelinscope.ExecutorWaitAdmissionTest
+[INFO] Tests run: 27, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.54 s -- in io.github.monadrome.parallelinscope.SlidingWindowSubmitterTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.218 s -- in io.github.monadrome.parallelinscope.ExecutionPhaseHintFutureInlineTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.224 s -- in io.github.monadrome.parallelinscope.ParRuntimeSnapshotTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.635 s -- in io.github.monadrome.parallelinscope.TaskBatchResultTest
+[INFO] Tests run: 40, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.868 s -- in io.github.monadrome.parallelinscope.TaskGroupTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.579 s -- in io.github.monadrome.parallelinscope.CheckpointsOutcomeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in io.github.monadrome.parallelinscope.TaskGroupCombineGuardCancellationTest
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.411 s -- in io.github.monadrome.parallelinscope.TaskBatchResultExecutionExitTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in io.github.monadrome.parallelinscope.DirectExecutorSafetyTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.github.monadrome.parallelinscope.ScopedCallableContextRestoreTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.144 s -- in io.github.monadrome.parallelinscope.TaskKeyCompileTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in io.github.monadrome.parallelinscope.ExecutionPhaseCartesianTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in io.github.monadrome.parallelinscope.TaskGroupListenerFailureTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.844 s -- in io.github.monadrome.parallelinscope.ExecutionExitTrackerTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in io.github.monadrome.parallelinscope.MultiTaskContextTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.065 s -- in io.github.monadrome.parallelinscope.BatchInputSnapshotTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in io.github.monadrome.parallelinscope.ParRuntimePoliciesTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.223 s -- in io.github.monadrome.parallelinscope.TaskBatchObservationBarrierTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in io.github.monadrome.parallelinscope.ScopeTerminationTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.180 s -- in io.github.monadrome.parallelinscope.ObservationFutureTest
+[INFO] Tests run: 36, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.079 s -- in io.github.monadrome.parallelinscope.TaskFutureTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.462 s -- in io.github.monadrome.parallelinscope.LateFailureLoggingTest
+--- stderr tail ---
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:251)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:409)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:190)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:547)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:535)
+
+Nov 27, 2026 8:08:04 AM io.github.monadrome.parallelinscope.ParRuntime lambda$runtimeFor$0
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Nov 27, 2026 8:08:49 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+Nov 27, 2026 8:08:49 AM io.github.monadrome.parallelinscope.Par lambda$diagnoseAdmission$0
+
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+The build exit was 0. The grep output is truncated to 30 lines; the contract tests are further down. Let me specifically check the contract-tests module's results in the stdout log: lines for C0001..C0007, and the summary.
+
+Also there's a stack trace in stderr — let me look at what that is (likely an expected logged exception from a test, e.g., a handler publishing a failure — those are common in the core tests). Let me inspect.
+codex
+Build exit 0. Checking the contract-tests module results specifically.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c "L=/tmp/rso-promote/logs; echo \"=== contract-tests module section ===\"; awk '/Building parallel-in-scope hidden contract regression tests/{p=1} p' "'$L/03-regression-tests.stdout.log | grep -E "Tests run:|BUILD|Reactor Summary|SUCCESS|FAILURE|ERROR" ; echo; echo "=== summary ==="; grep -E "Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$" $L/03-regression-tests.stdout.log | tail -3; echo; echo "=== stderr: first lines of the stack trace context ==="; grep -v "''^WARNING" $L/03-regression-tests.stderr.log | grep -n -B8 "JUnitPlatformProvider.invoke" | head -40' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+=== contract-tests module section ===
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.314 s -- in io.github.monadrome.parallelinscope.C0007SnapshotUnexitedSignalContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in io.github.monadrome.parallelinscope.C0002MapAndCombineCombineNoRefusalQueuedContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in io.github.monadrome.parallelinscope.C0004OffThreadBlockingHandlerContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.017 s -- in io.github.monadrome.parallelinscope.C0003ConcurrentFirstAdmissionsOnceContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.220 s -- in io.github.monadrome.parallelinscope.C0006InFlightZeroWhileExecutionStillRunningContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in io.github.monadrome.parallelinscope.C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.github.monadrome.parallelinscope.C0001TaskIdContractTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Reactor Summary for parallel-in-scope parent 0.5.0-SNAPSHOT:
+[INFO] parallel-in-scope parent ........................... SUCCESS [  0.044 s]
+[INFO] parallel-in-scope .................................. SUCCESS [01:53 min]
+[INFO] parallel-in-scope hidden contract regression tests . SUCCESS [  2.664 s]
+[INFO] BUILD SUCCESS
+
+=== summary ===
+[INFO] Tests run: 3372, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+
+=== stderr: first lines of the stack trace context ===
+703-	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+704-	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+705-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+706-	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+707-	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+708-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+709-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+710-	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:334)
+711:	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:304)
+712:	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:251)
+--
+850-	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+851-	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+852-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+853-	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+854-	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+855-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+856-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+857-	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:334)
+858:	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:304)
+859:	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:251)
+--
+945-	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+946-	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+947-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+948-	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+949-	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+950-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+951-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+952-	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:334)
+953:	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:304)
+954:	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:251)
+--
+1041-	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+1042-	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+1043-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+1044-	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+1045-	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+1046-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+1047-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+All 7 contract tests pass (C0001–C0007), BUILD SUCCESS. The stderr stack traces are from the core module tests (logged exceptions in tests, e.g., LateFailureLoggingTest) — those are in the core module section, not the contract-tests. Let me verify that quickly: which module were those from? The stderr doesn't say the module directly, but the stack trace includes the test class names. Let me quickly check the first line of the trace to confirm it's an expected logged failure (e.g., "io.github.monadrome.parallelinscope.LateFailureLoggingTest"). Actually, it's not necessary for the promotion — the build passed, and stderr noise from the core suite's expected-exception logging is normal. But let me do a quick sanity check so I can accurately report it. Actually, let me be efficient: check the first few lines of each trace block for the exception class and the test name.
+
+Then run command 04 (execution check with reports).
+codex
+All 7 suite classes pass. Running the final execution-evidence check, and confirming the stderr traces are core-suite logging noise.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'L=/tmp/rso-promote/logs
+python3 scripts/check-contract-tests.py --reports verification/contract-tests/target/surefire-reports >$L/04-regression-execution.stdout.log 2>$L/04-regression-execution.stderr.log; echo $? > $L/04-regression-execution.exit
+echo "execution exit=$(cat $L/04-regression-execution.exit)"; cat $L/04-regression-execution.stdout.log; cat $L/04-regression-execution.stderr.log
+echo "=== reports ==="; ls verification/contract-tests/target/surefire-reports/ | grep '"'"'^TEST-'"'
+echo \"=== stderr trace origins (test classes) ===\"; grep -E \""'^(io'"\\.github|java\\.lang|org\\.opentest4j|org\\.junit|java\\.util|com\\.google)\" "'$L/03-regression-tests.stderr.log | sort | uniq -c | sort -rn | head -8; grep -oE "at io'"\\.github\\.monadrome\\.parallelinscope\\.[A-Za-z0-9]+Test\" "'$L/03-regression-tests.stderr.log | sort | uniq -c | head' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+execution exit=0
+OK: hidden contract regression metadata and execution evidence under /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote/verification/contract-tests/src/test/java
+=== reports ===
+TEST-io.github.monadrome.parallelinscope.C0001TaskIdContractTest.xml
+TEST-io.github.monadrome.parallelinscope.C0002MapAndCombineCombineNoRefusalQueuedContractTest.xml
+TEST-io.github.monadrome.parallelinscope.C0003ConcurrentFirstAdmissionsOnceContractTest.xml
+TEST-io.github.monadrome.parallelinscope.C0004OffThreadBlockingHandlerContractTest.xml
+TEST-io.github.monadrome.parallelinscope.C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.xml
+TEST-io.github.monadrome.parallelinscope.C0006InFlightZeroWhileExecutionStillRunningContractTest.xml
+TEST-io.github.monadrome.parallelinscope.C0007SnapshotUnexitedSignalContractTest.xml
+=== stderr trace origins (test classes) ===
+  58 java.lang.IllegalStateException: boom-3
+  47 io.github.monadrome.parallelinscope.SubmissionException: Task submission failed
+  40 java.util.concurrent.CancellationException: the execution's own
+  10 java.lang.AssertionError: handoff broken
+   9 java.lang.IllegalStateException: interrupted while holding
+   6 java.lang.AssertionError: fatal
+   5 java.lang.IllegalStateException: java.lang.InterruptedException
+   4 java.lang.AssertionError: broken invariant
+   5 at io.github.monadrome.parallelinscope.AggregateReadRuleTest
+  48 at io.github.monadrome.parallelinscope.BatchSettleAttributionTest
+   1 at io.github.monadrome.parallelinscope.BusinessFailureAttributionTest
+   2 at io.github.monadrome.parallelinscope.ExecutionPhaseHintFutureInlineTest
+   8 at io.github.monadrome.parallelinscope.InlineSubmissionLivenessTest
+   2 at io.github.monadrome.parallelinscope.InterruptedResultFreezingTest
+  11 at io.github.monadrome.parallelinscope.LateFailureLoggingTest
+   6 at io.github.monadrome.parallelinscope.ParMapAndCombineTest
+   2 at io.github.monadrome.parallelinscope.ParSubmitTest
+   5 at io.github.monadrome.parallelinscope.ScopedTaskContractTest
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+All four commands exit 0. The stderr traces come from the core module's expected-failure tests (e.g., "boom-3", "handoff broken", "LateFailureLoggingTest") — unrelated noise, not from the contract tests.
+
+Now let me verify the final state:
+1. Git status: only the three new files in the suite root (untracked). The `target/` directory — is it ignored? Let me check `git status --short` to confirm nothing else is modified/untracked (target should be gitignored).
+2. The adapted files in /tmp/rso-promote/adapted/ match the suite files byte-for-byte.
+3. Logs present with exit codes.
+
+Then write result.json.
+
+Let me double check the adapted files are in sync (I synced them after spotless; nothing changed since). Let me verify with cmp again and check git status.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c 'echo "=== git status ==="; git status --short; echo "(end)"; echo "=== adapted vs suite (cmp) ==="; cd verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope && for f in C0005*.java C0006*.java C0007*.java; do cmp "$f" "/tmp/rso-promote/adapted/$f" && echo "identical: $f"; done; echo "=== logs ==="; ls -la /tmp/rso-promote/logs/; for e in /tmp/rso-promote/logs/*.exit; do echo "$e: $(cat $e)"; done' in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+=== git status ===
+?? verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+?? verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+?? verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+(end)
+=== adapted vs suite (cmp) ===
+identical: C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+identical: C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+identical: C0007SnapshotUnexitedSignalContractTest.java
+=== logs ===
+total 2264
+drwxr-xr-x@ 14 linqh  wheel     448 Nov 27 08:09 .
+drwxr-xr-x@  6 linqh  wheel     192 Nov 27 08:04 ..
+-rw-r--r--@  1 linqh  wheel       2 Nov 27 08:06 01-regression-metadata.exit
+-rw-r--r--@  1 linqh  wheel       0 Nov 27 08:06 01-regression-metadata.stderr.log
+-rw-r--r--@  1 linqh  wheel     169 Nov 27 08:06 01-regression-metadata.stdout.log
+-rw-r--r--@  1 linqh  wheel       2 Nov 27 08:06 02-regression-format.exit
+-rw-r--r--@  1 linqh  wheel     459 Nov 27 08:06 02-regression-format.stderr.log
+-rw-r--r--@  1 linqh  wheel    1761 Nov 27 08:06 02-regression-format.stdout.log
+-rw-r--r--@  1 linqh  wheel       2 Nov 27 08:08 03-regression-tests.exit
+-rw-r--r--@  1 linqh  wheel  936881 Nov 27 08:08 03-regression-tests.stderr.log
+-rw-r--r--@  1 linqh  wheel   94876 Nov 27 08:08 03-regression-tests.stdout.log
+-rw-r--r--@  1 linqh  wheel       2 Nov 27 08:09 04-regression-execution.exit
+-rw-r--r--@  1 linqh  wheel       0 Nov 27 08:09 04-regression-execution.stderr.log
+-rw-r--r--@  1 linqh  wheel     192 Nov 27 08:09 04-regression-execution.stdout.log
+/tmp/rso-promote/logs/01-regression-metadata.exit: 0
+/tmp/rso-promote/logs/02-regression-format.exit: 0
+/tmp/rso-promote/logs/03-regression-tests.exit: 0
+/tmp/rso-promote/logs/04-regression-execution.exit: 0
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Everything is in place. Now write /tmp/rso-promote/result.json.
+
+Format:
+```json
+{"promotions": [{"candidate_id": "CONTRACT-TDD-004", "source_contract_id": "C-3", "contract_id": "C-nnnn",
+  "target_path": "verification/contract-tests/src/test/java/.../Cnnnn...ContractTest.java",
+  "adapted_file": "/tmp/rso-promote/adapted/Cnnnn...ContractTest.java", "status": "promoted|blocked",
+  "reason": "one sentence"}],
+ "commands": [{"name": "regression-metadata", "argv": ["python3", "scripts/check-contract-tests.py"], "exit": 0}, ...]}
+```
+
+Reason for promoted: one sentence, e.g., "Promoted as C-0005; 1 testcase passed in the explicit suite run and the execution check passed; spotless reflowed whitespace only and the adapted copy was resynced."
+
+Let me write the JSON with one file per tool call (apply_patch Add File). I'll write it carefully with proper JSON. Then validate with python3 -m json.tool.
+codex
+All green and in sync. Writing the result record.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+apply patch
+patch: completed
+/tmp/rso-promote/result.json
+diff --git a//tmp/rso-promote/result.json b//tmp/rso-promote/result.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..f70f4118ebec87ab9d012879c70cc67138a685c8
+--- /dev/null
++++ b//tmp/rso-promote/result.json
+@@ -0,0 +1,53 @@
++{
++  "promotions": [
++    {
++      "candidate_id": "CONTRACT-TDD-004",
++      "source_contract_id": "C-3",
++      "contract_id": "C-0005",
++      "target_path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java",
++      "adapted_file": "/tmp/rso-promote/adapted/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java",
++      "status": "promoted",
++      "reason": "Promoted as C-0005 with only package, imports, class name, visibility, and @Tag adapted; its 1 testcase passed in the explicit suite run and the execution-evidence check passed (spotless reflowed whitespace only, adapted copy resynced to the final bytes)."
++    },
++    {
++      "candidate_id": "CONTRACT-TDD-008",
++      "source_contract_id": "C-4",
++      "contract_id": "C-0006",
++      "target_path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java",
++      "adapted_file": "/tmp/rso-promote/adapted/C0006InFlightZeroWhileExecutionStillRunningContractTest.java",
++      "status": "promoted",
++      "reason": "Promoted as C-0006 with only package, imports, class name, visibility, and @Tag adapted; its 1 testcase passed in the explicit suite run and the execution-evidence check passed (spotless reflowed whitespace only, adapted copy resynced to the final bytes)."
++    },
++    {
++      "candidate_id": "CONTRACT-TDD-010",
++      "source_contract_id": "C-5",
++      "contract_id": "C-0007",
++      "target_path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java",
++      "adapted_file": "/tmp/rso-promote/adapted/C0007SnapshotUnexitedSignalContractTest.java",
++      "status": "promoted",
++      "reason": "Promoted as C-0007 with only package, imports, class name, visibility, and @Tag adapted; its 1 testcase passed in the explicit suite run and the execution-evidence check passed (spotless reflowed whitespace only, adapted copy resynced to the final bytes)."
++    }
++  ],
++  "commands": [
++    {
++      "name": "regression-metadata",
++      "argv": ["python3", "scripts/check-contract-tests.py"],
++      "exit": 0
++    },
++    {
++      "name": "regression-format",
++      "argv": ["mvn", "-o", "-Pcontract-tests", "-pl", "verification/contract-tests", "spotless:apply"],
++      "exit": 0
++    },
++    {
++      "name": "regression-tests",
++      "argv": ["mvn", "-o", "-Pcontract-tests", "-pl", "verification/contract-tests", "-am", "clean", "test"],
++      "exit": 0
++    },
++    {
++      "name": "regression-execution",
++      "argv": ["python3", "scripts/check-contract-tests.py", "--reports", "verification/contract-tests/target/surefire-reports"],
++      "exit": 0
++    }
++  ]
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e94bd5c8e2c61911eb0cc63ca2528b3859391be2
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java
+@@ -0,0 +1,61 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import java.time.Duration;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-004, contract C-3.
++ *
++ * <p>Precondition: a built, idle {@link ParRuntime}; the test closes it before the interrupt probe
++ * so the runtime is quiescent and the timeout is non-positive.
++ *
++ * <p>Operation sequence: call {@code awaitQuiescence(null)}; close; interrupt the calling thread;
++ * call {@code awaitQuiescence(Duration.ZERO)}; clear the interrupt; call it again.
++ *
++ * <p>Observation points: the null-argument call, the interrupted call's exception and flag state,
++ * and the final non-positive single check.
++ *
++ * <p>Assertions: null throws {@code NullPointerException}; the interrupted call throws
++ * {@code InterruptedException} with the flag cleared even though the runtime is quiescent and the
++ * timeout is non-positive; the subsequent non-positive check returns {@code true}.
++ *
++ * <p>Uncertainty: none material; validation order is stated by the contract.
++ */
++@Tag("C-0005")
++class C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest {
++
++    @Test
++    void awaitQuiescenceValidatesNullAndHonorsInterruptBeforeState() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        try {
++            assertThatThrownBy(() -> runtime.awaitQuiescence(null))
++                    .isInstanceOf(NullPointerException.class);
++
++            runtime.close();
++
++            Thread.currentThread().interrupt();
++            try {
++                assertThatThrownBy(() -> runtime.awaitQuiescence(Duration.ZERO))
++                        .isInstanceOf(InterruptedException.class);
++                assertThat(Thread.currentThread().isInterrupted()).isFalse();
++            } finally {
++                Thread.interrupted();
++            }
++
++            assertThat(runtime.awaitQuiescence(Duration.ZERO)).isTrue();
++        } finally {
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..afbba188a4e48b6e923bf5d39d4333097acadd2e
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java
+@@ -0,0 +1,82 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-008, contract C-4.
++ *
++ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
++ * future has settled cancelled while its execution keeps running user code that ignores
++ * interruption.
++ *
++ * <p>Operation sequence: run the short-deadline batch, wait for its result, read {@code inFlight()}
++ * while the execution is still unwinding, then close and release the execution.
++ *
++ * <p>Observation points: {@code executionExitConfirmed()}, {@code inFlight()} before release, and
++ * the quiescence confirmation after release.
++ *
++ * <p>Assertions: the result reports an unconfirmed execution exit while {@code inFlight()} is zero;
++ * quiescence follows once the execution exits.
++ *
++ * <p>Uncertainty: none material; the bounded ignoring loop caps the execution at ten seconds.
++ */
++@Tag("C-0006")
++class C0006InFlightZeroWhileExecutionStillRunningContractTest {
++
++    @Test
++    void inFlightIsZeroWhileCancelledExecutionStillRunsUserCode() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        Par par = runtime.defaultPar();
++        CountDownLatch entered = new CountDownLatch(1);
++        CountDownLatch exit = new CountDownLatch(1);
++        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
++        try {
++            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
++                entered.countDown();
++                ignoreInterruptionUntil(exit);
++                return x;
++            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
++            runner.start();
++            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
++            runner.join(10_000);
++            assertThat(runner.isAlive()).isFalse();
++            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
++
++            assertThat(runtime.inFlight()).isZero();
++
++            runtime.close();
++            exit.countDown();
++            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
++        } finally {
++            exit.countDown();
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++
++    private static void ignoreInterruptionUntil(CountDownLatch release) {
++        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
++        while (System.nanoTime() < deadlineNanos) {
++            try {
++                if (release.await(1, TimeUnit.SECONDS)) {
++                    return;
++                }
++            } catch (InterruptedException ignored) {
++                // deliberately keep running: this execution ignores interruption
++            }
++        }
++    }
++}
+diff --git a/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c9dbe7aab4900dedf814ac71dda4c66dc3e9cd0
+--- /dev/null
++++ b/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java
+@@ -0,0 +1,84 @@
++package io.github.monadrome.parallelinscope;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.time.Duration;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Candidate CONTRACT-TDD-010, contract C-5.
++ *
++ * <p>Precondition: a built {@link ParRuntime} on a single-worker pool; one admitted batch whose
++ * future settled cancelled while its execution keeps running user code that ignores interruption.
++ *
++ * <p>Operation sequence: run the short-deadline batch, wait for its result, sample a snapshot while
++ * the execution is still unwinding, then close and release the execution.
++ *
++ * <p>Observation points: {@code executionExitConfirmed()}, {@code undrainedBatches()},
++ * {@code unexitedExecutionSignals()}, and the quiescence confirmation after release.
++ *
++ * <p>Assertions: the run reports an unconfirmed exit; {@code undrainedBatches()} is zero while
++ * {@code unexitedExecutionSignals()} is greater than zero.
++ *
++ * <p>Uncertainty: the exact positive signal count is not pinned, only that it is non-zero as the
++ * contract requires.
++ */
++@Tag("C-0007")
++class C0007SnapshotUnexitedSignalContractTest {
++
++    @Test
++    void snapshotReportsUnexitedSignalWhileUndrainedIsZero() throws Exception {
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
++                new LinkedBlockingQueue<>());
++        ParId id = ParId.of("io");
++        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        Par par = runtime.defaultPar();
++        CountDownLatch entered = new CountDownLatch(1);
++        CountDownLatch exit = new CountDownLatch(1);
++        AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
++        try {
++            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
++                entered.countDown();
++                ignoreInterruptionUntil(exit);
++                return x;
++            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
++            runner.start();
++            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
++            runner.join(10_000);
++            assertThat(runner.isAlive()).isFalse();
++            assertThat(resultRef.get().executionExitConfirmed()).isFalse();
++
++            ParRuntimeSnapshot snapshot = runtime.snapshot();
++            assertThat(snapshot.undrainedBatches()).isZero();
++            assertThat(snapshot.unexitedExecutionSignals()).isGreaterThan(0);
++
++            runtime.close();
++            exit.countDown();
++            assertThat(runtime.awaitQuiescence(Duration.ofSeconds(5))).isTrue();
++        } finally {
++            exit.countDown();
++            runtime.close();
++            pool.shutdownNow();
++        }
++    }
++
++    private static void ignoreInterruptionUntil(CountDownLatch release) {
++        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
++        while (System.nanoTime() < deadlineNanos) {
++            try {
++                if (release.await(1, TimeUnit.SECONDS)) {
++                    return;
++                }
++            } catch (InterruptedException ignored) {
++                // deliberately keep running: this execution ignores interruption
++            }
++        }
++    }
++}
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+Validate the JSON parses and matches the files on disk.
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+/bin/zsh -c "python3 -c \"
+import json,os
+r=json.load(open('/tmp/rso-promote/result.json'))
+for p in r['promotions']:
+    print(p['candidate_id'], p['source_contract_id'], '->', p['contract_id'], p['status'], os.path.isfile(p['target_path']), os.path.isfile(p['adapted_file']))
+print([ (c['name'], c['exit']) for c in r['commands']])
+\"" in /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote
+ succeeded in 0ms:
+CONTRACT-TDD-004 C-3 -> C-0005 promoted True True
+CONTRACT-TDD-008 C-4 -> C-0006 promoted True True
+CONTRACT-TDD-010 C-5 -> C-0007 promoted True True
+[('regression-metadata', 0), ('regression-format', 0), ('regression-tests', 0), ('regression-execution', 0)]
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+三个候选全部晋升完成，四条命令均 exit 0。
+
+**晋升结果**（写入 `/tmp/rso-promote/result.json`）
+- `CONTRACT-TDD-004` (C-3) → `C-0005` `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java:1`
+- `CONTRACT-TDD-008` (C-4) → `C-0006` `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java:1`
+- `CONTRACT-TDD-010` (C-5) → `C-0007` `verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java:1`
+
+**改动范围**：仅 package（改为 suite 包名）、移除同包冗余 import、类名、`public` → 包级私有（元数据正则要求行首 `class`）、新增 `import Tag` 与紧贴类上方的 `@Tag`；前置条件、操作序列、观察窗口、断言全部原样保留（已逐文件 diff 核对）。
+
+**命令**（日志在 `/tmp/rso-promote/logs/01..04-*.{stdout,stderr}.log` + `.exit`）
+- `regression-metadata` → 0
+- `regression-format` → 0（palantir 对三个文件做了纯空白 reflow，已把最终字节重新同步到 `/tmp/rso-promote/adapted/`）
+- `regression-tests` → 0：suite 7 个类各 1 个 testcase 全通过，core 3372 个测试全通过，`BUILD SUCCESS`
+- `regression-execution` → 0
+
+未提交；`git status` 仅显示 suite 内三个新增文件。注：`03-*.stderr.log` 中的堆栈来自 core 模块测试的预期异常日志（如 `LateFailureLoggingTest`），与 contract-tests 无关。
+hook: Stop
+hook: Stop
+hook: Stop
+hook: Stop
+hook: Stop Completed
+hook: Stop Completed
+hook: Stop Completed
+hook: Stop Completed
+tokens used
+75,050

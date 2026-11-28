@@ -1,0 +1,13 @@
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+index d5fbc7a7..ecece753 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+@@ -408,7 +408,7 @@ public final class ParRuntime implements AutoCloseable {
+      *     the interrupt flag is cleared per Java interruption convention
+      */
+     public boolean awaitQuiescence(Duration timeout) throws InterruptedException {
+-        Objects.requireNonNull(timeout, "timeout cannot be null");
++        if (timeout == null) return false;
+         long remainingNanos = Deadlines.saturatedNanos(timeout);
+         if (Thread.interrupted()) {
+             throw new InterruptedException();

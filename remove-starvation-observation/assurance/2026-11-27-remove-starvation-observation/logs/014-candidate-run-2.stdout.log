@@ -1,0 +1,124 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] ---------------< io.github.monadrome:parallel-in-scope >----------------
+[INFO] Building parallel-in-scope 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:3.7.0:enforce (enforce-jdk-25-plus) @ parallel-in-scope ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.6.1:test (default-test) @ parallel-in-scope ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd012AdoptedSourceQueuedBehindItsWaiterTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.404 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd012AdoptedSourceQueuedBehindItsWaiterTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd011NoStarvationSamplingThreadTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd011NoStarvationSamplingThreadTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd009SnapshotIdleAndClosedTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd009SnapshotIdleAndClosedTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd003CloseLeavesRegisteredExecutorUsableTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd003CloseLeavesRegisteredExecutorUsableTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd005AwaitQuiescenceTimesOutWhenOpenThenTrueAfterCloseTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.018 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd005AwaitQuiescenceTimesOutWhenOpenThenTrueAfterCloseTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd007InFlightCountsUndrainedAndSettlesTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd007InFlightCountsUndrainedAndSettlesTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd010SnapshotUnexitedSignalTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.218 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd010SnapshotUnexitedSignalTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd006AwaitQuiescenceWaitsForIgnoringInterruptionExecutionTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.720 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd006AwaitQuiescenceWaitsForIgnoringInterruptionExecutionTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd002CloseRejectsAndIsIdempotentTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd002CloseRejectsAndIsIdempotentTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd001RemovedSurfaceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd001RemovedSurfaceTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd008InFlightZeroWhileExecutionStillRunningTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.211 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd008InFlightZeroWhileExecutionStillRunningTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- surefire:3.6.1:test (lincheck-test) @ parallel-in-scope ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd012AdoptedSourceQueuedBehindItsWaiterTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.370 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd012AdoptedSourceQueuedBehindItsWaiterTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd011NoStarvationSamplingThreadTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.116 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd011NoStarvationSamplingThreadTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd009SnapshotIdleAndClosedTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd009SnapshotIdleAndClosedTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.062 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd003CloseLeavesRegisteredExecutorUsableTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.071 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd003CloseLeavesRegisteredExecutorUsableTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd005AwaitQuiescenceTimesOutWhenOpenThenTrueAfterCloseTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.087 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd005AwaitQuiescenceTimesOutWhenOpenThenTrueAfterCloseTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd007InFlightCountsUndrainedAndSettlesTest
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.076 s <<< FAILURE! -- in io.github.monadrome.parallelinscope.assurance.ContractTdd007InFlightCountsUndrainedAndSettlesTest
+[ERROR] io.github.monadrome.parallelinscope.assurance.ContractTdd007InFlightCountsUndrainedAndSettlesTest.inFlightCountsUndrainedRunsAndSettlesToZero -- Time elapsed: 0.067 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 1
+ but was: 2
+	at io.github.monadrome.parallelinscope.assurance.ContractTdd007InFlightCountsUndrainedAndSettlesTest.inFlightCountsUndrainedRunsAndSettlesToZero(ContractTdd007InFlightCountsUndrainedAndSettlesTest.java:64)
+
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd010SnapshotUnexitedSignalTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.246 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd010SnapshotUnexitedSignalTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd006AwaitQuiescenceWaitsForIgnoringInterruptionExecutionTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.773 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd006AwaitQuiescenceWaitsForIgnoringInterruptionExecutionTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd002CloseRejectsAndIsIdempotentTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.051 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd002CloseRejectsAndIsIdempotentTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd001RemovedSurfaceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd001RemovedSurfaceTest
+[INFO] Running io.github.monadrome.parallelinscope.assurance.ContractTdd008InFlightZeroWhileExecutionStillRunningTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.244 s -- in io.github.monadrome.parallelinscope.assurance.ContractTdd008InFlightZeroWhileExecutionStillRunningTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   ContractTdd007InFlightCountsUndrainedAndSettlesTest.inFlightCountsUndrainedRunsAndSettlesToZero:64 
+expected: 1
+ but was: 2
+[INFO] 
+[ERROR] Tests run: 12, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  10.359 s
+[INFO] Finished at: 2026-11-27T07:50:12-08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.6.1:test (lincheck-test) on project parallel-in-scope: There are test failures.
+[ERROR] 
+[ERROR] See /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

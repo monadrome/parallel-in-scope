@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-162241-9acb94",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-27T16:22:41.803Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+    "name": "remove-starvation-observation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "head": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "to": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "label": "2684bd14..34875399"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "af2ebb635f3a8f1dfe40cfe152d1298ff727c06011e225b49212a8699f3ba9d3",
+    "bytes": 285580,
+    "files": [
+      {
+        "path": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 1
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java",
+        "status": "A",
+        "additions": 60,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java",
+        "status": "A",
+        "additions": 85,
+        "deletions": 0
+      },
+      {
+        "path": "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java",
+        "status": "A",
+        "additions": 87,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation.md",
+        "status": "A",
+        "additions": 105,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/README.md",
+        "status": "A",
+        "additions": 19,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/SHA256SUMS",
+        "status": "A",
+        "additions": 15,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/logs/base-void-calls-ParRuntimeTest.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/logs/base-void-calls-ThreadPoolStarvationObservationScopeTest.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/logs/focused-executor-runtime.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-initial.log.gz",
+        "status": "A",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/reports/base-void-calls-ParRuntimeTest.xml",
+        "status": "A",
+        "additions": 32,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/reports/base-void-calls-ThreadPoolStarvationObservationScopeTest.xml",
+        "status": "A",
+        "additions": 32,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/reports/focused-executor-runtime.xml",
+        "status": "A",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-final.xml",
+        "status": "A",
+        "additions": 116,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-initial.xml",
+        "status": "A",
+        "additions": 116,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/run-meta/base-void-calls.sh",
+        "status": "A",
+        "additions": 14,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/run-meta/focused-executor-runtime.txt",
+        "status": "A",
+        "additions": 26,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-final.txt",
+        "status": "A",
+        "additions": 23,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-initial.txt",
+        "status": "A",
+        "additions": 22,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "0a921a38eb76fff006c681eba138038d24dde900b6b115e6ae2fcb93ecb55e87",
+    "bytes": 1458,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "e059c4d545676a838a44304902dde49e1d4a6fd756f43fd53baf9ec29d673fb8",
+    "bytes": 6457
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

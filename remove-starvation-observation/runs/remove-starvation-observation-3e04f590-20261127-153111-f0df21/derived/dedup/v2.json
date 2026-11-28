@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "remove-starvation-observation-3e04f590-20261127-153111-f0df21",
+  "version": 2,
+  "createdAt": "2026-11-27T16:02:42.114Z",
+  "method": "imported",
+  "note": "imported: main-agent adjudication: each finding is a distinct stale reference",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "adopted-futures contract header still lists the removed observation"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": "BACKLOG identity-probe entry cites the removed NO_ISSUE status"
+    }
+  ]
+}

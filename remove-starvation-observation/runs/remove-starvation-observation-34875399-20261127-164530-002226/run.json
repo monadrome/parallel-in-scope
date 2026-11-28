@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-164530-002226",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-27T16:45:31.122Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+    "name": "remove-starvation-observation"
+  },
+  "commits": {
+    "base": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "head": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v4-pro",
+        "revision": null,
+        "effort": "high",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 3060,
+      "reviewSeconds": 2700,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "0a921a38eb76fff006c681eba138038d24dde900b6b115e6ae2fcb93ecb55e87",
+    "contextJsonSha256": "8fde24586cc325987ae5415e667bf4dbf6e89c4b7e29432fad1ca499dfc3a067",
+    "diffSha256": "af2ebb635f3a8f1dfe40cfe152d1298ff727c06011e225b49212a8699f3ba9d3",
+    "caseManifestSha256": "a425769a1e06bb42c87c8130fa0f77352e731fa13caaa60509600e882bae4851",
+    "promptSha256": "9f85fc1c787013696d38f6a7c66456fc74cdf3f00907fd2026ebda6d7134e736"
+  },
+  "promptPath": "inputs/prompt.md"
+}

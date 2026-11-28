@@ -1,0 +1,334 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] ---------------< io.github.monadrome:parallel-in-scope >----------------
+[INFO] Building parallel-in-scope 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:3.7.0:enforce (enforce-jdk-25-plus) @ parallel-in-scope ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 63 source files with javac [debug release 8] to target/classes
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[WARNING] target value 8 is obsolete and will be removed in a future release
+[WARNING] To suppress warnings about obsolete options, use -Xlint:-options.
+[WARNING] unknown enum constant java.lang.annotation.ElementType.MODULE
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/package-info.java: unknown enum constant java.lang.annotation.ElementType.MODULE
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/AdoptedSource.java:[133,15] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java:[434,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskId.java:[60,26] [EqualsGetClass] Prefer instanceof to getClass when implementing Object#equals. Note that this may be a behaviour change.
+    (see https://errorprone.info/bugpattern/EqualsGetClass)
+  Did you mean 'return other instanceof TaskId && other instanceof TaskId && label.equals(((TaskId) other).label);'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java:[128,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFuture.java:[234,19] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java:[180,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ImmediateResult.java:[127,13] [NotJavadoc] This comment is attached to a method inside a local class, but methods inside local classes cannot be documented with Javadoc. Please convert this to a regular comment.
+    (see https://errorprone.info/bugpattern/NotJavadoc)
+  Did you mean '/*'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskObservation.java:[193,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java:[134,41] [CollectionUndefinedEquality] Future does not have well-defined equals behavior.
+    (see https://errorprone.info/bugpattern/CollectionUndefinedEquality)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java:[1020,11] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java:[32,19] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (value.equals(owner)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/ResultObjects.java:[51,21] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (failure.equals(owner)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/java/io/github/monadrome/parallelinscope/SlidingWindowSubmitter.java:[196,15] [EmptyCatch] Caught exceptions should not be ignored
+    (see https://google.github.io/styleguide/javaguide.html#s6.2-caught-exceptions)
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 116 source files with javac [debug release 11] to target/test-classes
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/AggregateReadRuleTest.java:[41,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/BatchInputSnapshotTest.java:[89,26] [JdkObsolete] It is very rare for LinkedList to out-perform ArrayList or ArrayDeque. Avoid it unless you're willing to invest a lot of time into benchmarking. Caveat: LinkedList supports null elements, but ArrayDeque does not.
+    (see https://errorprone.info/bugpattern/JdkObsolete)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[298,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[426,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/BatchSettleAttributionTest.java:[432,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/BusinessFailureAttributionTest.java:[36,83] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/BusinessFailureAttributionTest.java:[70,83] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java:[18,53] [InvalidLink] The reference `CancellationToken#cancel(boolean)` to a method doesn't resolve to anything. Is it misspelt, or is the parameter list not correct? See https://docs.oracle.com/javase/8/docs/technotes/tools/unix/javadoc.html#JSSOR654 for documentation on how to form method links.
+    (see https://errorprone.info/bugpattern/InvalidLink)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java:[374,19] [FutureReturnValueIgnored] Return value of methods returning Future must be checked. Ignoring returned Futures suppresses exceptions thrown from the code that completes the Future.
+    (see https://errorprone.info/bugpattern/FutureReturnValueIgnored)
+  Did you mean 'var unused = token.bind(ImmutableList.of(failed, sibling), submission, TIMER);' or to remove this line?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java:[39,86] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/DefaultEnqueuePolicyTest.java:[79,86] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("w"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java:[78,75] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("d"), direct).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java:[117,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java:[158,75] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("d"), direct).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/DirectExecutorSafetyTest.java:[190,75] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("d"), direct).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureInlineTest.java:[71,36] [UnnecessaryMethodReference] This method reference is unnecessary, and can be replaced with the variable itself.
+    (see https://errorprone.info/bugpattern/UnnecessaryMethodReference)
+  Did you mean 'Thread runner = new Thread(losing);'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureInlineTest.java:[102,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("rejected"), rejected).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureInlineTest.java:[130,39] [ReferenceEquality] Comparison using reference equality instead of value equality
+    (see https://errorprone.info/bugpattern/ReferenceEquality)
+  Did you mean 'if (Objects.equals(record.getLevel(), Level.SEVERE)) {' or 'if (record.getLevel().equals(Level.SEVERE)) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ExecutionPhaseHintFutureTest.java:[395,36] [UnnecessaryMethodReference] This method reference is unnecessary, and can be replaced with the variable itself.
+    (see https://errorprone.info/bugpattern/UnnecessaryMethodReference)
+  Did you mean 'Thread runner = new Thread(future);'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ExecutorWaitAdmissionTest.java:[67,43] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = builder.build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ExplicitDeadlineSaturationTest.java:[49,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupClassOptionsOverloadTest.java:[35,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java:[93,87] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime first = ParRuntime.builder().register(ParId.of("worker"), firstExecutor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java:[152,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java:[178,87] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime closing = ParRuntime.builder().register(ParId.of("worker"), firstExecutor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftContractTest.java:[280,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java:[188,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java:[264,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultToStringTest.java:[67,27] [OverrideThrowableToString] To return a custom message with a Throwable class, one should override getMessage() instead of toString().
+    (see https://errorprone.info/bugpattern/OverrideThrowableToString)
+  Did you mean 'public String getMessage() {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java:[65,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InertEnqueueRefusalWarningTest.java:[216,53] [JavaDurationGetSecondsToToSeconds] Prefer duration.toSeconds() over duration.getSeconds()
+    (see https://errorprone.info/bugpattern/JavaDurationGetSecondsToToSeconds)
+  Did you mean 'assertThat(single.get(TIMEOUT.toSeconds(), TimeUnit.SECONDS)).isEqualTo(3);'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java:[41,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), direct).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java:[104,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), direct).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java:[166,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), direct).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InlineSubmissionLivenessTest.java:[257,83] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), saturated).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/InterruptedResultFreezingTest.java:[43,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("worker"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/LateFailureLoggingTest.java:[72,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/LateFailureLoggingTest.java:[213,54] [ImmutableEnumChecker] enums should be immutable: 'LateFailure' has field 'failure' of type 'java.util.function.Supplier<java.lang.Exception>', the declaration of type 'java.util.function.Supplier<java.lang.Exception>' is not annotated with @com.google.errorprone.annotations.Immutable
+    (see https://errorprone.info/bugpattern/ImmutableEnumChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[39,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[104,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[148,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[175,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[207,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[227,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[260,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[332,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ObservationFutureTest.java:[406,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[53,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[87,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[127,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[160,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[189,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[221,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[253,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[278,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[307,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[334,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[377,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[423,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[477,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[503,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[540,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[587,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParMapAndCombineTest.java:[636,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeAdmissionRaceTest.java:[33,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeGlobalSlotTest.java:[34,50] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime a = ParRuntime.builder().build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeGlobalSlotTest.java:[57,54] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime first = ParRuntime.builder().build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeGlobalSlotTest.java:[73,54] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime a = ParRuntime.builder().build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimePoliciesTest.java:[99,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("orders"), pool).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimePoliciesTest.java:[156,27] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimePoliciesTest.java:[204,27] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeQuiescenceTest.java:[40,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeQuiescenceTest.java:[78,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeQuiescenceTest.java:[115,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java:[35,45] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java:[58,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java:[106,84] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[72,27] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[105,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[203,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[319,54] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime first = ParRuntime.builder().build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[424,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[471,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[607,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[691,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[732,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[780,78] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("io"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[818,83] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("one"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java:[893,80] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(ParId.of("late"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java:[75,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), rejected).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java:[109,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), rejected).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java:[201,82] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().register(ParId.of("worker"), executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParSubmitTest.java:[223,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParentChildResultRetentionTest.java:[49,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ParentChildResultRetentionTest.java:[106,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java:[41,19] [FutureReturnValueIgnored] Return value of methods returning Future must be checked. Ignoring returned Futures suppresses exceptions thrown from the code that completes the Future.
+    (see https://errorprone.info/bugpattern/FutureReturnValueIgnored)
+  Did you mean 'var unused = token.bind(Collections.singletonList(task), submitCanceller, timer);' or to remove this line?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java:[558,23] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder()'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/RequestCancellationTest.java:[565,83] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime runtime = ParRuntime.builder().register(WORKER, executor).build()) {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ResultObjectsTest.java:[79,23] [OverrideThrowableToString] To return a custom message with a Throwable class, one should override getMessage() instead of toString().
+    (see https://errorprone.info/bugpattern/OverrideThrowableToString)
+  Did you mean 'public String getMessage() {'?
+[WARNING] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ScopePrimitivesTest.java:[224,55] [MustBeClosedChecker] This method returns a resource which must be managed carefully, not just left for garbage collection. If it is a constant that will persist for the lifetime of your program, move it to a private static final field. Otherwise, you should use it in a try-with-resources.
+    (see https://errorprone.info/bugpattern/MustBeClosedChecker)
+  Did you mean 'try (ParRuntime global = ParRuntime.builder().build()) {'?
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/AggregateReadRuleTest.java: Some input files use or override a deprecated API.
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/AggregateReadRuleTest.java: Recompile with -Xlint:deprecation for details.
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java: Some input files use unchecked or unsafe operations.
+[INFO] /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/java/io/github/monadrome/parallelinscope/ImmediateResultTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.003 s
+[INFO] Finished at: 2026-11-27T07:49:04-08:00
+[INFO] ------------------------------------------------------------------------

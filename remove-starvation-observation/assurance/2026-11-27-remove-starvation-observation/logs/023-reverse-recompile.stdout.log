@@ -1,0 +1,29 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] ---------------< io.github.monadrome:parallel-in-scope >----------------
+[INFO] Building parallel-in-scope 0.5.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:3.7.0:enforce (enforce-jdk-25-plus) @ parallel-in-scope ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ parallel-in-scope ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ parallel-in-scope ---
+[INFO] skip non existing resourceDirectory /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify/core/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ parallel-in-scope ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.580 s
+[INFO] Finished at: 2026-11-27T07:53:38-08:00
+[INFO] ------------------------------------------------------------------------

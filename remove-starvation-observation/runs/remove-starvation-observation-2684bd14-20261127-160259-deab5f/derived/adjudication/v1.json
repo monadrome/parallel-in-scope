@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "remove-starvation-observation-2684bd14-20261127-160259-deab5f",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-27T16:22:20.407Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro-main",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": []
+}

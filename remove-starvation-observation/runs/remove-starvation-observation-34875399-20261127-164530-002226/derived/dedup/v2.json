@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-164530-002226",
+  "version": 2,
+  "createdAt": "2026-11-27T16:55:56.194Z",
+  "method": "imported",
+  "note": "imported: main-agent adjudication",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "PIT record overstated head kills of the deleted test's base kills"
+    }
+  ]
+}

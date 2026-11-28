@@ -1,0 +1,825 @@
+{
+  "schemaVersion": "contract-assurance-run/v2",
+  "runId": "2026-11-27-remove-starvation-observation",
+  "createdAt": "2026-11-27T15:35:27Z",
+  "package": {
+    "name": "contract-first-assurance",
+    "version": "1.5.2"
+  },
+  "adapter": {
+    "name": "vformation",
+    "version": "1.5.2",
+    "requiredGates": [
+      "full-suite",
+      "consumer",
+      "pit",
+      "independent-review",
+      "docs",
+      "race-claims",
+      "refactoring-review",
+      "regression-tests"
+    ],
+    "acceptedDispositions": {
+      "EXPECTED_MUTATION_LIVENESS": {
+        "allowedRawStatuses": [
+          "TIMED_OUT"
+        ],
+        "requiredEvidence": [
+          "repeatable-focused-rerun",
+          "unmutated-tests-pass",
+          "complete-xml-and-logs",
+          "source-level-liveness-invariant",
+          "maintainer-or-independent-review"
+        ]
+      }
+    },
+    "regressionSuite": {
+      "path": "verification/contract-tests",
+      "regression-metadata": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "regression-tests": [
+        "mvn",
+        "-o",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "regression-execution": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ]
+    }
+  },
+  "workspace": {
+    "base": "5d79d305e1cfc81d8bcd9be8981ec9b82f460002",
+    "head": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "dirty": false
+  },
+  "inputs": {
+    "inputs/adapter.yaml": "bc2ae2b867fbd48eadd493d9bba88e8860a0eb7dca29c4c2545ddc99465c842e",
+    "inputs/change.diff": "88fb7e51fb3a12f72e88b1521e4c45e77669c761e553f8ecd8ef0851558b298d",
+    "inputs/contract-gaps-initial.md": "d958f099104c538bf1559b21b401bdcec4e299644cece10d7fb3e1b91d6d3b20",
+    "inputs/contract.md": "bf94633e9b8207d73ec5170c2761cb2d84daa76edaa1c6b7a6d9c03da4cd5ee8",
+    "inputs/generator-prompt.md": "b07216ac5c48a87844cea4398f652d20eff6c904d5eaf7c1d379f1c61268589b",
+    "inputs/generator/README.md": "6c18f4d91d9646230b30f44dbbed941b2997b261cad9258c094bc23585015e48",
+    "inputs/generator/commands.md": "077a7a3d490452faadc1dffa4c89733353e144d692be8051620dcb62e7d81f50",
+    "inputs/mvn-offline-wrapper.sh": "8aa9ef496213236b5fbdafded5e2213e84f923a212502b66bad6557ff8508df5",
+    "inputs/package.yaml": "74b87ee6532098d0bcc132eb84542501e676e4cab09ccc3437eec4b724baa921",
+    "inputs/sanitized-api.md": "8b023d9ba1dbd704f67314122538e7596281abf4f725fa04499e089c12f4782b",
+    "inputs/sanitizer/SanitizeApi.java": "58e56761c78bf10babe56a4af3d6536c271b5b647c6dff53593a2d30c69ad615",
+    "inputs/sources/CHANGELOG.md": "2997293da5834a77d459363cf961d307adadcad72a93a6677ed47cf0de21ab6a",
+    "inputs/sources/assurance-routing.md": "a253c5166cb1255384342e62456828eacc779ab4e84e6541d6cb2f696704c5fb",
+    "inputs/sources/design-decision-log.md": "6a43c24cefc0d43cd12fa23d624c9ffef45707e5e8f3e25618a75adaafcb85f5",
+    "inputs/sources/design-task-graph.md": "51a0a2d782d95469211666535e71f8b122eb246772d1764d41d918098f53d685",
+    "inputs/sources/design-task-group-adopted-futures.md": "1001be8da54c26b8a58c1b21d3176b0f4af2fcb3cd2fff8f3162cc90a23d4261",
+    "inputs/sources/design-task-group-lifecycle.md": "fe00e4e7248cfded867ec682ba460e788a3d81123be743341001da729c381db9",
+    "inputs/sources/design-task-termination-and-scope.md": "2dc4c9e4291751964efb3fda896512dbde9f19dcc5a56503426142afa89ba99e",
+    "inputs/sources/docs-en-reference-diagnostics.md": "6e0d555ad5080286fcf240ef65b583d2f2dfa2044a24aaef8f77398682ae72e1",
+    "inputs/sources/docs-en-user-guide.md": "b0e60e1f7146907e651220d9c119b11b38ecf0feb4d39a3b9e2a2617943ea377",
+    "inputs/sources/root-AGENTS.md": "9fd5e3027732c2d44dc55f4030533f815a835eb1fe9690a66944a4a5430e7494",
+    "inputs/sources/thread-pool-starvation-observation.base.md": "0d6d83dd758955632bbbfe96941f42496713286eada1e81f2546920e71fc0a5c",
+    "inputs/sources/verification-pit.md": "241a6126103d2c22979051da4c8cd085b5a2819dfcd0844deddafd941a41e028"
+  },
+  "commands": [
+    {
+      "phase": "sanitize",
+      "argv": [
+        "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home/bin/java",
+        ".contract-first-assurance/2026-11-27-remove-starvation-observation/inputs/sanitizer/SanitizeApi.java",
+        "core/src/main/java",
+        ".contract-first-assurance/2026-11-27-remove-starvation-observation/inputs/sanitized-api.md",
+        "parallel-in-scope core public API at 3e04f590"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/000-sanitize.stdout.log",
+      "stderr": "logs/000-sanitize.stderr.log"
+    },
+    {
+      "phase": "isolated-generation",
+      "argv": [
+        "perl",
+        "-e",
+        "alarm 2400; exec @ARGV",
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-C",
+        "/tmp/rso-assurance-gen-3e04f590",
+        "--sandbox",
+        "workspace-write",
+        "--model",
+        "deepseek/deepseek-v4-pro",
+        "-c",
+        "model_reasoning_effort=medium",
+        "--output-last-message",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.contract-first-assurance/2026-11-27-remove-starvation-observation/logs/001-isolated-generation.last-message.md",
+        "You are a fresh, isolated contract-test generator. Read README.md in the current directory and perform exactly the task it describes. Read only README.md, contract.md, sanitized-api.md, and commands.md in the current directory; do not inspect, list, or search anything outside it. The model connection drops any single reply that runs longer than about five minutes, so keep every reply short: write exactly one file per tool call, and begin writing the first candidate soon after reading the inputs. Write the candidate files under candidates/ and stop."
+      ],
+      "cwd": "/tmp/rso-assurance-gen-3e04f590",
+      "exitCode": 0,
+      "stdout": "logs/001-isolated-generation.stdout.log",
+      "stderr": "logs/001-isolated-generation.stderr.log"
+    },
+    {
+      "phase": "candidate-compile",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test-compile"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/011-candidate-compile.stdout.log",
+      "stderr": "logs/011-candidate-compile.stderr.log"
+    },
+    {
+      "phase": "candidate-verification",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.*Test",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 1,
+      "stdout": "logs/013-candidate-run-1.stdout.log",
+      "stderr": "logs/013-candidate-run-1.stderr.log"
+    },
+    {
+      "phase": "candidate-verification",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.*Test",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 1,
+      "stdout": "logs/014-candidate-run-2.stdout.log",
+      "stderr": "logs/014-candidate-run-2.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 1,
+      "stdout": "logs/020-reverse-tdd-004.stdout.log",
+      "stderr": "logs/020-reverse-tdd-004.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd008InFlightZeroWhileExecutionStillRunningTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 1,
+      "stdout": "logs/021-reverse-tdd-008.stdout.log",
+      "stderr": "logs/021-reverse-tdd-008.stderr.log"
+    },
+    {
+      "phase": "reverse-verification-not-applied",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd010SnapshotUnexitedSignalTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/022-reverse-tdd-010.stdout.log",
+      "stderr": "logs/022-reverse-tdd-010.stderr.log"
+    },
+    {
+      "phase": "reverse-verification",
+      "argv": [
+        "mvn",
+        "-o",
+        "-B",
+        "-ntp",
+        "-pl",
+        "core",
+        "test",
+        "-Dtest=io.github.monadrome.parallelinscope.assurance.ContractTdd010SnapshotUnexitedSignalTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-verify",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 1,
+      "stdout": "logs/024-reverse-tdd-010-retry.stdout.log",
+      "stderr": "logs/024-reverse-tdd-010-retry.stderr.log"
+    },
+    {
+      "phase": "promotion-agent",
+      "argv": [
+        "perl",
+        "-e",
+        "alarm 2700; exec @ARGV",
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-C",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote",
+        "--sandbox",
+        "danger-full-access",
+        "--model",
+        "zcode/GLM-5.4",
+        "-c",
+        "model_reasoning_effort=high",
+        "--output-last-message",
+        "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/.contract-first-assurance/2026-11-27-remove-starvation-observation/logs/030-promotion-agent.last-message.md",
+        "You are a fresh assurance-promotion agent. Read /tmp/rso-promote/BRIEF.md and perform exactly the task it describes. Keep each reply short and write one file per tool call."
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote",
+      "exitCode": 0,
+      "stdout": "logs/030-promotion-agent.stdout.log",
+      "stderr": "logs/030-promotion-agent.stderr.log"
+    },
+    {
+      "phase": "regression-metadata",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/0301-regression-metadata.stdout.log",
+      "stderr": "logs/0301-regression-metadata.stderr.log"
+    },
+    {
+      "phase": "regression-format",
+      "argv": [
+        "mvn",
+        "-o",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "spotless:apply"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/0302-regression-format.stdout.log",
+      "stderr": "logs/0302-regression-format.stderr.log"
+    },
+    {
+      "phase": "regression-tests",
+      "argv": [
+        "mvn",
+        "-o",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/0303-regression-tests.stdout.log",
+      "stderr": "logs/0303-regression-tests.stderr.log"
+    },
+    {
+      "phase": "regression-execution",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/rso-assurance-promote",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/0304-regression-execution.stdout.log",
+      "stderr": "logs/0304-regression-execution.stderr.log"
+    },
+    {
+      "phase": "full-suite",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-o",
+        "clean",
+        "install"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/040-full-suite.stdout.log",
+      "stderr": "logs/040-full-suite.stderr.log"
+    },
+    {
+      "phase": "consumer",
+      "argv": [
+        "env",
+        "JAVA_HOME=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "MAVEN_BASEDIR=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer",
+        "sh",
+        "-c",
+        "cd verification/maven-central-consumer && mvn -B -ntp -o -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/041-consumer-25.stdout.log",
+      "stderr": "logs/041-consumer-25.stderr.log"
+    },
+    {
+      "phase": "consumer",
+      "argv": [
+        "env",
+        "JAVA_HOME=/Users/linqh/Library/Java/JavaVirtualMachines/azul-1.8.0_432/Contents/Home",
+        "MAVEN_BASEDIR=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/verification/maven-central-consumer",
+        "sh",
+        "-c",
+        "cd verification/maven-central-consumer && mvn -B -ntp -o -Dparallel-in-scope.version=0.5.0-SNAPSHOT clean test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/Users/linqh/Library/Java/JavaVirtualMachines/azul-1.8.0_432/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/041-consumer-1.8.stdout.log",
+      "stderr": "logs/041-consumer-1.8.stderr.log"
+    },
+    {
+      "phase": "consumer",
+      "argv": [
+        "env",
+        "JAVA_HOME=/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home",
+        "MAVEN_BASEDIR=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/demo",
+        "sh",
+        "-c",
+        "cd demo && mvn -B -ntp -o -Dparallel-in-scope.version=0.5.0-SNAPSHOT test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/042-demo-25.stdout.log",
+      "stderr": "logs/042-demo-25.stderr.log"
+    },
+    {
+      "phase": "consumer",
+      "argv": [
+        "env",
+        "JAVA_HOME=/Users/linqh/Library/Java/JavaVirtualMachines/azul-1.8.0_432/Contents/Home",
+        "MAVEN_BASEDIR=/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation/demo",
+        "sh",
+        "-c",
+        "cd demo && mvn -B -ntp -o -Dparallel-in-scope.version=0.5.0-SNAPSHOT test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/Users/linqh/Library/Java/JavaVirtualMachines/azul-1.8.0_432/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/042-demo-1.8.stdout.log",
+      "stderr": "logs/042-demo-1.8.stderr.log"
+    },
+    {
+      "phase": "docs",
+      "argv": [
+        "bash",
+        "-lc",
+        "python3 scripts/check-doc-refs.py && python3 scripts/check-local-links.py && python3 scripts/check-english-docs.py && python3 scripts/check-adr.py && python3 scripts/check-design-routes.py && python3 scripts/check-proposal.py && python3 scripts/check-project-baseline.py && python3 scripts/check-worktree-skills.py && python3 scripts/check-verification-integrity.py && python3 .agents/skills/contract-first-assurance/scripts/verify_package.py && mkdocs build --strict --config-file mkdocs/mkdocs.yml -d /tmp/rso-site2"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/043-docs.stdout.log",
+      "stderr": "logs/043-docs.stderr.log"
+    },
+    {
+      "phase": "race-claims",
+      "argv": [
+        "python3",
+        "scripts/check-race-claims.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/044-race-claims.stdout.log",
+      "stderr": "logs/044-race-claims.stderr.log"
+    },
+    {
+      "phase": "regression-metadata-final-head",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/045-regression-metadata.stdout.log",
+      "stderr": "logs/045-regression-metadata.stderr.log"
+    },
+    {
+      "phase": "regression-tests-final-head",
+      "argv": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-o",
+        "-Pcontract-tests",
+        "-pl",
+        "verification/contract-tests",
+        "-am",
+        "clean",
+        "test"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/045-regression-tests.stdout.log",
+      "stderr": "logs/045-regression-tests.stderr.log"
+    },
+    {
+      "phase": "regression-execution-final-head",
+      "argv": [
+        "python3",
+        "scripts/check-contract-tests.py",
+        "--reports",
+        "verification/contract-tests/target/surefire-reports"
+      ],
+      "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@25/25.0.4.1/libexec/openjdk.jdk/Contents/Home"
+      },
+      "exitCode": 0,
+      "stdout": "logs/045-regression-execution.stdout.log",
+      "stderr": "logs/045-regression-execution.stderr.log"
+    }
+  ],
+  "requiredGates": [
+    "full-suite",
+    "consumer",
+    "pit",
+    "independent-review",
+    "docs",
+    "race-claims",
+    "refactoring-review",
+    "regression-tests"
+  ],
+  "checks": {
+    "full-suite": "pass",
+    "consumer": "pass",
+    "pit": "pass",
+    "independent-review": "pass",
+    "docs": "pass",
+    "race-claims": "pass",
+    "refactoring-review": "pass",
+    "regression-tests": "pass"
+  },
+  "finalHead": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+  "status": "pass",
+  "acceptedExceptions": [
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime.awaitQuiescence VoidMethodCallMutator: removed Monitor::leave in the zero-budget branch",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-initial.txt",
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-final.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/040-full-suite.stdout.log",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-initial.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-final.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-initial.log.gz",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/pit/2026-11-27-remove-starvation-observation.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/review-evidence.md"
+        ]
+      },
+      "approvedBy": "independent review of the 2026-11-24 TaskType removal (same unchanged method); re-reproduced in both focused runs of this delivery"
+    },
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime.enterAdmission NegateConditionalsMutator: negated open-runtime return",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-initial.txt",
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-final.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/040-full-suite.stdout.log",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-initial.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-final.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-initial.log.gz",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/pit/2026-11-27-remove-starvation-observation.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/review-evidence.md"
+        ]
+      },
+      "approvedBy": "independent review of the 2026-11-24 TaskType removal (same unchanged method); re-reproduced in both focused runs of this delivery"
+    },
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime lambda$trackExecutions$0 VoidMethodCallMutator: removed Monitor::leave",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-initial.txt",
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-final.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/040-full-suite.stdout.log",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-initial.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-final.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-initial.log.gz",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/pit/2026-11-27-remove-starvation-observation.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/review-evidence.md"
+        ]
+      },
+      "approvedBy": "independent review of the 2026-11-24 TaskType removal (same unchanged method); re-reproduced in both focused runs of this delivery"
+    },
+    {
+      "phase": "pit",
+      "rawStatus": "TIMED_OUT",
+      "disposition": "EXPECTED_MUTATION_LIVENESS",
+      "accepted": true,
+      "mutant": "ParRuntime$DispatchingScheduledExecutorService lambda$schedule$0 VoidMethodCallMutator: removed ExecutorService::execute",
+      "evidence": {
+        "repeatable-focused-rerun": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-initial.txt",
+          "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-final.txt"
+        ],
+        "unmutated-tests-pass": [
+          "logs/040-full-suite.stdout.log",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "complete-xml-and-logs": [
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-initial.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-final.xml",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-initial.log.gz",
+          "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz"
+        ],
+        "source-level-liveness-invariant": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/pit/2026-11-27-remove-starvation-observation.md"
+        ],
+        "maintainer-or-independent-review": [
+          "evidence/pit/2026-11-24-remove-tasktype.md",
+          "evidence/review-evidence.md"
+        ]
+      },
+      "approvedBy": "independent review of the 2026-11-24 TaskType removal (same unchanged method); re-reproduced in both focused runs of this delivery"
+    }
+  ],
+  "promotionTargets": {
+    "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java": "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java",
+    "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java": "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java",
+    "verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java": "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java"
+  },
+  "artifacts": {
+    "adaptation/tdd-004.diff": "6e103b2f10a9b965f127bc042eea57cd69fa02754aad95abec4c4a1011bdcc1c",
+    "adaptation/tdd-008.diff": "1469697aaa12a478d2f5065dc949e1119db36ea0c30f8862a2e02dbb96c62b2b",
+    "adaptation/tdd-010.diff": "5cc39b3e081b9274b9142fea01a970776f32f95869a4d747c90ca0be4f46d5d9",
+    "candidate-status.csv": "5fbdda33da0d4ca9c32636370b51ac1b199fdd1efdac30e4039f5bc09d1df0ae",
+    "candidates/ContractTdd001RemovedSurfaceTest.java": "c217d8c41b4aee902d6e4be8c140ab5e3d4b25ad059925766207c0874db7248d",
+    "candidates/ContractTdd002CloseRejectsAndIsIdempotentTest.java": "e9c88124a9ffc82f16e3e4bd36aa7b497fbd0e68814aa506bdb0bee59c6c7f28",
+    "candidates/ContractTdd003CloseLeavesRegisteredExecutorUsableTest.java": "634c7567a39da4804d8ce1bd46e0af5700a25682ba696114ba1299b5f4b5b597",
+    "candidates/ContractTdd004AwaitQuiescenceValidatesArgsAndHonorsInterruptTest.java": "c9023c8380069f2e28d99504be59556c0055463a375c2c62fd682c4608d7808a",
+    "candidates/ContractTdd005AwaitQuiescenceTimesOutWhenOpenThenTrueAfterCloseTest.java": "6dd937facd00df8ba95b0efb0eca56b270a63d1753f512f60a29247ff2e33281",
+    "candidates/ContractTdd006AwaitQuiescenceWaitsForIgnoringInterruptionExecutionTest.java": "bde28e392bc743d366e7ceb2df5886b5b2dca8632623c787395251f59b69d325",
+    "candidates/ContractTdd007InFlightCountsUndrainedAndSettlesTest.java": "462afff8056d3d8ae8713d081ed9510628284b63b9557e00fcb35b4b609daad3",
+    "candidates/ContractTdd008InFlightZeroWhileExecutionStillRunningTest.java": "fa75cdbc630b1553c575c3ddc549f1db7f6ae2dc328a6f0be73b13d50102b18d",
+    "candidates/ContractTdd009SnapshotIdleAndClosedTest.java": "70cc542fc3c404323f76bd14dc2737209e17cdda95ac2a384d1e5c8a297045e3",
+    "candidates/ContractTdd010SnapshotUnexitedSignalTest.java": "78128ffd6f538f76d2155e16aa78881c3c7ad4110ed0110e83f16c69d693d87d",
+    "candidates/ContractTdd011NoStarvationSamplingThreadTest.java": "0bbccf9bf130e357784ae0033bcd2dd3c307ee6855e26a9b45a126a7736b1d10",
+    "candidates/ContractTdd012AdoptedSourceQueuedBehindItsWaiterTest.java": "40f7426502db491d3370811d460a200fa31ec37121208682dfafeb51620cc9f5",
+    "candidates/candidate-plan.csv": "586c15fcdbd24c556cf43ed6fb262e459e8f00b196c29cabd3311ca46dead338",
+    "candidates/generation-notes.md": "ad491e4e206b67010ab982f646735f88487adb5839110e46d3efa4b7f47ca7e3",
+    "contract-gaps.md": "c5ce0b3a06c90784c761dbca605d88f817c202c37f88ac80b232185560ee0cc1",
+    "contract.md": "bf94633e9b8207d73ec5170c2761cb2d84daa76edaa1c6b7a6d9c03da4cd5ee8",
+    "evidence/pit/2026-11-24-remove-tasktype.md": "84b27ed1980e05bf9bd02791ab682a63824eea70f266c74cad42d48d9d821341",
+    "evidence/pit/2026-11-27-remove-starvation-observation.md": "6a9e5bbbb8b29643c2297574ab38e27d7a7becde0b692c6accb6b5cf964c8862",
+    "evidence/pit/2026-11-27-remove-starvation-observation/README.md": "06bea947869084e20705f8893539e110cf8d33fbda0850768616649d80c52560",
+    "evidence/pit/2026-11-27-remove-starvation-observation/SHA256SUMS": "69c76ed8ac6bf5ca5c7221dabfae433d4208fd409f0f0c814cb3f661f4fda0cd",
+    "evidence/pit/2026-11-27-remove-starvation-observation/logs/base-void-calls-ParRuntimeTest.log.gz": "2b53a443c376398ded09fc7a4362477790c534856fa3344f1c198cb6cedfc79e",
+    "evidence/pit/2026-11-27-remove-starvation-observation/logs/base-void-calls-ThreadPoolStarvationObservationScopeTest.log.gz": "2d4dbe9a4a5fab6b90323a1d386f56bb8bbbe8d37ae7b449ec86a99cd2adbfe9",
+    "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-executor-runtime.log.gz": "f8f2b321e5ab6fa556b78d4c1c50b1af56f858a2512eb8405b44cfea439c1579",
+    "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-final.log.gz": "bac25e60f97b685f3d7bb48dea24ee0dda13543bf0ddd749b672d3c625502f9d",
+    "evidence/pit/2026-11-27-remove-starvation-observation/logs/focused-par-runtime-initial.log.gz": "e0ce0be358ca7d2366b9ab318034839ff98cb9f565cce86336361291c4e035a4",
+    "evidence/pit/2026-11-27-remove-starvation-observation/reports/base-void-calls-ParRuntimeTest.xml": "bde5c5aed54467ac516f92901b85ac209b3dba59a8cd3f9b4c09661231cc5c54",
+    "evidence/pit/2026-11-27-remove-starvation-observation/reports/base-void-calls-ThreadPoolStarvationObservationScopeTest.xml": "15312b7313838a92837425b37a029d58fcccfac4b6b5a52ff5ad2399374104d9",
+    "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-executor-runtime.xml": "2f8c70ad67423fe5ccd1aa1024107f160b850263277c062a7cb36c4131441026",
+    "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-final.xml": "bd3d5bbcc7b75819bee8c32d69fafb2697f5e4da75c19702fec0f1a1819d7a32",
+    "evidence/pit/2026-11-27-remove-starvation-observation/reports/focused-par-runtime-initial.xml": "bdcc5de2f537803981498c1cebbc1684db24f76f759b6cb497ab4b2a89e276b4",
+    "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/base-void-calls.sh": "1073fc6d06810ad7dca7dfbd9ce1f3d0626a61806552bedfa50900a6a24826db",
+    "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-executor-runtime.txt": "60aaf00bf3637a558a4554d637ece96b247ccca4ea735b5273fd3e209e6e5079",
+    "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-final.txt": "42950c5e8f2313fb5894098b2227327de1f8b40e5d3f10acac3379334e5d594b",
+    "evidence/pit/2026-11-27-remove-starvation-observation/run-meta/focused-par-runtime-initial.txt": "48a3c16030677effd7d770ee8d98e9d9a8bc2088a805f36a7577aa6907428bf9",
+    "evidence/refactoring-review-report.md": "bda6652a216c1ed03ac6dc52846ef33438e5fc6b8b551077093dbb4b8d625f83",
+    "evidence/review-evidence.md": "67b6df9b62e25e3f31e70d0b2c2df06490feb433ff25496c77309d2a2578fdf1",
+    "logs/000-sanitize.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/000-sanitize.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/001-isolated-generation.ended": "965d758bc121d03f87d87ed0c183d015f9991dd29da4ac1d0d3c5bd6f44ddca0",
+    "logs/001-isolated-generation.exit.log": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "logs/001-isolated-generation.last-message.md": "fbbc8323af186da0be0d484f0c3b0306a8bcaaf1608de6227cdd3847c46544a8",
+    "logs/001-isolated-generation.started": "596e19d62bdcdfb901798b73baf4e850cb916d4ddab9cbb4f053d8e3cca9aff5",
+    "logs/001-isolated-generation.stderr.log": "ab53b6cfdcfd3119fc0461fbd98fa728616d5737f778757ab8912a519071d028",
+    "logs/001-isolated-generation.stdout.log": "3e67c9d1803b3d5c4dd129ff4432309a371d2f94858974ab81457d20db3c7bd1",
+    "logs/002-sealed-candidates.sha256": "5ad6adf8389b0887b3de3aefef0c96cbbf7b7d6fdb3743d619b643d239c72f09",
+    "logs/011-candidate-compile.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/011-candidate-compile.stdout.log": "0e93b98fb2fc9d69f39f1eb5764d8a503ef9fd2574c8d3627dabaf9413e2eda1",
+    "logs/013-candidate-run-1.stderr.log": "d1f3d20d578537ccc4ebc48bd0172acc0b38cda14f5d7dca340ebc30efce3896",
+    "logs/013-candidate-run-1.stdout.log": "6380d4bf8be88c3aa9e30b964084d1efe2439499a1ccb6cc8dc0738569635292",
+    "logs/014-candidate-run-2.stderr.log": "1b661338fc80c71bac10192884eac727329cd43b5bc478e16956c038b29d57a9",
+    "logs/014-candidate-run-2.stdout.log": "6635aa0b61401129c9d1276d01f017fc73903788998fdbe77080e13570506a7a",
+    "logs/020-reverse-tdd-004.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/020-reverse-tdd-004.stdout.log": "95c1ed48f007b0c15e19dac412cdc303ff601caec43ccd2b838dd2ab6490d27b",
+    "logs/021-reverse-tdd-008.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/021-reverse-tdd-008.stdout.log": "1cacd4876a5aad5e4401c1ca5c294a92f8b688eca256a39f07b5db3cc9d0443c",
+    "logs/022-reverse-tdd-010.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/022-reverse-tdd-010.stdout.log": "a17a0b4769bfc7a095ccdc821e38a4d47c2a9a6b413b50aeca5400d089b8b98c",
+    "logs/023-reverse-recompile.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/023-reverse-recompile.stdout.log": "89e787385ccea4d772815a17180d398b1e9fdc6a6c8daebad93a85d8e1f82cce",
+    "logs/024-reverse-tdd-010-retry.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/024-reverse-tdd-010-retry.stdout.log": "1709dc24a7b319a708243f28c730f9ca6cde3a58a928b7f4bf1bbc7286f3e6f7",
+    "logs/025-reverse-recompile-2.stdout.log": "41c9ea9f56cf568e35f4c48465efafa8b60a3181711baf173e8541f66dba7ed6",
+    "logs/030-promotion-agent.ended": "62e4d613b3bd9849349d675d54ea40b05894afa1b82c545bbb6117b5568aa6ce",
+    "logs/030-promotion-agent.exit.log": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "logs/030-promotion-agent.last-message.md": "d9815d2e3aaa028e3cd14b8d734ddbfa43038b90b7d72a6c29e63bc7ed268ea7",
+    "logs/030-promotion-agent.started": "31f74204b93a0b215316235fad7c35d1378326e2c9018146e4ebace58a88cbc6",
+    "logs/030-promotion-agent.stderr.log": "af9ff769795fec02596f6d1ec6ea8fe43e71057a4701ada7b2d1c1cdf9eff507",
+    "logs/030-promotion-agent.stdout.log": "0bfa552a867946c66074a4b92eb2da30aa992645224935e024e17ba84ca20d2a",
+    "logs/030-promotion-brief.md": "8b2d45fa20f86febe7c8687135f64355e0e2da7b7276c9566cabbe224affd4af",
+    "logs/030-promotion-result.json": "7bcd83725c29d009d09b1e3216a24106f11fcb970bfb088c5d9c87e44af1ca8a",
+    "logs/0301-regression-metadata.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "logs/0301-regression-metadata.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/0301-regression-metadata.stdout.log": "2856f077293f584d1f88a74789d8b479c630956dd68c4ee035373c605f11f3f7",
+    "logs/0302-regression-format.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "logs/0302-regression-format.stderr.log": "217429f3d313171bbe18f33f6ac5a921cf18124932af55a2c5c99f51be333537",
+    "logs/0302-regression-format.stdout.log": "8e7d37526dbcc6660cdbba41af544dc1e8db2b873502f76f537c0f5cf0a0783c",
+    "logs/0303-regression-tests.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "logs/0303-regression-tests.stderr.log": "4fa44ecca75252ac3763c294323c725b7a82393b8b65d51c312a506e1668f355",
+    "logs/0303-regression-tests.stdout.log": "58d9b129280ee9cd007e78c2f1644edaf6dc53d3d86da2780e52275339cbe362",
+    "logs/0304-regression-execution.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "logs/0304-regression-execution.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/0304-regression-execution.stdout.log": "67ac97096402c35d8643a690ac9fcab005cb7125b6d93009da57513452f439d1",
+    "logs/040-full-suite.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/040-full-suite.stdout.log": "b00a6aef7000fa3f33425c54d75143e9d73faedc7dadf2629000e9558dfac55b",
+    "logs/041-consumer-1.8.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/041-consumer-1.8.stdout.log": "6ccf6a79f149305085402ffdccf16d9796a0686bf0672e7333e8741678c11018",
+    "logs/041-consumer-25.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/041-consumer-25.stdout.log": "e8467bd8f5a5a4c990a98440dba9fbe304c35db7562f1584d5524fc5ecd494c7",
+    "logs/042-demo-1.8.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/042-demo-1.8.stdout.log": "56dbbf739939d34cedacfcb7e4485afb5d38b57e13ff763d9c89484c6fffcb1b",
+    "logs/042-demo-25.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/042-demo-25.stdout.log": "18d56f1a49d2d7709c65c1b4eb358eccf03a2d0b9a7a980348439ea984eccdeb",
+    "logs/043-docs.stderr.log": "c185424ee0f65e7ffe2e2e7cc5809c8695a6f4f760d4025dfd304fed77a1e3e2",
+    "logs/043-docs.stdout.log": "82575435789e4718e6611b8688aa9d52464f1c85c734e54478462cd3d6dd281b",
+    "logs/044-race-claims.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/044-race-claims.stdout.log": "19c6d98898f5e9006ee64bfb5b30cc9eff8a796ca06037c292ede4f2c5236dec",
+    "logs/045-regression-execution.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/045-regression-execution.stdout.log": "e520a98a9c63b29839ab554b0eff11e915f4d6dfc74b376c64368d43fffd8df8",
+    "logs/045-regression-metadata.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/045-regression-metadata.stdout.log": "12af77f97cfe88dc519d0157866425107a352d8b60caa2f5330d12ecf1a6a44d",
+    "logs/045-regression-tests.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/045-regression-tests.stdout.log": "7d1453dbd18453886ade0abaa76c2b2f2e8d0325488d162d9076e9f7ddfa4f0a",
+    "promotion-status.csv": "6543ab1c8049e45b1324ea6d86f0301a683976a9dd5acdc466319c9ab8338d6d",
+    "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java": "47954a24f9417c493e14a9aa90df5712a92a563a0d0d216bfbbbc59381f7308a",
+    "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0006InFlightZeroWhileExecutionStillRunningContractTest.java": "a6db977513a3b391614d0f1a491d0e0ca3ad8563e8cda37259547f89592ea2c1",
+    "promotion-targets/verification/contract-tests/src/test/java/io/github/monadrome/parallelinscope/C0007SnapshotUnexitedSignalContractTest.java": "73e26a179555cb635748ac072355ce2490009e81e79fbb8c1a2c628aac891c21",
+    "promotions/C0005AwaitQuiescenceValidatesArgsAndHonorsInterruptContractTest.java": "47954a24f9417c493e14a9aa90df5712a92a563a0d0d216bfbbbc59381f7308a",
+    "promotions/C0006InFlightZeroWhileExecutionStillRunningContractTest.java": "a6db977513a3b391614d0f1a491d0e0ca3ad8563e8cda37259547f89592ea2c1",
+    "promotions/C0007SnapshotUnexitedSignalContractTest.java": "73e26a179555cb635748ac072355ce2490009e81e79fbb8c1a2c628aac891c21",
+    "report.md": "f1ee0eb52de46d580fd493d1a466951cef3ad9fd77ba290d1e09601de0ccc031",
+    "reverse-verification/results.txt": "a8b93114fece486032712d3830bc5061e287df995a26a3918ada8627ba5d763d",
+    "reverse-verification/tdd-004.contrary.patch": "079e7a4f10becdd6e94c8dee46156b24446a9130168f0dc883dfe3fbc94908f2",
+    "reverse-verification/tdd-008.contrary.patch": "d12218f902055de3c132104c9cee36a7f2d0239c68de50132614340a764dda50",
+    "reverse-verification/tdd-010.contrary.patch": "089e6f1e468d8bedf5584fced58733aacc736c243941d8d74244b88834b4fa67",
+    "verification-summary.md": "0aed57e951192ee760bdb042d50105699a7516ccaff68e7a1651811fb85abad5"
+  }
+}

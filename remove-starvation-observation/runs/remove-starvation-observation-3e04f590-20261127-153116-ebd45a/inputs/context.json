@@ -1,0 +1,207 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "remove-starvation-observation-3e04f590-20261127-153116-ebd45a",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-27T15:31:17.271Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+    "name": "remove-starvation-observation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "5d79d305e1cfc81d8bcd9be8981ec9b82f460002",
+    "head": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "5d79d305e1cfc81d8bcd9be8981ec9b82f460002",
+    "to": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "label": "5d79d305..3e04f590"
+  },
+  "objective": {
+    "subject": "feat!: remove thread-pool starvation observation",
+    "body": "Delete ParRuntime.openThreadPoolStarvationObservation(Duration),\nThreadPoolStarvationObservationScope, ThreadPoolStarvationReport (with Status\nand Evidence), and ParRuntimeSnapshot.activeObservations(). The runtime no\nlonger creates the ParRuntime-starvation-* sampling scheduler, and the\nshutdown condition, inFlight(), snapshot(), and awaitQuiescence() lose their\nobservation term. The scope only sampled pool-wide ThreadPoolExecutor\ncounters for direct submissions, which executor metrics already export\ncontinuously; the executor wait graph is unchanged. Maintainer decision\nrecorded in design/decision-log.md; migration in the changelog.\n\nContract changes:\n- Removed: design/thread-pool-starvation-observation.md, clauses 1-9 in full\n  (opt-in sampling, interval and evidence rules, status priority, report\n  publication, runtime retention of framework schedulers, Java 8 and\n  interruption rules).\n- Changed: task-group-adopted-futures.md A7 keeps \"adoption MUST NOT wrap,\n  submit, cancel (other than the source), or reorder tasks on the producer\n  pool\" and drops the starvation-sampling complement.\n- Changed: ParRuntime Javadoc for close(), closed(), awaitQuiescence(),\n  inFlight(), and snapshot() no longer name observation scopes; the\n  task-termination-and-scope.md quiescence row follows.\n\nVerification integrity: REVIEWED_EXCEPTIONS records the deleted\nThreadPoolStarvationObservationScopeTest (V1), the two snapshot tests that\nlost their activeObservations assertion (V4), and the renamed adopted-future\ndeadline test (V2), which keeps its deadline and wait-cycle assertions.\n\nassurance: RUN REQUIRED. The diff changes ParRuntime's service-shutdown\ncondition and quiescence accounting, a concurrency-sensitive shared\nmechanism, even though the removed term was always zero for runtimes that\nnever opened an observation."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "88fb7e51fb3a12f72e88b1521e4c45e77669c761e553f8ecd8ef0851558b298d",
+    "bytes": 153614,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/conventions.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "CHANGELOG.md",
+        "status": "M",
+        "additions": 15,
+        "deletions": 0
+      },
+      {
+        "path": "adr/0016-remove-tasktype-and-workload-fit-screening.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java",
+        "status": "M",
+        "additions": 14,
+        "deletions": 78
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 14
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 356
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 201
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 5
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java",
+        "status": "M",
+        "additions": 14,
+        "deletions": 23
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 784
+      },
+      {
+        "path": "design/AGENTS.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "design/decision-log.md",
+        "status": "M",
+        "additions": 40,
+        "deletions": 6
+      },
+      {
+        "path": "design/task-group-adopted-futures.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 7
+      },
+      {
+        "path": "design/task-termination-and-scope.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "design/thread-pool-starvation-observation.md",
+        "status": "D",
+        "additions": 0,
+        "deletions": 204
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/index.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/reference/diagnostics.md",
+        "status": "M",
+        "additions": 7,
+        "deletions": 68
+      },
+      {
+        "path": "docs/en/user-guide.md",
+        "status": "M",
+        "additions": 14,
+        "deletions": 22
+      },
+      {
+        "path": "docs/zh/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 16,
+        "deletions": 2
+      },
+      {
+        "path": "docs/zh/index.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/zh/reference/diagnostics.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 54
+      },
+      {
+        "path": "docs/zh/user-guide.md",
+        "status": "M",
+        "additions": 11,
+        "deletions": 18
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 26,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/run-pit-core.sh",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "1e6eee14c89d6fab9da47835bd9de560389bc33cb91a7d2c32f5e925120fa8c5",
+    "bytes": 2349,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

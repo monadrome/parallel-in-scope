@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-starvation-observation-9cae3d5f-20261127-171207-488445",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-27T17:12:16.760Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+    "name": "remove-starvation-observation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "head": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "348753998bc8c954817e5b40556daecd7eb89fa9",
+    "to": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "label": "34875399..9cae3d5f"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "09e8ed413edda0aa11384ede810e064895d100ffa807e9556d87917ca9b9e666",
+    "bytes": 11306,
+    "files": [
+      {
+        "path": "ledger/2026-11-27-remove-starvation-observation.json",
+        "status": "A",
+        "additions": 345,
+        "deletions": 0
+      },
+      {
+        "path": "verification/pit-audit/2026-11-27-remove-starvation-observation.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 3
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "3201a6511ead5a692c410c26cd40fe9ef1bf0152306ab01e511d3a84fba3807c",
+    "bytes": 1253,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "cd9d028cc54896034c52968aac0cd3df6b19758e5cdc46fca75c73063588786e",
+    "bytes": 1814
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

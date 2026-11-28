@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "llm-review-bench/gold/v1",
+  "runId": "remove-starvation-observation-2684bd14-20261127-160304-dfbe14",
+  "version": 1,
+  "createdAt": "2026-11-27T16:20:50.918Z",
+  "status": "open-world",
+  "case": {
+    "fixCommit": null,
+    "base": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "head": "2684bd143909d9b6bfa660202e7079a010d529bd"
+  },
+  "provenance": {
+    "source": "live",
+    "confirmedBy": null,
+    "note": "live review has no gold labels"
+  },
+  "labels": [],
+  "excludedFixScope": []
+}

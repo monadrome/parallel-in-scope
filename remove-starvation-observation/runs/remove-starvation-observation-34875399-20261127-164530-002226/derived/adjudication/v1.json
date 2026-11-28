@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "remove-starvation-observation-34875399-20261127-164530-002226",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-27T16:55:56.226Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro-main",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "base-void-calls-ThreadPoolStarvationObservationScopeTest.xml KILLED lines 312, 552, 554, 627, 524; three are in deleted code with no head site; corrected in the follow-up docs commit",
+      "confidence": 1
+    }
+  ]
+}

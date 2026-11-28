@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "remove-starvation-observation-2684bd14-20261127-160304-dfbe14",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-27T16:22:20.638Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro-main",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "ADR 0016 'Reconsider When' listed starvation observation without a dated note; fixed with a 2026-11-27 note per adr/AGENTS.md. The suggested in-place rewrite of the costs bullet was not applied because condensing rules keep original reasoning and put later facts in dated notes. Non-blocking documentation finding.",
+      "confidence": 0.9
+    }
+  ]
+}

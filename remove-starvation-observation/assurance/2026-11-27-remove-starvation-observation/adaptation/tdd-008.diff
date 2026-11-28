@@ -1,0 +1,62 @@
+--- .contract-first-assurance/2026-11-27-remove-starvation-observation/candidates/ContractTdd008InFlightZeroWhileExecutionStillRunningTest.java	2026-11-27 07:48:40
++++ .contract-first-assurance/2026-11-27-remove-starvation-observation/promotions/C0006InFlightZeroWhileExecutionStillRunningContractTest.java	2026-11-27 08:11:44
+@@ -1,12 +1,7 @@
+-package io.github.monadrome.parallelinscope.assurance;
++package io.github.monadrome.parallelinscope;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ 
+-import io.github.monadrome.parallelinscope.BatchOptions;
+-import io.github.monadrome.parallelinscope.Par;
+-import io.github.monadrome.parallelinscope.ParId;
+-import io.github.monadrome.parallelinscope.ParRuntime;
+-import io.github.monadrome.parallelinscope.TaskBatchResult;
+ import java.time.Duration;
+ import java.util.List;
+ import java.util.concurrent.CountDownLatch;
+@@ -14,6 +9,7 @@
+ import java.util.concurrent.ThreadPoolExecutor;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicReference;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+ /**
+@@ -34,24 +30,28 @@
+  *
+  * <p>Uncertainty: none material; the bounded ignoring loop caps the execution at ten seconds.
+  */
+-public class ContractTdd008InFlightZeroWhileExecutionStillRunningTest {
++@Tag("C-0006")
++class C0006InFlightZeroWhileExecutionStillRunningContractTest {
+ 
+     @Test
+     void inFlightIsZeroWhileCancelledExecutionStillRunsUserCode() throws Exception {
+-        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+-                new LinkedBlockingQueue<>());
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+         ParId id = ParId.of("io");
+-        ParRuntime runtime = ParRuntime.builder().register(id, pool).defaultPar(id).build();
++        ParRuntime runtime =
++                ParRuntime.builder().register(id, pool).defaultPar(id).build();
+         Par par = runtime.defaultPar();
+         CountDownLatch entered = new CountDownLatch(1);
+         CountDownLatch exit = new CountDownLatch(1);
+         AtomicReference<TaskBatchResult<Integer>> resultRef = new AtomicReference<>();
+         try {
+-            Thread runner = new Thread(() -> resultRef.set(par.map(List.of(1), x -> {
+-                entered.countDown();
+-                ignoreInterruptionUntil(exit);
+-                return x;
+-            }, BatchOptions.timeout("b", Duration.ofMillis(200)))));
++            Thread runner = new Thread(() -> resultRef.set(par.map(
++                    List.of(1),
++                    x -> {
++                        entered.countDown();
++                        ignoreInterruptionUntil(exit);
++                        return x;
++                    },
++                    BatchOptions.timeout("b", Duration.ofMillis(200)))));
+             runner.start();
+             assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+             runner.join(10_000);

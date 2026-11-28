@@ -1,0 +1,1749 @@
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+index 095417bf..d5fbc7a7 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntime.java
+@@ -50,16 +50,15 @@ import org.jspecify.annotations.Nullable;
+  * <p>Registration is a composition-root operation: after {@link Builder#build()}, the names,
+  * policies, and executor bindings cannot change. This is an application-scoped resource, normally
+  * created at the composition root and closed during application or container shutdown. It owns its
+- * deadline timer, starvation observation scheduler, and the threads that run timeout actions;
++ * deadline timer and the threads that run timeout actions;
+  * registered executors are borrowed and are never shut down by this object.
+  *
+- * <p>{@link #close()} immediately rejects new batch and group executions and observation scopes.
++ * <p>{@link #close()} immediately rejects new batch and group executions.
+  * Runs admitted before closing retain their submission, timeout, and cancellation processing while
+  * the framework-owned services drain; {@code close()} itself does not wait for those runs to
+  * finish.
+  */
+ public final class ParRuntime implements AutoCloseable {
+-    private static final Duration MINIMUM_SAMPLING_INTERVAL = Duration.ofMillis(10);
+     private static final Logger LOGGER = Logger.getLogger(ParRuntime.class.getName());
+     private static final AtomicReference<@Nullable ParRuntime> INSTALLED = new AtomicReference<>();
+     private final Map<ParId, Par> pars;
+@@ -70,7 +69,6 @@ public final class ParRuntime implements AutoCloseable {
+     private final AtomicBoolean closed = new AtomicBoolean();
+     private final AtomicInteger activeAdmissions = new AtomicInteger();
+     private final AtomicInteger activeBatches = new AtomicInteger();
+-    private final AtomicInteger activeObservations = new AtomicInteger();
+     private final AtomicBoolean servicesShutdown = new AtomicBoolean();
+     private final Monitor quiescenceMonitor = new Monitor();
+     private final Set<ListenableFuture<@Nullable Void>> liveExecutionSignals = Sets.newConcurrentHashSet();
+@@ -85,7 +83,6 @@ public final class ParRuntime implements AutoCloseable {
+     private final Ticker ticker;
+ 
+     private final ScheduledExecutorService timerService;
+-    private final ScheduledExecutorService starvationScheduler;
+     private final ExecutorService timeoutActionPool;
+ 
+     /** The delivery shared by every diagnostic log message of this runtime. */
+@@ -102,13 +99,6 @@ public final class ParRuntime implements AutoCloseable {
+         ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1, factory);
+         timer.setRemoveOnCancelPolicy(true);
+         this.timerService = timer;
+-        ThreadFactory starvationFactory = new ThreadFactoryBuilder()
+-                .setNameFormat("ParRuntime-starvation-%d")
+-                .setDaemon(true)
+-                .build();
+-        ScheduledThreadPoolExecutor starvation = new ScheduledThreadPoolExecutor(1, starvationFactory);
+-        starvation.setRemoveOnCancelPolicy(true);
+-        this.starvationScheduler = starvation;
+         this.timeoutActionPool = Executors.newCachedThreadPool(factory);
+         this.timeoutScheduler = builder.timeoutScheduler != null
+                 ? builder.timeoutScheduler
+@@ -290,40 +280,6 @@ public final class ParRuntime implements AutoCloseable {
+         return runtimesByIdentity;
+     }
+ 
+-    /**
+-     * Opens a runtime observation for direct work submitted to this topology's registered
+-     * executors.
+-     *
+-     * <p>The scope samples each distinct physical executor at the requested interval and publishes
+-     * a {@link ThreadPoolStarvationReport} when closed. Only visible {@link ThreadPoolExecutor}
+-     * instances can produce saturation evidence; other registered executors are named in the report
+-     * as insufficiently visible. The observation does not wrap, submit, cancel, or otherwise change
+-     * user work.
+-     *
+-     * @param samplingInterval the interval between samples, at least 10 milliseconds
+-     * @return the closeable observation scope
+-     * @throws NullPointerException if {@code samplingInterval} is null
+-     * @throws IllegalArgumentException if {@code samplingInterval} is less than 10 milliseconds
+-     * @throws IllegalStateException if this runtime has begun shutdown
+-     */
+-    @MustBeClosed
+-    public ThreadPoolStarvationObservationScope openThreadPoolStarvationObservation(Duration samplingInterval) {
+-        checkNotNull(samplingInterval, "sampling interval cannot be null");
+-        checkArgument(
+-                samplingInterval.compareTo(MINIMUM_SAMPLING_INTERVAL) >= 0,
+-                "sampling interval %s must be at least 10 ms",
+-                samplingInterval);
+-        return whileOpen(() -> {
+-            activeObservations.incrementAndGet();
+-            try {
+-                return new ThreadPoolStarvationObservationScope(this, samplingInterval, runtimes);
+-            } catch (RuntimeException | Error failure) {
+-                activeObservations.decrementAndGet();
+-                throw failure;
+-            }
+-        });
+-    }
+-
+     /**
+      * Opens a one-shot task-group declaration with an explicit group timeout.
+      *
+@@ -409,7 +365,7 @@ public final class ParRuntime implements AutoCloseable {
+     /**
+      * Returns whether shutdown has begun.
+      *
+-     * <p>A {@code true} result means new executions and observation scopes are rejected.
++     * <p>A {@code true} result means new executions are rejected.
+      */
+     public boolean closed() {
+         return closed.get();
+@@ -420,9 +376,8 @@ public final class ParRuntime implements AutoCloseable {
+      *
+      * <p>This method is idempotent and never shuts down a registered executor. It coordinates with
+      * executions already being set up, so each either completes setup and returns its result or is
+-     * rejected before any task is submitted. Services drain runs admitted before shutdown; open
+-     * starvation observations retain the diagnostic services until their scopes close. This method
+-     * does not wait for task executions or observation reports to finish.
++     * rejected before any task is submitted. Services drain runs admitted before shutdown. This
++     * method does not wait for task executions to finish.
+      */
+     @Override
+     public void close() {
+@@ -435,9 +390,8 @@ public final class ParRuntime implements AutoCloseable {
+     /**
+      * Waits until this topology is closed and fully drained: no admission is setting up an
+      * execution, no admitted run retains incomplete futures, every admitted task execution has exited,
+-     * no open starvation observation retains the diagnostic services, and the framework-owned
+-     * services have shut down. Call {@link #close()} first; without it this method simply waits out
+-     * the timeout.
++     * and the framework-owned services have shut down. Call {@link #close()} first; without it this
++     * method simply waits out the timeout.
+      *
+      * <p>Task-execution exit is tracked separately from future completion: a task cancelled while
+      * running completes its future immediately but may still be executing user code that ignores
+@@ -475,23 +429,20 @@ public final class ParRuntime implements AutoCloseable {
+     }
+ 
+     /**
+-     * Returns the in-flight work this topology still tracks: admissions setting up an execution,
+-     * undrained runs, and open starvation observations. Open observations retain framework services
+-     * and therefore participate in {@link #awaitQuiescence(Duration)}.
++     * Returns the in-flight work this topology still tracks: admissions setting up an execution and
++     * undrained runs.
+      */
+     public int inFlight() {
+-        return activeAdmissions.get() + activeBatches.get() + activeObservations.get();
++        return activeAdmissions.get() + activeBatches.get();
+     }
+ 
+     /**
+      * Samples a diagnostic snapshot of the shutdown/drain state: whether shutdown has begun, how
+      * many admissions are setting up work, how many admitted runs still retain incomplete futures,
+-     * how many starvation observations are open, and how many admitted runs still have a direct
+-     * execution whose exit has not been confirmed (one count per run, regardless of the number of its
+-     * outstanding executions). Open observations retain framework services after runtime close until
+-     * their reports publish.
++     * and how many admitted runs still have a direct execution whose exit has not been confirmed (one
++     * count per run, regardless of the number of its outstanding executions).
+      *
+-     * <p>The five readings are independent samples of concurrent counters: the snapshot is a
++     * <p>The four readings are independent samples of concurrent counters: the snapshot is a
+      * diagnostic for explaining why {@link #awaitQuiescence(Duration)} has not completed, not a
+      * linearizable state — it must not drive control flow, and it never replaces the quiescence
+      * guarantee.
+@@ -500,11 +451,7 @@ public final class ParRuntime implements AutoCloseable {
+      */
+     public ParRuntimeSnapshot snapshot() {
+         return new ParRuntimeSnapshot(
+-                closed.get(),
+-                activeAdmissions.get(),
+-                activeBatches.get(),
+-                activeObservations.get(),
+-                liveExecutionSignals.size());
++                closed.get(), activeAdmissions.get(), activeBatches.get(), liveExecutionSignals.size());
+     }
+ 
+     /**
+@@ -546,10 +493,8 @@ public final class ParRuntime implements AutoCloseable {
+         if (closed.get()
+                 && activeAdmissions.get() == 0
+                 && activeBatches.get() == 0
+-                && activeObservations.get() == 0
+                 && servicesShutdown.compareAndSet(false, true)) {
+             timerService.shutdown();
+-            starvationScheduler.shutdown();
+             timeoutActionPool.shutdown();
+             quiescenceMonitor.enter();
+             quiescenceMonitor.leave();
+@@ -618,15 +563,6 @@ public final class ParRuntime implements AutoCloseable {
+         return timeoutScheduler;
+     }
+ 
+-    ScheduledFuture<?> scheduleStarvationSampling(Runnable action, long intervalNanos) {
+-        return starvationScheduler.scheduleWithFixedDelay(action, intervalNanos, intervalNanos, TimeUnit.NANOSECONDS);
+-    }
+-
+-    void starvationObservationClosed() {
+-        activeObservations.decrementAndGet();
+-        shutdownServicesWhenAdmissionsComplete();
+-    }
+-
+     /** The root clock domain for tokens this runtime creates; see the field documentation. */
+     Ticker ticker() {
+         return ticker;
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java
+index 934f7807..3c87bb3c 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshot.java
+@@ -16,19 +16,12 @@ public final class ParRuntimeSnapshot {
+     private final boolean closed;
+     private final int activeAdmissions;
+     private final int undrainedBatches;
+-    private final int activeObservations;
+     private final int unexitedExecutionSignals;
+ 
+-    ParRuntimeSnapshot(
+-            boolean closed,
+-            int activeAdmissions,
+-            int undrainedBatches,
+-            int activeObservations,
+-            int unexitedExecutionSignals) {
++    ParRuntimeSnapshot(boolean closed, int activeAdmissions, int undrainedBatches, int unexitedExecutionSignals) {
+         this.closed = closed;
+         this.activeAdmissions = activeAdmissions;
+         this.undrainedBatches = undrainedBatches;
+-        this.activeObservations = activeObservations;
+         this.unexitedExecutionSignals = unexitedExecutionSignals;
+     }
+ 
+@@ -47,11 +40,6 @@ public final class ParRuntimeSnapshot {
+         return undrainedBatches;
+     }
+ 
+-    /** Open thread-pool starvation observations retaining the runtime's diagnostic services. */
+-    public int activeObservations() {
+-        return activeObservations;
+-    }
+-
+     /**
+      * Admitted runs with at least one direct task execution whose exit has not been confirmed. The unit
+      * is a run, not an execution: each admitted batch, group, or single task contributes one count until
+@@ -70,7 +58,6 @@ public final class ParRuntimeSnapshot {
+         return "ParRuntimeSnapshot{closed=" + closed
+                 + ", activeAdmissions=" + activeAdmissions
+                 + ", undrainedBatches=" + undrainedBatches
+-                + ", activeObservations=" + activeObservations
+                 + ", unexitedExecutionSignals=" + unexitedExecutionSignals
+                 + '}';
+     }
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java b/core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java
+deleted file mode 100644
+index 107c97c6..00000000
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScope.java
++++ /dev/null
+@@ -1,356 +0,0 @@
+-package io.github.monadrome.parallelinscope;
+-
+-import static com.google.common.base.Preconditions.checkNotNull;
+-import static com.google.common.base.Verify.verify;
+-
+-import com.google.common.collect.ImmutableList;
+-import com.google.common.util.concurrent.ListenableFuture;
+-import com.google.common.util.concurrent.SettableFuture;
+-import java.time.Duration;
+-import java.util.ArrayList;
+-import java.util.IdentityHashMap;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.concurrent.ExecutionException;
+-import java.util.concurrent.ExecutorService;
+-import java.util.concurrent.ScheduledFuture;
+-import java.util.concurrent.ThreadPoolExecutor;
+-import java.util.concurrent.atomic.AtomicBoolean;
+-import java.util.concurrent.atomic.AtomicInteger;
+-import java.util.concurrent.atomic.AtomicReference;
+-import org.jspecify.annotations.Nullable;
+-
+-/**
+- * Explicit observation scope for starvation signals produced by unstructured executor work.
+- *
+- * <p>The scope samples each distinct physical {@link ThreadPoolExecutor} registered with its
+- * owning {@link ParRuntime}. It never wraps or submits user work. Close the scope after the
+- * unstructured activity of interest, then read {@link #reportFuture()}.
+- *
+- * <p>A pool is considered potentially starved when it has no free worker, queued work remains, and
+- * its completed-task count stays unchanged across sample pairs separated by the requested
+- * interval. The evidence is sticky for the observation window. The condition is deliberately
+- * bounded and conservative: a long CPU-bound task can produce the same signal, so the report does
+- * not claim a dependency cycle.
+- */
+-public final class ThreadPoolStarvationObservationScope implements AutoCloseable {
+-
+-    private final ParRuntime owner;
+-    private final ImmutableList<ObservedExecutor> executors;
+-    private final Duration samplingInterval;
+-    private final long intervalNanos;
+-    private final AtomicBoolean closed = new AtomicBoolean();
+-    private final AtomicBoolean sampling = new AtomicBoolean();
+-    private final AtomicInteger samples = new AtomicInteger();
+-    private final SettableFuture<ThreadPoolStarvationReport> reportSink = SettableFuture.create();
+-    private final ListenableFuture<ThreadPoolStarvationReport> reportView = TaskObservation.readOnly(reportSink);
+-    private final AtomicReference<@Nullable ScheduledFuture<?>> sampler = new AtomicReference<>();
+-    private final AtomicReference<@Nullable Throwable> samplingFailure = new AtomicReference<>();
+-    private final AtomicReference<@Nullable SettableFuture<@Nullable Void>> samplingCompletion =
+-            new AtomicReference<>();
+-
+-    ThreadPoolStarvationObservationScope(ParRuntime owner, Duration interval, Map<ParId, ExecutorRuntime> runtimes) {
+-        this.owner = checkNotNull(owner, "owner cannot be null");
+-        this.samplingInterval = Validation.requirePositive(interval, "sampling interval");
+-        this.intervalNanos = Deadlines.saturatedNanos(samplingInterval);
+-        this.executors = observedExecutors(runtimes);
+-        sampleNow();
+-        if (samplingFailure.get() == null) {
+-            ScheduledFuture<?> scheduled = owner.scheduleStarvationSampling(this::sampleNow, intervalNanos);
+-            sampler.set(scheduled);
+-            if (samplingFailure.get() != null) {
+-                scheduled.cancel(false);
+-            }
+-        }
+-    }
+-
+-    /** Returns the immutable report published when this scope closes. */
+-    public ListenableFuture<ThreadPoolStarvationReport> reportFuture() {
+-        return reportView;
+-    }
+-
+-    /** Returns whether close has begun; the report may still be publishing. */
+-    public boolean closed() {
+-        return closed.get();
+-    }
+-
+-    /**
+-     * Stops sampling, performs the final sample, and publishes the report. Repeated or concurrent
+-     * calls wait for the same publication. Sampling failures are recorded in the report; a sampling
+-     * {@link Error} is rethrown only after report publication has been attempted.
+-     */
+-    @Override
+-    public void close() {
+-        if (closed.compareAndSet(false, true)) {
+-            ScheduledFuture<?> scheduled = sampler.getAndSet(null);
+-            if (scheduled != null) {
+-                scheduled.cancel(false);
+-            }
+-            try {
+-                Error samplingError = finishSampling();
+-                publishReport(samplingError);
+-            } catch (RuntimeException | Error failure) {
+-                reportSink.setException(failure);
+-                throw failure;
+-            } finally {
+-                owner.starvationObservationClosed();
+-            }
+-        } else {
+-            awaitReportPublication();
+-        }
+-    }
+-
+-    /**
+-     * Waits for the active sample, performs the final sample, and returns the recorded or final
+-     * sampling {@link Error} that must be rethrown after report publication.
+-     */
+-    private @Nullable Error finishSampling() {
+-        awaitSampling();
+-        Error finalSamplingError = null;
+-        try {
+-            finalSample();
+-        } catch (Throwable failure) {
+-            recordSamplingFailure(failure);
+-            if (failure instanceof Error) {
+-                finalSamplingError = (Error) failure;
+-            }
+-        }
+-        Throwable failure = samplingFailure.get();
+-        return failure instanceof Error ? (Error) failure : finalSamplingError;
+-    }
+-
+-    /**
+-     * Publishes the report even when {@code samplingError} is pending, suppressing a distinct
+-     * publication failure onto that error before rethrowing it.
+-     *
+-     * @throws RuntimeException if publication fails without a pending sampling error
+-     * @throws Error if publication fails without a pending sampling error, or for a pending
+-     *     sampling error after publication has been attempted
+-     */
+-    @SuppressWarnings("ReferenceEquality")
+-    private void publishReport(@Nullable Error samplingError) {
+-        try {
+-            reportSink.set(report());
+-        } catch (RuntimeException | Error publicationFailure) {
+-            if (samplingError == null) {
+-                throw publicationFailure;
+-            }
+-            if (samplingError != publicationFailure) {
+-                samplingError.addSuppressed(publicationFailure);
+-            }
+-        }
+-        if (samplingError != null) {
+-            throw samplingError;
+-        }
+-    }
+-
+-    private void sampleNow() {
+-        if (closed.get() || samplingFailure.get() != null) {
+-            return;
+-        }
+-        if (!sampling.compareAndSet(false, true)) {
+-            return;
+-        }
+-        try {
+-            if (!closed.get()) {
+-                sampleExecutors();
+-                samples.incrementAndGet();
+-            }
+-        } catch (Throwable failure) {
+-            recordSamplingFailure(failure);
+-        } finally {
+-            sampling.set(false);
+-            SettableFuture<@Nullable Void> completion = samplingCompletion.getAndSet(null);
+-            if (completion != null) {
+-                completion.set(null);
+-            }
+-        }
+-    }
+-
+-    private void finalSample() {
+-        sampleExecutors();
+-        samples.incrementAndGet();
+-    }
+-
+-    private void sampleExecutors() {
+-        for (ObservedExecutor executor : executors) {
+-            executor.sample(intervalNanos);
+-        }
+-    }
+-
+-    private void recordSamplingFailure(Throwable failure) {
+-        samplingFailure.compareAndSet(null, failure);
+-        ScheduledFuture<?> scheduled = sampler.get();
+-        if (scheduled != null) {
+-            scheduled.cancel(false);
+-        }
+-    }
+-
+-    private void awaitSampling() {
+-        if (!sampling.get()) {
+-            return;
+-        }
+-        SettableFuture<@Nullable Void> completion = SettableFuture.create();
+-        verify(samplingCompletion.compareAndSet(null, completion), "starvation sampling has multiple waiters");
+-        if (!sampling.get()) {
+-            completion.set(null);
+-        }
+-        boolean interrupted = false;
+-        try {
+-            for (; ; ) {
+-                try {
+-                    completion.get();
+-                    return;
+-                } catch (InterruptedException e) {
+-                    interrupted = true;
+-                } catch (ExecutionException impossible) {
+-                    verify(false, "starvation sampling completion failed");
+-                }
+-            }
+-        } finally {
+-            if (interrupted) {
+-                Thread.currentThread().interrupt();
+-            }
+-        }
+-    }
+-
+-    private ThreadPoolStarvationReport report() {
+-        List<ThreadPoolStarvationReport.Evidence> evidence = new ArrayList<>();
+-        List<String> unsupported = new ArrayList<>();
+-        for (ObservedExecutor executor : executors) {
+-            ThreadPoolStarvationReport.Evidence issue = executor.issue.get();
+-            if (issue != null) {
+-                evidence.add(issue);
+-            }
+-            if (executor.pool == null) {
+-                unsupported.add(executor.label);
+-            }
+-        }
+-        Throwable failure = samplingFailure.get();
+-        return ThreadPoolStarvationReport.of(
+-                samples.get(),
+-                samplingInterval,
+-                evidence,
+-                unsupported,
+-                failure == null ? null : failureMessage(failure));
+-    }
+-
+-    private static String failureMessage(Throwable failure) {
+-        String message = failure.getMessage();
+-        return message == null || message.isEmpty() ? failure.getClass().getName() : message;
+-    }
+-
+-    private void awaitReportPublication() {
+-        boolean interrupted = false;
+-        try {
+-            for (; ; ) {
+-                try {
+-                    reportSink.get();
+-                    return;
+-                } catch (InterruptedException e) {
+-                    interrupted = true;
+-                } catch (ExecutionException done) {
+-                    return;
+-                }
+-            }
+-        } finally {
+-            if (interrupted) {
+-                Thread.currentThread().interrupt();
+-            }
+-        }
+-    }
+-
+-    private static ImmutableList<ObservedExecutor> observedExecutors(Map<ParId, ExecutorRuntime> runtimes) {
+-        IdentityHashMap<ExecutorService, Labels> distinct = new IdentityHashMap<>();
+-        for (Map.Entry<ParId, ExecutorRuntime> entry : runtimes.entrySet()) {
+-            ExecutorRuntime runtime = entry.getValue();
+-            ExecutorService executor = runtime.introspectableExecutor();
+-            Labels labels = distinct.get(executor);
+-            if (labels == null) {
+-                labels = new Labels(executor);
+-                distinct.put(executor, labels);
+-            }
+-            labels.values.add(entry.getKey().value());
+-        }
+-        List<ObservedExecutor> observed = new ArrayList<>();
+-        for (Labels labels : distinct.values()) {
+-            observed.add(new ObservedExecutor(String.join(",", labels.values), labels.executor));
+-        }
+-        return ImmutableList.copyOf(observed);
+-    }
+-
+-    private static final class Labels {
+-        private final List<String> values = new ArrayList<>();
+-        private final ExecutorService executor;
+-
+-        private Labels(ExecutorService executor) {
+-            this.executor = executor;
+-        }
+-    }
+-
+-    private static final class ObservedExecutor {
+-        private final String label;
+-        private final @Nullable ThreadPoolExecutor pool;
+-        private final AtomicReference<@Nullable Sample> previous = new AtomicReference<>();
+-        private final AtomicInteger stagnantIntervals = new AtomicInteger();
+-        private final AtomicReference<ThreadPoolStarvationReport.@Nullable Evidence> issue = new AtomicReference<>();
+-
+-        private ObservedExecutor(String label, ExecutorService executor) {
+-            this.label = label;
+-            this.pool = executor instanceof ThreadPoolExecutor ? (ThreadPoolExecutor) executor : null;
+-        }
+-
+-        private void sample(long intervalNanos) {
+-            if (pool == null) {
+-                return;
+-            }
+-            Sample current = new Sample(
+-                    pool.getPoolSize(),
+-                    pool.getActiveCount(),
+-                    pool.getQueue().size(),
+-                    pool.getCompletedTaskCount(),
+-                    System.nanoTime());
+-            sample(current, intervalNanos);
+-        }
+-
+-        private void sample(Sample current, long intervalNanos) {
+-            Sample prior = previous.getAndSet(current);
+-            if (prior != null
+-                    && prior.saturated()
+-                    && current.saturated()
+-                    && current.sampledAtNanos - prior.sampledAtNanos >= intervalNanos
+-                    && prior.completedTaskCount == current.completedTaskCount) {
+-                int stagnant = stagnantIntervals.incrementAndGet();
+-                issue.set(new ThreadPoolStarvationReport.Evidence(
+-                        label,
+-                        current.poolSize,
+-                        current.activeCount,
+-                        current.queueSize,
+-                        current.completedTaskCount,
+-                        stagnant));
+-            } else {
+-                stagnantIntervals.set(0);
+-            }
+-        }
+-    }
+-
+-    private static final class Sample {
+-        private final long sampledAtNanos;
+-        private final int poolSize;
+-        private final int activeCount;
+-        private final int queueSize;
+-        private final long completedTaskCount;
+-
+-        private Sample(int poolSize, int activeCount, int queueSize, long completedTaskCount, long sampledAtNanos) {
+-            this.sampledAtNanos = sampledAtNanos;
+-            this.poolSize = poolSize;
+-            this.activeCount = activeCount;
+-            this.queueSize = queueSize;
+-            this.completedTaskCount = completedTaskCount;
+-        }
+-
+-        private boolean saturated() {
+-            return poolSize > 0 && activeCount >= poolSize && queueSize > 0;
+-        }
+-    }
+-}
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java b/core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java
+deleted file mode 100644
+index 8bd80986..00000000
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationReport.java
++++ /dev/null
+@@ -1,201 +0,0 @@
+-package io.github.monadrome.parallelinscope;
+-
+-import static com.google.common.base.Preconditions.checkNotNull;
+-
+-import com.google.common.collect.ImmutableList;
+-import com.google.errorprone.annotations.Immutable;
+-import java.time.Duration;
+-import java.util.List;
+-import org.jspecify.annotations.Nullable;
+-
+-/**
+- * Immutable result of one runtime observation of registered thread pools.
+- *
+- * <p>A potential starvation result means that a visible pool was captured saturated with queued
+- * work while its completed-task count did not advance across qualifying observation intervals. It
+- * is sticky evidence from the observation window, not a close-time health assertion, and is not
+- * proof of a dependency cycle or a particular blocking call.
+- */
+-@Immutable
+-public final class ThreadPoolStarvationReport {
+-
+-    /** Outcome of the observation. */
+-    public enum Status {
+-        /** All executors were visible, sampling succeeded, and no evidence was captured; deadlock is not ruled out. */
+-        NO_ISSUE,
+-        /**
+-         * A visible pool produced a risk snapshot during the window. Recovery does not clear the
+-         * evidence; sample the pool again to assess its current state.
+-         */
+-        POTENTIAL_STARVATION,
+-        /** Sampling failed before the observation could establish a clean result. */
+-        SAMPLING_FAILED,
+-        /** One or more registered executors could not be inspected as a thread pool. */
+-        INSUFFICIENT_VISIBILITY
+-    }
+-
+-    /**
+-     * A snapshot captured when one executor met the potential-starvation condition. It remains in
+-     * the report after recovery and does not describe the pool's state at close.
+-     */
+-    @Immutable
+-    public static final class Evidence {
+-        private final String executor;
+-        private final int poolSize;
+-        private final int activeCount;
+-        private final int queueSize;
+-        private final long completedTaskCount;
+-        private final int stagnantIntervals;
+-
+-        Evidence(
+-                String executor,
+-                int poolSize,
+-                int activeCount,
+-                int queueSize,
+-                long completedTaskCount,
+-                int stagnantIntervals) {
+-            this.executor = checkNotNull(executor, "executor cannot be null");
+-            this.poolSize = poolSize;
+-            this.activeCount = activeCount;
+-            this.queueSize = queueSize;
+-            this.completedTaskCount = completedTaskCount;
+-            this.stagnantIntervals = stagnantIntervals;
+-        }
+-
+-        /** Comma-joined diagnostic registration labels, not a machine-readable list. */
+-        public String executor() {
+-            return executor;
+-        }
+-
+-        /** The number of workers in the pool when the evidence was captured. */
+-        public int poolSize() {
+-            return poolSize;
+-        }
+-
+-        /** The number of workers executing tasks when the evidence was captured. */
+-        public int activeCount() {
+-            return activeCount;
+-        }
+-
+-        /** The number of tasks queued when the evidence was captured. */
+-        public int queueSize() {
+-            return queueSize;
+-        }
+-
+-        /** The completed-task count when the evidence was captured. */
+-        public long completedTaskCount() {
+-            return completedTaskCount;
+-        }
+-
+-        /** The number of consecutive no-progress sample pairs meeting the interval threshold. */
+-        public int stagnantIntervals() {
+-            return stagnantIntervals;
+-        }
+-
+-        @Override
+-        public String toString() {
+-            return "Evidence{executor='" + executor
+-                    + "', poolSize=" + poolSize
+-                    + ", activeCount=" + activeCount
+-                    + ", queueSize=" + queueSize
+-                    + ", completedTaskCount=" + completedTaskCount
+-                    + ", stagnantIntervals=" + stagnantIntervals
+-                    + '}';
+-        }
+-    }
+-
+-    private final Status status;
+-    private final int samples;
+-    private final Duration samplingInterval;
+-    private final ImmutableList<Evidence> evidence;
+-    private final ImmutableList<String> unsupportedExecutors;
+-    private final @Nullable String failureMessage;
+-
+-    private ThreadPoolStarvationReport(
+-            Status status,
+-            int samples,
+-            Duration samplingInterval,
+-            List<Evidence> evidence,
+-            List<String> unsupportedExecutors,
+-            @Nullable String failureMessage) {
+-        this.status = checkNotNull(status, "status cannot be null");
+-        this.samples = samples;
+-        this.samplingInterval = checkNotNull(samplingInterval, "sampling interval cannot be null");
+-        this.evidence = ImmutableList.copyOf(evidence);
+-        this.unsupportedExecutors = ImmutableList.copyOf(unsupportedExecutors);
+-        this.failureMessage = failureMessage;
+-    }
+-
+-    static ThreadPoolStarvationReport of(
+-            int samples,
+-            Duration samplingInterval,
+-            List<Evidence> evidence,
+-            List<String> unsupportedExecutors,
+-            @Nullable String failureMessage) {
+-        Status status;
+-        if (!evidence.isEmpty()) {
+-            status = Status.POTENTIAL_STARVATION;
+-        } else if (failureMessage != null) {
+-            status = Status.SAMPLING_FAILED;
+-        } else if (!unsupportedExecutors.isEmpty()) {
+-            status = Status.INSUFFICIENT_VISIBILITY;
+-        } else {
+-            status = Status.NO_ISSUE;
+-        }
+-        return new ThreadPoolStarvationReport(
+-                status, samples, samplingInterval, evidence, unsupportedExecutors, failureMessage);
+-    }
+-
+-    /** Returns the outcome of this observation. */
+-    public Status status() {
+-        return status;
+-    }
+-
+-    /** Returns whether a visible executor produced potential-starvation evidence. */
+-    public boolean anyIssue() {
+-        return status == Status.POTENTIAL_STARVATION;
+-    }
+-
+-    /** Returns how many samples completed before publication. */
+-    public int samples() {
+-        return samples;
+-    }
+-
+-    /** Returns the interval requested between scheduled samples. */
+-    public Duration samplingInterval() {
+-        return samplingInterval;
+-    }
+-
+-    /** Returns immutable evidence for each executor that showed potential starvation. */
+-    public List<Evidence> evidence() {
+-        return evidence;
+-    }
+-
+-    /** Returns labels of registered executors that could not be inspected as thread pools. */
+-    public List<String> unsupportedExecutors() {
+-        return unsupportedExecutors;
+-    }
+-
+-    /** Returns the first sampling failure message, or null when sampling did not fail. */
+-    public @Nullable String failureMessage() {
+-        return failureMessage;
+-    }
+-
+-    /**
+-     * Returns a diagnostic string with the evidence and unsupported-executor counts only; the
+-     * snapshots and executor labels stay readable through {@link #evidence()} and {@link
+-     * #unsupportedExecutors()}, and printing them could expose configured labels or be
+-     * arbitrarily large. The sampling failure message stays readable through {@link
+-     * #failureMessage()} and never joins this rendering: it is a user executor's throwable text
+-     * and can carry credentials. The format is for logs and debuggers, not for parsing.
+-     */
+-    @Override
+-    public String toString() {
+-        return "ThreadPoolStarvationReport{status=" + status
+-                + ", samples=" + samples
+-                + ", samplingInterval=" + samplingInterval
+-                + ", evidenceCount=" + evidence.size()
+-                + ", unsupportedExecutorCount=" + unsupportedExecutors.size()
+-                + '}';
+-    }
+-}
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java
+index 6e18faed..f3206c1e 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeSnapshotTest.java
+@@ -37,7 +37,6 @@ class ParRuntimeSnapshotTest {
+         assertThat(snapshot.closed()).isFalse();
+         assertThat(snapshot.activeAdmissions()).isZero();
+         assertThat(snapshot.undrainedBatches()).isZero();
+-        assertThat(snapshot.activeObservations()).isZero();
+         assertThat(snapshot.unexitedExecutionSignals()).isZero();
+         assertThat(snapshot.toString()).contains("closed=false");
+     }
+@@ -46,11 +45,10 @@ class ParRuntimeSnapshotTest {
+     void everySampledCounterIsReadableFromTheSnapshot() {
+         // The snapshot is a value carrier: each field must survive the trip into the sample, so an
+         // operator reading a non-zero counter during a stuck drain sees the real value.
+-        ParRuntimeSnapshot snapshot = new ParRuntimeSnapshot(true, 3, 2, 1, 4);
++        ParRuntimeSnapshot snapshot = new ParRuntimeSnapshot(true, 3, 2, 4);
+         assertThat(snapshot.closed()).isTrue();
+         assertThat(snapshot.activeAdmissions()).isEqualTo(3);
+         assertThat(snapshot.undrainedBatches()).isEqualTo(2);
+-        assertThat(snapshot.activeObservations()).isEqualTo(1);
+         assertThat(snapshot.unexitedExecutionSignals()).isEqualTo(4);
+     }
+ 
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+index b83ce0f0..41b1d3da 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java
+@@ -43,8 +43,6 @@ class PublicApiSurfaceTest {
+             BASE_PACKAGE + ".SubmissionAwareBlockingQueue",
+             BASE_PACKAGE + ".TaskBatchResult",
+             BASE_PACKAGE + ".TaskExitObservation",
+-            BASE_PACKAGE + ".ThreadPoolStarvationObservationScope",
+-            BASE_PACKAGE + ".ThreadPoolStarvationReport",
+             BASE_PACKAGE + ".TaskGroupResult",
+             BASE_PACKAGE + ".TaskId",
+             BASE_PACKAGE + ".TaskKey",
+@@ -56,9 +54,7 @@ class PublicApiSurfaceTest {
+             BASE_PACKAGE + ".ExecutorWaitReport$Component",
+             BASE_PACKAGE + ".ParRuntime$Builder",
+             BASE_PACKAGE + ".TaskId$GroupRun",
+-            BASE_PACKAGE + ".TaskId$Unit",
+-            BASE_PACKAGE + ".ThreadPoolStarvationReport$Evidence",
+-            BASE_PACKAGE + ".ThreadPoolStarvationReport$Status"));
++            BASE_PACKAGE + ".TaskId$Unit"));
+ 
+     @Test
+     void publicTypesMatchTheReviewedApi() throws Exception {
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+index bd9f6870..567d4333 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupAdoptedFutureTest.java
+@@ -1036,39 +1036,30 @@ class TaskGroupAdoptedFutureTest {
+     }
+ 
+     @Test
+-    void aSourceQueuedBehindItsOwnWaiterIsSeenByBothStarvationSignalsAndEndsAtTheDeadline() throws Exception {
++    void aSourceQueuedBehindItsOwnWaiterRecordsAWaitCycleAndEndsAtTheDeadline() {
+         ExecutorService io = pool(1);
+         ParRuntime runtime = runtime(io);
+         ListeningExecutorService listening = MoreExecutors.listeningDecorator(io);
+         AtomicReference<ListenableFuture<String>> queued = new AtomicReference<>();
+         TaskKey<String> loaded = TaskKey.named("loaded");
+-        Duration interval = Duration.ofMillis(20);
+-        ThreadPoolStarvationReport report;
+-        TaskBatchResult<ScopeTermination> outer;
+-
+-        try (ThreadPoolStarvationObservationScope observation = runtime.openThreadPoolStarvationObservation(interval)) {
+-            ListenableFuture<ThreadPoolStarvationReport> reportFuture = observation.reportFuture();
+-            outer = io(runtime)
+-                    .map(
+-                            Collections.singletonList("outer"),
+-                            value -> {
+-                                ListenableFuture<String> source = listening.submit(() -> value);
+-                                queued.set(source);
+-                                return runtime.group("inner", Duration.ofMillis(400))
+-                                        .adopt(loaded, io(runtime), source)
+-                                        .runAll()
+-                                        .termination();
+-                            },
+-                            BatchOptions.timeout("outer", TIMEOUT));
+-            observation.close();
+-            report = Objects.requireNonNull(Futures.getDone(reportFuture));
+-        }
++
++        TaskBatchResult<ScopeTermination> outer = io(runtime)
++                .map(
++                        Collections.singletonList("outer"),
++                        value -> {
++                            ListenableFuture<String> source = listening.submit(() -> value);
++                            queued.set(source);
++                            return runtime.group("inner", Duration.ofMillis(400))
++                                    .adopt(loaded, io(runtime), source)
++                                    .runAll()
++                                    .termination();
++                        },
++                        BatchOptions.timeout("outer", TIMEOUT));
+ 
+         assertThat(outer.valuesOrThrow())
+                 .allSatisfy(scope ->
+                         TerminationAssertions.assertScopeCancelled(scope, CancellationReason.Kind.DEADLINE_EXCEEDED));
+         assertThat(Objects.requireNonNull(queued.get()).isCancelled()).isTrue();
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION);
+         assertThat(runtime.executorWaitReport().cyclicComponents()).hasSize(1);
+     }
+ }
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java
+deleted file mode 100644
+index cb1533e8..00000000
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/ThreadPoolStarvationObservationScopeTest.java
++++ /dev/null
+@@ -1,784 +0,0 @@
+-package io.github.monadrome.parallelinscope;
+-
+-import static com.google.common.base.Verify.verifyNotNull;
+-import static org.assertj.core.api.Assertions.assertThat;
+-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+-
+-import com.alibaba.ttl.threadpool.TtlExecutors;
+-import com.google.common.util.concurrent.Futures;
+-import com.google.common.util.concurrent.MoreExecutors;
+-import com.google.common.util.concurrent.Uninterruptibles;
+-import java.lang.reflect.Constructor;
+-import java.lang.reflect.Field;
+-import java.lang.reflect.Method;
+-import java.time.Duration;
+-import java.util.ArrayList;
+-import java.util.Collections;
+-import java.util.List;
+-import java.util.concurrent.CountDownLatch;
+-import java.util.concurrent.ExecutorService;
+-import java.util.concurrent.Executors;
+-import java.util.concurrent.LinkedBlockingQueue;
+-import java.util.concurrent.RejectedExecutionException;
+-import java.util.concurrent.ScheduledFuture;
+-import java.util.concurrent.ThreadPoolExecutor;
+-import java.util.concurrent.TimeUnit;
+-import java.util.concurrent.atomic.AtomicBoolean;
+-import java.util.concurrent.atomic.AtomicInteger;
+-import java.util.concurrent.atomic.AtomicLong;
+-import java.util.concurrent.atomic.AtomicReference;
+-import org.awaitility.Awaitility;
+-import org.junit.jupiter.api.AfterEach;
+-import org.junit.jupiter.api.Test;
+-
+-@SuppressWarnings("NullAway.Init")
+-class ThreadPoolStarvationObservationScopeTest {
+-
+-    private ParRuntime runtime;
+-    private ExecutorService executor;
+-    private ExecutorService secondExecutor;
+-    private final List<ThreadPoolStarvationObservationScope> observations = new ArrayList<>();
+-
+-    @AfterEach
+-    void cleanUp() {
+-        for (ThreadPoolStarvationObservationScope observation : observations) {
+-            observation.close();
+-        }
+-        if (runtime != null) {
+-            runtime.close();
+-        }
+-        if (executor != null) {
+-            executor.shutdownNow();
+-        }
+-        if (secondExecutor != null) {
+-            secondExecutor.shutdownNow();
+-        }
+-    }
+-
+-    @Test
+-    void detectsSustainedBacklogFromDirectExecutorSubmissions() throws Exception {
+-        CountingSizeQueue queue = new CountingSizeQueue();
+-        ThreadPoolExecutor pool = registerPool(queue);
+-        CountDownLatch release = saturate(pool);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(20));
+-        awaitCalls(queue, 3);
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION);
+-        assertThat(report.anyIssue()).isTrue();
+-        assertThat(report.samplingInterval()).isEqualTo(Duration.ofMillis(20));
+-        assertThat(report.failureMessage()).isNull();
+-        assertThat(report.samples()).isGreaterThanOrEqualTo(3);
+-        assertThat(report.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.executor()).isEqualTo("worker");
+-            assertThat(evidence.poolSize()).isEqualTo(1);
+-            assertThat(evidence.activeCount()).isEqualTo(1);
+-            assertThat(evidence.queueSize()).isEqualTo(1);
+-            assertThat(evidence.completedTaskCount()).isZero();
+-            assertThat(evidence.stagnantIntervals()).isGreaterThanOrEqualTo(2);
+-            assertThat(evidence.toString()).contains("stagnantIntervals=");
+-        });
+-        assertThat(report.toString()).contains("samplingInterval=PT0.02S").doesNotContain("failureMessage");
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-        release.countDown();
+-    }
+-
+-    @Test
+-    void doesNotReportBacklogThatMakesProgress() throws Exception {
+-        GatedSizeQueue queue = new GatedSizeQueue();
+-        ThreadPoolExecutor pool = registerPool(queue);
+-        CountDownLatch release = saturate(pool);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        try {
+-            assertThat(queue.entered.await(5, TimeUnit.SECONDS)).isTrue();
+-            release.countDown();
+-            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> pool.getCompletedTaskCount() == 2);
+-        } finally {
+-            queue.release.countDown();
+-        }
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.NO_ISSUE);
+-        assertThat(report.anyIssue()).isFalse();
+-        assertThat(report.evidence()).isEmpty();
+-    }
+-
+-    @Test
+-    void immediateCloseDoesNotPairSamplesBeforeTheInterval() throws Exception {
+-        ThreadPoolExecutor pool = registerPool(new LinkedBlockingQueue<>());
+-        CountDownLatch release = saturate(pool);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofSeconds(10));
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.NO_ISSUE);
+-        assertThat(report.samples()).isEqualTo(2);
+-        assertThat(report.evidence()).isEmpty();
+-        release.countDown();
+-    }
+-
+-    @Test
+-    void mergesPhysicalExecutorLabelsThroughTtlWrapper() throws Exception {
+-        CountingSizeQueue queue = new CountingSizeQueue();
+-        ThreadPoolExecutor pool = newPool(queue);
+-        executor = pool;
+-        runtime = ParRuntime.builder()
+-                .register(ParId.of("a"), pool)
+-                .register(ParId.of("b"), TtlExecutors.getTtlExecutorService(pool))
+-                .register(ParId.of("c"), pool)
+-                .build();
+-        queue.observing.set(true);
+-        CountDownLatch release = saturate(pool);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(20));
+-        awaitCalls(queue, 3);
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.executor()).isEqualTo("a,b,c");
+-            assertThat(evidence.stagnantIntervals()).isPositive();
+-        });
+-        assertThat(report.unsupportedExecutors()).isEmpty();
+-        release.countDown();
+-    }
+-
+-    @Test
+-    void reportsScheduledSamplingFailureWithoutFailingClose() throws Exception {
+-        FailingSizeQueue queue = new FailingSizeQueue(2, new IllegalStateException("queue size failed"));
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        ScheduledFuture<?> scheduled = sampler(observation);
+-        awaitCalls(queue, 2);
+-        awaitSchedulerTicks(3);
+-        assertThat(queue.sizeCalls.get()).isEqualTo(2);
+-        assertThat(scheduled.isCancelled()).isTrue();
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        assertThat(report.failureMessage()).isEqualTo("queue size failed");
+-        assertThat(report.samples()).isEqualTo(2);
+-        assertThat(report.anyIssue()).isFalse();
+-    }
+-
+-    @Test
+-    void reportsFinalSamplingFailureWithoutFailingClose() throws Exception {
+-        FailingSizeQueue queue = new FailingSizeQueue(2, new IllegalStateException("final sample failed"));
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofSeconds(10));
+-        observation.close();
+-
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        assertThat(report(observation).failureMessage()).isEqualTo("final sample failed");
+-        assertThat(report(observation).samples()).isEqualTo(1);
+-    }
+-
+-    @Test
+-    void samplingFailureMessageStaysOutOfTheDiagnosticRendering() throws Exception {
+-        FailingSizeQueue queue = new FailingSizeQueue(2, new IllegalStateException("credentials=hunter2"));
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofSeconds(10));
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        // The accessor keeps the message for explicit inspection; the diagnostic rendering never
+-        // carries a user executor's throwable text, which can bear credentials.
+-        assertThat(report.failureMessage()).isEqualTo("credentials=hunter2");
+-        assertThat(report.toString()).doesNotContain("hunter2").doesNotContain("failureMessage");
+-    }
+-
+-    @Test
+-    void reportsInitialSamplingFailureWithNonemptyFallbackMessage() throws Exception {
+-        FailingSizeQueue queue = new FailingSizeQueue(1, new IllegalStateException());
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        awaitSchedulerTicks(3);
+-        assertThat(queue.sizeCalls.get()).isEqualTo(1);
+-        observation.close();
+-
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        assertThat(report(observation).failureMessage()).isEqualTo(IllegalStateException.class.getName());
+-        assertThat(report(observation).samples()).isEqualTo(1);
+-    }
+-
+-    @Test
+-    void publishesReportBeforeRethrowingScheduledSamplingError() throws Exception {
+-        AssertionError failure = new AssertionError("scheduled sample failed");
+-        FailingSizeQueue queue = new FailingSizeQueue(2, failure);
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        awaitCalls(queue, 2);
+-
+-        assertThatThrownBy(observation::close).isSameAs(failure);
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    void publishesReportBeforeRethrowingFinalSamplingError() throws Exception {
+-        AssertionError failure = new AssertionError("final sample failed");
+-        registerPool(new FailingSizeQueue(2, failure));
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofSeconds(10));
+-
+-        assertThatThrownBy(observation::close).isSameAs(failure);
+-        assertThat(report(observation).failureMessage()).isEqualTo("final sample failed");
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    void firstFailureMessageWinsWhileALaterFinalErrorStillPropagates() throws Exception {
+-        AssertionError finalError = new AssertionError("second failure");
+-        CountingSizeQueue queue = new CountingSizeQueue() {
+-            @Override
+-            public int size() {
+-                int size = super.size();
+-                if (sizeCalls.get() == 2) {
+-                    throw new IllegalStateException("first failure");
+-                }
+-                if (sizeCalls.get() == 3) {
+-                    throw finalError;
+-                }
+-                return size;
+-            }
+-        };
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        awaitCalls(queue, 2);
+-
+-        assertThatThrownBy(observation::close).isSameAs(finalError);
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        assertThat(report(observation).failureMessage()).isEqualTo("first failure");
+-        assertThat(report(observation).samples()).isEqualTo(1);
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    void concurrentCloseCallsAllReturnAndReleaseObservation() throws Exception {
+-        GatedSizeQueue queue = new GatedSizeQueue();
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        CountDownLatch start = new CountDownLatch(1);
+-        CountDownLatch done = new CountDownLatch(4);
+-        AtomicReference<Throwable> failure = new AtomicReference<>();
+-        AtomicInteger publications = new AtomicInteger();
+-        observation.reportFuture().addListener(publications::incrementAndGet, MoreExecutors.directExecutor());
+-        try {
+-            assertThat(queue.entered.await(5, TimeUnit.SECONDS)).isTrue();
+-            for (int i = 0; i < 4; i++) {
+-                Thread closer = new Thread(
+-                        () -> {
+-                            try {
+-                                Uninterruptibles.awaitUninterruptibly(start);
+-                                observation.close();
+-                            } catch (Throwable error) {
+-                                failure.compareAndSet(null, error);
+-                            } finally {
+-                                done.countDown();
+-                            }
+-                        },
+-                        "starvation-closer-" + i);
+-                closer.setDaemon(true);
+-                closer.start();
+-            }
+-            start.countDown();
+-            Awaitility.await().atMost(Duration.ofSeconds(5)).until(observation::closed);
+-            assertThat(observation.reportFuture().isDone()).isFalse();
+-        } finally {
+-            queue.release.countDown();
+-        }
+-        assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+-        assertThat(failure.get()).isNull();
+-        assertThat(observation.reportFuture().isDone()).isTrue();
+-        assertThat(publications.get()).isEqualTo(1);
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    void concurrentClosersPreserveInterruptionWhileWaitingForSamplingAndPublication() throws Exception {
+-        GatedSizeQueue queue = new GatedSizeQueue();
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        AtomicBoolean winnerInterrupted = new AtomicBoolean();
+-        AtomicBoolean loserInterrupted = new AtomicBoolean();
+-        Thread winner = new Thread(
+-                () -> {
+-                    Thread.currentThread().interrupt();
+-                    observation.close();
+-                    winnerInterrupted.set(Thread.currentThread().isInterrupted());
+-                },
+-                "starvation-close-winner");
+-        Thread loser = new Thread(
+-                () -> {
+-                    Thread.currentThread().interrupt();
+-                    observation.close();
+-                    loserInterrupted.set(Thread.currentThread().isInterrupted());
+-                },
+-                "starvation-close-loser");
+-        winner.setDaemon(true);
+-        loser.setDaemon(true);
+-        try {
+-            assertThat(queue.entered.await(5, TimeUnit.SECONDS)).isTrue();
+-            winner.start();
+-            Awaitility.await().atMost(Duration.ofSeconds(5)).until(observation::closed);
+-            loser.start();
+-            Awaitility.await()
+-                    .atMost(Duration.ofSeconds(5))
+-                    .until(() -> winner.getState() == Thread.State.WAITING && loser.getState() == Thread.State.WAITING);
+-        } finally {
+-            queue.release.countDown();
+-        }
+-        winner.join(5000);
+-        loser.join(5000);
+-        assertThat(winner.isAlive()).isFalse();
+-        assertThat(loser.isAlive()).isFalse();
+-        assertThat(winnerInterrupted.get()).isTrue();
+-        assertThat(loserInterrupted.get()).isTrue();
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    @SuppressWarnings("NullAway")
+-    void validatesIntervalAndObservationLifecycle() {
+-        runtime = ParRuntime.builder().build();
+-        assertThatThrownBy(() -> runtime.openThreadPoolStarvationObservation(null))
+-                .isInstanceOf(NullPointerException.class);
+-        assertThatThrownBy(() -> runtime.openThreadPoolStarvationObservation(Duration.ZERO))
+-                .isInstanceOf(IllegalArgumentException.class);
+-        assertThatThrownBy(() -> runtime.openThreadPoolStarvationObservation(Duration.ofNanos(-1)))
+-                .isInstanceOf(IllegalArgumentException.class);
+-        assertThatThrownBy(() -> runtime.openThreadPoolStarvationObservation(Duration.ofNanos(1)))
+-                .isInstanceOf(IllegalArgumentException.class);
+-        assertThatThrownBy(() -> runtime.openThreadPoolStarvationObservation(Duration.ofMillis(9)))
+-                .isInstanceOf(IllegalArgumentException.class)
+-                .hasMessageContaining("10 ms")
+-                .hasMessageContaining("PT0.009S");
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-        runtime.close();
+-        assertThatThrownBy(() -> runtime.openThreadPoolStarvationObservation(Duration.ofMillis(10)))
+-                .isInstanceOf(IllegalStateException.class);
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    void multipleObservationsTrackAndPublishIndependently() throws Exception {
+-        runtime = ParRuntime.builder().build();
+-        ThreadPoolStarvationObservationScope first = open(Duration.ofMillis(10));
+-        ThreadPoolStarvationObservationScope second = open(Duration.ofSeconds(10));
+-        assertThat(runtime.inFlight()).isEqualTo(2);
+-        assertThat(runtime.snapshot().activeObservations()).isEqualTo(2);
+-        assertThat(first.reportFuture()).isNotSameAs(second.reportFuture());
+-        first.close();
+-        assertThat(runtime.inFlight()).isEqualTo(1);
+-        assertThat(runtime.snapshot().activeObservations()).isEqualTo(1);
+-        assertThat(second.reportFuture().isDone()).isFalse();
+-        second.close();
+-        assertThat(report(first)).isNotSameAs(report(second));
+-        assertThat(report(first).samplingInterval()).isEqualTo(Duration.ofMillis(10));
+-        assertThat(report(second).samplingInterval()).isEqualTo(Duration.ofSeconds(10));
+-        assertThat(runtime.snapshot().activeObservations()).isZero();
+-    }
+-
+-    @Test
+-    void evidenceTakesPriorityOverUnsupportedExecutorsAndSamplingFailure() throws Exception {
+-        FailingSizeQueue queue = new FailingSizeQueue(4, new IllegalStateException("later sampling failure"));
+-        ThreadPoolExecutor pool = newPool(queue);
+-        executor = pool;
+-        secondExecutor = Executors.newSingleThreadExecutor();
+-        runtime = ParRuntime.builder()
+-                .register(ParId.of("visible"), pool)
+-                .register(ParId.of("unsupported"), secondExecutor)
+-                .build();
+-        queue.observing.set(true);
+-        CountDownLatch release = saturate(pool);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(20));
+-        awaitCalls(queue, 4);
+-        observation.close();
+-
+-        ThreadPoolStarvationReport report = report(observation);
+-        assertThat(report.status()).isEqualTo(ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION);
+-        assertThat(report.unsupportedExecutors()).containsExactly("unsupported");
+-        assertThat(report.failureMessage()).isEqualTo("later sampling failure");
+-        assertThat(report.evidence()).hasSize(1);
+-        release.countDown();
+-    }
+-
+-    @Test
+-    void samplingFailureTakesPriorityOverUnsupportedExecutors() throws Exception {
+-        FailingSizeQueue queue = new FailingSizeQueue(1, new IllegalStateException("initial failure"));
+-        executor = newPool(queue);
+-        secondExecutor = Executors.newSingleThreadExecutor();
+-        runtime = ParRuntime.builder()
+-                .register(ParId.of("visible"), executor)
+-                .register(ParId.of("unsupported"), secondExecutor)
+-                .build();
+-        queue.observing.set(true);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofSeconds(10));
+-        observation.close();
+-
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.SAMPLING_FAILED);
+-        assertThat(report(observation).unsupportedExecutors()).containsExactly("unsupported");
+-    }
+-
+-    @Test
+-    void recoveryDoesNotClearWindowEvidence() throws Exception {
+-        CountingSizeQueue queue = new CountingSizeQueue();
+-        ThreadPoolExecutor pool = registerPool(queue);
+-        pool.submit(() -> {}).get(5, TimeUnit.SECONDS);
+-        CountDownLatch release = saturate(pool);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        awaitCalls(queue, 3);
+-        release.countDown();
+-        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> pool.getCompletedTaskCount() == 3);
+-        observation.close();
+-
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.POTENTIAL_STARVATION);
+-        assertThat(report(observation).evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.completedTaskCount()).isEqualTo(1);
+-            assertThat(evidence.queueSize()).isEqualTo(1);
+-        });
+-    }
+-
+-    @Test
+-    void closeStopsPeriodicSampling() throws Exception {
+-        CountingSizeQueue queue = new CountingSizeQueue();
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        ScheduledFuture<?> scheduled = sampler(observation);
+-        assertThat(observation.closed()).isFalse();
+-        awaitCalls(queue, 2);
+-        observation.close();
+-        assertThat(scheduled.isCancelled()).isTrue();
+-        int callsAfterClose = queue.sizeCalls.get();
+-        awaitSchedulerTicks(3);
+-        assertThat(queue.sizeCalls.get()).isEqualTo(callsAfterClose);
+-    }
+-
+-    @Test
+-    void blockedSamplingDoesNotDelayDeadlineDetection() throws Exception {
+-        GatedSizeQueue queue = new GatedSizeQueue();
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        try {
+-            assertThat(queue.entered.await(5, TimeUnit.SECONDS)).isTrue();
+-            CountDownLatch deadline = new CountDownLatch(1);
+-            runtime.timeoutScheduler().schedule(deadline::countDown, 0, TimeUnit.NANOSECONDS);
+-            assertThat(deadline.await(2, TimeUnit.SECONDS)).isTrue();
+-            assertThat(queue.samplingThread.get()).startsWith("ParRuntime-starvation-");
+-            assertThat(queue.samplingDaemon.get()).isTrue();
+-        } finally {
+-            queue.release.countDown();
+-            observation.close();
+-        }
+-    }
+-
+-    @Test
+-    void delayedSamplingWaitsAFullIntervalBeforeTheNextInvocation() throws Exception {
+-        runtime = ParRuntime.builder().build();
+-        CountDownLatch entered = new CountDownLatch(1);
+-        CountDownLatch release = new CountDownLatch(1);
+-        CountDownLatch secondInvocation = new CountDownLatch(1);
+-        AtomicInteger invocations = new AtomicInteger();
+-        AtomicLong firstCompletedAt = new AtomicLong();
+-        AtomicLong delayBetweenInvocations = new AtomicLong();
+-        long intervalNanos = TimeUnit.MILLISECONDS.toNanos(50);
+-        ScheduledFuture<?> sampler = runtime.scheduleStarvationSampling(
+-                () -> {
+-                    if (invocations.incrementAndGet() == 1) {
+-                        entered.countDown();
+-                        assertThat(Uninterruptibles.awaitUninterruptibly(release, 5, TimeUnit.SECONDS))
+-                                .isTrue();
+-                        firstCompletedAt.set(System.nanoTime());
+-                    } else {
+-                        delayBetweenInvocations.compareAndSet(0, System.nanoTime() - firstCompletedAt.get());
+-                        secondInvocation.countDown();
+-                    }
+-                },
+-                intervalNanos);
+-        try {
+-            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+-            runtime.timeoutScheduler().schedule(release::countDown, 150, TimeUnit.MILLISECONDS);
+-            assertThat(secondInvocation.await(5, TimeUnit.SECONDS)).isTrue();
+-            assertThat(delayBetweenInvocations.get()).isGreaterThanOrEqualTo(intervalNanos);
+-        } finally {
+-            release.countDown();
+-            sampler.cancel(false);
+-        }
+-    }
+-
+-    @Test
+-    void identifiesExecutorsThatCannotBeInspected() throws Exception {
+-        executor = Executors.newSingleThreadExecutor();
+-        runtime = ParRuntime.builder().register(ParId.of("wrapped"), executor).build();
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(20));
+-        observation.close();
+-
+-        assertThat(report(observation).status()).isEqualTo(ThreadPoolStarvationReport.Status.INSUFFICIENT_VISIBILITY);
+-        assertThat(report(observation).unsupportedExecutors()).containsExactly("wrapped");
+-    }
+-
+-    @Test
+-    void closingAnObservationIsIdempotentAndItsReportCannotBeCancelled() {
+-        runtime = ParRuntime.builder().build();
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(20));
+-        assertThat(observation.reportFuture().cancel(true)).isFalse();
+-        assertThat(observation.reportFuture().isDone()).isFalse();
+-        // The report view renders its own Guava-style envelope, not the sink's.
+-        assertThat(observation.reportFuture().toString())
+-                .startsWith("ReadOnlyView@")
+-                .contains("status=PENDING");
+-        observation.close();
+-        observation.close();
+-
+-        assertThat(observation.reportFuture().cancel(false)).isFalse();
+-        assertThat(observation.closed()).isTrue();
+-        assertThat(observation.reportFuture().toString())
+-                .startsWith("ReadOnlyView@")
+-                .contains("status=SUCCESS, result=[ThreadPoolStarvationReport@");
+-    }
+-
+-    @Test
+-    void runtimeCloseWaitsForAnOpenObservationBeforeRetiringServices() throws Exception {
+-        CountingSizeQueue queue = new CountingSizeQueue();
+-        registerPool(queue);
+-        ThreadPoolStarvationObservationScope observation = open(Duration.ofMillis(10));
+-        runtime.close();
+-        awaitCalls(queue, 3);
+-
+-        assertThat(runtime.inFlight()).isEqualTo(1);
+-        assertThat(runtime.snapshot().activeObservations()).isEqualTo(1);
+-        assertThat(runtime.awaitQuiescence(Duration.ofMillis(20))).isFalse();
+-        observation.close();
+-        assertThat(runtime.awaitQuiescence(Duration.ofSeconds(2))).isTrue();
+-        assertThatThrownBy(() -> runtime.scheduleStarvationSampling(() -> {}, 10000000))
+-                .isInstanceOf(RejectedExecutionException.class);
+-    }
+-
+-    @Test
+-    void stagnantPairRequiresAtLeastTheExactInterval() throws Exception {
+-        ThreadPoolExecutor pool = registerPool(new LinkedBlockingQueue<>());
+-        long interval = TimeUnit.MILLISECONDS.toNanos(10);
+-        for (long elapsed : new long[] {interval - 1, interval, interval + 1}) {
+-            DetectorProbe detector = new DetectorProbe(pool, interval);
+-            detector.sample(1, 1, 1, 0, 0);
+-            assertThat(detector.evidence()).isEmpty();
+-            detector.sample(1, 1, 1, 0, elapsed);
+-            if (elapsed < interval) {
+-                assertThat(detector.evidence()).isEmpty();
+-            } else {
+-                assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+-                    assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+-                    assertThat(evidence.executor()).isEqualTo("worker");
+-                });
+-            }
+-        }
+-    }
+-
+-    @Test
+-    void separateStagnantRunsResetIntervalsButRetainHistoricalEvidence() throws Exception {
+-        ThreadPoolExecutor pool = registerPool(new LinkedBlockingQueue<>());
+-        DetectorProbe detector = new DetectorProbe(pool, 10);
+-        detector.sample(1, 1, 1, 0, 0);
+-        detector.sample(1, 1, 1, 0, 10);
+-        detector.sample(1, 1, 1, 0, 20);
+-        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.stagnantIntervals()).isEqualTo(2);
+-            assertThat(evidence.completedTaskCount()).isZero();
+-        });
+-
+-        detector.sample(1, 1, 1, 1, 30);
+-        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.stagnantIntervals()).isEqualTo(2);
+-            assertThat(evidence.completedTaskCount()).isZero();
+-        });
+-        detector.sample(1, 1, 1, 1, 40);
+-        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+-            assertThat(evidence.completedTaskCount()).isEqualTo(1);
+-        });
+-
+-        detector.sample(1, 1, 0, 1, 50);
+-        detector.sample(1, 1, 1, 1, 60);
+-        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+-        });
+-        detector.sample(1, 1, 1, 1, 70);
+-        assertThat(detector.evidence()).singleElement().satisfies(evidence -> {
+-            assertThat(evidence.stagnantIntervals()).isEqualTo(1);
+-        });
+-    }
+-
+-    @Test
+-    void zeroWorkersCannotProduceStarvationEvidenceEvenWithQueuedWork() throws Exception {
+-        DetectorProbe detector = new DetectorProbe(registerPool(new LinkedBlockingQueue<>()), 10);
+-        detector.sample(0, 0, 1, 0, 0);
+-        detector.sample(0, 0, 1, 0, 10);
+-        assertThat(detector.evidence()).isEmpty();
+-    }
+-
+-    @Test
+-    void emptyQueueCannotProduceStarvationEvidenceEvenWithAllWorkersActive() throws Exception {
+-        DetectorProbe detector = new DetectorProbe(registerPool(new LinkedBlockingQueue<>()), 10);
+-        detector.sample(1, 1, 0, 0, 0);
+-        detector.sample(1, 1, 0, 0, 10);
+-        assertThat(detector.evidence()).isEmpty();
+-    }
+-
+-    private ThreadPoolExecutor registerPool(LinkedBlockingQueue<Runnable> queue) {
+-        ThreadPoolExecutor pool = newPool(queue);
+-        executor = pool;
+-        runtime = ParRuntime.builder().register(ParId.of("worker"), pool).build();
+-        if (queue instanceof CountingSizeQueue) {
+-            ((CountingSizeQueue) queue).observing.set(true);
+-        }
+-        return pool;
+-    }
+-
+-    private ThreadPoolStarvationObservationScope open(Duration interval) {
+-        ThreadPoolStarvationObservationScope observation = runtime.openThreadPoolStarvationObservation(interval);
+-        observations.add(observation);
+-        return observation;
+-    }
+-
+-    private void awaitSchedulerTicks(int ticks) throws InterruptedException {
+-        CountDownLatch completed = new CountDownLatch(ticks);
+-        ScheduledFuture<?> barrier = runtime.scheduleStarvationSampling(completed::countDown, 10000000);
+-        try {
+-            assertThat(completed.await(5, TimeUnit.SECONDS)).isTrue();
+-        } finally {
+-            barrier.cancel(false);
+-        }
+-    }
+-
+-    private static ThreadPoolStarvationReport report(ThreadPoolStarvationObservationScope observation)
+-            throws Exception {
+-        return verifyNotNull(Futures.getDone(observation.reportFuture()));
+-    }
+-
+-    private static ScheduledFuture<?> sampler(ThreadPoolStarvationObservationScope observation) throws Exception {
+-        Field field = ThreadPoolStarvationObservationScope.class.getDeclaredField("sampler");
+-        field.setAccessible(true);
+-        AtomicReference<?> reference = (AtomicReference<?>) verifyNotNull(field.get(observation));
+-        return (ScheduledFuture<?>) verifyNotNull(reference.get());
+-    }
+-
+-    private static void awaitCalls(CountingSizeQueue queue, int count) {
+-        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> queue.sizeCalls.get() >= count);
+-    }
+-
+-    private static CountDownLatch saturate(ThreadPoolExecutor pool) throws InterruptedException {
+-        CountDownLatch entered = new CountDownLatch(1);
+-        CountDownLatch release = new CountDownLatch(1);
+-        pool.execute(() -> {
+-            entered.countDown();
+-            try {
+-                release.await(30, TimeUnit.SECONDS);
+-            } catch (InterruptedException interrupted) {
+-                Thread.currentThread().interrupt();
+-            }
+-        });
+-        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+-        pool.execute(() -> {});
+-        return release;
+-    }
+-
+-    private static ThreadPoolExecutor newPool(LinkedBlockingQueue<Runnable> queue) {
+-        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, queue);
+-    }
+-
+-    private static final class DetectorProbe {
+-        private final Object detector;
+-        private final Constructor<?> sampleConstructor;
+-        private final Method sample;
+-        private final AtomicReference<?> issue;
+-        private final long intervalNanos;
+-
+-        private DetectorProbe(ThreadPoolExecutor pool, long intervalNanos) throws Exception {
+-            Class<?> detectorType =
+-                    Class.forName(ThreadPoolStarvationObservationScope.class.getName() + "$ObservedExecutor");
+-            Class<?> sampleType = Class.forName(ThreadPoolStarvationObservationScope.class.getName() + "$Sample");
+-            Constructor<?> constructor = detectorType.getDeclaredConstructor(String.class, ExecutorService.class);
+-            constructor.setAccessible(true);
+-            detector = verifyNotNull(constructor.newInstance("worker", pool));
+-            sampleConstructor =
+-                    sampleType.getDeclaredConstructor(int.class, int.class, int.class, long.class, long.class);
+-            sampleConstructor.setAccessible(true);
+-            sample = detectorType.getDeclaredMethod("sample", sampleType, long.class);
+-            sample.setAccessible(true);
+-            Field issueField = detectorType.getDeclaredField("issue");
+-            issueField.setAccessible(true);
+-            issue = (AtomicReference<?>) verifyNotNull(issueField.get(detector));
+-            this.intervalNanos = intervalNanos;
+-        }
+-
+-        private void sample(int poolSize, int activeCount, int queueSize, long completedTaskCount, long sampledAtNanos)
+-                throws Exception {
+-            Object value =
+-                    sampleConstructor.newInstance(poolSize, activeCount, queueSize, completedTaskCount, sampledAtNanos);
+-            sample.invoke(detector, value, intervalNanos);
+-        }
+-
+-        private List<ThreadPoolStarvationReport.Evidence> evidence() {
+-            Object value = issue.get();
+-            return value == null
+-                    ? Collections.emptyList()
+-                    : Collections.singletonList((ThreadPoolStarvationReport.Evidence) value);
+-        }
+-    }
+-
+-    private static class CountingSizeQueue extends LinkedBlockingQueue<Runnable> {
+-        final AtomicInteger sizeCalls = new AtomicInteger();
+-        final AtomicBoolean observing = new AtomicBoolean();
+-
+-        @Override
+-        public int size() {
+-            if (observing.get()) {
+-                sizeCalls.incrementAndGet();
+-            }
+-            return super.size();
+-        }
+-    }
+-
+-    private static final class GatedSizeQueue extends LinkedBlockingQueue<Runnable> {
+-        private final CountDownLatch entered = new CountDownLatch(1);
+-        private final CountDownLatch release = new CountDownLatch(1);
+-        private final AtomicReference<String> samplingThread = new AtomicReference<>("");
+-        private final AtomicBoolean samplingDaemon = new AtomicBoolean();
+-
+-        @Override
+-        public int size() {
+-            if (Thread.currentThread().getName().startsWith("ParRuntime-")) {
+-                samplingThread.set(Thread.currentThread().getName());
+-                samplingDaemon.set(Thread.currentThread().isDaemon());
+-                entered.countDown();
+-                assertThat(Uninterruptibles.awaitUninterruptibly(release, 10, TimeUnit.SECONDS))
+-                        .isTrue();
+-            }
+-            return super.size();
+-        }
+-    }
+-
+-    private static final class FailingSizeQueue extends CountingSizeQueue {
+-        private final int failingCall;
+-        private final Throwable failure;
+-
+-        private FailingSizeQueue(int failingCall, Throwable failure) {
+-            this.failingCall = failingCall;
+-            this.failure = failure;
+-        }
+-
+-        @Override
+-        public int size() {
+-            int size = super.size();
+-            if (sizeCalls.get() == failingCall) {
+-                if (failure instanceof Error) {
+-                    throw (Error) failure;
+-                }
+-                throw (RuntimeException) failure;
+-            }
+-            return size;
+-        }
+-    }
+-}
+diff --git a/scripts/check-verification-integrity.py b/scripts/check-verification-integrity.py
+index e577c153..61918f4d 100644
+--- a/scripts/check-verification-integrity.py
++++ b/scripts/check-verification-integrity.py
+@@ -123,10 +123,36 @@ _DISPOSITION_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
+         ("ImmediateResultTest", "V2", "submissionFailureFreezingPreservesNotClaimedDisposition"),
+     )
+ )
++# Thread-pool starvation observation removal (2026-11-27): the scope, its report, and
++# ParRuntimeSnapshot.activeObservations() left the public API, so their test file and the
++# snapshot assertions on that counter went with them. The adopted-future case keeps its deadline
++# and wait-graph assertions under the name
++# aSourceQueuedBehindItsOwnWaiterRecordsAWaitCycleAndEndsAtTheDeadline.
++_STARVATION_OBSERVATION_REMOVAL_EXCEPTIONS: frozenset[tuple[str, str, str]] = frozenset(
++    (f"{_CORE_TESTS}{name}.java", rule, case)
++    for name, rule, case in (
++        ("ParRuntimeSnapshotTest", "V4", "freshRuntimeReportsAnEmptyOpenSnapshot"),
++        ("ParRuntimeSnapshotTest", "V4", "everySampledCounterIsReadableFromTheSnapshot"),
++        (
++            "TaskGroupAdoptedFutureTest",
++            "V2",
++            "aSourceQueuedBehindItsOwnWaiterIsSeenByBothStarvationSignalsAndEndsAtTheDeadline",
++        ),
++    )
++) | frozenset(
++    {
++        (
++            f"{_CORE_TESTS}ThreadPoolStarvationObservationScopeTest.java",
++            "V1",
++            f"{_CORE_TESTS}ThreadPoolStarvationObservationScopeTest.java",
++        )
++    }
++)
+ REVIEWED_EXCEPTIONS: frozenset[tuple[str, str, str]] = (
+     _TASK_TYPE_REMOVAL_EXCEPTIONS
+     | _TASK_STATE_REMOVAL_EXCEPTIONS
+     | _DISPOSITION_REMOVAL_EXCEPTIONS
++    | _STARVATION_OBSERVATION_REMOVAL_EXCEPTIONS
+     | frozenset(
+     ("scripts/tests/test_verify_run.py", "V2", f"VerifyRunAcceptedExceptionTest.{method}")
+     for method in (

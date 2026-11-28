@@ -1,0 +1,7 @@
+Done. Wrote 12 sealed candidates plus the plan and notes under `candidates/`.
+
+- `candidates/ContractTdd001…012*.java` — one public class and one `@Test` each, covering C-1 through C-7.
+- `candidates/candidate-plan.csv` — 12 rows matching the required header.
+- `candidates/generation-notes.md` — assumptions and contract ambiguities recorded.
+
+Coverage order follows the README priority: C-3 quiescence (including the cancelled-but-ignoring-interruption execution) first, then C-4/C-5 readings, C-2 close semantics, C-7 adopted source, C-6 sampling-thread absence, and C-1 removed surface.

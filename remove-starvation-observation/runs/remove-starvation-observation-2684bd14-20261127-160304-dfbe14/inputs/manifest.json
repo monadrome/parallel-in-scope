@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "remove-starvation-observation-2684bd14-20261127-160304-dfbe14",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-27T16:03:05.339Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/remove-starvation-observation",
+    "name": "remove-starvation-observation",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "head": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "3e04f590902bed50af4ddb4d8e6347630c8f80ec",
+    "to": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "label": "3e04f590..2684bd14"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "851052c9987646f17bfa87f19d6ea972aa5d8e1f7d7f92cdae884d8bcb2f689e",
+    "bytes": 6569,
+    "files": [
+      {
+        "path": "BACKLOG.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 2
+      },
+      {
+        "path": "README.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "README.zh-CN.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ParRuntimeTest.java",
+        "status": "M",
+        "additions": 31,
+        "deletions": 0
+      },
+      {
+        "path": "design/task-group-adopted-futures.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "cb9edb55856a6d2eb335eb09fd03361480793d4e826a8a2520e2350ff2db8cf7",
+    "bytes": 1631,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "c5604961f3b3a65b398f99200dd47e69a68675f40b4695774e409a5b4ba4a99b",
+    "bytes": 3235
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "2684bd143909d9b6bfa660202e7079a010d529bd",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}
