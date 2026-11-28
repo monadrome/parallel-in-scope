@@ -1,11 +1,13 @@
 package io.github.monadrome.parallelinscope;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test;
 class NestedSamePoolEnqueueRefusalTest {
 
     private static final Duration DEADLINE = Duration.ofSeconds(2);
+    private static final Duration EXIT_WAIT = Duration.ofSeconds(10);
 
     private final List<ExecutorService> pools = new ArrayList<>();
     private final List<ParRuntime> runtimes = new ArrayList<>();
@@ -77,9 +80,10 @@ class NestedSamePoolEnqueueRefusalTest {
                     return outer;
                 },
                 BatchOptions.timeout("outer", DEADLINE));
-        ImmediateResult<String> result = inner.get();
-        assertThat(result).as("the outer element ran its inner batch").isNotNull();
-        return result;
+        // A deadline ends the outer element by its token before its execution returns from the nested
+        // map, so the inner result is published after the outer map may already have returned.
+        await().atMost(EXIT_WAIT).until(() -> inner.get() != null);
+        return Objects.requireNonNull(inner.get());
     }
 
     private void assertReportsSelfLoop() {
