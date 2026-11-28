@@ -1,0 +1,6 @@
+run_id,evaluation_version,layer,scope,key,mode,gold_status,open_world,system,agent,version,provider,model,effort,revision,status,duration_seconds,attempts,input_tokens,output_tokens,total_tokens,cost,currency,findings,adjudicated,confirmed,rejected,neutral,uncertain,pending,confirmed_rate,rejected_rate,neutral_rate,uncertain_rate,known_fix_recall,regression_recall,timeout,error,recall_note,cluster_id,verdict,cluster_findings,gold_labels,summary
+join-policy-await-all-6bd5d76e-20261128-132352-aa2610,2,system,codex,codex,live,open-world,true,codex,codex,codex-cli 0.169.0,zcode,zcode/GLM-5.4,high,,completed,396.233,2,,,231787,,,1,0,0,0,0,0,1,,,,,,,false,,open-world case: no gold labels,,,,,
+join-policy-await-all-6bd5d76e-20261128-132352-aa2610,2,union,clusters,union,live,open-world,true,,,,,,,,,,,,,,,,1,0,0,0,0,0,1,,,,,,,false,,open-world case: no gold labels,,,,,
+join-policy-await-all-6bd5d76e-20261128-132352-aa2610,2,aggregate,micro,micro,live,open-world,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false,,,,,,,
+join-policy-await-all-6bd5d76e-20261128-132352-aa2610,2,aggregate,macro,macro,live,open-world,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false,,,,,,,
+join-policy-await-all-6bd5d76e-20261128-132352-aa2610,2,cluster,C01,C01,live,open-world,true,,,,,,,,pending,,,,,,,,,,,,,,,,,,,,,false,,,C01,pending,1,,codex: Public AWAIT_ALL Javadoc still references nonexistent close()

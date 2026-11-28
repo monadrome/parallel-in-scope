@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "join-policy-await-all-ce7b5cc2-20261128-125101-c0b616",
+  "version": 2,
+  "createdAt": "2026-11-28T13:25:02.744Z",
+  "method": "imported",
+  "note": "imported: one cluster per finding; no duplicates",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "single finding"
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": "single finding"
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": "single finding"
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "codex:3"
+      ],
+      "note": "single finding"
+    },
+    {
+      "clusterId": "C05",
+      "findingIds": [
+        "codex:4"
+      ],
+      "note": "single finding"
+    },
+    {
+      "clusterId": "C06",
+      "findingIds": [
+        "codex:5"
+      ],
+      "note": "single finding"
+    }
+  ]
+}

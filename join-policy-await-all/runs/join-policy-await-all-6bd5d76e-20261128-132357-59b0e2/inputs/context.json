@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "join-policy-await-all-6bd5d76e-20261128-132357-59b0e2",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T13:23:58.229Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all",
+    "name": "join-policy-await-all",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "head": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "to": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "label": "ce7b5cc2..6bd5d76e"
+  },
+  "objective": {
+    "subject": "fix: address the first adversarial review of the join-policy change",
+    "body": "Review run join-policy-await-all-ce7b5cc2-20261128-125101-c0b616 (codex on\nzcode/GLM-5.4) reported six findings; run ...-125057-d99db7 (codex on\ndeepseek/deepseek-v4-pro) reported none. All six reproduced against the\nworking tree and are fixed here:\n\n- codex:1 (defect): under AWAIT_ALL, mapAndCombine gated its combine through\n  Futures.allAsList(views), so every element failure after the first was\n  logged at SEVERE as \"Got more than one input Future failure\". The AWAIT_ALL\n  gate is now one successfulAsList listener that submits the combine when all\n  elements succeeded and skips it otherwise. The new\n  severalElementFailuresUnderAwaitAllAreNotLoggedAsAggregateFailures fails\n  without the fix ([SEVERE, SEVERE]); the test class no longer mutes the\n  aggregate logger.\n- codex:5 (test quality): the two deadline-after-failure tests used a real\n  200 ms deadline that a loaded runner could hit before the failure settled;\n  they now advance a ManualClock after the outcomes are recorded.\n  ScopeTerminationOrderTest's caller-parked wait now fails instead of\n  silently giving up.\n- codex:0 (contract text): JoinPolicy and cancellation-propagation.md 1.1\n  said a direct member cancellation leaves siblings ABORTED_BY_FAIL_FAST; in a\n  group it cancels the group token and siblings read\n  CANCELLED_BY_PARENT_SCOPE, unchanged behavior that the text now states.\n- codex:2 (public docs): JoinPolicy, GroupStart, the user guides, the\n  graveyard and philosophy pages, and the changelog listed close() among the\n  cancellation sources; the scope close() is package-private and\n  ParRuntime.close() does not cancel admitted work, so it is removed there.\n- codex:3, codex:4 (contract drift): task-group-cancellation.md still\n  described the single-CAS, cancellation-first scope derivation, and\n  task-group-lifecycle.md and the adopt Javadoc stated the fail-fast cascade\n  without the policy qualification.\n\nMUST: under AWAIT_ALL, no aggregate over a batch's element futures logs an\nordinary element failure."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "5d666a5764fcbe3c2bf30d32038e45e6dfdce2001326a9e77127e9a6a9ea7de2",
+    "bytes": 49314,
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 8
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "status": "M",
+        "additions": 51,
+        "deletions": 26
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 9
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java",
+        "status": "M",
+        "additions": 8,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+        "status": "M",
+        "additions": 111,
+        "deletions": 37
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "status": "M",
+        "additions": 35,
+        "deletions": 1
+      },
+      {
+        "path": "design/cancellation-propagation.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "design/task-group-cancellation.md",
+        "status": "M",
+        "additions": 11,
+        "deletions": 13
+      },
+      {
+        "path": "design/task-group-lifecycle.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 3
+      },
+      {
+        "path": "design/task-group-terminal-combine.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": "design/task-termination-and-scope.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/user-guide.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "docs/zh/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "docs/zh/design/philosophy.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "docs/zh/user-guide.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 3
+      },
+      {
+        "path": "verification/race-claims/claims.json",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "a3094666ab4eaac2a4f90669455c49d4c39c12faaa29a57cc3a7b8d4095d518f",
+    "bytes": 2138,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

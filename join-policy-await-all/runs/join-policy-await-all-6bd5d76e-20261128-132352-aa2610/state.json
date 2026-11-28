@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "llm-review-bench/state/v1",
+  "runId": "join-policy-await-all-6bd5d76e-20261128-132352-aa2610",
+  "status": "completed",
+  "createdAt": "2026-11-28T13:23:52.983Z",
+  "updatedAt": "2026-11-28T15:31:57.801Z",
+  "steps": {
+    "case": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T13:23:53.008Z",
+      "error": null
+    },
+    "reviews": {
+      "codex": {
+        "agent": "codex",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "failed",
+            "startedAt": "2026-11-28T13:23:53.014Z",
+            "endedAt": "2026-11-28T13:55:48.977Z",
+            "durationMs": 1915803,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": "invalid review output: codex attempt 1: no JSON review object with a findings array was found",
+            "recordPath": "reviews/codex/attempt-1.json",
+            "logBase": "logs/codex-attempt-1"
+          },
+          {
+            "attempt": 2,
+            "status": "completed",
+            "startedAt": "2026-11-28T13:58:32.378Z",
+            "endedAt": "2026-11-28T14:05:08.700Z",
+            "durationMs": 396233,
+            "exitCode": 0,
+            "timedOut": false,
+            "error": null,
+            "recordPath": "reviews/codex/attempt-2.json",
+            "logBase": "logs/codex-attempt-2"
+          }
+        ],
+        "updatedAt": "2026-11-28T14:05:08.715Z"
+      }
+    },
+    "derivation": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T13:55:49.062Z",
+      "error": null
+    },
+    "evaluation": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T13:55:49.112Z",
+      "error": null
+    },
+    "report": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T13:55:49.173Z",
+      "error": null
+    },
+    "cleanup": {
+      "status": "completed",
+      "updatedAt": "2026-11-28T15:31:57.760Z",
+      "error": null
+    }
+  },
+  "eventSeq": 180
+}

@@ -1,0 +1,323 @@
+{
+  "agents": [
+    {
+      "id": "M",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "C-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "D-1",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "S-1",
+      "status": "completed",
+      "error": null,
+      "findings": 0,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "V-1",
+      "status": "completed",
+      "error": null,
+      "findings": 2,
+      "budgetDropped": 0,
+      "invalid": []
+    },
+    {
+      "id": "T-1",
+      "status": "completed",
+      "error": null,
+      "findings": 1,
+      "budgetDropped": 0,
+      "invalid": []
+    }
+  ],
+  "findings": [
+    {
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "TaskGroup#skipCombineAfterAllMembersSettled",
+      "refactoring": "Extract Function / Move Function onto the scope token (or a small shared helper) so the rule 'under AWAIT_ALL, once every member settles with at least one failure, commit fail-fast to cancel the never-submitted terminal combine' has one owner",
+      "rules": [
+        "M05"
+      ],
+      "tier": "T2",
+      "scope": "in-diff",
+      "rationales": [
+        "The same rule is written twice with different member-settle tracking: TaskGroup#skipCombineAfterAllMembersSettled counts settledMembers per completion and compares memberSuccesses, while Par#executeCombined's onFailure callback builds a second Futures.successfulAsList(views) aggregate and fires unit.cancellationToken().failFastCancel() from its listener. Both then rely on failFastCancel() to cancel a combine that was bound but never submitted, producing ABORTED_BY_FAIL_FAST. Centralizing the rule (e.g. a package-private CancellationToken method fed by each caller's member-settle signal) makes the skip timing, the failure gate, and the ABORTED_BY_FAIL_FAST attribution change in exactly one place instead of two protocol implementations."
+      ],
+      "behaviorRisks": [
+        "Must keep the settling thread committing FAIL_FAST before the convergence barrier counts the terminal combine; the terminal must still read ABORTED_BY_FAIL_FAST and never run; the all-success submit path and the FAIL_FAST path (where the token's own aggregate already cancels the combine) must stay untouched; deadline, cancelOn, and parent cancellation must still cancel every unfinished member."
+      ],
+      "guardingTests": [
+        "AwaitAllJoinPolicyTest",
+        "ParMapAndCombineTest",
+        "TaskGroupConvergenceTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "M",
+          "rule": "M05"
+        }
+      ],
+      "flags": [],
+      "id": "R1"
+    },
+    {
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "TaskGroup#failedTask",
+      "refactoring": "Convert internal invariant to Verify.verifyNotNull",
+      "rules": [
+        "D02"
+      ],
+      "tier": "T1",
+      "scope": "in-diff",
+      "rationales": [
+        "failedTask() is documented to run only at convergence, when every member and combine termination is already recorded, so the `termination != null` guard can never be false. Treating the impossible null as \"not failed\" silently masks a broken invariant and could let the group report success or a wrong cancellation; the neighboring code (memberSnapshot, freezeValues) states this same invariant with `Verify.verifyNotNull(member.termination, \"member termination is recorded before convergence\")`. Replacing the guard with that Verify makes the invariant explicit, fail-fast, and consistent with the Guava conditional-failure taxonomy."
+      ],
+      "behaviorRisks": [
+        "None on reachable paths: convergence guarantees a non-null termination for every member and the combine, so the Verify never fires in any state the tests can reach."
+      ],
+      "guardingTests": [
+        "AwaitAllJoinPolicyTest",
+        "ScopeTerminationOrderTest",
+        "TaskGroupConvergenceTest",
+        "TaskGroupFailedTaskResultTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "D-1",
+          "rule": "D02"
+        }
+      ],
+      "flags": [],
+      "id": "R2"
+    },
+    {
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "TaskGroup#skipCombineAfterAllMembersSettled",
+      "refactoring": "Move Comment (Javadoc \u2192 block comment): keep only the behavioral contract in Javadoc and move the ordering/race proof beside the statements it justifies",
+      "rules": [
+        "V04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The Javadoc's second half ('Called by each member's completion after its own success count is published, so the thread that settles the last member sees every member's count; the cascade completes the combine, whose own completion runs nested on this thread before the calling member is counted by the convergence barrier') is a maintainer-only ordering/race proof. ADR 0012 and the conventions require such proofs in ordinary block comments next to the statements, not in Javadoc; moving it makes the proof reviewable against the exact statements it guards while the Javadoc keeps only the callable contract."
+      ],
+      "behaviorRisks": [
+        "none"
+      ],
+      "guardingTests": [
+        "AwaitAllJoinPolicyTest",
+        "TaskGroupCombineGuardCancellationTest",
+        "TaskGroupCombineInlineGuardTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "V-1",
+          "rule": "V04"
+        }
+      ],
+      "flags": [],
+      "id": "R3"
+    },
+    {
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+      "symbol": "TaskBatch#deriveScopeTermination",
+      "refactoring": "Move Comment (Javadoc \u2192 block comment): keep the frozen-data/orThrow contract in Javadoc and move the precedence enumeration into an ordinary in-method comment",
+      "rules": [
+        "V04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "The 'in this order: first FAILED element ... first cancelled element' enumeration is a maintainer-only local protocol (the derivation algorithm), while the final sentence ('depends only on frozen data, never on settlement order, so it names the same failure orThrow() throws') is the contract a reader relies on. Per ADR 0012 and the conventions, the algorithm belongs in an ordinary block comment inside the private method, leaving Javadoc to state only the contract."
+      ],
+      "behaviorRisks": [
+        "none"
+      ],
+      "guardingTests": [
+        "BatchSettleAttributionTest",
+        "ScopeTerminationOrderTest",
+        "TaskBatchResultTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "V-1",
+          "rule": "V04"
+        }
+      ],
+      "flags": [],
+      "id": "R4"
+    },
+    {
+      "file": "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+      "symbol": "AwaitAllJoinPolicyTest#everyMemberSucceedingStillRunsTheCombine",
+      "refactoring": "Extract Function (test setup helper)",
+      "rules": [
+        "T04"
+      ],
+      "tier": "T0",
+      "scope": "in-diff",
+      "rationales": [
+        "everyMemberSucceedingStillRunsTheCombine, theLastMemberFailureCancelsTheCombineBeforeConvergence, and aSuccessfulLastMemberAfterAnEarlierFailureStillCancelsTheCombine each rebuild the identical scaffold \u2014 a ParRuntime registering a direct executor, two SettableFuture members adopted into an AWAIT_ALL group draft, and a combine submitted with submitAll \u2014 differing only in the group name and the combine lambda. A private helper that takes the name and combine function and returns the futures plus the submitted group would make the combine-cancellation setup a single point of change, leaving each test to state only its settle order and assertions."
+      ],
+      "behaviorRisks": [
+        "none; each test keeps its own settle order, combine lambda, and literal assertion values, and no test input or timing changes."
+      ],
+      "guardingTests": [
+        "AwaitAllJoinPolicyTest"
+      ],
+      "mechanizable": false,
+      "sources": [
+        {
+          "agent": "T-1",
+          "rule": "T04"
+        }
+      ],
+      "flags": [],
+      "id": "R5"
+    }
+  ],
+  "conflicts": [
+    {
+      "file": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "TaskGroup#skipCombineAfterAllMembersSettled",
+      "ids": [
+        "R1",
+        "R3"
+      ]
+    }
+  ],
+  "uncovered": [
+    {
+      "lens": "C",
+      "shard": 2,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java"
+      ],
+      "codeLines": 178
+    },
+    {
+      "lens": "D",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 146
+    },
+    {
+      "lens": "S",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 146
+    },
+    {
+      "lens": "V",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java"
+      ],
+      "codeLines": 142
+    },
+    {
+      "lens": "T",
+      "shard": 2,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationTest.java"
+      ],
+      "codeLines": 139
+    },
+    {
+      "lens": "C",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java"
+      ],
+      "codeLines": 177
+    },
+    {
+      "lens": "T",
+      "shard": 3,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java"
+      ],
+      "codeLines": 76
+    },
+    {
+      "lens": "C",
+      "shard": 4,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java"
+      ],
+      "codeLines": 82
+    }
+  ],
+  "totals": {
+    "findings": 5,
+    "byTier": {
+      "T0": 3,
+      "T1": 1,
+      "T2": 1
+    },
+    "incompleteAgents": 0
+  }
+}

@@ -1,0 +1,4 @@
+66886dd3 test: match the fail-fast commit-order mutation to the policy-guarded callback
+7965e6b1 feat: add a per-scope join policy with AWAIT_ALL
+37fb7677 test: keep the convergence test name and except the removed accumulator test
+2879fa6c fix: derive the scope termination from frozen results, not settle order

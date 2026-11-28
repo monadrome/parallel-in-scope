@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "join-policy-await-all-ce7b5cc2-20261128-125101-c0b616",
+  "version": 1,
+  "createdAt": "2026-11-28T13:13:52.839Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C04",
+      "findingIds": [
+        "codex:3"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C05",
+      "findingIds": [
+        "codex:4"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C06",
+      "findingIds": [
+        "codex:5"
+      ],
+      "note": null
+    }
+  ]
+}

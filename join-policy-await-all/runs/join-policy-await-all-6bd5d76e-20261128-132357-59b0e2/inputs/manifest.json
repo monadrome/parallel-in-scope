@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "join-policy-await-all-6bd5d76e-20261128-132357-59b0e2",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T13:23:58.238Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all",
+    "name": "join-policy-await-all",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "head": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "to": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "label": "ce7b5cc2..6bd5d76e"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "5d666a5764fcbe3c2bf30d32038e45e6dfdce2001326a9e77127e9a6a9ea7de2",
+    "bytes": 49314,
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 8
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "status": "M",
+        "additions": 51,
+        "deletions": 26
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "status": "M",
+        "additions": 5,
+        "deletions": 9
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java",
+        "status": "M",
+        "additions": 8,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+        "status": "M",
+        "additions": 111,
+        "deletions": 37
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "status": "M",
+        "additions": 35,
+        "deletions": 1
+      },
+      {
+        "path": "design/cancellation-propagation.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "design/task-group-cancellation.md",
+        "status": "M",
+        "additions": 11,
+        "deletions": 13
+      },
+      {
+        "path": "design/task-group-lifecycle.md",
+        "status": "M",
+        "additions": 5,
+        "deletions": 3
+      },
+      {
+        "path": "design/task-group-terminal-combine.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": "design/task-termination-and-scope.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/user-guide.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "docs/zh/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "docs/zh/design/philosophy.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "docs/zh/user-guide.md",
+        "status": "M",
+        "additions": 2,
+        "deletions": 3
+      },
+      {
+        "path": "verification/race-claims/claims.json",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "a3094666ab4eaac2a4f90669455c49d4c39c12faaa29a57cc3a7b8d4095d518f",
+    "bytes": 2138,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "67f360619b71577ce45ce19c2999eb53cfdeb0fbe839025934fb6b1383a53cd1",
+    "bytes": 6971
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

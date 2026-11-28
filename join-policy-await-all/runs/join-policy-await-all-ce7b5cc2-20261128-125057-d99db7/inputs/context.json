@@ -1,0 +1,309 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "join-policy-await-all-ce7b5cc2-20261128-125057-d99db7",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T12:50:57.637Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all",
+    "name": "join-policy-await-all",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "729cb8742acc529db16980e12e7433ea91fe1311",
+    "head": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "729cb8742acc529db16980e12e7433ea91fe1311",
+    "to": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "label": "729cb874..ce7b5cc2"
+  },
+  "objective": {
+    "subject": "refactor: tighten the join-policy derivations and their test setup",
+    "body": "Behavior-preserving items from refactoring-review run\nrefactoring-feat-join-policy-await-all-2026-11-28:\n\n- R2: TaskGroup#failedTask reads each termination through\n  Verify.verifyNotNull, stating the convergence invariant the neighbouring\n  snapshot code already states, instead of treating an impossible null as\n  \"not failed\".\n- R3: the ordering proof of skipCombineAfterAllMembersSettled moves from its\n  Javadoc into a block comment beside the statement it justifies.\n- R4: the priority list of TaskBatch#deriveScopeTermination moves from its\n  Javadoc into a block comment; the Javadoc keeps the contract.\n- R5: the three AWAIT_ALL combine tests share adoptedPairWithCombine for their\n  identical setup; assertions and settle orders are unchanged.\n\nThe group-scope-termination-declaration-order mutation follows R2's new text.\nGuarding tests: AwaitAllJoinPolicyTest, ScopeTerminationOrderTest,\nTaskGroupConvergenceTest, TaskGroupFailedTaskResultTest, TaskBatchResultTest,\nBatchSettleAttributionTest; full mvn test passes."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "009c3311773f1f716d9e59753c351f8e42b8204aac3dc1d3634a6c498248d2df",
+    "bytes": 181577,
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "M",
+        "additions": 27,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/BatchCombinedResult.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "status": "M",
+        "additions": 53,
+        "deletions": 8
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationReason.java",
+        "status": "M",
+        "additions": 6,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "status": "M",
+        "additions": 54,
+        "deletions": 20
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "status": "M",
+        "additions": 16,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "status": "M",
+        "additions": 27,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "status": "A",
+        "additions": 31,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "status": "M",
+        "additions": 17,
+        "deletions": 5
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "status": "M",
+        "additions": 0,
+        "deletions": 8
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "status": "D",
+        "additions": 0,
+        "deletions": 54
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "status": "M",
+        "additions": 48,
+        "deletions": 25
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "status": "M",
+        "additions": 75,
+        "deletions": 71
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+        "status": "M",
+        "additions": 9,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+        "status": "A",
+        "additions": 585,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java",
+        "status": "M",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+        "status": "M",
+        "additions": 7,
+        "deletions": 7
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "status": "M",
+        "additions": 28,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "status": "A",
+        "additions": 118,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 12
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java",
+        "status": "A",
+        "additions": 92,
+        "deletions": 0
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java",
+        "status": "M",
+        "additions": 8,
+        "deletions": 2
+      },
+      {
+        "path": "design/batch-terminal-combine.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 2
+      },
+      {
+        "path": "design/cancellation-propagation.md",
+        "status": "M",
+        "additions": 60,
+        "deletions": 5
+      },
+      {
+        "path": "design/first-principles.md",
+        "status": "M",
+        "additions": 3,
+        "deletions": 1
+      },
+      {
+        "path": "design/task-group-api-and-options.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "design/task-group-cancellation.md",
+        "status": "M",
+        "additions": 14,
+        "deletions": 9
+      },
+      {
+        "path": "design/task-group-lifecycle.md",
+        "status": "M",
+        "additions": 10,
+        "deletions": 21
+      },
+      {
+        "path": "design/task-group-observability-and-verification.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "design/task-group-terminal-combine.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 1
+      },
+      {
+        "path": "design/task-termination-and-scope.md",
+        "status": "M",
+        "additions": 34,
+        "deletions": 18
+      },
+      {
+        "path": "docs/en/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 17,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/design/philosophy.md",
+        "status": "M",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "docs/en/user-guide.md",
+        "status": "M",
+        "additions": 49,
+        "deletions": 8
+      },
+      {
+        "path": "docs/zh/design/idea-graveyard.md",
+        "status": "M",
+        "additions": 32,
+        "deletions": 27
+      },
+      {
+        "path": "docs/zh/design/philosophy.md",
+        "status": "M",
+        "additions": 8,
+        "deletions": 22
+      },
+      {
+        "path": "docs/zh/user-guide.md",
+        "status": "M",
+        "additions": 40,
+        "deletions": 6
+      },
+      {
+        "path": "scripts/check-verification-integrity.py",
+        "status": "M",
+        "additions": 7,
+        "deletions": 0
+      },
+      {
+        "path": "verification/race-claims/claims.json",
+        "status": "M",
+        "additions": 125,
+        "deletions": 10
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "127b47367da20488335a052625e558ae9bf4097ef0dbf2e0957520c9334ed565",
+    "bytes": 3186,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "ce7b5cc2b86d07ec32a861916ba029e9d9beba3a",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

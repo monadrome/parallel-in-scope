@@ -1,0 +1,69 @@
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+index 2ee1f112..736c4b8f 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+@@ -16,6 +16,7 @@ import java.util.Collections;
+ import java.util.List;
+ import java.util.Objects;
+ import java.util.concurrent.Callable;
++import java.util.concurrent.CancellationException;
+ import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.function.Function;
+@@ -319,12 +320,9 @@ public final class Par {
+     /** Whether every future is done and succeeded; callers pass only settled futures. */
+     private static boolean allSucceeded(List<? extends ListenableFuture<?>> futures) {
+         for (ListenableFuture<?> future : futures) {
+-            if (future.isCancelled()) {
+-                return false;
+-            }
+             try {
+                 Futures.getDone(future);
+-            } catch (ExecutionException failed) {
++            } catch (ExecutionException | CancellationException notSuccessful) {
+                 return false;
+             }
+         }
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+index a10fdc06..5d3db6b4 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+@@ -30,8 +30,8 @@ import org.jspecify.annotations.Nullable;
+  * <p>Under {@link JoinPolicy#FAIL_FAST} a failed batch typically holds the failure, the elements
+  * that succeeded before it, and siblings cancelled with {@link
+  * CancellationReason.Kind#ABORTED_BY_FAIL_FAST}. Under {@link JoinPolicy#AWAIT_ALL} every element
+- * holds its own outcome; only a deadline, a {@code cancelOn} source, an enclosing scope, or {@code
+- * close()} cancels elements.
++ * holds its own outcome; only a deadline, a {@code cancelOn} source, or an enclosing scope cancels
++ * elements.
+  *
+  * <p>Terminal results do not prove resource release: cancellation can settle before an execution exits.
+  * Check executionExitConfirmed before releasing resources shared by this batch's direct executions.
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java
+index 3dd46702..63487347 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java
+@@ -426,6 +426,23 @@ class AwaitAllJoinPolicyTest {
+         assertThatThrownBy(result::orThrow).isSameAs(failure);
+     }
+ 
++    @Test
++    void mapAndCombineRunsTheCombineWhenEveryElementSucceeded() {
++        pool = Executors.newFixedThreadPool(2);
++        runtime = ParRuntime.builder().register(ParId.of("pool"), pool).build();
++        Par par = runtime.par(ParId.of("pool"));
++
++        BatchCombinedResult<Integer, Integer> result = par.mapAndCombine(
++                Arrays.asList(1, 2, 3),
++                index -> index,
++                BatchOptions.timeout("all-succeed", TIMEOUT).joinPolicy(JoinPolicy.AWAIT_ALL),
++                par,
++                values -> values.stream().mapToInt(Integer::intValue).sum());
++
++        assertThat(result.terminalValueOrThrow()).isEqualTo(6);
++        TerminationAssertions.assertScopeSucceeded(result.termination());
++    }
++
+     @Test
+     void theSlidingWindowKeepsRefillingAfterAnElementFails() {
+         pool = Executors.newFixedThreadPool(1);

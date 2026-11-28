@@ -1,0 +1,12 @@
+{"agent": "M", "reviewer": "kimi", "attempt": 1, "status": "exit-1", "seconds": 3, "findings": null, "progress": "agents/M/attempt-1.progress.jsonl"}
+{"agent": "C-1", "reviewer": "kimi", "attempt": 1, "status": "exit-1", "seconds": 4, "findings": null, "progress": "agents/C-1/attempt-1.progress.jsonl"}
+{"agent": "D-1", "reviewer": "kimi", "attempt": 1, "status": "exit-1", "seconds": 4, "findings": null, "progress": "agents/D-1/attempt-1.progress.jsonl"}
+{"agent": "S-1", "reviewer": "kimi", "attempt": 1, "status": "timeout", "seconds": 1500, "findings": null, "progress": "agents/S-1/attempt-1.progress.jsonl"}
+{"agent": "V-1", "reviewer": "kimi", "attempt": 1, "status": "timeout", "seconds": 1500, "findings": null, "progress": "agents/V-1/attempt-1.progress.jsonl"}
+{"agent": "T-1", "reviewer": "kimi", "attempt": 1, "status": "timeout", "seconds": 1500, "findings": null, "progress": "agents/T-1/attempt-1.progress.jsonl"}
+{"agent": "M", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 266, "findings": 1, "progress": "agents/M/attempt-2.progress.jsonl"}
+{"agent": "C-1", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 133, "findings": 0, "progress": "agents/C-1/attempt-2.progress.jsonl"}
+{"agent": "D-1", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 212, "findings": 1, "progress": "agents/D-1/attempt-2.progress.jsonl"}
+{"agent": "S-1", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 135, "findings": 0, "progress": "agents/S-1/attempt-2.progress.jsonl"}
+{"agent": "V-1", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 115, "findings": 2, "progress": "agents/V-1/attempt-2.progress.jsonl"}
+{"agent": "T-1", "reviewer": "codex", "attempt": 2, "status": "completed", "seconds": 283, "findings": 1, "progress": "agents/T-1/attempt-2.progress.jsonl"}

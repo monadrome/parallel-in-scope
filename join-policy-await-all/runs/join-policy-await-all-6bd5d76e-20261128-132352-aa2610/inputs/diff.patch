@@ -1,0 +1,818 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 8d848cd2..8286ef1e 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,8 +8,8 @@
+   `GroupStart.joinPolicy(JoinPolicy)` (declared before the first member). `FAIL_FAST` is the
+   default and keeps today's behavior. Under `AWAIT_ALL` a failed or directly cancelled member ends
+   only itself: its siblings run to completion, a batch's sliding window keeps submitting, and the
+-  result holds every member's own outcome. The deadline, `cancelOn`, enclosing-scope
+-  cancellation, and `close()` still cancel every unfinished member. A declared group combine or
++  result holds every member's own outcome. The deadline, `cancelOn`, and enclosing-scope
++  cancellation still cancel every unfinished member. A declared group combine or
+   `mapAndCombine` combine still runs only when every member succeeded, and is otherwise cancelled
+   with `ABORTED_BY_FAIL_FAST` once the last member settles. The scope termination and `orThrow()`
+   report the first failure in input or declaration order under both policies. Before, a caller
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java b/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+index 148f84aa..954e79e8 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java
+@@ -377,14 +377,11 @@ final class CancellationToken {
+      * Cancels this token as a fail-fast cancellation, committing {@code FAIL_FAST} before the
+      * cascade runs.
+      *
+-     * <p>Intended for terminal combines, which are always the last task to complete. A group's
+-     * combine failure must commit the group state synchronously, so convergence reading the token
+-     * does not observe a still-{@code RUNNING} group and misattribute the terminal business
+-     * failure as a cancellation. Under {@link JoinPolicy#AWAIT_ALL}, a group or batch whose members
+-     * all settled with at least one non-success skips its combine through this path: every member
+-     * is already settled, so the cascade reaches only the never-submitted combine, which reads
+-     * {@code ABORTED_BY_FAIL_FAST}. Member failures keep the established rule and do not use this
+-     * path.
++     * <p>Intended for terminal combines under {@link JoinPolicy#AWAIT_ALL}: a group or batch whose
++     * members all settled with at least one non-success skips its combine through this path. Every
++     * member is already settled, so the cascade reaches only the never-submitted combine, which
++     * reads {@code ABORTED_BY_FAIL_FAST}. Member failures keep the bind's own rule and do not use
++     * this path.
+      */
+     void failFastCancel() {
+         if (transitionTo(FAIL_FAST)) {
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java b/core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
+index daa09b10..1aac16b8 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java
+@@ -63,8 +63,9 @@ public interface GroupStart {
+      * this member's result. The key supplies the name and type exactly as for {@link #par}.
+      *
+      * <p>From {@code runAll()} on the group owns {@code source}. Whatever cancels the group's
+-     * unfinished members — a failure, a deadline, {@link #cancelOn}, ancestor cancellation, or a
+-     * directly cancelled member — cancels the source with {@code cancel(true)}. When {@code
++     * unfinished members — a deadline, {@link #cancelOn}, ancestor cancellation, and under {@link
++     * JoinPolicy#FAIL_FAST} a failure or a directly cancelled member — cancels the source with
++     * {@code cancel(true)}. When {@code
+      * runAll()} fails admission, every adopted source is cancelled; a stale-stage or
+      * thread-confinement violation throws before the draft is consumed and leaves the sources
+      * untouched. Do not cancel
+@@ -201,8 +202,8 @@ public interface GroupStart {
+      * themselves; every other member runs to completion and keeps its own result. A declared
+      * combine still runs only when every member succeeded; otherwise it is cancelled without
+      * running once the last member settles. The group deadline, a member deadline, {@link
+-     * #cancelOn(ListenableFuture)}, an enclosing scope's cancellation, and {@code close()} still
+-     * cancel every unfinished member. The group termination is the first failure in declaration
++     * #cancelOn(ListenableFuture)}, and an enclosing scope's cancellation still cancel every
++     * unfinished member. The group termination is the first failure in declaration
+      * order, which {@link TaskGroupResult#orThrow()} throws.
+      *
+      * <p>Callable only before the first member is declared.
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java b/core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java
+index d9a37ac6..63ca43a1 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java
+@@ -6,16 +6,15 @@ package io.github.monadrome.parallelinscope;
+  *
+  * <p>The policy changes only when the scope's outcome is decided. Once it is decided, everything
+  * still running is cancelled and interrupted exactly as before. A deadline, a {@code cancelOn}
+- * source, an enclosing scope's cancellation, and {@code close()} cancel the scope under either
+- * policy. Either way the scope termination is the first failure in input or declaration order when
++ * source, and an enclosing scope's cancellation cancel the scope under either policy. Either way the scope termination is the first failure in input or declaration order when
+  * any member failed (see {@link ScopeTermination}), and {@code orThrow()} throws that failure.
+  */
+ public enum JoinPolicy {
+ 
+     /**
+      * The default. The first member that does not succeed decides the outcome: a failure or a
+-     * direct member cancellation cancels every unfinished sibling, which ends {@code CANCELLED}
+-     * with {@link CancellationReason.Kind#ABORTED_BY_FAIL_FAST}.
++     * direct member cancellation cancels every unfinished sibling. Siblings cancelled after a
++     * failure end {@code CANCELLED} with {@link CancellationReason.Kind#ABORTED_BY_FAIL_FAST}.
+      */
+     FAIL_FAST,
+ 
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+index 4d508ccc..2ee1f112 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/Par.java
+@@ -250,34 +250,44 @@ public final class Par {
+         bound.add(terminalView);
+         ListenableFuture<?> completion = bindAll(unit.cancellationToken(), options, bound, submitCanceller);
+         AtomicBoolean terminalSubmitted = new AtomicBoolean();
+-        Futures.addCallback(
+-                Futures.allAsList(views),
+-                new FutureCallback<List<R>>() {
+-                    @Override
+-                    public void onSuccess(@Nullable List<R> values) {
+-                        if (terminalSubmitted.compareAndSet(false, true) && !terminalFuture.isDone()) {
+-                            TaskSubmissions.submitScoped(
+-                                    terminalFuture,
+-                                    terminalUnit,
+-                                    combinePar.executorRuntime().submissionExecutor());
++        Runnable submitTerminal = () -> {
++            if (terminalSubmitted.compareAndSet(false, true) && !terminalFuture.isDone()) {
++                TaskSubmissions.submitScoped(
++                        terminalFuture,
++                        terminalUnit,
++                        combinePar.executorRuntime().submissionExecutor());
++            }
++        };
++        if (options.joinPolicy() == JoinPolicy.AWAIT_ALL) {
++            /* Nothing else settles the combine under await-all: once every element has settled, a
++             * non-success skips it by committing fail-fast on the batch token, which cancels the only
++             * future still bound to it. successfulAsList, unlike allAsList, does not log each
++             * additional element failure, which await-all makes ordinary. */
++            Futures.successfulAsList(views)
++                    .addListener(
++                            () -> {
++                                if (allSucceeded(views)) {
++                                    submitTerminal.run();
++                                } else {
++                                    unit.cancellationToken().failFastCancel();
++                                }
++                            },
++                            MoreExecutors.directExecutor());
++        } else {
++            // Under fail-fast the first non-success already cancelled the combine through the token.
++            Futures.addCallback(
++                    Futures.allAsList(views),
++                    new FutureCallback<List<R>>() {
++                        @Override
++                        public void onSuccess(@Nullable List<R> values) {
++                            submitTerminal.run();
+                         }
+-                    }
+ 
+-                    /* Under fail-fast the first non-success already cancelled the combine through the
+-                     * token. Under await-all nothing else will: once every element has settled, a
+-                     * non-success skips the combine by committing fail-fast on the batch token, which
+-                     * cancels the only future still bound to it. */
+-                    @Override
+-                    public void onFailure(Throwable failure) {
+-                        if (options.joinPolicy() == JoinPolicy.AWAIT_ALL) {
+-                            Futures.successfulAsList(views)
+-                                    .addListener(
+-                                            () -> unit.cancellationToken().failFastCancel(),
+-                                            MoreExecutors.directExecutor());
+-                        }
+-                    }
+-                },
+-                MoreExecutors.directExecutor());
++                        @Override
++                        public void onFailure(Throwable failure) {}
++                    },
++                    MoreExecutors.directExecutor());
++        }
+         runtime.trackAdmission(completion, executionExit);
+         TaskBatch<R> batch = submitter.submitAll(tasks, views);
+         submitCanceller.setFuture(batch.submitCanceller());
+@@ -306,6 +316,21 @@ public final class Par {
+         }
+     }
+ 
++    /** Whether every future is done and succeeded; callers pass only settled futures. */
++    private static boolean allSucceeded(List<? extends ListenableFuture<?>> futures) {
++        for (ListenableFuture<?> future : futures) {
++            if (future.isCancelled()) {
++                return false;
++            }
++            try {
++                Futures.getDone(future);
++            } catch (ExecutionException failed) {
++                return false;
++            }
++        }
++        return true;
++    }
++
+     /** Reads every element's successful value in input order; the success gate settled them all. */
+     private static <R> List<@Nullable R> settledValues(List<? extends ExecutionPhaseHintFuture<R>> tasks) {
+         List<@Nullable R> values = new ArrayList<>(tasks.size());
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+index ea1a948d..020dc46a 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java
+@@ -239,8 +239,9 @@ final class TaskBatch<T> implements AutoCloseable {
+     private ScopeTermination deriveScopeTermination(String batchName, List<ImmediateResult<T>> frozen) {
+         /* Priority: the first FAILED element in input order; the caller's own cancellation of the
+          * batch; success when no element was cancelled; the first element cancelled directly,
+-         * which triggered any cascade; the token's committed cancelling state; the first cancelled
+-         * element. */
++         * which triggered any cascade; the first cancelled element. Every element is attributed
++         * from the one batch token, so any other cancelled element already carries the token's
++         * committed reason. */
+         ImmediateResult<T> firstCancelled = null;
+         ImmediateResult<T> firstDirectlyCancelled = null;
+         for (ImmediateResult<T> result : frozen) {
+@@ -267,13 +268,8 @@ final class TaskBatch<T> implements AutoCloseable {
+         if (firstCancelled == null) {
+             return ScopeTermination.succeeded();
+         }
+-        if (firstDirectlyCancelled != null) {
+-            return ScopeTermination.cancelled(Verify.verifyNotNull(firstDirectlyCancelled.cancellationReason()));
+-        }
+-        CancellationReason committed =
+-                batchToken == null ? null : TokenOutcomes.cancellationReason(batchToken, batchName, null);
+-        return ScopeTermination.cancelled(
+-                committed != null ? committed : Verify.verifyNotNull(firstCancelled.cancellationReason()));
++        ImmediateResult<T> named = firstDirectlyCancelled != null ? firstDirectlyCancelled : firstCancelled;
++        return ScopeTermination.cancelled(Verify.verifyNotNull(named.cancellationReason()));
+     }
+ 
+     /**
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+index 971579f4..a10fdc06 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java
+@@ -51,7 +51,12 @@ public final class TaskBatchResult<T> {
+             List<ImmediateResult<T>> results,
+             List<@Nullable TaskExitObservation<T>> completions,
+             Map<String, Integer> unexitedExecutions) {
+-        this(batchName, results, completions, unexitedExecutions, null);
++        this(
++                batchName,
++                results,
++                completions,
++                unexitedExecutions,
++                ScopeTermination.fromResults(batchName, ImmutableList.copyOf(results)));
+     }
+ 
+     TaskBatchResult(
+@@ -59,13 +64,12 @@ public final class TaskBatchResult<T> {
+             List<ImmediateResult<T>> results,
+             List<@Nullable TaskExitObservation<T>> completions,
+             Map<String, Integer> unexitedExecutions,
+-            @Nullable ScopeTermination scopeTermination) {
++            ScopeTermination scopeTermination) {
+         this.batchName = batchName;
+         this.results = ImmutableList.copyOf(results);
+         this.completions = Collections.unmodifiableList(new ArrayList<>(completions));
+         this.unexitedExecutions = ImmutableMap.copyOf(unexitedExecutions);
+-        this.termination =
+-                scopeTermination == null ? ScopeTermination.fromResults(batchName, this.results) : scopeTermination;
++        this.termination = Verify.verifyNotNull(scopeTermination, "scope termination is derived before freezing");
+     }
+ 
+     /** Terminal values or failures in input order. */
+diff --git a/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java b/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+index 69f48d84..a0a49348 100644
+--- a/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
++++ b/core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java
+@@ -859,7 +859,6 @@ final class TaskGroup<R> implements AutoCloseable {
+             member.termination = classifyMemberTermination(member);
+             TaskTermination<Object> observedTermination = member.termination;
+ 
+-            boolean failed = observedTermination.kind() == TaskTermination.Kind.FAILED;
+             if (member != terminal && observedTermination.kind() == TaskTermination.Kind.SUCCESS) {
+                 memberSuccesses.incrementAndGet();
+             }
+@@ -870,9 +869,6 @@ final class TaskGroup<R> implements AutoCloseable {
+             if (joinPolicy == JoinPolicy.FAIL_FAST && cancelledDirectly(observedTermination)) {
+                 cancelGroupAndUnfinishedMembers();
+             }
+-            if (failed && member == terminal) {
+-                groupToken.failFastCancel();
+-            }
+             if (member != terminal) {
+                 skipCombineAfterAllMembersSettled();
+             }
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java
+index b73a81dc..3dd46702 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java
+@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.SettableFuture;
+ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.List;
++import java.util.concurrent.CopyOnWriteArrayList;
+ import java.util.concurrent.CountDownLatch;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Executors;
+@@ -15,11 +16,11 @@ import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.concurrent.atomic.AtomicReference;
++import java.util.logging.Handler;
+ import java.util.logging.Level;
++import java.util.logging.LogRecord;
+ import java.util.logging.Logger;
+-import org.junit.jupiter.api.AfterAll;
+ import org.junit.jupiter.api.AfterEach;
+-import org.junit.jupiter.api.BeforeAll;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.api.Timeout;
+ 
+@@ -55,28 +56,11 @@ class AwaitAllJoinPolicyTest {
+     private static final Logger AGGREGATE_FUTURE =
+             Logger.getLogger("com.google.common.util.concurrent.AggregateFuture");
+ 
+-    private static Level previousAggregateLevel;
+-
+     private ExecutorService pool;
+     private ExecutorService innerPool;
+     private ScheduledExecutorService timer;
+     private ParRuntime runtime;
+ 
+-    /*
+-     * Several tests fail more than one aggregated input on purpose; Guava logs each extra failure at
+-     * SEVERE. The assertions cover the behavior, so the noise is muted for this class.
+-     */
+-    @BeforeAll
+-    static void muteAggregateFailureLogging() {
+-        previousAggregateLevel = AGGREGATE_FUTURE.getLevel();
+-        AGGREGATE_FUTURE.setLevel(Level.OFF);
+-    }
+-
+-    @AfterAll
+-    static void restoreAggregateFailureLogging() {
+-        AGGREGATE_FUTURE.setLevel(previousAggregateLevel);
+-    }
+-
+     @AfterEach
+     void cleanUp() {
+         if (runtime != null) {
+@@ -281,20 +265,27 @@ class AwaitAllJoinPolicyTest {
+ 
+     @Test
+     void aGroupDeadlineAfterAFailureCancelsOnlyUnfinishedMembers() {
+-        runtime = ParRuntime.builder().build();
++        ManualClock clock = new ManualClock();
++        runtime = ParRuntime.builder()
++                .ticker(clock.ticker())
++                .timeoutScheduler(clock.scheduler())
++                .build();
+         IllegalStateException failure = new IllegalStateException("m0");
+         SettableFuture<String> failed = SettableFuture.create();
+-        failed.setException(failure);
+         SettableFuture<String> succeeded = SettableFuture.create();
+-        succeeded.set("ok");
+         SettableFuture<String> neverSettles = SettableFuture.create();
+-
+-        TaskGroupResult<Void> result = runtime.group("deadline-after-failure", Duration.ofMillis(200))
++        TaskGroup<Void> group = runtime.groupDraft("deadline-after-failure", Duration.ofSeconds(5))
+                 .joinPolicy(JoinPolicy.AWAIT_ALL)
+                 .adopt(TaskKey.<String>named("m0"), failed)
+                 .adopt(TaskKey.<String>named("m1"), succeeded)
+                 .adopt(TaskKey.<String>named("m2"), neverSettles)
+-                .runAll();
++                .submitAll();
++
++        failed.setException(failure);
++        succeeded.set("ok");
++        assertThat(neverSettles.isCancelled()).isFalse();
++        clock.advance(Duration.ofSeconds(5));
++        TaskGroupResult<Void> result = group.finish();
+ 
+         TerminationAssertions.assertUserFailure(result.resultOf("m0").termination());
+         assertThat(result.resultOf("m1").termination().value()).isEqualTo("ok");
+@@ -320,6 +311,38 @@ class AwaitAllJoinPolicyTest {
+         TerminationAssertions.assertScopeSucceeded(result.termination());
+     }
+ 
++    /**
++     * The combine runs on a pool and is still running when the last member's completion returns;
++     * the await-all skip must not cancel a combine that every member's success already submitted.
++     */
++    @Test
++    void aRunningCombineAfterEveryMemberSucceededIsNotCancelled() {
++        pool = Executors.newFixedThreadPool(1);
++        runtime = ParRuntime.builder().register(ParId.of("pool"), pool).build();
++        SettableFuture<String> first = SettableFuture.create();
++        SettableFuture<String> last = SettableFuture.create();
++        CountDownLatch combineStarted = new CountDownLatch(1);
++        CountDownLatch releaseCombine = new CountDownLatch(1);
++        TaskGroup<String> group = runtime.groupDraft("running-combine", TIMEOUT)
++                .joinPolicy(JoinPolicy.AWAIT_ALL)
++                .adopt(M0, first)
++                .adopt(M1, last)
++                .combine(TaskKey.<String>named("combine"), runtime.par(ParId.of("pool")), values -> {
++                    combineStarted.countDown();
++                    SettleSignallingExecutor.await(releaseCombine);
++                    return values.valueOf(M0) + "+" + values.valueOf(M1);
++                })
++                .submitAll();
++
++        first.set("a");
++        last.set("b");
++        SettleSignallingExecutor.await(combineStarted);
++        releaseCombine.countDown();
++        TaskGroupResult<String> result = group.finish();
++
++        assertThat(result.terminalValueOrThrow()).isEqualTo("a+b");
++    }
++
+     @Test
+     void theLastMemberFailureCancelsTheCombineBeforeConvergence() throws Exception {
+         SettableFuture<String> first = SettableFuture.create();
+@@ -425,29 +448,41 @@ class AwaitAllJoinPolicyTest {
+     }
+ 
+     @Test
+-    void aBatchDeadlineAfterAFailureCancelsOnlyUnfinishedElements() {
++    void aBatchDeadlineAfterAFailureCancelsOnlyUnfinishedElements() throws Exception {
++        ManualClock clock = new ManualClock();
+         pool = Executors.newFixedThreadPool(2);
+-        runtime = ParRuntime.builder().register(ParId.of("pool"), pool).build();
++        SettleSignallingExecutor executor = new SettleSignallingExecutor(pool, 2);
++        runtime = ParRuntime.builder()
++                .register(ParId.of("pool"), executor)
++                .ticker(clock.ticker())
++                .timeoutScheduler(clock.scheduler())
++                .build();
+         IllegalStateException failure = new IllegalStateException("element 0");
+-        CountDownLatch never = new CountDownLatch(1);
+-
+-        TaskBatchResult<Integer> result = runtime.par(ParId.of("pool"))
++        CountDownLatch secondStarted = new CountDownLatch(1);
++        AtomicReference<TaskBatchResult<Integer>> outcome = new AtomicReference<>();
++        Thread caller = new Thread(() -> outcome.set(runtime.par(ParId.of("pool"))
+                 .map(
+                         Arrays.asList(0, 1),
+                         index -> {
+                             if (index == 0) {
++                                executor.markCurrentRun();
+                                 throw failure;
+                             }
+-                            try {
+-                                never.await();
+-                            } catch (InterruptedException e) {
+-                                Thread.currentThread().interrupt();
+-                            }
++                            secondStarted.countDown();
++                            blockUntilInterrupted();
+                             return index;
+                         },
+-                        BatchOptions.timeout("deadline-after-failure", Duration.ofMillis(200))
+-                                .joinPolicy(JoinPolicy.AWAIT_ALL));
++                        BatchOptions.timeout("deadline-after-failure", Duration.ofSeconds(5))
++                                .joinPolicy(JoinPolicy.AWAIT_ALL))));
++        caller.start();
++
++        SettleSignallingExecutor.await(executor.markedRunReturned());
++        SettleSignallingExecutor.await(secondStarted);
++        clock.advance(Duration.ofSeconds(5));
++        caller.join(TimeUnit.SECONDS.toMillis(10));
+ 
++        assertThat(caller.isAlive()).isFalse();
++        TaskBatchResult<Integer> result = verifyNotNull(outcome.get());
+         TerminationAssertions.assertUserFailure(result.results().get(0).termination());
+         TerminationAssertions.assertCancelled(
+                 result.results().get(1).termination(), CancellationReason.Kind.DEADLINE_EXCEEDED);
+@@ -455,6 +490,45 @@ class AwaitAllJoinPolicyTest {
+         assertThatThrownBy(result::orThrow).isSameAs(failure);
+     }
+ 
++    /** Several await-all failures are ordinary outcomes; no aggregate may log them at SEVERE. */
++    @Test
++    void severalElementFailuresUnderAwaitAllAreNotLoggedAsAggregateFailures() {
++        pool = Executors.newFixedThreadPool(3);
++        runtime = ParRuntime.builder().register(ParId.of("pool"), pool).build();
++        Par par = runtime.par(ParId.of("pool"));
++        List<LogRecord> logged = new CopyOnWriteArrayList<>();
++        Handler capture = new Handler() {
++            @Override
++            public void publish(LogRecord record) {
++                logged.add(record);
++            }
++
++            @Override
++            public void flush() {}
++
++            @Override
++            public void close() {}
++        };
++        AGGREGATE_FUTURE.addHandler(capture);
++        try {
++            BatchCombinedResult<Integer, Integer> result = par.mapAndCombine(
++                    Arrays.asList(0, 1, 2),
++                    index -> {
++                        throw new IllegalStateException("element " + index);
++                    },
++                    BatchOptions.timeout("many-failures", TIMEOUT).joinPolicy(JoinPolicy.AWAIT_ALL),
++                    par,
++                    values -> values.size());
++
++            assertThat(result.batchResult().terminationKindCounts())
++                    .containsEntry(TaskTermination.Kind.FAILED, 3)
++                    .hasSize(1);
++        } finally {
++            AGGREGATE_FUTURE.removeHandler(capture);
++        }
++        assertThat(logged).extracting(LogRecord::getLevel).doesNotContain(Level.SEVERE);
++    }
++
+     @Test
+     void cancelOnStillCancelsAnAwaitAllBatch() {
+         pool = Executors.newFixedThreadPool(2);
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java
+index 91cc5a5f..1d6bd778 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/GroupDraftLifecycleTest.java
+@@ -329,6 +329,7 @@ class GroupDraftLifecycleTest {
+             // Every entry that mutates the draft is confined to its creating thread, including the
+             // configuration and submission entries, not only member declaration.
+             assertRejectedOffThread(() -> start.closeGrace(Duration.ZERO));
++            assertRejectedOffThread(() -> start.joinPolicy(JoinPolicy.AWAIT_ALL));
+             assertRejectedOffThread(start::submitAll);
+ 
+             GroupDraft.Start stepStart = global.groupDraft("page-2", TIMEOUT);
+diff --git a/core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java b/core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java
+index 144dbd31..3cf9598b 100644
+--- a/core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java
++++ b/core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java
+@@ -4,12 +4,14 @@ import static com.google.common.base.Verify.verifyNotNull;
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.assertj.core.api.Assertions.assertThatThrownBy;
+ 
++import com.google.common.util.concurrent.Futures;
+ import com.google.common.util.concurrent.SettableFuture;
+ import java.time.Duration;
+ import java.util.Arrays;
+ import java.util.concurrent.CountDownLatch;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Executors;
++import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.TimeUnit;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+@@ -42,6 +44,35 @@ class ScopeTerminationOrderTest {
+         assertSelectsTheFirstFailureInInputOrder(result, firstFailure);
+     }
+ 
++    /**
++     * A later element cancelled directly triggers the fail-fast cascade that cancels an earlier one:
++     * the directly cancelled element names the batch, not the first cancelled element in input
++     * order, which only reads the cascade.
++     */
++    @Test
++    void theDirectlyCancelledElementNamesTheBatchOverAnEarlierCascadeVictim() {
++        ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
++        try {
++            CancellationToken token = new CancellationToken();
++            SettableFuture<String> first = SettableFuture.create();
++            SettableFuture<String> second = SettableFuture.create();
++            TaskBatch<String> batch = PreparedStates.batchOver(token, Arrays.asList(first, second));
++            token.bind(Arrays.asList(first, second), Futures.immediateVoidFuture(), timer);
++
++            second.cancel(false);
++            TaskBatchResult<String> result = batch.finish();
++
++            TerminationAssertions.assertCancelled(
++                    result.results().get(0).termination(), CancellationReason.Kind.ABORTED_BY_FAIL_FAST);
++            TerminationAssertions.assertCancelled(
++                    result.results().get(1).termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
++            TerminationAssertions.assertScopeCancelled(
++                    result.termination(), CancellationReason.Kind.CANCELLED_BY_CALLER);
++        } finally {
++            timer.shutdownNow();
++        }
++    }
++
+     /**
+      * End to end on a pool: element 1 fails first and commits the batch's fail-fast; a token state
+      * listener holds that commit until element 0 has failed with its own business exception, so
+@@ -111,7 +142,10 @@ class ScopeTerminationOrderTest {
+      */
+     private static void awaitCallerParked(Thread caller) {
+         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+-        while (caller.getState() != Thread.State.WAITING && System.nanoTime() < deadline) {
++        while (caller.getState() != Thread.State.WAITING) {
++            if (System.nanoTime() >= deadline) {
++                throw new AssertionError("the caller never parked in the batch freeze wait");
++            }
+             Thread.yield();
+         }
+     }
+diff --git a/design/cancellation-propagation.md b/design/cancellation-propagation.md
+index bd7eebaa..3828836f 100644
+--- a/design/cancellation-propagation.md
++++ b/design/cancellation-propagation.md
+@@ -71,14 +71,15 @@ declares one `JoinPolicy` at admission; the default is `FAIL_FAST` and there is
+ default. The policy chooses only when the scope's outcome is decided; what follows the decision
+ (commit, cascade, interrupt, attribute, freeze) is shared.
+ 
+-- MUST: under `FAIL_FAST`, the first member failure or cancellation commits `FAIL_FAST` on the
+-  scope token and cancels every unfinished member; a group's direct member cancellation also
+-  cancels the group token and every unfinished member token.
++- MUST: under `FAIL_FAST`, the first member failure or cancellation cancels every unfinished
++  member. A failure commits `FAIL_FAST` on the scope token, so its siblings read
++  `ABORTED_BY_FAIL_FAST`; a group's direct member cancellation instead cancels the group token and
++  every unfinished member token, so its siblings read `CANCELLED_BY_PARENT_SCOPE`.
+ - MUST: under `AWAIT_ALL`, no member's failure or cancellation commits a token state or cancels a
+   sibling; the scope token commits `COMPLETED` when every bound future has settled, and a
+   batch's sliding window keeps refilling.
+ - MUST: the deadline, a member deadline escalating to its group, `cancelOn`, parent propagation,
+-  and `close()` cancel the scope under either policy; a `COMPLETED` token never propagates
++  and the internal scope `close()` cancel the scope under either policy; a `COMPLETED` token never propagates
+   cancellation (`shouldInterruptCurrentThread()` is false for it).
+ - MUST: a terminal combine runs only when every member succeeded. Under `AWAIT_ALL`, once every
+   member has settled and any did not succeed, the settling thread commits `FAIL_FAST` on the
+diff --git a/design/task-group-cancellation.md b/design/task-group-cancellation.md
+index cf270c7d..4506d8dc 100644
+--- a/design/task-group-cancellation.md
++++ b/design/task-group-cancellation.md
+@@ -12,12 +12,13 @@
+ 
+ The current result contract separates the cancellation reason from execution facts: a task
+ freezes as `Cancelled(CancellationReason)`, and whether user code started stays on the internal
+-execution record; a Batch/Group freezes as the three-state `ScopeTermination`, keeping
+-only the primary cause committed by a single CAS. The legacy outcome mapping is removed along
++execution record; a Batch/Group freezes as the three-state `ScopeTermination`, derived once at
++convergence from the frozen member results
++([task-termination-and-scope.md](task-termination-and-scope.md) §4). The legacy outcome mapping is removed along
+ with the internal outcome enum: `GROUP_CANCELLED`, `MEMBER_CANCELLED`, and `FAIL_FAST` are no
+ longer task reasons, and a task's cancellation reason is expressed only by `CancellationReason`. Reason objects carry the source identity of the parent, member,
+-deadline, or request entry; late business failures stay in member results and diagnostics and do
+-not overwrite an already-committed scope cause.
++deadline, or request entry; a recorded member failure outranks every cancellation in the scope
++termination, even one that committed first.
+ 
+ ### 8.1 Token structure
+ 
+@@ -154,15 +155,12 @@ futures): `TIMEOUT`/`FAIL_FAST`/`CANCELLED` map to
+ tokens still `RUNNING` means no framework path ever touched the member, i.e. direct user
+ cancellation, recorded `MEMBER_CANCELLED`.
+ 
+-The group-level outcome is likewise derived by reading the group token
+-(`TaskGroupResult.termination()`): `TIMEOUT` → `TIMEOUT`; `FAIL_FAST` → when a failed member
+-exists, keep that member's own outcome (`USER_FAILURE`/`SUBMISSION_FAILURE`), otherwise
+-(fail-fast triggered by direct member cancellation) record `MEMBER_CANCELLED`;
+-`PROPAGATED_CANCELLED` → attributed `TIMEOUT` or `GROUP_CANCELLED` per `originState()`;
+-`CANCELLED` (request source, internal direct group cancellation, or direct member cancellation
+-cascading) → `GROUP_CANCELLED`; while the token is still `RUNNING`/`COMPLETED`, a recorded failed
+-task keeps its outcome first (failure attribution does not drift with completion order),
+-otherwise all members successful records `SUCCESS`, otherwise `MEMBER_CANCELLED`.
++The group-level outcome (`TaskGroupResult.termination()`) is derived at convergence from the
++frozen member and combine terminations first and the group token second; the priority order is
++owned by [task-termination-and-scope.md](task-termination-and-scope.md) §4: the first failed task
++in declaration order, then all-success, then the first directly cancelled member
++(`CANCELLED_BY_MEMBER`), then the caller's own cancellation, then the group token's committed
++state.
+ 
+ Nested submissions have non-unique terminal states but deterministic attribution: a nested batch
+ inside a member callable inherits the group deadline, gets bound itself, and arms its own timer,
+diff --git a/design/task-group-lifecycle.md b/design/task-group-lifecycle.md
+index 84847fb5..01f0412f 100644
+--- a/design/task-group-lifecycle.md
++++ b/design/task-group-lifecycle.md
+@@ -244,10 +244,12 @@ caller's cancellation, and the token's committed state).
+ 
+ Rules:
+ 
+-- a non-success member outcome cancels the other unfinished members;
++- under `JoinPolicy.FAIL_FAST` a non-success member outcome cancels the other unfinished members;
++  under `JoinPolicy.AWAIT_ALL` it ends only that member
++  ([cancellation-propagation.md](cancellation-propagation.md) §1.1);
+ - `SUCCESS` can be fixed only when every frozen member succeeded;
+-- a single directly cancelled member cascades immediately: the group token is cancelled first,
+-  then the remaining unfinished members' tokens;
++- under `JoinPolicy.FAIL_FAST` a single directly cancelled member cascades immediately: the group
++  token is cancelled first, then the remaining unfinished members' tokens;
+ - the completion reason never depends on completion order, including when the group converges
+   while the group token is still `RUNNING` (member observers fire before the group bind
+   callback);
+diff --git a/design/task-group-terminal-combine.md b/design/task-group-terminal-combine.md
+index 47bc6963..3980c201 100644
+--- a/design/task-group-terminal-combine.md
++++ b/design/task-group-terminal-combine.md
+@@ -256,12 +256,12 @@ member to avoid disguising a combine failure as a member failure.
+ - attribution goes through the same package-private `TokenOutcomes` mapping table, with no new
+   mapping; the combine's failure, direct cancellation, or timeout fixes the Group at the
+   corresponding outcome, and members are already terminal with no siblings to roll back;
+-- the combine is always the last task to complete, so its failure must be committed by the
+-  framework synchronously as `FAIL_FAST` (`groupToken.failFastCancel()`) before convergence:
+-  the synchronous commit guarantees the cascading cancellation observes the committed group
+-  state and makes the failure record deterministically visible at convergence; member failures
+-  keep the existing attribution rules unchanged (the group-level outcome preferentially keeps
+-  the recorded failed task's outcome, see the lifecycle contract §6);
++- the combine is always the last task to complete, and its failure names the Group: the scope
++  termination is derived at convergence with the first failed task first
++  ([task-termination-and-scope.md](task-termination-and-scope.md) §4), so convergence needs no
++  synchronous token commit for it (the earlier `groupToken.failFastCancel()` on combine failure
++  was removed on 2026-11-28 as unobservable once that derivation landed); member failures keep
++  the existing attribution rules unchanged;
+ - the combine reuses the Group's token system, `ParRuntime.timeoutScheduler()`, and the
+   `TaskSubmissions` two-phase kernel, creating no new executor or timer service.
+ 
+diff --git a/design/task-termination-and-scope.md b/design/task-termination-and-scope.md
+index bf301e85..f30fb33d 100644
+--- a/design/task-termination-and-scope.md
++++ b/design/task-termination-and-scope.md
+@@ -192,8 +192,7 @@ settled never enters the derivation. The rules, in priority order:
+   identity, since every element shares the batch name); the caller's own cancellation of the
+   batch (`CANCELLED_BY_CALLER` with the batch name); `SUCCESS` when no element was cancelled; the
+   first element cancelled directly (its own `CANCELLED_BY_CALLER`), which triggered any cascade;
+-  the batch token's committed cancelling state through `TokenOutcomes`; the first cancelled
+-  element's reason.
++  the first cancelled element's reason, which every element reads from the one batch token.
+ - **Group** (`TaskGroup`): the first `FAILED` task, members in declaration order and then the
+   terminal combine, with that task's name as `failedTask`; `SUCCESS` when every member and the
+   combine succeeded; the first task cancelled directly, as `CANCELLED_BY_MEMBER` with its name;
+diff --git a/docs/en/design/idea-graveyard.md b/docs/en/design/idea-graveyard.md
+index feb39929..53fcfc4a 100644
+--- a/docs/en/design/idea-graveyard.md
++++ b/docs/en/design/idea-graveyard.md
+@@ -14,7 +14,7 @@ a failed or directly cancelled member ends only itself (see the [user guide](../
+ An earlier `failFast` switch was removed because it multiplied result states, split cancellation
+ into two paths, and hid real failures. `AWAIT_ALL` answers each point: it adds no result or scope
+ state (per-member `TaskTermination` already carries partial outcomes, and a scope with a failure
+-is `FAILED`), the deadline, `cancelOn`, enclosing scopes, and `close()` cancel exactly as under
++is `FAILED`), the deadline, `cancelOn`, and enclosing scopes cancel exactly as under
+ fail-fast, and a failure stays `FAILED`, names the scope, and is thrown by `orThrow()`. Catching
+ degradable business exceptions inside the task function and returning a domain result still
+ works; call `Checkpoints.checkpoint()` before degrading, because a broad `catch (Exception e)`
+diff --git a/docs/en/user-guide.md b/docs/en/user-guide.md
+index da369016..71eaca8b 100644
+--- a/docs/en/user-guide.md
++++ b/docs/en/user-guide.md
+@@ -126,8 +126,8 @@ for (ImmediateResult<Quote> quote : quotes.results()) {
+ 
+ Every element runs to completion, including those the sliding window has not submitted yet, and
+ `results()` holds each element's own outcome: a failed element stays `FAILED` with its
+-`FailureCause`. The batch deadline, `cancelOn`, an enclosing scope's cancellation, and `close()`
+-still cancel every unfinished element, so a deadline that fires after a failure ends the remaining
++`FailureCause`. The batch deadline, `cancelOn`, and an enclosing scope's cancellation still cancel
++every unfinished element, so a deadline that fires after a failure ends the remaining
+ elements with `DEADLINE_EXCEEDED`. The scope termination and `orThrow()` name the first failure in
+ input order, as under fail-fast. Prefer this over catching exceptions inside the function and
+ returning a fallback value: a broad `catch` also catches the cancellation that a deadline or
+@@ -203,7 +203,7 @@ member when every member must run regardless of its siblings, such as stopping e
+ during shutdown: a failed or directly cancelled member ends only itself, and `results()` holds every
+ member's own outcome. A declared combine is then cancelled with `ABORTED_BY_FAIL_FAST` once the last
+ member settles and any member did not succeed. The group deadline, a member deadline, `cancelOn`,
+-an enclosing scope, and `close()` cancel every unfinished member under either policy.
++and an enclosing scope cancel every unfinished member under either policy.
+ 
+ ```java
+ TaskKey<User> userKey = TaskKey.named("user");
+diff --git a/docs/zh/design/idea-graveyard.md b/docs/zh/design/idea-graveyard.md
+index 89655c25..7806dde1 100644
+--- a/docs/zh/design/idea-graveyard.md
++++ b/docs/zh/design/idea-graveyard.md
+@@ -23,8 +23,8 @@
+ 1. **结果模型爆炸。** `AWAIT_ALL` 不新增任何结果状态。每个成员本来就有自己的 `TaskTermination`，
+    fail-fast 下失败的批次也已经是"1 个 FAILED + 若干 SUCCESS + 其余 ABORTED_BY_FAIL_FAST"；作用域终止
+    仍是 SUCCESS / FAILED / CANCELLED 三态，有一个失败就是 `FAILED`，`orThrow()` 的门槛不变。
+-2. **取消语义模糊。** 变化的只是"何时决定结局"，不是取消本身。deadline、`cancelOn`、外层作用域和
+-   `close()` 在两种策略下以同样方式取消并中断；`bind()` 只按策略选择用哪个聚合来判定结局，
++2. **取消语义模糊。** 变化的只是"何时决定结局"，不是取消本身。deadline、`cancelOn` 和外层作用域
++   在两种策略下以同样方式取消并中断；`bind()` 只按策略选择用哪个聚合来判定结局，
+    之后的提交、级联、中断、归因、冻结都是同一条路径。
+ 3. **隐藏了真正的问题。** 失败仍是 `FAILED` 并保留 `FailureCause`，作用域仍报告第一个失败，
+    `orThrow()` 仍抛出它；默认仍是 fail-fast。
+diff --git a/docs/zh/design/philosophy.md b/docs/zh/design/philosophy.md
+index 586e78cb..f80abbf5 100644
+--- a/docs/zh/design/philosophy.md
++++ b/docs/zh/design/philosophy.md
+@@ -295,8 +295,8 @@ for (ExecutorWaitReport.Component cycle : global.executorWaitReport().cyclicComp
+ 
+ **现在的回答：** 我们曾经实现过 `failFast` 开关，后来主动删除了它：它让结果模型膨胀、取消语义分裂、
+ 失败被掩盖。0.5.0 重新提供的不是开关，而是一个按作用域声明的 `JoinPolicy`：默认 `FAIL_FAST`，
+-或 `AWAIT_ALL`（全部成员落定时才决定结局）。它不新增结果状态，deadline、`cancelOn`、外层作用域和
+-`close()` 照样取消，失败仍是 `FAILED` 并由 `orThrow()` 抛出。开放的策略接口、`IGNORE`/`COLLECT`
++或 `AWAIT_ALL`（全部成员落定时才决定结局）。它不新增结果状态，deadline、`cancelOn` 和外层作用域
++照样取消，失败仍是 `FAILED` 并由 `orThrow()` 抛出。开放的策略接口、`IGNORE`/`COLLECT`
+ 这类形式仍然不做，理由见 [Idea Graveyard](idea-graveyard.md)。
+ 
+ ### 内置重试（Retry）
+diff --git a/docs/zh/user-guide.md b/docs/zh/user-guide.md
+index 4531fc7a..40e8ac18 100644
+--- a/docs/zh/user-guide.md
++++ b/docs/zh/user-guide.md
+@@ -107,7 +107,7 @@ for (ImmediateResult<Quote> quote : quotes.results()) {
+ ```
+ 
+ 每个元素都会运行完，包括滑窗尚未提交的元素；`results()` 保存每个元素自己的结果，失败元素保持
+-`FAILED` 并带 `FailureCause`。批次 deadline、`cancelOn`、外层作用域的取消和 `close()` 照样取消
++`FAILED` 并带 `FailureCause`。批次 deadline、`cancelOn` 和外层作用域的取消照样取消
+ 所有未完成元素，因此失败之后到期的 deadline 会以 `DEADLINE_EXCEEDED` 结束剩余元素。作用域终止
+ 与 `orThrow()` 指向输入顺序上的第一个失败，与 fail-fast 相同。优先用它，而不是在函数里捕获异常
+ 并返回降级值：宽泛的 `catch` 也会捕获 deadline 或 `cancelOn` 投递给元素的取消，且降级值算作成功。
+@@ -172,8 +172,7 @@ combine 在提交线程 inline，明确注册的 direct executor 保持支持。
+ 运行、不受兄弟影响时（例如停机时逐个停止子系统），在首个成员之前声明
+ `.joinPolicy(JoinPolicy.AWAIT_ALL)`：失败或被直接取消的成员只结束它自己，`results()` 保存每个成员
+ 自己的结果。此时已声明的 combine 在最后一个成员落定且有成员未成功时以 `ABORTED_BY_FAIL_FAST`
+-取消。组 deadline、成员 deadline、`cancelOn`、外层作用域和 `close()` 在两种策略下都会取消所有
+-未完成成员。
++取消。组 deadline、成员 deadline、`cancelOn` 和外层作用域在两种策略下都会取消所有未完成成员。
+ 
+ ```java
+ TaskKey<User> userKey = TaskKey.named("user");
+diff --git a/verification/race-claims/claims.json b/verification/race-claims/claims.json
+index cd0e4a32..6c21ab0f 100644
+--- a/verification/race-claims/claims.json
++++ b/verification/race-claims/claims.json
+@@ -251,13 +251,13 @@
+     {
+       "id": "await-all-batch-combine-skip",
+       "protocol": "Par executeCombined",
+-      "claim": "Under AWAIT_ALL, once every element of a mapAndCombine batch has settled with a non-success, committing FAIL_FAST on the batch token cancels the never-submitted combine as ABORTED_BY_FAIL_FAST; without it the combine would stay pending until the batch deadline.",
++      "claim": "Under AWAIT_ALL, once every element of a mapAndCombine batch has settled, a successfulAsList listener submits the combine when all succeeded and otherwise commits FAIL_FAST on the batch token, cancelling the never-submitted combine as ABORTED_BY_FAIL_FAST; without the commit the combine would stay pending until the batch deadline.",
+       "method": "mutation",
+       "file": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+       "mutations": [
+         {
+-          "find": "                        if (options.joinPolicy() == JoinPolicy.AWAIT_ALL) {",
+-          "replace": "                        if (options.joinPolicy() == JoinPolicy.FAIL_FAST) {"
++          "find": "                                } else {\n                                    unit.cancellationToken().failFastCancel();\n                                }\n",
++          "replace": "                                } else {\n                                }\n"
+         }
+       ],
+       "tests": "AwaitAllJoinPolicyTest#mapAndCombineSkipsTheCombineOnceEveryElementSettledWithAFailure",

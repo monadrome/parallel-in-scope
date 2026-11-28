@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "join-policy-await-all-6bd5d76e-20261128-132357-59b0e2",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-28T14:23:24.907Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "rejected",
+      "goldLabelIds": [],
+      "rationale": "Unreachable through the public API: Par.map, mapAndCombine, and runAll are synchronous, so a member's nested scopes finish before the member settles, and the combine runs only after every member succeeded. Nothing bound below the group token is running when the combine fails, so removing the synchronous failFastCancel loses no propagation. Recorded in e4dc3e01.",
+      "confidence": 0.9
+    }
+  ]
+}

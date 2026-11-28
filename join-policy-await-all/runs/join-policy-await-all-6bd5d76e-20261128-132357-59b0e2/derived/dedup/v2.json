@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "join-policy-await-all-6bd5d76e-20261128-132357-59b0e2",
+  "version": 2,
+  "createdAt": "2026-11-28T14:23:24.884Z",
+  "method": "imported",
+  "note": "imported: single finding",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": "single finding"
+    }
+  ]
+}

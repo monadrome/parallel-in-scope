@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "join-policy-await-all-e4dc3e01-20261128-140108-2f5908",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T14:01:08.602Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all",
+    "name": "join-policy-await-all",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "head": "e4dc3e01c7970d4de2c0af6d80d22015f552da43",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "6bd5d76e6df59fa1cda7d69567e9c8439dbc18fc",
+    "to": "e4dc3e01c7970d4de2c0af6d80d22015f552da43",
+    "label": "6bd5d76e..e4dc3e01"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "955748e3ef6236ff64db9bf7af56259d6435a8bc3db5d2cff74b5530ec304c59",
+    "bytes": 3803,
+    "files": [
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java",
+        "status": "M",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+        "status": "M",
+        "additions": 17,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "fffd3d74ade4fb9e48a52145795ca97ddc687d84e9463f5b2d83864a19e1ae81",
+    "bytes": 645,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "a4764cff5c8728504e4dbd4dcab25b2ef0b333dfe9cda064337c18f33278f6db",
+    "bytes": 3384
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "e4dc3e01c7970d4de2c0af6d80d22015f552da43",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

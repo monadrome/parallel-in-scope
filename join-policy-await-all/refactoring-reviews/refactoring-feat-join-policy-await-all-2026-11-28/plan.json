@@ -1,0 +1,777 @@
+{
+  "version": 1,
+  "baseRef": "origin/dev/v0.5.0",
+  "base": "729cb8742acc529db16980e12e7433ea91fe1311",
+  "head": "66886dd38d579092835910bc660d734b075acbfc",
+  "rulesSource": "base",
+  "configKeysFromHead": [],
+  "evaluation": {
+    "stage": "gray-evaluation",
+    "purpose": "attention-routing evidence; not a quality score or CI gate",
+    "complexity": {
+      "version": "complexity-metrics/v1",
+      "stage": "gray-evaluation",
+      "purpose": "attention-routing evidence; not a quality score or CI gate",
+      "base": "729cb8742acc529db16980e12e7433ea91fe1311",
+      "head": "66886dd38d579092835910bc660d734b075acbfc",
+      "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+      "thresholds": {
+        "cyclomatic": 10,
+        "codeLines": 80,
+        "maxNesting": 4,
+        "deltaCyclomatic": 2,
+        "deltaCodeLines": 10,
+        "deltaMaxNesting": 1
+      },
+      "summary": {
+        "methods": 272,
+        "touchedCandidates": 5,
+        "injectedCandidates": 5
+      },
+      "candidates": [
+        {
+          "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+          "symbol": "CancellationToken#onFailure(Throwable failure)",
+          "startLine": 247,
+          "endLine": 254,
+          "cyclomatic": 2,
+          "cyclomaticParts": {
+            "if": 1,
+            "loop": 0,
+            "case": 0,
+            "catch": 0,
+            "ternary": 0,
+            "boolean": 0
+          },
+          "codeLines": 6,
+          "maxNesting": 1,
+          "nestingPath": "if",
+          "status": "modified",
+          "base": {
+            "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+            "symbol": "CancellationToken#onFailure(Throwable failure)",
+            "startLine": 224,
+            "endLine": 227,
+            "cyclomatic": 1,
+            "cyclomaticParts": {
+              "if": 0,
+              "loop": 0,
+              "case": 0,
+              "catch": 0,
+              "ternary": 0,
+              "boolean": 0
+            },
+            "codeLines": 4,
+            "maxNesting": 0,
+            "nestingPath": ""
+          },
+          "delta": {
+            "cyclomatic": 1,
+            "codeLines": 2,
+            "maxNesting": 1
+          },
+          "triggers": [
+            "delta.maxNesting>=threshold"
+          ]
+        },
+        {
+          "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+          "symbol": "Par#onFailure(Throwable failure)",
+          "startLine": 271,
+          "endLine": 278,
+          "cyclomatic": 2,
+          "cyclomaticParts": {
+            "if": 1,
+            "loop": 0,
+            "case": 0,
+            "catch": 0,
+            "ternary": 0,
+            "boolean": 0
+          },
+          "codeLines": 8,
+          "maxNesting": 1,
+          "nestingPath": "if",
+          "status": "modified",
+          "base": {
+            "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+            "symbol": "Par#onFailure(Throwable failure)",
+            "startLine": 266,
+            "endLine": 266,
+            "cyclomatic": 1,
+            "cyclomaticParts": {
+              "if": 0,
+              "loop": 0,
+              "case": 0,
+              "catch": 0,
+              "ternary": 0,
+              "boolean": 0
+            },
+            "codeLines": 1,
+            "maxNesting": 0,
+            "nestingPath": ""
+          },
+          "delta": {
+            "cyclomatic": 1,
+            "codeLines": 7,
+            "maxNesting": 1
+          },
+          "triggers": [
+            "delta.maxNesting>=threshold"
+          ]
+        },
+        {
+          "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+          "symbol": "TaskBatch#deriveScopeTermination(String batchName, List<ImmediateResult<T>> frozen)",
+          "startLine": 242,
+          "endLine": 276,
+          "cyclomatic": 13,
+          "cyclomaticParts": {
+            "if": 7,
+            "loop": 1,
+            "case": 0,
+            "catch": 0,
+            "ternary": 2,
+            "boolean": 2
+          },
+          "codeLines": 35,
+          "maxNesting": 3,
+          "nestingPath": "for>if>if",
+          "status": "added",
+          "base": null,
+          "delta": {
+            "cyclomatic": null,
+            "codeLines": null,
+            "maxNesting": null
+          },
+          "triggers": [
+            "head.cyclomatic>=threshold"
+          ]
+        },
+        {
+          "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+          "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+          "startLine": 555,
+          "endLine": 613,
+          "cyclomatic": 13,
+          "cyclomaticParts": {
+            "if": 3,
+            "loop": 1,
+            "case": 0,
+            "catch": 1,
+            "ternary": 5,
+            "boolean": 2
+          },
+          "codeLines": 59,
+          "maxNesting": 1,
+          "nestingPath": "for",
+          "status": "modified",
+          "base": {
+            "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+            "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+            "startLine": 555,
+            "endLine": 612,
+            "cyclomatic": 13,
+            "cyclomaticParts": {
+              "if": 3,
+              "loop": 1,
+              "case": 0,
+              "catch": 1,
+              "ternary": 5,
+              "boolean": 2
+            },
+            "codeLines": 58,
+            "maxNesting": 1,
+            "nestingPath": "for"
+          },
+          "delta": {
+            "cyclomatic": 0,
+            "codeLines": 1,
+            "maxNesting": 0
+          },
+          "triggers": [
+            "head.cyclomatic>=threshold"
+          ]
+        },
+        {
+          "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+          "symbol": "PreparationContext#memberCompleted(MemberState member)",
+          "startLine": 854,
+          "endLine": 884,
+          "cyclomatic": 12,
+          "cyclomaticParts": {
+            "if": 7,
+            "loop": 0,
+            "case": 0,
+            "catch": 0,
+            "ternary": 0,
+            "boolean": 4
+          },
+          "codeLines": 29,
+          "maxNesting": 1,
+          "nestingPath": "if",
+          "status": "modified",
+          "base": {
+            "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+            "symbol": "PreparationContext#memberCompleted(MemberState member)",
+            "startLine": 853,
+            "endLine": 890,
+            "cyclomatic": 12,
+            "cyclomaticParts": {
+              "if": 8,
+              "loop": 0,
+              "case": 0,
+              "catch": 0,
+              "ternary": 0,
+              "boolean": 3
+            },
+            "codeLines": 35,
+            "maxNesting": 1,
+            "nestingPath": "if"
+          },
+          "delta": {
+            "cyclomatic": 0,
+            "codeLines": -6,
+            "maxNesting": 0
+          },
+          "triggers": [
+            "head.cyclomatic>=threshold"
+          ]
+        }
+      ],
+      "omittedCandidates": 0,
+      "status": "completed"
+    }
+  },
+  "required": true,
+  "reason": "22 code file(s), 1003 changed code line(s)",
+  "totals": {
+    "codeFiles": 22,
+    "codeLines": 1003
+  },
+  "files": [
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+      "class": "main",
+      "codeLines": 44,
+      "commentLines": 15
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+      "class": "main",
+      "codeLines": 22,
+      "commentLines": 47
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+      "class": "main",
+      "codeLines": 15,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+      "class": "main",
+      "codeLines": 2,
+      "commentLines": 28
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+      "class": "main",
+      "codeLines": 5,
+      "commentLines": 23
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+      "class": "main",
+      "codeLines": 11,
+      "commentLines": 11
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+      "class": "main",
+      "codeLines": 3,
+      "commentLines": 4
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+      "class": "main",
+      "codeLines": 40,
+      "commentLines": 8
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+      "class": "main",
+      "codeLines": 60,
+      "commentLines": 11
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "class": "main",
+      "codeLines": 82,
+      "commentLines": 57
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+      "class": "main",
+      "codeLines": 6,
+      "commentLines": 3
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java",
+      "class": "main",
+      "codeLines": 2,
+      "commentLines": 4
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+      "class": "test",
+      "codeLines": 492,
+      "commentLines": 33
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java",
+      "class": "test",
+      "codeLines": 6,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+      "class": "test",
+      "codeLines": 14,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+      "class": "test",
+      "codeLines": 17,
+      "commentLines": 9
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+      "class": "test",
+      "codeLines": 1,
+      "commentLines": 0
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+      "class": "test",
+      "codeLines": 92,
+      "commentLines": 15
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationTest.java",
+      "class": "test",
+      "codeLines": 9,
+      "commentLines": 2
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java",
+      "class": "test",
+      "codeLines": 69,
+      "commentLines": 10
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java",
+      "class": "test",
+      "codeLines": 7,
+      "commentLines": 3
+    },
+    {
+      "path": "scripts/check-verification-integrity.py",
+      "class": "script",
+      "codeLines": 4,
+      "commentLines": 2
+    }
+  ],
+  "skippedFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/BatchCombinedResult.java",
+      "reason": "no changed code lines"
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationReason.java",
+      "reason": "no changed code lines"
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatchResult.java",
+      "reason": "no changed code lines"
+    },
+    {
+      "path": "core/src/test/java/io/github/monadrome/parallelinscope/TaskBatchResultTest.java",
+      "reason": "no changed code lines"
+    },
+    {
+      "path": "design/batch-terminal-combine.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/cancellation-propagation.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/first-principles.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-api-and-options.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-cancellation.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-lifecycle.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-observability-and-verification.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-group-terminal-combine.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "design/task-termination-and-scope.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/design/idea-graveyard.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/design/philosophy.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/en/user-guide.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/design/idea-graveyard.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/design/philosophy.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "docs/zh/user-guide.md",
+      "reason": "not a code path"
+    },
+    {
+      "path": "verification/race-claims/claims.json",
+      "reason": "not a code path"
+    }
+  ],
+  "lenses": [
+    "M",
+    "C",
+    "D",
+    "S",
+    "V",
+    "T"
+  ],
+  "mode": "sharded",
+  "agents": [
+    {
+      "id": "M",
+      "lenses": [
+        "M"
+      ],
+      "shard": null,
+      "wholeDiff": true,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 1003,
+      "budget": 3,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "design/interruption-contract.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/M/diff.patch",
+      "brief": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/M/brief.md",
+      "findings": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/M/findings.json"
+    },
+    {
+      "id": "C-1",
+      "lenses": [
+        "C"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java"
+      ],
+      "codeLines": 492,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/interruption-contract.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/C-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/C-1/brief.md",
+      "findings": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/C-1/findings.json"
+    },
+    {
+      "id": "D-1",
+      "lenses": [
+        "D"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java"
+      ],
+      "codeLines": 150,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/D-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/D-1/brief.md",
+      "findings": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/D-1/findings.json"
+    },
+    {
+      "id": "S-1",
+      "lenses": [
+        "S"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java"
+      ],
+      "codeLines": 150,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/S-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/S-1/brief.md",
+      "findings": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/S-1/findings.json"
+    },
+    {
+      "id": "V-1",
+      "lenses": [
+        "V"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroupDefinition.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TokenOutcomes.java"
+      ],
+      "codeLines": 150,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/AGENTS.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/V-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/V-1/brief.md",
+      "findings": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/V-1/findings.json"
+    },
+    {
+      "id": "T-1",
+      "lenses": [
+        "T"
+      ],
+      "shard": 1,
+      "wholeDiff": false,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/AwaitAllJoinPolicyTest.java"
+      ],
+      "codeLines": 492,
+      "budget": 2,
+      "routes": [
+        "AGENTS.md#key-conventions",
+        "AGENTS.md#design-decisions",
+        ".agents/skills/project-delivery/references/conventions.md",
+        "core/AGENTS.md",
+        "design/interruption-contract.md",
+        "adr/0012-contract-and-implementation-comment-layers.md"
+      ],
+      "reviewer": null,
+      "diff": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/T-1/diff.patch",
+      "brief": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/T-1/brief.md",
+      "findings": ".agents/reviews/refactoring-feat-join-policy-await-all-2026-11-28/agents/T-1/findings.json"
+    }
+  ],
+  "uncovered": [
+    {
+      "lens": "C",
+      "shard": 2,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java"
+      ],
+      "codeLines": 178
+    },
+    {
+      "lens": "D",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 146
+    },
+    {
+      "lens": "S",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "scripts/check-verification-integrity.py"
+      ],
+      "codeLines": 146
+    },
+    {
+      "lens": "V",
+      "shard": 2,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupDraft.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/GroupStart.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/JoinPolicy.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTermination.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java"
+      ],
+      "codeLines": 142
+    },
+    {
+      "lens": "T",
+      "shard": 2,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenBindRaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/CancellationTokenTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PreparedStates.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/PublicApiSurfaceTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationOrderTest.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/ScopeTerminationTest.java"
+      ],
+      "codeLines": 139
+    },
+    {
+      "lens": "C",
+      "shard": 3,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/BatchOptions.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/ScopeTerminationAccumulator.java",
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java"
+      ],
+      "codeLines": 177
+    },
+    {
+      "lens": "T",
+      "shard": 3,
+      "files": [
+        "core/src/test/java/io/github/monadrome/parallelinscope/SettleSignallingExecutor.java",
+        "core/src/test/java/io/github/monadrome/parallelinscope/TaskGroupConvergenceTest.java"
+      ],
+      "codeLines": 76
+    },
+    {
+      "lens": "C",
+      "shard": 4,
+      "files": [
+        "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java"
+      ],
+      "codeLines": 82
+    }
+  ],
+  "limits": {
+    "singleAgentMaxLines": 80,
+    "perLensMaxLines": 400,
+    "shardLines": 200,
+    "minShardLines": 40,
+    "maxAgents": 6,
+    "findingBudget": 12,
+    "singleAgentBudget": 8,
+    "minBudgetPerAgent": 2,
+    "wholeDiffLensMinBudget": 3,
+    "refactorGrowthRatio": 0.3,
+    "maxAcceptedFindings": 5
+  }
+}

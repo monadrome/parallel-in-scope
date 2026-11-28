@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "join-policy-await-all-e4dc3e01-20261128-140108-2f5908",
+  "version": 1,
+  "createdAt": "2026-11-28T14:03:16.682Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": []
+}

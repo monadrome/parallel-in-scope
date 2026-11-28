@@ -1,0 +1,233 @@
+{
+  "version": "complexity-metrics/v1",
+  "stage": "gray-evaluation",
+  "purpose": "attention-routing evidence; not a quality score or CI gate",
+  "base": "729cb8742acc529db16980e12e7433ea91fe1311",
+  "head": "66886dd38d579092835910bc660d734b075acbfc",
+  "scope": "core/src/main/java/io/github/monadrome/parallelinscope",
+  "thresholds": {
+    "cyclomatic": 10,
+    "codeLines": 80,
+    "maxNesting": 4,
+    "deltaCyclomatic": 2,
+    "deltaCodeLines": 10,
+    "deltaMaxNesting": 1
+  },
+  "summary": {
+    "methods": 272,
+    "touchedCandidates": 5,
+    "injectedCandidates": 5
+  },
+  "candidates": [
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+      "symbol": "CancellationToken#onFailure(Throwable failure)",
+      "startLine": 247,
+      "endLine": 254,
+      "cyclomatic": 2,
+      "cyclomaticParts": {
+        "if": 1,
+        "loop": 0,
+        "case": 0,
+        "catch": 0,
+        "ternary": 0,
+        "boolean": 0
+      },
+      "codeLines": 6,
+      "maxNesting": 1,
+      "nestingPath": "if",
+      "status": "modified",
+      "base": {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/CancellationToken.java",
+        "symbol": "CancellationToken#onFailure(Throwable failure)",
+        "startLine": 224,
+        "endLine": 227,
+        "cyclomatic": 1,
+        "cyclomaticParts": {
+          "if": 0,
+          "loop": 0,
+          "case": 0,
+          "catch": 0,
+          "ternary": 0,
+          "boolean": 0
+        },
+        "codeLines": 4,
+        "maxNesting": 0,
+        "nestingPath": ""
+      },
+      "delta": {
+        "cyclomatic": 1,
+        "codeLines": 2,
+        "maxNesting": 1
+      },
+      "triggers": [
+        "delta.maxNesting>=threshold"
+      ]
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+      "symbol": "Par#onFailure(Throwable failure)",
+      "startLine": 271,
+      "endLine": 278,
+      "cyclomatic": 2,
+      "cyclomaticParts": {
+        "if": 1,
+        "loop": 0,
+        "case": 0,
+        "catch": 0,
+        "ternary": 0,
+        "boolean": 0
+      },
+      "codeLines": 8,
+      "maxNesting": 1,
+      "nestingPath": "if",
+      "status": "modified",
+      "base": {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/Par.java",
+        "symbol": "Par#onFailure(Throwable failure)",
+        "startLine": 266,
+        "endLine": 266,
+        "cyclomatic": 1,
+        "cyclomaticParts": {
+          "if": 0,
+          "loop": 0,
+          "case": 0,
+          "catch": 0,
+          "ternary": 0,
+          "boolean": 0
+        },
+        "codeLines": 1,
+        "maxNesting": 0,
+        "nestingPath": ""
+      },
+      "delta": {
+        "cyclomatic": 1,
+        "codeLines": 7,
+        "maxNesting": 1
+      },
+      "triggers": [
+        "delta.maxNesting>=threshold"
+      ]
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskBatch.java",
+      "symbol": "TaskBatch#deriveScopeTermination(String batchName, List<ImmediateResult<T>> frozen)",
+      "startLine": 242,
+      "endLine": 276,
+      "cyclomatic": 13,
+      "cyclomaticParts": {
+        "if": 7,
+        "loop": 1,
+        "case": 0,
+        "catch": 0,
+        "ternary": 2,
+        "boolean": 2
+      },
+      "codeLines": 35,
+      "maxNesting": 3,
+      "nestingPath": "for>if>if",
+      "status": "added",
+      "base": null,
+      "delta": {
+        "cyclomatic": null,
+        "codeLines": null,
+        "maxNesting": null
+      },
+      "triggers": [
+        "head.cyclomatic>=threshold"
+      ]
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+      "startLine": 555,
+      "endLine": 613,
+      "cyclomatic": 13,
+      "cyclomaticParts": {
+        "if": 3,
+        "loop": 1,
+        "case": 0,
+        "catch": 1,
+        "ternary": 5,
+        "boolean": 2
+      },
+      "codeLines": 59,
+      "maxNesting": 1,
+      "nestingPath": "for",
+      "status": "modified",
+      "base": {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "symbol": "TaskGroup#prepare(ParRuntime env, TaskGroupDefinition definition, RunBindings payloads)",
+        "startLine": 555,
+        "endLine": 612,
+        "cyclomatic": 13,
+        "cyclomaticParts": {
+          "if": 3,
+          "loop": 1,
+          "case": 0,
+          "catch": 1,
+          "ternary": 5,
+          "boolean": 2
+        },
+        "codeLines": 58,
+        "maxNesting": 1,
+        "nestingPath": "for"
+      },
+      "delta": {
+        "cyclomatic": 0,
+        "codeLines": 1,
+        "maxNesting": 0
+      },
+      "triggers": [
+        "head.cyclomatic>=threshold"
+      ]
+    },
+    {
+      "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+      "symbol": "PreparationContext#memberCompleted(MemberState member)",
+      "startLine": 854,
+      "endLine": 884,
+      "cyclomatic": 12,
+      "cyclomaticParts": {
+        "if": 7,
+        "loop": 0,
+        "case": 0,
+        "catch": 0,
+        "ternary": 0,
+        "boolean": 4
+      },
+      "codeLines": 29,
+      "maxNesting": 1,
+      "nestingPath": "if",
+      "status": "modified",
+      "base": {
+        "path": "core/src/main/java/io/github/monadrome/parallelinscope/TaskGroup.java",
+        "symbol": "PreparationContext#memberCompleted(MemberState member)",
+        "startLine": 853,
+        "endLine": 890,
+        "cyclomatic": 12,
+        "cyclomaticParts": {
+          "if": 8,
+          "loop": 0,
+          "case": 0,
+          "catch": 0,
+          "ternary": 0,
+          "boolean": 3
+        },
+        "codeLines": 35,
+        "maxNesting": 1,
+        "nestingPath": "if"
+      },
+      "delta": {
+        "cyclomatic": 0,
+        "codeLines": -6,
+        "maxNesting": 0
+      },
+      "triggers": [
+        "head.cyclomatic>=threshold"
+      ]
+    }
+  ],
+  "omittedCandidates": 0,
+  "status": "completed"
+}

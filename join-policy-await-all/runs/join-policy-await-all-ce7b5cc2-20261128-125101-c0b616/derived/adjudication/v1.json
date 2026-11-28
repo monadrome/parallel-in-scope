@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/adjudication/v1",
+  "runId": "join-policy-await-all-ce7b5cc2-20261128-125101-c0b616",
+  "version": 1,
+  "dedupVersion": 2,
+  "createdAt": "2026-11-28T13:25:02.771Z",
+  "judge": {
+    "kind": "agent",
+    "name": "kiro",
+    "model": "claude-opus-5.5",
+    "note": null
+  },
+  "verdicts": [
+    {
+      "clusterId": "C01",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Reproduced: TaskGroup.cancelGroupAndUnfinishedMembers commits CANCELLED, siblings read CANCELLED_BY_PARENT_SCOPE; the new JoinPolicy Javadoc and cancellation-propagation 1.1 said ABORTED_BY_FAIL_FAST. Behavior is pre-existing and kept; the text was wrong and is fixed in 6bd5d76e.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C02",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Reproduced: reverting the fix makes severalElementFailuresUnderAwaitAllAreNotLoggedAsAggregateFailures capture [SEVERE, SEVERE] from AggregateFuture. Fixed in 6bd5d76e (successfulAsList gate). The TaskBatch.valuesOrThrow part concerns the package-private TaskBatch, not the public result, and was not changed.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C03",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Confirmed: the scope close() is package-private and ParRuntime.close() does not cancel admitted work; public docs listed close(). Removed in 6bd5d76e.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C04",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Confirmed: task-group-cancellation.md kept the single-CAS, cancellation-first derivation text. Rewritten in 6bd5d76e.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C05",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Confirmed: lifecycle rules and the adopt Javadoc stated the cascade without the policy qualification. Fixed in 6bd5d76e.",
+      "confidence": 1
+    },
+    {
+      "clusterId": "C06",
+      "verdict": "confirmed",
+      "goldLabelIds": [],
+      "rationale": "Confirmed: real 200 ms deadlines could fire before the failure settled on a loaded runner, and awaitCallerParked returned silently. Moved to ManualClock and a failing wait in 6bd5d76e.",
+      "confidence": 1
+    }
+  ]
+}

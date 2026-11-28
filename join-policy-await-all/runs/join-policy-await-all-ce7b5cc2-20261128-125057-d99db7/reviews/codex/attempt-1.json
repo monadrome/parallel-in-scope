@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "join-policy-await-all-ce7b5cc2-20261128-125057-d99db7",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-28T12:50:57.731Z",
+  "endedAt": "2026-11-28T13:12:50.254Z",
+  "durationMs": 1312325,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all/.review-benchmark/runs/join-policy-await-all-ce7b5cc2-20261128-125057-d99db7/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all/.review-benchmark/runs/join-policy-await-all-ce7b5cc2-20261128-125057-d99db7/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all/.review-benchmark/runs/join-policy-await-all-ce7b5cc2-20261128-125057-d99db7/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek/deepseek-v4-pro",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 729cb8742acc529db16980e12e7433ea91fe1311 to ce7b5cc2b86d07ec32a861916ba029e9d9beba3a. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all/.review-benchmark/runs/join-policy-await-all-ce7b5cc2-20261128-125057-d99db7/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all/.review-benchmark/runs/join-policy-await-all-ce7b5cc2-20261128-125057-d99db7/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context: scope-termination determinism and JoinPolicy.AWAIT_ALL\n\nRange: 729cb874 (dev/v0.5.0 tip) .. HEAD of branch feat/join-policy-await-all, five commits:\n\n1. `fix: derive the scope termination from frozen results, not settle order` (stage A). Removes the\n   arrival-order `ScopeTerminationAccumulator`. `TaskBatch#deriveScopeTermination` and\n   `TaskGroup#deriveScopeTermination`/`failedTask` derive the scope termination at freeze /\n   convergence: first FAILED in input/declaration order outranks every cancellation; then the\n   group's direct-member and caller rules, then the token's committed state.\n2. `test: keep the convergence test name and except the removed accumulator test`.\n3. `feat: add a per-scope join policy with AWAIT_ALL` (stage B). Public `JoinPolicy` enum,\n   `BatchOptions.joinPolicy`, `GroupStart.joinPolicy`. `CancellationToken.bind` picks\n   `allAsList` (FAIL_FAST) or `successfulAsList` (AWAIT_ALL); token state `SUCCESS` renamed\n   `COMPLETED`. `TaskGroup.memberCompleted` skips the direct-cancel cascade under AWAIT_ALL and\n   `skipCombineAfterAllMembersSettled` cancels a declared combine via `groupToken.failFastCancel()`\n   once every member settled with a non-success. `Par.executeCombined` does the same for\n   `mapAndCombine` via a `successfulAsList(views)` listener.\n4. `test: match the fail-fast commit-order mutation to the policy-guarded callback`.\n5. `refactor: tighten the join-policy derivations and their test setup` (refactoring-review\n   items R2-R5; R1 deferred). Treat these as settled; check behavior preservation of commit 5.\n\nOwning contracts (read the changed sections): `design/task-termination-and-scope.md` section 4,\n`design/cancellation-propagation.md` sections 1 and 1.1, `design/task-group-cancellation.md` 8.2-8.3,\n`design/batch-terminal-combine.md`, `design/task-group-terminal-combine.md` section 8. User docs:\n`docs/en/user-guide.md` (#join-policy, #scope-termination), `docs/en/design/idea-graveyard.md`.\n\nDo not read `verification/contract-tests/`.\n\nAttack surfaces:\n\n- Interleavings: member settle vs group convergence barrier (`completedTasks`), the nested\n  combine completion inside `failFastCancel`, `settledMembers`/`memberSuccesses` publication,\n  deadline/cancelOn/parent cancellation racing the last member settle under AWAIT_ALL,\n  `successfulAsList(views)` listener vs the batch token's own aggregate, sliding-window refill\n  after a failure, direct-executor and inline execution paths.\n- Contract versus implementation: diff every MUST/MUST NOT in the commit messages and in\n  `cancellation-propagation.md` section 1.1 and `task-termination-and-scope.md` section 4 against\n  the code line by line, including attribution reasons and their source identities.\n- Behavior changes for existing FAIL_FAST callers: anything that changed when the policy is the\n  default (scope termination precedence, failedTaskName, values future, report strings).\n- Test quality: do the new tests (`AwaitAllJoinPolicyTest`, `ScopeTerminationOrderTest`) fail\n  without the code they guard; are any of them timing-dependent or vacuous.\n- Java 8 API use in `core/src/main/java`, generics, nullability (JSpecify/NullAway).\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/join-policy-await-all/.review-benchmark/runs/join-policy-await-all-ce7b5cc2-20261128-125057-d99db7/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "deepseek",
+    "model": "deepseek/deepseek-v4-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 260133,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the five-commit join-policy change (scope-termination derivation from frozen results, AWAIT_ALL JoinPolicy, SUCCESS→COMPLETED token rename, combine-skip paths for groups and mapAndCombine, tests, docs, and race claims). I traced the convergence barrier, the nested combine completion inside failFastCancel, settledMembers/memberSuccesses publication, deadline/cancelOn/parent races against the last member settle, the successfulAsList listener vs the batch token aggregate, and sliding-window refill, and diffed the owning contracts (cancellation-propagation §1.1, task-termination-and-scope §4, batch/group terminal-combine) against the code. The derivations match the documented priority orders and source identities, the RMW-based publication of memberSuccesses through settledMembers is correct, and no reproducible defect introduced or materially exposed by this change was found.",
+  "findings": [],
+  "rawFindings": [],
+  "error": null
+}
