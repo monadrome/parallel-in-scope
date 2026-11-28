@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-28T03:03:32.753Z",
+  "endedAt": "2026-11-28T03:08:47.259Z",
+  "durationMs": 314294,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek/deepseek-v4-pro",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 9cae3d5fe4ec9839098244594bea186b3e0ae6a2 to 56f3b8b4b158550c9e49d93e4a8ce894e670570a. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context: route protected-path changes through pull requests\n\nRange: 9cae3d5f..56f3b8b4, one commit, `docs: route protected-path changes through pull requests`.\n\nBackground. `verification/verification-integrity.md` has a \"Protected infrastructure\" section. Changes to\nthose paths need code-owner review through `.github/CODEOWNERS`. The `verification-integrity` job in\n`.github/workflows/ci.yml` runs only on pull requests. The project-delivery workflow allows a direct\nfast-forward push to `dev/v0.5.0`, which skips that job and code-owner review. An agent on that route could\nadd a `REVIEWED_EXCEPTIONS` entry to `scripts/check-verification-integrity.py` and push it. A reviewer\nrated this high severity. This commit adds the rule the reviewer asked for. The maintainer approved adding\na rule in this session, so do not re-open whether a rule should exist. Review its wording and completeness.\n\nThe change. One bullet, \"Protected paths\", added under \"Delivery And CI\" in\n`.agents/skills/project-delivery/references/workflow.md`, directly after the \"Direct development delivery\"\nbullet. The commit body carries MUST and MUST NOT lines for the workflow contract, plus an\n`assurance: SKIPPED` line.\n\nAttack surfaces. Read the diff and each file named below. Do not edit anything.\n\n1. Trigger completeness. Compare the bullet's trigger with the Protected infrastructure section of\n   `verification/verification-integrity.md` and with `.github/CODEOWNERS`. Does any path that code-owner\n   review protects escape the rule? Is the relative link and its anchor correct?\n2. Self-approval. Can an agent satisfy \"the maintainer's approval in the current session\" without a\n   maintainer? Is the requirement checkable? Does quoting the approval in the commit body close the gap the\n   finding describes?\n3. Consistency. Read `.agents/skills/project-delivery/SKILL.md` (\"Authority And Stops\"),\n   `.agents/skills/project-delivery/references/workflow.md` (the direct-delivery and named-branch bullets),\n   and root `AGENTS.md` (\"Permissions\" and \"Verification And Completion\"). Does the bullet contradict any of\n   them? Does it restate a fact that should be a pointer (single source of truth)?\n4. Gotchas. The bullet says the integrity job runs only on pull requests, and that a `REVIEWED_EXCEPTIONS`\n   entry counts as a protected change because the script is protected. Verify both against\n   `.github/workflows/ci.yml` and `scripts/check-verification-integrity.py`.\n5. Commit body. Does it list every MUST and MUST NOT the change adds, as the workflow contract requires?\n   Is the `assurance: SKIPPED` reason sound under `.agents/skills/project-delivery/references/assurance.md`\n   for a documentation-only change to a delivery reference?\n6. Writing. Does the bullet state the rule once, front-load its trigger, avoid line numbers and commit\n   hashes, and avoid restating the protected list?\n\nFor each finding, give the file, the heading or rule text, a severity (blocking, high, medium, or low), the\nevidence, and the smallest fix. If there are no findings, say so.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-56f3b8b4-20261128-030331-7ae6b7/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "deepseek",
+    "model": "deepseek/deepseek-v4-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 72812,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "The change adds one delivery rule under \"Delivery And CI\" that routes protected-path changes through pull requests, with a maintainer-approval exception for direct pushes. The trigger is complete and correctly linked: the bullet points at the Protected infrastructure list, whose six paths exactly match .github/CODEOWNERS and scripts/check-verification-integrity.py's is_protected_file, and the relative link and anchor resolve correctly. The MUST/MUST NOT body lines cover the added contract, and the assurance: SKIPPED disposition is sound for an agent-workflow documentation edit. One completeness gap remains: the direct-push exception rests on a self-authored commit-body quote, which is not independently verifiable and therefore does not fully close the self-approval path the rule exists to prevent.",
+  "findings": [
+    {
+      "file": ".agents/skills/project-delivery/references/workflow.md",
+      "lineStart": 98,
+      "lineEnd": 99,
+      "title": "Direct-push maintainer-approval exception is self-certifiable",
+      "trigger": "An agent on the direct-development-delivery route writes a commit whose body quotes a fabricated maintainer approval and fast-forward pushes a protected-path change (for example a REVIEWED_EXCEPTIONS entry in scripts/check-verification-integrity.py) to dev/v0.5.0.",
+      "consequence": "The protected change lands without code-owner review, reproducing the exact self-approval the rule exists to prevent. Neither the skipped verification-integrity job (ci.yml gates it on github.event_name == 'pull_request') nor a post-hoc reviewer can distinguish the fabricated quote from a genuine approval, because the agent authors the commit body.",
+      "evidence": "workflow.md:98-99 conditions the direct push on \"the maintainer's approval in the current session\" and \"its commit body quotes that approval\"; the commit body is agent-authored, and verification/verification-integrity.md:49-78 names CODEOWNERS plus server-side branch protection as the trust boundary, with no push-side check to corroborate the quote.",
+      "severity": "P2",
+      "confidence": 0.7,
+      "suggestedFix": "Require every protected-path change to go through a pull request, or require the approval to be evidenced in a channel the agent cannot author, such as a GitHub PR review approval by a code owner or the maintainer performing the push themselves.",
+      "id": "codex:0",
+      "reviewer": "codex",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": ".agents/skills/project-delivery/references/workflow.md",
+      "lineStart": 98,
+      "lineEnd": 99,
+      "title": "Direct-push maintainer-approval exception is self-certifiable",
+      "trigger": "An agent on the direct-development-delivery route writes a commit whose body quotes a fabricated maintainer approval and fast-forward pushes a protected-path change (for example a REVIEWED_EXCEPTIONS entry in scripts/check-verification-integrity.py) to dev/v0.5.0.",
+      "consequence": "The protected change lands without code-owner review, reproducing the exact self-approval the rule exists to prevent. Neither the skipped verification-integrity job (ci.yml gates it on github.event_name == 'pull_request') nor a post-hoc reviewer can distinguish the fabricated quote from a genuine approval, because the agent authors the commit body.",
+      "evidence": "workflow.md:98-99 conditions the direct push on \"the maintainer's approval in the current session\" and \"its commit body quotes that approval\"; the commit body is agent-authored, and verification/verification-integrity.md:49-78 names CODEOWNERS plus server-side branch protection as the trust boundary, with no push-side check to corroborate the quote.",
+      "severity": "P2",
+      "confidence": 0.7,
+      "suggestedFix": "Require every protected-path change to go through a pull request, or require the approval to be evidenced in a channel the agent cannot author, such as a GitHub PR review approval by a code owner or the maintainer performing the push themselves."
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "direct-push-protected-paths-91e82480-20261128-031842-6943c7",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T03:18:43.130Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths",
+    "name": "direct-push-protected-paths",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "to": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "label": "56f3b8b4..91e82480"
+  },
+  "objective": {
+    "subject": "docs: require pull requests for every protected-path change",
+    "body": "Two independent reviews of 56f3b8b4 found that its maintainer-approval\nexception let an agent push a protected change: the agent writes the commit\nbody that quotes the approval, so the quote proves nothing. The exception is\nremoved. Protected paths always go through a pull request, and only the\nmaintainer pushes them directly.\n\nThe same reviews found two more problems, both fixed here:\n- The Named branch bullet forbids the separate branch a pull request needs.\n  The protected-path bullet now authorizes that branch.\n- The bullet restated the integrity job's pull-request-only trigger. It no\n  longer does; the rule rests on code-owner review, which the verification\n  contract describes.\n\nMUST: a change to a path listed under Protected infrastructure in verification/verification-integrity.md goes through a pull request, which an agent opens on its own branch; only the maintainer pushes such a change directly.\nMUST NOT: push a protected-path change directly on any approval an agent records, including one quoted in its own commit body.\n\nMaintainer approval, this session: \"optimize this, consider this is my approval\" (approves this rule and its optimization).\n\nassurance: SKIPPED. Scope: one bullet in a project-delivery reference, documentation only. It changes no library runtime contract and no behavioral evidence, so no required condition holds."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "0a421fc69b8eefb521c718ea85e9e668694cee061843fb2e27d7ad9f8ddc2957",
+    "bytes": 1648,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 4
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "d617b5e000f6b6079b7c24cf6253aec3bf34d1fca356008b859bbf412c01cdb6",
+    "bytes": 2859,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

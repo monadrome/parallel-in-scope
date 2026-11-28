@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "direct-push-protected-paths-91e82480-20261128-031842-6943c7",
+  "version": 1,
+  "createdAt": "2026-11-28T03:22:53.554Z",
+  "inputs": {
+    "dedupVersion": 1,
+    "adjudicationVersion": null,
+    "goldVersion": 1,
+    "reviews": [
+      {
+        "agent": "codex",
+        "attempt": 1,
+        "sha256": "69e6148b333ebd8eba1590d27ab4c6a6c53ac339d5f6812c1c32b3584e9850f4"
+      }
+    ]
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 63901,
+    "systemsWithUsage": 1,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "codex": {
+      "identity": {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "deepseek",
+        "model": "deepseek/deepseek-v4-pro",
+        "revision": null,
+        "effort": "high"
+      },
+      "status": "completed",
+      "durationMs": 250044,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 1,
+        "adjudicated": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 1
+      },
+      "rates": {
+        "confirmed": null,
+        "rejected": null,
+        "neutral": null,
+        "uncertain": null
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": 63901,
+        "cost": null,
+        "currency": null
+      },
+      "error": null
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 1,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 1
+    },
+    "findings": {
+      "total": 1,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 1
+    },
+    "rates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "findingRates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "macro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "systemsAdjudicated": 0
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values",
+    "dedup uses identity clusters; semantic deduplication requires explicit clusters input",
+    "1 clusters are pending adjudication and excluded from rate denominators",
+    "no adjudication version exists; all clusters are pending"
+  ]
+}

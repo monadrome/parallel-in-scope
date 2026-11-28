@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "llm-review-bench/review/v1",
+  "runId": "direct-push-protected-paths-91e82480-20261128-031842-6943c7",
+  "agent": "codex",
+  "attempt": 1,
+  "startedAt": "2026-11-28T03:18:43.195Z",
+  "endedAt": "2026-11-28T03:22:53.432Z",
+  "durationMs": 250044,
+  "exitCode": 0,
+  "timedOut": false,
+  "command": {
+    "file": "codex",
+    "args": [
+      "exec",
+      "-C",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-91e82480-20261128-031842-6943c7/snapshot",
+      "--sandbox",
+      "read-only",
+      "--add-dir",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-91e82480-20261128-031842-6943c7/agent-output/codex/attempt-1",
+      "--output-last-message",
+      "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-91e82480-20261128-031842-6943c7/agent-output/codex/attempt-1/last-message.json",
+      "--model",
+      "deepseek/deepseek-v4-pro",
+      "-c",
+      "model_reasoning_effort=high",
+      "You are one independent reviewer in the llm-review-bench benchmark.\n\nReview the change from 56f3b8b4b158550c9e49d93e4a8ce894e670570a to 91e824808d96eaf0967021dce23e1c954df0d012. The current working directory is a\nread-only git worktree snapshot at the head commit. The unified diff is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-91e82480-20261128-031842-6943c7/inputs/diff.patch;\nthe shared context is at /Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-91e82480-20261128-031842-6943c7/inputs/context.md. Do not modify the snapshot. Do not read\nbenchmark gold labels, adjudication records, or other reviewers' output.\n\nReturn exactly one JSON object and nothing else (no Markdown fences, no prose):\n\n{\n  \"summary\": \"one short paragraph describing the review\",\n  \"findings\": [\n    {\n      \"file\": \"repository-relative/path.ext\",\n      \"lineStart\": 123,\n      \"lineEnd\": 130,\n      \"title\": \"short defect title\",\n      \"trigger\": \"concrete input, interleaving, or condition that reaches the defect\",\n      \"consequence\": \"observable failure or contract violation\",\n      \"evidence\": \"code path with file:line references\",\n      \"severity\": \"P0|P1|P2|P3\",\n      \"confidence\": 0.0,\n      \"suggestedFix\": \"actionable fix\"\n    }\n  ]\n}\n\nRules:\n- Report only defects introduced or materially exposed by this change.\n- Every finding must have a concrete trigger and a user-observable consequence.\n- Cite repository-relative files and the line range in the head snapshot.\n- confidence is a number from 0 to 1.\n- At most 20 findings. Return {\"summary\":\"...\",\"findings\":[]} when you find\n  nothing; do not return an empty response or prose.\n- Do not include shell commands, patches, or hidden reasoning outside the JSON object.\n\n## Shared context (verbatim, immutable)\n\n# Review context, round 2: route protected-path changes through pull requests\n\nRange for this round: 56f3b8b4..91e82480, one follow-up commit on top of the reviewed commit\n`docs: route protected-path changes through pull requests`. Read the whole \"Protected paths\" bullet in\n`.agents/skills/project-delivery/references/workflow.md` at HEAD, not only the changed lines.\n\nSettled round-1 findings. Treat each as fixed in this range; reject a claim that the fix is wrong only with\nevidence from the files.\n\n- The maintainer-approval exception let an agent push a protected change, because the agent writes the\n  commit body that quotes the approval (one P1 and one P2 from two reviewers). Fixed: the exception is\n  removed. Protected paths go through a pull request, and only the maintainer pushes them directly.\n- The Named branch bullet forbids the separate branch a pull request needs (P2). Fixed: the protected-path\n  bullet authorizes that branch and the pull request.\n- The bullet restated the integrity job's pull-request-only trigger (P3). Fixed: the bullet no longer states\n  it; the rule rests on code-owner review.\n\nAttack surfaces for this round. Read each file named.\n\n1. Completeness of the bypass closure. With the exception gone, list every route by which an agent could\n   land a change to a protected path without a pull request. Check `.agents/skills/project-delivery/SKILL.md`\n   (\"Authority And Stops\" and the delivery steps), `.agents/skills/project-delivery/references/workflow.md`\n   (every delivery bullet), and `design/issue-automation.md` (the unattended runner's human-merge list and\n   its auto-merge rule). Report any route that remains open.\n2. Consistency of protected lists. The bullet points at the Protected infrastructure list in\n   `verification/verification-integrity.md`. Compare that list with the runner's human-merge list in\n   `design/issue-automation.md`. Report any protected path the runner could merge unattended.\n3. Link and anchor. Confirm that `../../../../verification/verification-integrity.md#protected-infrastructure`\n   resolves from `.agents/skills/project-delivery/references/`.\n4. Commit body. Each commit must list the MUST and MUST NOT lines it adds or changes. Check that the\n   follow-up commit does so, and that its assurance reason fits `.agents/skills/project-delivery/references/assurance.md`.\n5. Writing. The bullet should state the rule once, front-load its trigger, avoid restating facts that\n   another document owns, and avoid line numbers and commit hashes.\n\nFor each finding, give the file, the heading or rule text, a severity (blocking, high, medium, or low), the\nevidence, and the smallest fix. A protected-path gap that lies outside this bullet is still a finding; say\nwhether this change should fix it or a separate change should. If there are no findings, say so.\nDo not edit files.\n"
+    ],
+    "cwd": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths/.review-benchmark/runs/direct-push-protected-paths-91e82480-20261128-031842-6943c7/snapshot"
+  },
+  "stdoutPath": "logs/codex-attempt-1.stdout.log",
+  "stderrPath": "logs/codex-attempt-1.stderr.log",
+  "messagePath": "agent-output/codex/attempt-1/last-message.json",
+  "worktreeModified": false,
+  "system": {
+    "agent": "codex",
+    "version": "codex-cli 0.169.0",
+    "provider": "deepseek",
+    "model": "deepseek/deepseek-v4-pro",
+    "revision": null,
+    "effort": "high"
+  },
+  "budgetDropped": 0,
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 63901,
+    "cost": null,
+    "currency": null
+  },
+  "parseWarnings": [],
+  "status": "completed",
+  "summary": "Reviewed the follow-up commit that removes the maintainer-approval exception and routes protected-path changes through pull requests. The relative link and #protected-infrastructure anchor resolve, the commit body lists the changed MUST/MUST NOT lines, the assurance SKIPPED reason fits the skip-eligible examples, and the bullet's writing is acceptable. One bypass remains outside the changed bullet: the unattended issue runner's human-merge list omits verification/verification-integrity.md, a Protected infrastructure path, so the runner can auto-merge a weakening of that contract without human or code-owner review.",
+  "findings": [
+    {
+      "file": "design/issue-automation.md",
+      "lineStart": 164,
+      "lineEnd": 167,
+      "title": "Unattended runner can merge changes to the protected verification-integrity contract",
+      "trigger": "An authorized issue's execution agent edits verification/verification-integrity.md in place (for example, relaxes a V1-V6 rule or removes the 'this contract' line from the Protected infrastructure list), and the change passes the runner's local gates, re-review, and CI.",
+      "consequence": "The path policy does not classify verification-integrity.md as human-merge-required, so 'when no human is needed' the runner squash-merges the PR into dev/vX.Y.Z unattended. A protected infrastructure path that requires code-owner review through .github/CODEOWNERS can thus be weakened without @monadrome or any human approval, defeating the bypass closure this commit adds.",
+      "evidence": "verification/verification-integrity.md:49-57 lists 'this contract' (verification/verification-integrity.md) as Protected infrastructure requiring code-owner review; design/issue-automation.md:164-167 human-merge list covers .github/, .mvn/, pom.xml, new ADRs, scripts/, .agents/skills/project-delivery/, and AGENTS.md/CLAUDE.md but omits verification/verification-integrity.md; design/issue-automation.md:179-187 squash-merges when no human is needed. The new bullet at .agents/skills/project-delivery/references/workflow.md:94-99 asserts 'code-owner review applies' but only the direct-push route is constrained, not the runner's PR merge.",
+      "severity": "P1",
+      "confidence": 0.8,
+      "suggestedFix": "In a separate change (not this workflow.md bullet), add verification/verification-integrity.md (or the protected verification/ contract directory) to the human-merge-required list in design/issue-automation.md §6 so the runner stops at agent/review for edits to the protected contract, and extend the runner's reverse-verification guardrail tests to cover that path.",
+      "id": "codex:0",
+      "reviewer": "codex",
+      "attempt": 1
+    }
+  ],
+  "rawFindings": [
+    {
+      "file": "design/issue-automation.md",
+      "lineStart": 164,
+      "lineEnd": 167,
+      "title": "Unattended runner can merge changes to the protected verification-integrity contract",
+      "trigger": "An authorized issue's execution agent edits verification/verification-integrity.md in place (for example, relaxes a V1-V6 rule or removes the 'this contract' line from the Protected infrastructure list), and the change passes the runner's local gates, re-review, and CI.",
+      "consequence": "The path policy does not classify verification-integrity.md as human-merge-required, so 'when no human is needed' the runner squash-merges the PR into dev/vX.Y.Z unattended. A protected infrastructure path that requires code-owner review through .github/CODEOWNERS can thus be weakened without @monadrome or any human approval, defeating the bypass closure this commit adds.",
+      "evidence": "verification/verification-integrity.md:49-57 lists 'this contract' (verification/verification-integrity.md) as Protected infrastructure requiring code-owner review; design/issue-automation.md:164-167 human-merge list covers .github/, .mvn/, pom.xml, new ADRs, scripts/, .agents/skills/project-delivery/, and AGENTS.md/CLAUDE.md but omits verification/verification-integrity.md; design/issue-automation.md:179-187 squash-merges when no human is needed. The new bullet at .agents/skills/project-delivery/references/workflow.md:94-99 asserts 'code-owner review applies' but only the direct-push route is constrained, not the runner's PR merge.",
+      "severity": "P1",
+      "confidence": 0.8,
+      "suggestedFix": "In a separate change (not this workflow.md bullet), add verification/verification-integrity.md (or the protected verification/ contract directory) to the human-merge-required list in design/issue-automation.md §6 so the runner stops at agent/review for edits to the protected contract, and extend the runner's reverse-verification guardrail tests to cover that path."
+    }
+  ],
+  "error": null
+}

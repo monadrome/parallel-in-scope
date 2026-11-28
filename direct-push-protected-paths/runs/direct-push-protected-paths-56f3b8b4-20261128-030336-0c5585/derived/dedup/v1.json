@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "llm-review-bench/dedup/v1",
+  "runId": "direct-push-protected-paths-56f3b8b4-20261128-030336-0c5585",
+  "version": 1,
+  "createdAt": "2026-11-28T03:14:12.129Z",
+  "method": "identity",
+  "note": "each finding is its own cluster; semantic deduplication requires explicit clusters input",
+  "clusters": [
+    {
+      "clusterId": "C01",
+      "findingIds": [
+        "codex:0"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C02",
+      "findingIds": [
+        "codex:1"
+      ],
+      "note": null
+    },
+    {
+      "clusterId": "C03",
+      "findingIds": [
+        "codex:2"
+      ],
+      "note": null
+    }
+  ]
+}

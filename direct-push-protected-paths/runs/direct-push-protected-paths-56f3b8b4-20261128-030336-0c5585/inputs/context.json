@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "llm-review-bench/context/v1",
+  "runId": "direct-push-protected-paths-56f3b8b4-20261128-030336-0c5585",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T03:03:37.226Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths",
+    "name": "direct-push-protected-paths",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "head": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "9cae3d5fe4ec9839098244594bea186b3e0ae6a2",
+    "to": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "label": "9cae3d5f..56f3b8b4"
+  },
+  "objective": {
+    "subject": "docs: route protected-path changes through pull requests",
+    "body": "Direct development delivery had no rule for protected paths. A direct push\nskips the verification-integrity job, which runs only on pull requests, so\nan agent could add its own REVIEWED_EXCEPTIONS entry without code-owner\nreview. The rule sits in the direct-push bullet and points at the protected\nlist in verification-integrity.md instead of restating it.\n\nMUST: a change to a path listed under Protected infrastructure in verification/verification-integrity.md goes through a pull request, unless the maintainer approves the direct push in the current session and the commit body quotes that approval.\nMUST NOT: push a protected-path change to a development line on an approval the agent wrote itself.\n\nMaintainer approval, this session: \"optimize this, consider this is my approval\" (approves this rule change).\n\nassurance: SKIPPED. Scope: one bullet in a project-delivery reference, documentation only. It changes no library runtime contract and no behavioral evidence, so no required condition holds."
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "aa7dd4aede083348177c20fbfb7de8e645385238c2a62f79026973faff5a95f3",
+    "bytes": 1471,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 6,
+        "deletions": 0
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "9a7c47b493f86bc701990a57c3060711fe6fcff754f824e917b8eed0df003c73",
+    "bytes": 3069,
+    "source": "provided"
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

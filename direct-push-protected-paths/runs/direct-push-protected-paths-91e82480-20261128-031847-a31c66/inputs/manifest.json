@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "llm-review-bench/case/v1",
+  "runId": "direct-push-protected-paths-91e82480-20261128-031847-a31c66",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T03:18:48.059Z",
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths",
+    "name": "direct-push-protected-paths",
+    "remote": "https://github.com/monadrome/parallel-in-scope.git"
+  },
+  "commits": {
+    "base": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "fixCommit": null
+  },
+  "range": {
+    "from": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "to": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "label": "56f3b8b4..91e82480"
+  },
+  "diff": {
+    "path": "inputs/diff.patch",
+    "sha256": "0a421fc69b8eefb521c718ea85e9e668694cee061843fb2e27d7ad9f8ddc2957",
+    "bytes": 1648,
+    "files": [
+      {
+        "path": ".agents/skills/project-delivery/references/workflow.md",
+        "status": "M",
+        "additions": 4,
+        "deletions": 4
+      }
+    ]
+  },
+  "context": {
+    "path": "inputs/context.md",
+    "sha256": "d617b5e000f6b6079b7c24cf6253aec3bf34d1fca356008b859bbf412c01cdb6",
+    "bytes": 2859,
+    "source": "provided"
+  },
+  "contextJson": {
+    "path": "inputs/context.json",
+    "sha256": "04bab066e1806bb2e769a0d25f50553536b09a5b67c2300d46c88966635bd431",
+    "bytes": 3022
+  },
+  "snapshot": {
+    "path": "snapshot",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "policy": "read-only-by-policy"
+  },
+  "rulesFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md"
+  ]
+}

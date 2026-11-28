@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "llm-review-bench/evaluation/v1",
+  "runId": "direct-push-protected-paths-91e82480-20261128-031847-a31c66",
+  "version": 1,
+  "createdAt": "2026-11-28T03:24:31.201Z",
+  "inputs": {
+    "dedupVersion": 1,
+    "adjudicationVersion": null,
+    "goldVersion": 1,
+    "reviews": [
+      {
+        "agent": "codex",
+        "attempt": 1,
+        "sha256": "8410ad5684288a4f9e0e13c39f46724223a97c852dc07ea2bf55000010d13d7d"
+      }
+    ]
+  },
+  "case": {
+    "mode": "live",
+    "source": "commit",
+    "rerunOf": null,
+    "openWorld": true,
+    "base": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "fixCommit": null,
+    "goldStatus": "open-world",
+    "goldEligibleLabels": 0
+  },
+  "usage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": 125487,
+    "systemsWithUsage": 1,
+    "systemsTotal": 1,
+    "costsByCurrency": []
+  },
+  "systems": {
+    "codex": {
+      "identity": {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "zcode",
+        "model": "zcode/GLM-5.4",
+        "revision": null,
+        "effort": "high"
+      },
+      "status": "completed",
+      "durationMs": 342813,
+      "attempts": 1,
+      "timeout": false,
+      "findings": {
+        "total": 2,
+        "adjudicated": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "neutral": 0,
+        "uncertain": 0,
+        "pending": 2
+      },
+      "rates": {
+        "confirmed": null,
+        "rejected": null,
+        "neutral": null,
+        "uncertain": null
+      },
+      "recall": {
+        "knownFix": null,
+        "knownFixHits": null,
+        "knownFixEligible": null,
+        "regression": null,
+        "regressionHits": null,
+        "regressionEligible": null,
+        "reason": "open-world case: no gold labels"
+      },
+      "goldHits": [],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": 125487,
+        "cost": null,
+        "currency": null
+      },
+      "error": null
+    }
+  },
+  "union": {
+    "clusters": {
+      "total": 2,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 2
+    },
+    "findings": {
+      "total": 2,
+      "adjudicated": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "neutral": 0,
+      "uncertain": 0,
+      "pending": 2
+    },
+    "rates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "findingRates": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "recall": {
+      "knownFix": null,
+      "knownFixHits": null,
+      "knownFixEligible": null,
+      "regression": null,
+      "regressionHits": null,
+      "regressionEligible": null,
+      "reason": "open-world case: no gold labels"
+    },
+    "goldHits": []
+  },
+  "aggregate": {
+    "micro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "macro": {
+      "confirmed": null,
+      "rejected": null,
+      "neutral": null,
+      "uncertain": null
+    },
+    "systemsAdjudicated": 0
+  },
+  "notes": [
+    "open-world case: no gold labels and no recall values",
+    "dedup uses identity clusters; semantic deduplication requires explicit clusters input",
+    "2 clusters are pending adjudication and excluded from rate denominators",
+    "no adjudication version exists; all clusters are pending"
+  ]
+}

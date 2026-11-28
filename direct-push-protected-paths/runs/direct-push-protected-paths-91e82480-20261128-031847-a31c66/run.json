@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "llm-review-bench/run/v1",
+  "runId": "direct-push-protected-paths-91e82480-20261128-031847-a31c66",
+  "mode": "live",
+  "source": "commit",
+  "rerunOf": null,
+  "working": null,
+  "createdAt": "2026-11-28T03:18:48.074Z",
+  "tool": {
+    "name": "llm-review-bench",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "root": "/Users/linqh/IdeaProjects/parallel-in-scope-new/.worktrees/direct-push-protected-paths",
+    "name": "direct-push-protected-paths"
+  },
+  "commits": {
+    "base": "56f3b8b4b158550c9e49d93e4a8ce894e670570a",
+    "head": "91e824808d96eaf0967021dce23e1c954df0d012",
+    "fixCommit": null
+  },
+  "config": {
+    "systems": [
+      {
+        "agent": "codex",
+        "version": "codex-cli 0.169.0",
+        "provider": "zcode",
+        "model": "zcode/GLM-5.4",
+        "revision": null,
+        "effort": "high",
+        "command": null,
+        "extraArgs": [],
+        "fixture": null
+      }
+    ],
+    "budget": 20,
+    "concurrency": 3,
+    "timeouts": {
+      "totalSeconds": 3060,
+      "reviewSeconds": 2700,
+      "adjudicationSeconds": 300,
+      "cleanupSeconds": 60,
+      "killGraceSeconds": 10
+    },
+    "maxOutputBytes": 8388608
+  },
+  "paths": {
+    "inputsDir": "inputs",
+    "snapshotDir": "snapshot",
+    "reviewsDir": "reviews",
+    "logsDir": "logs",
+    "derivedDir": "derived",
+    "reportsDir": "reports"
+  },
+  "hashes": {
+    "contextSha256": "d617b5e000f6b6079b7c24cf6253aec3bf34d1fca356008b859bbf412c01cdb6",
+    "contextJsonSha256": "04bab066e1806bb2e769a0d25f50553536b09a5b67c2300d46c88966635bd431",
+    "diffSha256": "0a421fc69b8eefb521c718ea85e9e668694cee061843fb2e27d7ad9f8ddc2957",
+    "caseManifestSha256": "b0d0399864a1743223deb57d9b4b581289d4ea5ad97fe9c172651722fad5ab24",
+    "promptSha256": "d29fac749377c5138950c5c884997aaa85ba3f3ed1a06e43f03b7eabc5f349c2"
+  },
+  "promptPath": "inputs/prompt.md"
+}
