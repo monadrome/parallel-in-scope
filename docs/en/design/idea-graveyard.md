@@ -8,7 +8,7 @@ This page records features we seriously considered but ultimately decided not to
 
 ## Configurable failure policies
 
-The library uses fail-fast cancellation as its batch contract. Adding `IGNORE`, `COLLECT`, and other policies would multiply result states and make cancellation ownership unclear. Applications that need partial success can catch the business exceptions they can degrade inside the task function and return an explicit domain result. Call `Checkpoints.checkpoint()` before degrading: fail-fast, deadlines, and `cancelOn` interrupt siblings, and a broad `catch (Exception e)` would count that cancellation as a downstream failure and clear the interrupt flag. Degraded elements count as successes in the batch result, so the application keeps its own failure count.
+The library uses fail-fast cancellation as its batch contract. Adding `IGNORE`, `COLLECT`, and other policies would multiply result states and make cancellation ownership unclear. Applications that need partial success can catch the business exceptions they can degrade inside the task function and return an explicit domain result. Call `Checkpoints.checkpoint()` before degrading: fail-fast, deadlines, and `cancelOn` interrupt siblings, and a broad `catch (Exception e)` would log that cancellation as a downstream failure and clear the interrupt flag, so the task code keeps running; the element itself is still attributed to the scope's cancellation. Degraded elements count as successes in the batch result, so the application keeps its own failure count.
 
 ## Fluent task orchestration
 
